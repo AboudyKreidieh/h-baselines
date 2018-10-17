@@ -37,15 +37,19 @@ blank
 
 blank
 
-### 3.a. Montezuma's Revenge
+### 3.a Verifying Baseline Performance
 
 blank
 
-### 3.b. blank
+### 3.b. Montezuma's Revenge
 
 blank
 
-### 3.c. Mixed-Autonomy Traffic
+### 3.d. blank
+
+blank
+
+### 3.e. Mixed-Autonomy Traffic
 
 blank
 
