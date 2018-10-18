@@ -7,7 +7,8 @@ sudo: required
 
 install:
   - pip install flake8 .
-  - flake8 --show-source
+  - pip install nose2
 
 script:
+  - flake8 --show-source
   - nose2
