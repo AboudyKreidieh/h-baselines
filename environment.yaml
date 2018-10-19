@@ -1,0 +1,4 @@
+name: h-baselines
+
+dependencies:
+  - python=3.6
