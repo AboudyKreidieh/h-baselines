@@ -14,7 +14,7 @@ before_script:
   - flake8 --show-source
 
 script:
-  - coverage run setup.py test
+  - python setup.py install --with-coverage
   - nose2 --with-coverage
 
 after_success:
