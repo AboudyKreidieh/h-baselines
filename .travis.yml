@@ -7,8 +7,15 @@ sudo: required
 
 install:
   - pip install flake8 .
+  - pip install coveralls
   - pip install nose2
 
-script:
+before_script:
   - flake8 --show-source
-  - nose2
+
+script:
+  - python setup.py install
+  - nose2 --with-coverage
+
+after_success:
+  - coveralls
