@@ -1,0 +1,3 @@
+numpy==1.14.0
+tensorflow==1.10.0
+gym==0.10.5
