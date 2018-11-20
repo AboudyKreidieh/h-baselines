@@ -1,3 +1,9 @@
+"""Deep Deterministic Policy Gradient (DDPG) algorithm.
+
+See: https://arxiv.org/pdf/1509.02971.pdf
+
+TODO: credit baselines and stable-baselines
+"""
 from functools import reduce
 import os
 import time
@@ -11,12 +17,14 @@ import tensorflow.contrib as tc
 from mpi4py import MPI
 
 from stable_baselines import logger
-from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, \
+    TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.ddpg.policies import DDPGPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
+from stable_baselines.a2c.utils import find_trainable_variables, \
+    total_episode_reward_logger
 from stable_baselines.ddpg.memory import Memory
 
 
@@ -173,17 +181,26 @@ def get_perturbed_actor_updates(actor,
     # assert len(actor.vars) == len(perturbed_actor.vars)
     # assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
 
-    assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
-    assert len([var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
-        len([var for var in tf_util.get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
+    assert len(tf_util.get_globals_vars(actor)) == \
+        len(tf_util.get_globals_vars(perturbed_actor))
+    assert len([var for var in tf_util.get_trainable_vars(actor)
+                if 'LayerNorm' not in var.name]) == \
+        len([var for var in tf_util.get_trainable_vars(perturbed_actor)
+             if 'LayerNorm' not in var.name])
 
     updates = []
-    for var, perturbed_var in zip(tf_util.get_globals_vars(actor), tf_util.get_globals_vars(perturbed_actor)):
-        if var in [var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]:
+    for var, perturbed_var in zip(tf_util.get_globals_vars(actor),
+                                  tf_util.get_globals_vars(perturbed_actor)):
+        if var in [var for var in tf_util.get_trainable_vars(actor)
+                   if 'LayerNorm' not in var.name]:
             if verbose >= 2:
-                logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
-            updates.append(tf.assign(perturbed_var,
-                                     var + tf.random_normal(tf.shape(var), mean=0., stddev=param_noise_stddev)))
+                logger.info('  {} <- {} + noise'.format(
+                    perturbed_var.name, var.name))
+            updates.append(
+                tf.assign(perturbed_var,
+                          var + tf.random_normal(tf.shape(var),
+                                                 mean=0.,
+                                                 stddev=param_noise_stddev)))
         else:
             if verbose >= 2:
                 logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
@@ -307,7 +324,7 @@ class DDPG(OffPolicyRLModel):
         self.action_noise = action_noise
         self.param_noise = param_noise
         self.return_range = return_range
-        self.observation_range = observation_range
+        self.observation_range = observation_range  # TODO: remove or specify
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
@@ -1228,6 +1245,14 @@ class DDPG(OffPolicyRLModel):
                                             file_handler)
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
+        """TODO: document
+
+        :param observation:
+        :param state:
+        :param mask:
+        :param deterministic:
+        :return:
+        """
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(
             observation, self.observation_space)
@@ -1246,6 +1271,13 @@ class DDPG(OffPolicyRLModel):
         return actions, None
 
     def action_probability(self, observation, state=None, mask=None):
+        """TODO: document
+
+        :param observation:
+        :param state:
+        :param mask:
+        :return:
+        """
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(
             observation, self.observation_space)
@@ -1261,6 +1293,11 @@ class DDPG(OffPolicyRLModel):
                                  feed_dict={self.obs_train: observation})[0]
 
     def save(self, save_path):
+        """TODO: document
+
+        :param save_path:
+        :return:
+        """
         data = {
             "observation_space": self.observation_space,
             "action_space": self.action_space,
@@ -1298,6 +1335,13 @@ class DDPG(OffPolicyRLModel):
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
+        """TODO: document
+
+        :param load_path:
+        :param env:
+        :param kwargs:
+        :return:
+        """
         data, params = cls._load_from_file(load_path)
 
         model = cls(None, env, _init_setup_model=False)
