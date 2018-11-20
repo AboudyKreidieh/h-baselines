@@ -1,8 +1,8 @@
 name: h-baselines
 
 dependencies:
-  - python=3.6
-  - stable-baselines
+  - python=3.6.6
+  - stable-baselines=2.2.1
   - numpy=1.14.0
   - tensorflow=1.10.0
   - gym=0.10.5
