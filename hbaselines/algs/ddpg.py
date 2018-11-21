@@ -224,8 +224,6 @@ class DDPG(OffPolicyRLModel):
         the discount rate
     memory_policy : Memory type
         the replay buffer (if None, default to baselines.ddpg.memory.Memory)
-    eval_env : gym.Env or None
-        the evaluation environment (can be None)
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -282,7 +280,6 @@ class DDPG(OffPolicyRLModel):
                  env,
                  gamma=0.99,
                  memory_policy=None,
-                 eval_env=None,
                  nb_train_steps=50,
                  nb_rollout_steps=100,
                  nb_eval_steps=100,
@@ -333,7 +330,6 @@ class DDPG(OffPolicyRLModel):
         self.reward_scale = reward_scale
         self.batch_size = batch_size
         self.critic_l2_reg = critic_l2_reg
-        self.eval_env = eval_env
         self.render = render
         self.render_eval = render_eval
         self.nb_eval_steps = nb_eval_steps
@@ -1044,9 +1040,6 @@ class DDPG(OffPolicyRLModel):
                 # Prepare everything.
                 self._reset()
                 obs = self.env.reset()
-                eval_obs = None
-                if self.eval_env is not None:
-                    eval_obs = self.eval_env.reset()
                 episodes = 0
                 step = 0
                 total_steps = 0
@@ -1080,7 +1073,7 @@ class DDPG(OffPolicyRLModel):
                              new_episode_reward,
                              new_episode_step) = self.rollout(
                                 env=self.env,
-                                init_obs=obs,
+                                init_obs=obs,  # FIXME: get obs
                                 is_eval=False,
                                 rank=rank,
                                 writer=writer,
@@ -1122,36 +1115,6 @@ class DDPG(OffPolicyRLModel):
                             epoch_actor_losses.append(actor_loss)
                             self._update_target_net()
 
-                        # Evaluate.  # TODO: get rid of duplicated code
-                        eval_episode_rewards = []
-                        eval_qs = []
-                        if self.eval_env is not None:
-                            eval_episode_reward = 0.
-                            for _ in range(self.nb_eval_steps):
-                                if total_steps >= total_timesteps:
-                                    return self
-
-                                eval_action, eval_q = self._policy(
-                                    eval_obs, apply_noise=False,
-                                    compute_q=True)
-                                eval_obs, eval_r, eval_done, _ = \
-                                    self.eval_env.step(
-                                        eval_action *
-                                        np.abs(self.action_space.low))
-                                if self.render_eval:
-                                    self.eval_env.render()
-                                eval_episode_reward += eval_r
-
-                                eval_qs.append(eval_q)
-                                if eval_done:
-                                    if not isinstance(self.env, VecEnv):
-                                        eval_obs = self.eval_env.reset()
-                                    eval_episode_rewards.append(
-                                        eval_episode_reward)
-                                    eval_episode_rewards_history.append(
-                                        eval_episode_reward)
-                                    eval_episode_reward = 0.
-
                     mpi_size = MPI.COMM_WORLD.Get_size()
 
                     # Log statistics.
@@ -1182,15 +1145,6 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['rollout/episodes'] = epoch_episodes
                     combined_stats['rollout/actions_std'] = np.std(
                         epoch_actions)
-
-                    # Evaluation statistics.
-                    if self.eval_env is not None:
-                        combined_stats['eval/return'] = eval_episode_rewards
-                        combined_stats['eval/return_history'] = np.mean(
-                            eval_episode_rewards_history)
-                        combined_stats['eval/Q'] = eval_qs
-                        combined_stats['eval/episodes'] = len(
-                            eval_episode_rewards)
 
                     def as_scalar(scalar):
                         """Check and return the input if it is a scalar.
@@ -1227,6 +1181,8 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['total/epochs'] = epoch + 1
                     combined_stats['total/steps'] = step
 
+                    # TODO: save combined_stats in a csv file
+
                     for key in sorted(combined_stats.keys()):
                         logger.record_tabular(key, combined_stats[key])
                     logger.dump_tabular()
@@ -1237,13 +1193,6 @@ class DDPG(OffPolicyRLModel):
                             with open(os.path.join(logdir, 'env_state.pkl'),
                                       'wb') as file_handler:
                                 pickle.dump(self.env.get_state(), file_handler)
-                        if self.eval_env and \
-                                hasattr(self.eval_env, 'get_state'):
-                            with open(os.path.join(logdir,
-                                                   'eval_env_state.pkl'),
-                                      'wb') as file_handler:
-                                pickle.dump(self.eval_env.get_state(),
-                                            file_handler)
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
