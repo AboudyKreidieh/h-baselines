@@ -29,7 +29,7 @@ class DQN(OffPolicyRLModel):
 
     Parameters
     ----------
-    policy : DQNPolicy or str
+    policy : DQNPolicy type or str
         The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     env : gym.Env or str
         The environment to learn from (if registered in Gym, can be str)
