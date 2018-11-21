@@ -9,6 +9,9 @@ import os
 import time
 from collections import deque
 import pickle
+import csv
+import os.path
+import datetime
 
 import gym
 import numpy as np
@@ -228,8 +231,6 @@ class DDPG(OffPolicyRLModel):
         the number of training steps
     nb_rollout_steps : int
         the number of rollout steps
-    nb_eval_steps : int
-        the number of evaluation steps
     param_noise : AdaptiveParamNoiseSpec
         the parameter noise type (can be None)
     action_noise : ActionNoise
@@ -263,8 +264,6 @@ class DDPG(OffPolicyRLModel):
         the value the reward should be scaled by
     render : bool
         enable rendering of the environment
-    render_eval : bool
-        enable rendering of the evaluation environment
     memory_limit : int
         the max number of transitions to store
     verbose : int
@@ -282,7 +281,6 @@ class DDPG(OffPolicyRLModel):
                  memory_policy=None,
                  nb_train_steps=50,
                  nb_rollout_steps=100,
-                 nb_eval_steps=100,
                  param_noise=None,
                  action_noise=None,
                  normalize_observations=False,
@@ -299,7 +297,6 @@ class DDPG(OffPolicyRLModel):
                  clip_norm=None,
                  reward_scale=1.,
                  render=False,
-                 render_eval=False,
                  memory_limit=100,
                  verbose=0,
                  tensorboard_log=None,
@@ -331,8 +328,6 @@ class DDPG(OffPolicyRLModel):
         self.batch_size = batch_size
         self.critic_l2_reg = critic_l2_reg
         self.render = render
-        self.render_eval = render_eval
-        self.nb_eval_steps = nb_eval_steps
         self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -433,7 +428,7 @@ class DDPG(OffPolicyRLModel):
 
                     # Create the policy networks.
                     self.policy_tf = self.policy(
-                        sess=self.sess,  # TODO: fill in
+                        sess=self.sess,
                         ob_space=self.observation_space,
                         ac_space=self.action_space,
                         n_env=1,
@@ -992,6 +987,7 @@ class DDPG(OffPolicyRLModel):
 
     def learn(self,
               total_timesteps,
+              dir_name=None,
               callback=None,
               seed=None,
               log_interval=100,
@@ -1002,6 +998,8 @@ class DDPG(OffPolicyRLModel):
         ----------
         total_timesteps : int
             The total number of samples to train on
+        dir_name : str, optional
+            location of the save folder
         seed : int
             The initial seed for training, if None: keep current seed
         callback : function (dict, dict)
@@ -1017,6 +1015,11 @@ class DDPG(OffPolicyRLModel):
         BaseRLModel
             the trained model
         """
+        if dir_name is not None:
+            file_path = os.path.join(dir_name, "results_{}.csv".format(seed))
+        else:
+            file_path = None
+
         with SetVerbosity(self.verbose), TensorboardWriter(
                 self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
@@ -1033,7 +1036,6 @@ class DDPG(OffPolicyRLModel):
                 logger.log('Using agent with the following configuration:')
                 logger.log(str(self.__dict__.items()))
 
-            eval_episode_rewards_history = deque(maxlen=100)
             episode_rewards_history = deque(maxlen=100)
             self.episode_reward = np.zeros((1,))
             with self.sess.as_default(), self.graph.as_default():
@@ -1051,44 +1053,66 @@ class DDPG(OffPolicyRLModel):
                 epoch_actor_losses = []
                 epoch_critic_losses = []
                 epoch_adaptive_distances = []
-                eval_episode_rewards = []
-                eval_qs = []
                 epoch_actions = []
                 epoch_qs = []
+                episode_reward = 0
+                episode_step = 0
                 epoch_episodes = 0
                 epoch = 0
                 while True:
                     for _ in range(log_interval):
                         # Perform rollouts.
-                        i = 0
-                        while i < self.nb_rollout_steps:
+                        for _ in range(self.nb_rollout_steps):
                             if total_steps >= total_timesteps:
                                 return self
 
-                            # perform a rollout
-                            (new_steps,
-                             new_total_steps,
-                             new_epoch_actions,
-                             new_epoch_qs,
-                             new_episode_reward,
-                             new_episode_step) = self.rollout(
-                                env=self.env,
-                                init_obs=obs,  # FIXME: get obs
-                                is_eval=False,
-                                rank=rank,
-                                writer=writer,
-                                callback=callback)
+                            # Predict next action.
+                            action, q_value = self._policy(
+                                obs, apply_noise=True, compute_q=True)
+                            assert action.shape == self.env.action_space.shape
 
-                            # update statistics
-                            step += new_steps
-                            total_steps += new_total_steps
-                            epoch_actions.extend(new_epoch_actions)
-                            epoch_qs.extend(new_epoch_qs)
-                            epoch_episode_rewards.append(new_episode_reward)
-                            epoch_episode_steps.append(new_episode_step)
-                            epoch_episodes += 1
-                            episodes += 1
-                            i += new_steps
+                            # Execute next action.
+                            if rank == 0 and self.render:
+                                self.env.render()
+                            new_obs, reward, done, _ = self.env.step(
+                                action * np.abs(self.action_space.low))
+
+                            if writer is not None:
+                                ep_rew = np.array([reward]).reshape((1, -1))
+                                ep_done = np.array([done]).reshape((1, -1))
+                                self.episode_reward = \
+                                    total_episode_reward_logger(
+                                        self.episode_reward, ep_rew, ep_done,
+                                        writer, total_steps)
+                            step += 1
+                            total_steps += 1
+                            if rank == 0 and self.render:
+                                self.env.render()
+                            episode_reward += reward
+                            episode_step += 1
+
+                            # Book-keeping.
+                            epoch_actions.append(action)
+                            epoch_qs.append(q_value)
+                            self._store_transition(
+                                obs, action, reward, new_obs, done)
+                            obs = new_obs
+                            if callback is not None:
+                                callback(locals(), globals())
+
+                            if done:
+                                # Episode done.
+                                epoch_episode_rewards.append(episode_reward)
+                                episode_rewards_history.append(episode_reward)
+                                epoch_episode_steps.append(episode_step)
+                                episode_reward = 0.
+                                episode_step = 0
+                                epoch_episodes += 1
+                                episodes += 1
+
+                                self._reset()
+                                if not isinstance(self.env, VecEnv):
+                                    obs = self.env.reset()
 
                         # Train.
                         epoch_actor_losses = []
@@ -1181,7 +1205,15 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['total/epochs'] = epoch + 1
                     combined_stats['total/steps'] = step
 
-                    # TODO: save combined_stats in a csv file
+                    # save combined_stats in a csv file
+                    if file_path is not None:
+                        exists = os.path.exists(file_path)
+                        with open(file_path, 'a') as f:
+                            w = csv.DictWriter(
+                                f, fieldnames=combined_stats.keys())
+                            if not exists:
+                                w.writeheader()
+                            w.writerow(combined_stats)
 
                     for key in sorted(combined_stats.keys()):
                         logger.record_tabular(key, combined_stats[key])
@@ -1231,7 +1263,6 @@ class DDPG(OffPolicyRLModel):
         data = {
             "observation_space": self.observation_space,
             "action_space": self.action_space,
-            "nb_eval_steps": self.nb_eval_steps,
             "param_noise_adaption_interval":
                 self.param_noise_adaption_interval,
             "nb_train_steps": self.nb_train_steps,
@@ -1280,15 +1311,13 @@ class DDPG(OffPolicyRLModel):
 
         return model
 
-    def rollout(self, env, init_obs, is_eval, rank, writer, callback):
+    def rollout(self, env, init_obs, rank, writer, callback):
         # reset the environment and components of the algorithm
         self._reset()
         if not isinstance(env, VecEnv):
             obs = env.reset()
         else:
             obs = init_obs.copy()
-
-        render = self.render_eval if is_eval else self.render
 
         done = False
         steps = 0
@@ -1297,7 +1326,8 @@ class DDPG(OffPolicyRLModel):
         episode_step = 0
         epoch_actions = []
         epoch_qs = []
-        for _ in range(1000):
+        while not done:
+        # for _ in range(np.inf):
             # Predict next action.
             action, q_value = self._policy(
                 obs, apply_noise=True, compute_q=True)
