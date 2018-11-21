@@ -800,7 +800,7 @@ class DDPG(OffPolicyRLModel):
         ----------
         obs0 : list of float or list of int
             the last observation
-        action : list of float
+        action : list of float or np.ndarray
             the action
         reward : float
             the reward
@@ -1047,8 +1047,6 @@ class DDPG(OffPolicyRLModel):
                 eval_obs = None
                 if self.eval_env is not None:
                     eval_obs = self.eval_env.reset()
-                episode_reward = 0.
-                episode_step = 0
                 episodes = 0
                 step = 0
                 total_steps = 0
@@ -1069,58 +1067,35 @@ class DDPG(OffPolicyRLModel):
                 while True:
                     for _ in range(log_interval):
                         # Perform rollouts.
-                        for _ in range(self.nb_rollout_steps):
+                        i = 0
+                        while i < self.nb_rollout_steps:
                             if total_steps >= total_timesteps:
                                 return self
 
-                            # Predict next action.
-                            action, q_value = self._policy(
-                                obs, apply_noise=True, compute_q=True)
-                            assert action.shape == self.env.action_space.shape
+                            # perform a rollout
+                            (new_steps,
+                             new_total_steps,
+                             new_epoch_actions,
+                             new_epoch_qs,
+                             new_episode_reward,
+                             new_episode_step) = self.rollout(
+                                env=self.env,
+                                init_obs=obs,
+                                is_eval=False,
+                                rank=rank,
+                                writer=writer,
+                                callback=callback)
 
-                            # Execute next action.
-                            if rank == 0 and self.render:
-                                self.env.render()
-                            new_obs, reward, done, _ = \
-                                self.env.step(action *
-                                              np.abs(self.action_space.low))
-
-                            if writer is not None:
-                                ep_rew = np.array([reward]).reshape((1, -1))
-                                ep_done = np.array([done]).reshape((1, -1))
-                                self.episode_reward = \
-                                    total_episode_reward_logger(
-                                        self.episode_reward, ep_rew, ep_done,
-                                        writer, total_steps)
-                            step += 1
-                            total_steps += 1
-                            if rank == 0 and self.render:
-                                self.env.render()
-                            episode_reward += reward
-                            episode_step += 1
-
-                            # Book-keeping.
-                            epoch_actions.append(action)
-                            epoch_qs.append(q_value)
-                            self._store_transition(obs, action, reward,
-                                                   new_obs, done)
-                            obs = new_obs
-                            if callback is not None:
-                                callback(locals(), globals())
-
-                            if done:
-                                # Episode done.
-                                epoch_episode_rewards.append(episode_reward)
-                                episode_rewards_history.append(episode_reward)
-                                epoch_episode_steps.append(episode_step)
-                                episode_reward = 0.
-                                episode_step = 0
-                                epoch_episodes += 1
-                                episodes += 1
-
-                                self._reset()
-                                if not isinstance(self.env, VecEnv):
-                                    obs = self.env.reset()
+                            # update statistics
+                            step += new_steps
+                            total_steps += new_total_steps
+                            epoch_actions.extend(new_epoch_actions)
+                            epoch_qs.extend(new_epoch_qs)
+                            epoch_episode_rewards.append(new_episode_reward)
+                            epoch_episode_steps.append(new_episode_step)
+                            epoch_episodes += 1
+                            episodes += 1
+                            i += new_steps
 
                         # Train.
                         epoch_actor_losses = []
@@ -1355,3 +1330,58 @@ class DDPG(OffPolicyRLModel):
         model.sess.run(restores)
 
         return model
+
+    def rollout(self, env, init_obs, is_eval, rank, writer, callback):
+        # reset the environment and components of the algorithm
+        self._reset()
+        if not isinstance(env, VecEnv):
+            obs = env.reset()
+        else:
+            obs = init_obs.copy()
+
+        render = self.render_eval if is_eval else self.render
+
+        done = False
+        steps = 0
+        total_steps = 0
+        episode_reward = 0
+        episode_step = 0
+        epoch_actions = []
+        epoch_qs = []
+        for _ in range(1000):
+            # Predict next action.
+            action, q_value = self._policy(
+                obs, apply_noise=True, compute_q=True)
+            assert action.shape == self.env.action_space.shape
+
+            # Execute next action.
+            new_obs, reward, done, _ = self.env.step(
+                action * np.abs(self.action_space.low))
+
+            if writer is not None:
+                ep_rew = np.array([reward]).reshape((1, -1))
+                ep_done = np.array([done]).reshape((1, -1))
+                self.episode_reward = total_episode_reward_logger(
+                    self.episode_reward, ep_rew, ep_done, writer, total_steps)
+
+            steps += 1
+            total_steps += 1
+            if rank == 0 and self.render:
+                self.env.render()
+            episode_reward += reward
+            episode_step += 1
+
+            # Book-keeping.
+            epoch_actions.append(action)
+            epoch_qs.append(q_value)
+            self._store_transition(obs, action, reward, new_obs, done)
+            obs = new_obs
+            if callback is not None:
+                callback(locals(), globals())
+
+            # Check whether episode is done.
+            if done:
+                break
+
+        return (steps, total_steps, epoch_actions, epoch_qs,
+                episode_reward, episode_step)
