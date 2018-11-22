@@ -983,7 +983,7 @@ class DDPG(OffPolicyRLModel):
 
     def learn(self,
               total_timesteps,
-              dir_name=None,
+              file_path=None,
               callback=None,
               seed=None,
               log_interval=100,
@@ -994,8 +994,8 @@ class DDPG(OffPolicyRLModel):
         ----------
         total_timesteps : int
             The total number of samples to train on
-        dir_name : str, optional
-            location of the save folder
+        file_path : str, optional
+            location of the save file
         seed : int
             The initial seed for training, if None: keep current seed
         callback : function (dict, dict)
@@ -1011,11 +1011,6 @@ class DDPG(OffPolicyRLModel):
         BaseRLModel
             the trained model
         """
-        if dir_name is not None:
-            file_path = os.path.join(dir_name, "results_{}.csv".format(seed))
-        else:
-            file_path = None
-
         with SetVerbosity(self.verbose), TensorboardWriter(
                 self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
