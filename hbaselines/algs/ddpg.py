@@ -2,7 +2,8 @@
 
 See: https://arxiv.org/pdf/1509.02971.pdf
 
-TODO: credit baselines and stable-baselines
+The majority of this code is adapted from the following repository:
+https://github.com/hill-a/stable-baselines
 """
 from functools import reduce
 import os
@@ -179,10 +180,6 @@ def get_perturbed_actor_updates(actor,
     tf.Operation
         the update function
     """
-    # TODO: simplify this to this:
-    # assert len(actor.vars) == len(perturbed_actor.vars)
-    # assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
-
     assert len(tf_util.get_globals_vars(actor)) == \
         len(tf_util.get_globals_vars(perturbed_actor))
     assert len([var for var in tf_util.get_trainable_vars(actor)
@@ -1309,57 +1306,3 @@ class DDPG(OffPolicyRLModel):
         model.sess.run(restores)
 
         return model
-
-    def rollout(self, env, init_obs, rank, writer, callback):
-        # reset the environment and components of the algorithm
-        self._reset()
-        if not isinstance(env, VecEnv):
-            obs = env.reset()
-        else:
-            obs = init_obs.copy()
-
-        done = False
-        steps = 0
-        total_steps = 0
-        episode_reward = 0
-        episode_step = 0
-        epoch_actions = []
-        epoch_qs = []
-        while not done:
-        # for _ in range(np.inf):
-            # Predict next action.
-            action, q_value = self._policy(
-                obs, apply_noise=True, compute_q=True)
-            assert action.shape == self.env.action_space.shape
-
-            # Execute next action.
-            new_obs, reward, done, _ = self.env.step(
-                action * np.abs(self.action_space.low))
-
-            if writer is not None:
-                ep_rew = np.array([reward]).reshape((1, -1))
-                ep_done = np.array([done]).reshape((1, -1))
-                self.episode_reward = total_episode_reward_logger(
-                    self.episode_reward, ep_rew, ep_done, writer, total_steps)
-
-            steps += 1
-            total_steps += 1
-            if rank == 0 and self.render:
-                self.env.render()
-            episode_reward += reward
-            episode_step += 1
-
-            # Book-keeping.
-            epoch_actions.append(action)
-            epoch_qs.append(q_value)
-            self._store_transition(obs, action, reward, new_obs, done)
-            obs = new_obs
-            if callback is not None:
-                callback(locals(), globals())
-
-            # Check whether episode is done.
-            if done:
-                break
-
-        return (steps, total_steps, epoch_actions, epoch_qs,
-                episode_reward, episode_step)

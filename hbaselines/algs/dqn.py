@@ -2,7 +2,8 @@
 
 See: https://arxiv.org/pdf/1312.5602.pdf
 
-TODO: credit baselines and stable-baselines
+The majority of this code is adapted from the following repository:
+https://github.com/hill-a/stable-baselines
 """
 from functools import partial
 
