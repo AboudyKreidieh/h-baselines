@@ -11,7 +11,6 @@ from collections import deque
 import pickle
 import csv
 import os.path
-import datetime
 
 import gym
 import numpy as np
