@@ -188,6 +188,7 @@ class LSTMPolicy(FullyConnectedPolicy):
             sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
             reuse=reuse, scale=(feature_extraction == "cnn"))
 
+    # TODO: observations need to be entire trajectories!
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor object.
 
@@ -209,6 +210,10 @@ class LSTMPolicy(FullyConnectedPolicy):
             obs = self.processed_x
 
         hidden_size = [256]
+        horizon = 1000
+
+        # convert batch to sequence
+        obs = tf.split(obs, horizon, 1)
 
         with tf.variable_scope(scope, reuse=reuse):
             # Part 1. create the LSTM hidden layers
@@ -223,17 +228,13 @@ class LSTMPolicy(FullyConnectedPolicy):
             # getting an initial state of all zeros
             lstm_outputs, final_state = tf.contrib.rnn.static_rnn(
                 cell, obs, dtype=tf.float32)
-            num_lstm_outputs = hidden_size[-1]
-
-            # get the output from the hidden layers
-            lstm_outputs = tf.reshape(lstm_outputs, [-1, num_lstm_outputs])
 
             # Part 2. Create the output from the LSTM model
 
             # initialize the weights and biases
             out_w = tf.get_variable(
                 "W",
-                [num_lstm_outputs, self.ac_space],
+                [hidden_size[-1], self.ac_space],
                 initializer=tf.truncated_normal_initializer())
             out_b = tf.get_variable(
                 "b",
