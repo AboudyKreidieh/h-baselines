@@ -1,4 +1,32 @@
 import argparse
+import numpy as np
+
+DEFAULT_DDPG_HP = dict(
+    gamma=0.99,
+    memory_policy=None,
+    nb_train_steps=50,
+    nb_rollout_steps=100,
+    param_noise=None,
+    action_noise=None,
+    normalize_observations=False,
+    tau=0.001,
+    batch_size=128,
+    param_noise_adaption_interval=50,
+    normalize_returns=False,
+    enable_popart=False,
+    observation_range=(-5, 5),
+    critic_l2_reg=0.,
+    return_range=(-np.inf, np.inf),
+    actor_lr=1e-4,
+    critic_lr=1e-3,
+    clip_norm=None,
+    reward_scale=1.,
+    render=False,
+    memory_limit=100,
+    verbose=0,
+    tensorboard_log=None,
+    _init_setup_model=True
+)
 
 
 def get_hyperparameters(args, discrete):
@@ -8,24 +36,26 @@ def get_hyperparameters(args, discrete):
         hp = {}
     else:
         # hyperparameters for DDPG
-        hp = {"gamma": args.gamma,
-              "nb_train_steps": args.nb_train_steps,
-              "nb_rollout_steps": args.nb_rollout_steps,
-              "normalize_observations": args.normalize_observations,
-              "tau": args.tau,
-              "batch_size": args.batch_size,
-              "param_noise_adaption_interval": args.param_noise_adaption_interval,
-              "normalize_returns": args.normalize_returns,
-              "enable_popart": args.enable_popart,
-              "observation_range": (-5, 5),  # TODO: figure this out
-              "critic_l2_reg": args.critic_l2_reg,
-              "actor_lr": args.actor_lr,
-              "critic_lr": args.critic_lr,
-              "clip_norm": args.clip_norm,
-              "reward_scale": args.reward_scale,
-              "render": args.render,
-              "memory_limit": args.memory_limit,
-              "verbose": args.verbose}
+        hp = DEFAULT_DDPG_HP.copy()
+        hp.update(
+            {"gamma": args.gamma,
+             "nb_train_steps": args.nb_train_steps,
+             "nb_rollout_steps": args.nb_rollout_steps,
+             "normalize_observations": args.normalize_observations,
+             "tau": args.tau,
+             "batch_size": args.batch_size,
+             # "normalize_returns": args.normalize_returns,
+             # "enable_popart": args.enable_popart,
+             "observation_range": (-5, 5),  # TODO: figure this out
+             "critic_l2_reg": args.critic_l2_reg,
+             "actor_lr": args.actor_lr,
+             "critic_lr": args.critic_lr,
+             "clip_norm": args.clip_norm,
+             "reward_scale": args.reward_scale,
+             "render": args.render,
+             "memory_limit": int(args.memory_limit),
+             "verbose": args.verbose}
+        )
 
     return hp
 
@@ -41,15 +71,17 @@ def create_parser(description, example_usage):
         help='Name of the gym environment. This environment must either be '
              'registered in gym, be available in the computation framework '
              'Flow, or be available within the hbaselines/envs folder.')
+
+    # optional input parameters
     parser.add_argument(
-        'n_training', type=int, default=1,
+        '--n_training', type=int, default=1,
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
     parser.add_argument(
-        'steps',  type=int, default=1e6,
+        '--steps',  type=int, default=1e6,
         help='Total number of timesteps used during training.')
 
-    # optional input parameters (the hyperparameters of the algorithms)
+    # algorithm-specific hyperparameters
     parser = create_ddpg_parser(parser)
     parser = create_dqn_parser(parser)
 
@@ -93,7 +125,7 @@ def create_ddpg_parser(parser):
     parser.add_argument('--verbose', type=int, default=2,
                         help='the verbosity level: 0 none, 1 training '
                              'information, 2 tensorflow debug')
-    parser.add_argument('--memory_limit', type=int, default=1e7,
+    parser.add_argument('--memory_limit', type=int, default=1e5,
                         help='the max number of transitions to store')
 
     return parser

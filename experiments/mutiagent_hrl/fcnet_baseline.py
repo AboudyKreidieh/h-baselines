@@ -13,7 +13,7 @@ from hbaselines.algs import DDPG, DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from stable_baselines.ddpg.policies import MlpPolicy as DDPGPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" 3 --gamma 0.995'
+EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 
 
 if __name__ == '__main__':
