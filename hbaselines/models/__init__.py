@@ -1,4 +1,3 @@
-from hbaselines.models.fcnet import fully_connected_network
-from hbaselines.models.linear import linear
+from hbaselines.models.fcnet import build_fcnet
 
-__all__ = ["fully_connected_network", "linear"]
+__all__ = ["build_fcnet"]
