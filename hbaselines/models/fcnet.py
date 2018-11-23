@@ -7,7 +7,8 @@ def build_fcnet(inputs,
                 hidden_nonlinearity,
                 output_nonlinearity,
                 scope,
-                reuse):
+                reuse,
+                prefix='fc'):
     """Create a deep feedforward neural network model.
 
     Parameters
@@ -26,6 +27,8 @@ def build_fcnet(inputs,
         scope of the model
     reuse : bool
         whether to reuse the variables
+    prefix : str, optional
+        prefix to the names of variables
 
     Returns
     -------
@@ -42,7 +45,7 @@ def build_fcnet(inputs,
                 inputs=last_layer,
                 units=hidden,
                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                name='fc_{}'.format(i),
+                name='{}_{}'.format(prefix, i),
                 activation=hidden_nonlinearity
             )
 
@@ -52,7 +55,7 @@ def build_fcnet(inputs,
             units=num_outputs,
             kernel_initializer=tf.random_uniform_initializer(
                 minval=-3e-3, maxval=3e-3),
-            name=scope,
+            name='{}_{}'.format(prefix, scope),
             activation=output_nonlinearity
         )
 

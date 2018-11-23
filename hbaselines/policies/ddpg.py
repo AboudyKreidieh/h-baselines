@@ -1,25 +1,10 @@
 from stable_baselines.ddpg.policies import FeedForwardPolicy, nature_cnn
+from hbaselines.models import build_fcnet
 import tensorflow as tf
 
 
 class FullyConnectedPolicy(FeedForwardPolicy):
     """Policy object that implements a DDPG-like actor critic, using MLPs."""
-    def __init__(self,
-                 sess,
-                 ob_space,
-                 ac_space,
-                 n_env,
-                 n_steps,
-                 n_batch,
-                 reuse=False,
-                 layers=None,
-                 cnn_extractor=nature_cnn,
-                 feature_extraction="mlp",
-                 layer_norm=False,
-                 **kwargs):
-        super(FullyConnectedPolicy, self).__init__(
-            sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-            reuse=reuse, scale=(feature_extraction == "cnn"))
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor object.
@@ -41,25 +26,15 @@ class FullyConnectedPolicy(FeedForwardPolicy):
         if obs is None:
             obs = self.processed_x
 
-        hidden_size = [64, 64]
-        nonlinearity = tf.nn.relu
-
-        with tf.variable_scope(scope, reuse=reuse):
-            # input to the system
-            last_layer = tf.layers.flatten(obs)
-
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='fc_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            self.policy = tf.layers.dense(inputs=last_layer,
-                                          units=self.ac_space.shape[0],
-                                          name=scope,
-                                          activation=None)
+        self.policy = build_fcnet(
+            inputs=tf.layers.flatten(obs),
+            num_outputs=self.ac_space.shape[0],
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse
+        )
 
         return self.policy
 
@@ -87,52 +62,26 @@ class FullyConnectedPolicy(FeedForwardPolicy):
         if action is None:
             action = self.action_ph
 
-        hidden_size = [64, 64]
-        nonlinearity = tf.nn.relu
+        vf_h = tf.layers.flatten(obs)
 
-        with tf.variable_scope(scope, reuse=reuse):
-            # input to the system
-            vf_h = tf.layers.flatten(obs)
-            last_layer = tf.concat([vf_h, action], axis=-1)
+        value_fn = build_fcnet(
+            inputs=tf.concat([vf_h, action], axis=-1),
+            num_outputs=1,
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse
+        )
 
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='fc_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            value_fn = tf.layers.dense(inputs=last_layer,
-                                       units=1,
-                                       name=scope,
-                                       activation=None)
-
-            self.value_fn = value_fn
-            self._value = value_fn[:, 0]
+        self.value_fn = value_fn
+        self._value = value_fn[:, 0]
 
         return self.value_fn
 
 
 class LSTMPolicy(FullyConnectedPolicy):
     """Policy object that implements a DDPG-like actor critic, using LSTMs."""
-
-    def __init__(self,
-                 sess,
-                 ob_space,
-                 ac_space,
-                 n_env,
-                 n_steps,
-                 n_batch,
-                 reuse=False,
-                 layers=None,
-                 cnn_extractor=nature_cnn,
-                 feature_extraction="mlp",
-                 layer_norm=False,
-                 **kwargs):
-        super(LSTMPolicy, self).__init__(
-            sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-            reuse=reuse, scale=(feature_extraction == "cnn"))
 
     # TODO: observations need to be entire trajectories!
     def make_actor(self, obs=None, reuse=False, scope="pi"):
@@ -200,8 +149,7 @@ class FeudalPolicy(FeedForwardPolicy):
     pass
 
 
-# TODO
-class HIROPolicy(FeedForwardPolicy):  # TODO: rename
+class HIROPolicy(FeedForwardPolicy):
     """Policy object for the HIRO hierarchical model.
 
     In this policy, we consider two actors and two critic, one for the manager
@@ -235,6 +183,11 @@ class HIROPolicy(FeedForwardPolicy):  # TODO: rename
         super(HIROPolicy, self).__init__(
             sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
             reuse=reuse, scale=(feature_extraction == "cnn"))
+
+        # number of steps after which the manager performs an action
+        self.c = 0  # FIXME
+        # list of observations from the last c steps
+        self.prev_c_obs = []
 
         # manager policy
         self.manager = None
@@ -279,45 +232,31 @@ class HIROPolicy(FeedForwardPolicy):  # TODO: rename
         if obs is None:
             obs = self.processed_x
 
-        hidden_size = [64, 64]
-        nonlinearity = tf.nn.relu
-
+        # TODO: more than the current obs?
+        # TODO: consider doing this with LSTMs
         # create the policy for the manager
-        with tf.variable_scope(scope, reuse=reuse):
-            # TODO: more than the current obs?
-            # input to the system
-            last_layer = tf.layers.flatten(obs)
-
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='manager_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            self.manager = tf.layers.dense(inputs=last_layer,
-                                           units=self.ob_space.shape[0],
-                                           name=scope,
-                                           activation=None)
+        self.manager = build_fcnet(
+            inputs=tf.layers.flatten(obs),
+            num_outputs=self.ob_space.shape[0],
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse,
+            prefix='manager',
+        )
 
         # create the policy for the worker
-        with tf.variable_scope(scope, reuse=reuse):
-            # input to the system
-            last_layer = tf.concat([obs, self.goal_ph], axis=-1)
-
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='worker_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            self.worker = tf.layers.dense(inputs=last_layer,
-                                          units=self.ac_space.shape[0],
-                                          name=scope,
-                                          activation=None)
+        self.worker = build_fcnet(
+            inputs=tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
+            num_outputs=self.ac_space.shape[0],
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse,
+            prefix='worker',
+        )
 
         return self.manager, self.worker
 
@@ -347,55 +286,37 @@ class HIROPolicy(FeedForwardPolicy):  # TODO: rename
         if action is None:
             action = self.action_ph
 
-        hidden_size = [64, 64]
-        nonlinearity = tf.nn.relu
+        vf_h = tf.layers.flatten(obs)
 
         # value function for the manager
-        with tf.variable_scope(scope, reuse=reuse):
-            # TODO: more than the current obs?
-            # input to the system
-            vf_h = tf.layers.flatten(obs)
-            last_layer = tf.concat([vf_h, self.goal_ph], axis=-1)
-
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='manager_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            value_fn = tf.layers.dense(inputs=last_layer,
-                                       units=1,
-                                       name=scope,
-                                       activation=None)
-
-            self.manager_vf = value_fn
-            self._manager_vf = value_fn[:, 0]
+        value_fn = build_fcnet(
+            inputs=tf.concat([vf_h, self.goal_ph], axis=-1),
+            num_outputs=1,
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse,
+            prefix='manager',
+        )
+        self.manager_vf = value_fn
+        self._manager_vf = value_fn[:, 0]
 
         # value function for the worker
-        with tf.variable_scope(scope, reuse=reuse):
-            # input to the system
-            vf_h = tf.layers.flatten(obs)
-            last_layer = tf.concat([vf_h, self.goal_ph, action], axis=-1)
+        value_fn = build_fcnet(
+            inputs=tf.concat([vf_h, self.goal_ph, action], axis=-1),
+            num_outputs=1,
+            hidden_size=[128, 128],
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+            scope=scope,
+            reuse=reuse,
+            prefix='worker',
+        )
+        self.worker_vf = value_fn
+        self._worker_vf = value_fn[:, 0]
 
-            # create the hidden layers
-            for i, hidden in enumerate(hidden_size):
-                last_layer = tf.layers.dense(inputs=last_layer,
-                                             units=hidden,
-                                             name='manager_{}'.format(i),
-                                             activation=nonlinearity)
-
-            # create the output layer
-            value_fn = tf.layers.dense(inputs=last_layer,
-                                       units=1,
-                                       name=scope,
-                                       activation=None)
-
-            self.worker_vf = value_fn
-            self._worker_vf = value_fn[:, 0]
-
-        return self.value_fn
+        return self.value_fn  # FIXME
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """Return the policy for a single step.
@@ -451,11 +372,14 @@ class HIROPolicy(FeedForwardPolicy):  # TODO: rename
         list of float
             The associated value of the action from the worker
         """
+        self.prev_c_obs.append(obs)
+
         if kwargs["apply_manager"]:
             # TODO: more than the current obs?
             v_manager = self.sess.run(self._manager_vf,
                                       feed_dict={self.obs_ph: obs,
                                                  self.goal_ph: self.cur_goal})
+            self.prev_c_obs.clear()
         else:
             v_manager = None
 
