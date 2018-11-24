@@ -27,20 +27,31 @@ def get_results_labels(dir_path):
     dx = 0
     directories = [dI for dI in os.listdir(dir_path)
                    if os.path.isdir(os.path.join(dir_path, dI))]
-    print(directories)
     results = []
 
     for directory in directories:
-        res = None
-        for i in range(3):
-            path = os.path.join(dir_path, directory,
-                                'results_{}.csv'.format(i))
-            data = pd.read_csv(path)
+        # collect the path to all results files
+        path = os.path.join(dir_path, directory)
+        files = [os.path.join(path, f) for f in os.listdir(path)
+                 if os.path.isfile(os.path.join(path, f))
+                 and 'results' in f]
+
+        # if the directory does not have results files, move on to the next
+        if len(files) == 0:
+            continue
+
+        # collect the average cumulative returns per training iteration
+        res = []
+        lengths = []
+        for i, f in enumerate(files):
+            data = pd.read_csv(f)
             if i == 0:
-                res = np.zeros((len(data['total/steps']), 3))
                 dx = data['total/steps'][2] - data['total/steps'][1]
-            res[:, i] = data['rollout/return_history']
-        results.append(res.T)
+            res.append(data['rollout/return_history'])
+            lengths.append(len(data['rollout/return_history']))
+
+        res = [[r[:min(lengths)]] for r in res]
+        results.append(np.concatenate(res, axis=0))
 
     return results, directories, dx
 
@@ -92,6 +103,6 @@ def create_parser():
 
 
 if __name__ == '__main__':
-    parser = create_parser()
-    args = parser.parse_args()
+    p = create_parser()
+    args = p.parse_args()
     plot_results(args.dir_path)
