@@ -12,10 +12,11 @@ from hbaselines.utils.logger import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
 from hbaselines.algs import DDPG, DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
-from stable_baselines.ddpg.policies import MlpPolicy as DDPGPolicy
+from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
+discrete = False
 
 
 @ray.remote
@@ -37,7 +38,7 @@ def run_exp(env, hp, steps, dir_name, i):
     return None
 
 
-if __name__ == '__main__':
+def main():
     parser = create_parser(
         description='Test the performance of DDPG and DQN with fully connected'
                     ' network models on various environments.',
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'fcnet_{}'.format(datetime.datetime.now().time())
+    dir_name = 'data/fcnet/{}'.format(datetime.datetime.now().time())
     ensure_dir(dir_name)
 
     # if the environment is in Flow or h-baselines, register it
@@ -64,5 +65,11 @@ if __name__ == '__main__':
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    results = ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
-                       for i in range(args.n_training)])
+    _ = ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
+                 for i in range(args.n_training)])
+    ray.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+    os._exit(1)
