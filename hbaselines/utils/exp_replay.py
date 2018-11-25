@@ -69,11 +69,13 @@ class RecurrentMemory(Memory):
                 self.terminals1[idx][point:point+trace_length])
 
         result = {
-            'obs0': np.asarray(obs0_batch),
-            'obs1': np.asarray(obs1_batch),
-            'rewards': np.asarray(reward_batch),
-            'actions': np.asarray(action_batch),
-            'terminals1': np.asarray(terminal1_batch),
+            'obs0': np.concatenate(obs0_batch),
+            'obs1': np.concatenate(obs1_batch),
+            'rewards': np.concatenate(reward_batch).reshape(
+                [batch_size * trace_length, 1]),
+            'actions': np.concatenate(action_batch),
+            'terminals1': np.concatenate(terminal1_batch).reshape(
+                [batch_size * trace_length, 1]),
         }
         return result
 
