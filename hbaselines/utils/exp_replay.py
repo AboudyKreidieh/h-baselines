@@ -27,23 +27,26 @@ class RecurrentMemory(Memory):
         self.terminals1 = [[]]
         self.observations1 = [[]]
 
-    def sample(self, batch_size, trace_length=8):
+        # TODO: add to inputs
+        self.trace_length = 8
+
+    def sample(self, batch_size):
         """Sample a random batch from the buffer.
 
         Parameters
         ----------
         batch_size : int
             the number of element to sample for the batch
-        trace_length : int
-            number of time steps to include in each episode element
 
         Returns
         -------
         dict
             the sampled batch
         """
+        trace_length = self.trace_length
+
         # draw different episodes
-        batch_idxs = np.random.randint(low=0, high=self.nb_entries,
+        batch_idxs = np.random.randint(low=0, high=self.nb_entries-1,
                                        size=batch_size)
 
         # from each episode, draw a series of mini-episodes of length
@@ -117,6 +120,15 @@ class RecurrentMemory(Memory):
                 del self.rewards[0]
                 del self.observations1[0]
                 del self.terminals1[0]
+
+            # check if the most recent batch is too small, and if so, delete
+            if len(self.observations0[-1]) <= self.trace_length:
+                print("oops:", self.observations0[-1])
+                del self.observations0[-1]
+                del self.actions[-1]
+                del self.rewards[-1]
+                del self.observations1[-1]
+                del self.terminals1[-1]
 
             # if this a termination stage, create a new list item to fill with
             # rollout experience
