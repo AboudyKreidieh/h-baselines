@@ -102,7 +102,7 @@ class LSTMPolicy(FullyConnectedPolicy):
             hidden_size=self.actor_size,
             scope=scope,
             reuse=reuse,
-            nonlinearity=None,
+            nonlinearity=tf.nn.tanh,
         )
 
         return self.policy
@@ -116,7 +116,7 @@ class LSTMPolicy(FullyConnectedPolicy):
 
 
 # TODO
-class FeudalPolicy(FeedForwardPolicy):
+class FeudalPolicy(LSTMPolicy):
     """Policy object for the Feudal (FuN) hierarchical model.
 
     blank
@@ -124,7 +124,7 @@ class FeudalPolicy(FeedForwardPolicy):
     pass
 
 
-class HIROPolicy(FeedForwardPolicy):
+class HIROPolicy(LSTMPolicy):
     """Policy object for the HIRO hierarchical model.
 
     In this policy, we consider two actors and two critic, one for the manager
@@ -183,6 +183,9 @@ class HIROPolicy(FeedForwardPolicy):
         # a variable that internally stores the most recent goal to the worker
         self.cur_goal = None  # [0 for _ in range(ob_space.shape[0])]
 
+        # hidden size of the actor LSTM  # TODO: add to inputs
+        self.actor_size = 64
+
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor object.
 
@@ -197,39 +200,50 @@ class HIROPolicy(FeedForwardPolicy):
 
         Returns
         -------
-        tf.Tensor
-            the output tensor from the manager
-        tf.Tensor
-            the output tensor from the worker
+        tuple of tf.Tensor
+            the output tensor from the manager and the worker
         """
         if obs is None:
             obs = self.processed_x
 
+        # input to the manager
+        manager_in = tf.reshape(
+            tf.layers.flatten(obs),
+            [self.batch_size, self.train_length, self.ob_space.shape[0]]
+        )
+
         # create the policy for the manager
-        self.manager = build_fcnet(
-            inputs=tf.layers.flatten(obs),
+        m_policy, m_state_init, m_states_ph, m_state = build_lstm(
+            inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
-            scope=scope,
+            hidden_size=self.actor_size,
+            scope='manager_{}'.format(scope),
             reuse=reuse,
-            prefix='manager',
+            nonlinearity=tf.nn.tanh,
+        )
+
+        # input to the worker
+        worker_in = tf.reshape(
+            tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
+            [self.batch_size, self.train_length, self.ob_space.shape[0]]
         )
 
         # create the policy for the worker
-        self.worker = build_fcnet(
-            inputs=tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
+        w_policy, w_state_init, w_states_ph, w_state = build_lstm(
+            inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
-            scope=scope,
+            hidden_size=self.actor_size,
+            scope='worker_{}'.format(scope),
             reuse=reuse,
-            prefix='worker',
+            nonlinearity=tf.nn.tanh,
         )
 
-        return self.manager, self.worker
+        self.policy = (m_policy, w_policy)
+        self.state_init = (m_state_init, w_state_init)
+        self.states_ph = (m_states_ph, w_states_ph)
+        self.state = (m_state, w_state)
+
+        return self.policy
 
     def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
         """Create a critic object.
@@ -247,10 +261,8 @@ class HIROPolicy(FeedForwardPolicy):
 
         Returns
         -------
-        tf.Tensor
-            the output tensor for the manager
-        tf.Tensor
-            the output tensor for the worker
+        tuple of tf.Tensor
+            the output tensor for the manager and the worker
         """
         if obs is None:
             obs = self.processed_x
@@ -287,7 +299,9 @@ class HIROPolicy(FeedForwardPolicy):
         self.worker_vf = value_fn
         self._worker_vf = value_fn[:, 0]
 
-        return self.manager_vf, self.worker_vf  # FIXME
+        self.value_fn = (self.manager_vf, self.worker_vf)
+
+        return self.value_fn
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """Return the policy for a single step.
