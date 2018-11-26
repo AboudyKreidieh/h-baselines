@@ -20,7 +20,7 @@ LEARNING_RATE = [1e-5, 1e-3]
 GAMMA = [0.95, 0.99, 0.995, 0.999]
 REWARD_SCALE = [0.0005, 0.001, 0.01, 0.015, 0.1, 1]
 TARGET_UPDATE = [1e-3, 1e-1]
-GRADIENT_CLIPPING = [0, 5]  # [0, 10]
+GRADIENT_CLIPPING = [0, 10]
 # TODO: look into nb_train_steps and nb_rollout_steps
 
 
@@ -81,8 +81,9 @@ if __name__ == '__main__':
         learning_rate = 10 ** random.uniform(
             np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1]))
         gamma = 0.99  # keeping this constant for now
-        batch_size = 128  # keeping this constant for now
-        reward_scale = random.choice(REWARD_SCALE)
+        batch_size = 256  # keeping this constant for now
+        reward_scale = 0.01  # keeping this constant for now
+        # reward_scale = random.choice(REWARD_SCALE)
         target_update = 10 ** random.uniform(
             np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1]))
         gradient_clipping = random.uniform(
