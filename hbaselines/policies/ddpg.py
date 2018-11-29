@@ -178,13 +178,17 @@ class HIROPolicy(LSTMPolicy):
 
         # a placeholder for goals that are communicated to the worker
         self.goal_ph = tf.placeholder(dtype=tf.float32,
-                                      shape=self.ob_space.shape[0])
+                                      shape=[None, self.ob_space.shape[0]],
+                                      name='goal_ph')
 
         # a variable that internally stores the most recent goal to the worker
         self.cur_goal = None  # [0 for _ in range(ob_space.shape[0])]
 
         # hidden size of the actor LSTM  # TODO: add to inputs
         self.actor_size = 64
+
+        # observation from the previous time step
+        self.prev_obs = None
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor object.
@@ -217,15 +221,16 @@ class HIROPolicy(LSTMPolicy):
             inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
             hidden_size=self.actor_size,
-            scope='manager_{}'.format(scope),
+            scope='{}/manager'.format(scope),
             reuse=reuse,
             nonlinearity=tf.nn.tanh,
         )
 
         # input to the worker
         worker_in = tf.reshape(
-            tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
-            [self.batch_size, self.train_length, self.ob_space.shape[0]]
+            tf.concat([tf.layers.flatten(obs),
+                       tf.layers.flatten(self.goal_ph)], axis=-1),
+            [self.batch_size, self.train_length, 2 * self.ob_space.shape[0]]
         )
 
         # create the policy for the worker
@@ -233,7 +238,7 @@ class HIROPolicy(LSTMPolicy):
             inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
             hidden_size=self.actor_size,
-            scope='worker_{}'.format(scope),
+            scope='{}/worker'.format(scope),
             reuse=reuse,
             nonlinearity=tf.nn.tanh,
         )
@@ -270,10 +275,11 @@ class HIROPolicy(LSTMPolicy):
             action = self.action_ph
 
         vf_h = tf.layers.flatten(obs)
+        goal_ph, action = action
 
         # value function for the manager
         value_fn = build_fcnet(
-            inputs=tf.concat([vf_h, self.goal_ph], axis=-1),
+            inputs=tf.concat([vf_h, tf.layers.flatten(goal_ph)], axis=-1),
             num_outputs=1,
             hidden_size=[128, 128],
             hidden_nonlinearity=tf.nn.relu,
@@ -287,7 +293,9 @@ class HIROPolicy(LSTMPolicy):
 
         # value function for the worker
         value_fn = build_fcnet(
-            inputs=tf.concat([vf_h, self.goal_ph, action], axis=-1),
+            inputs=tf.concat(values=[
+                tf.concat([vf_h, tf.layers.flatten(goal_ph)], axis=-1),
+                action], axis=-1),
             num_outputs=1,
             hidden_size=[128, 128],
             hidden_nonlinearity=tf.nn.relu,
@@ -332,7 +340,7 @@ class HIROPolicy(LSTMPolicy):
             )
         else:
             # TODO: the thing they do in the HIRO paper
-            self.cur_goal = self.update_goal(self.cur_goal)
+            self.cur_goal = self.update_goal(self.cur_goal, obs, self.prev_obs)
 
         action = self.sess.run(
             self.worker,
@@ -343,6 +351,7 @@ class HIROPolicy(LSTMPolicy):
             }
         )
 
+        self.prev_obs = obs.copy()
         return self.cur_goal, action
 
     def value(self, obs, action, state=None, mask=None, **kwargs):
