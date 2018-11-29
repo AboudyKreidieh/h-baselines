@@ -536,7 +536,8 @@ class DDPG(OffPolicyRLModel):
                     if self.recurrent:
                         self.target_h_c = self.target_policy.states_ph
                         self.target_batch_size = self.target_policy.batch_size
-                        self.target_train_length = self.target_policy.train_length
+                        self.target_train_length = \
+                            self.target_policy.train_length
 
                 with tf.variable_scope("loss", reuse=False):
                     self.critic_tf = denormalize(
@@ -637,7 +638,8 @@ class DDPG(OffPolicyRLModel):
         """Setup the optimizer for the actor."""
         if self.verbose >= 2:
             logger.info('setting up actor optimizer')
-        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)  # TODO: add mask? (see Lample & Chatlot 2016)
+        # TODO: add mask? (see Lample & Chatlot 2016)
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
         actor_shapes = [var.get_shape().as_list()
                         for var in tf_util.get_trainable_vars('model/pi/')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
@@ -662,7 +664,8 @@ class DDPG(OffPolicyRLModel):
             self.return_range[0],
             self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(
-            self.normalized_critic_tf - normalized_critic_target_tf))  # TODO: add mask? (see Lample & Chatlot 2016)
+            # TODO: add mask? (see Lample & Chatlot 2016)
+            self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
             critic_reg_vars = [var for var
                                in tf_util.get_trainable_vars('model/qf/')

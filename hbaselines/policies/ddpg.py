@@ -327,7 +327,7 @@ class HIROPolicy(LSTMPolicy):
                 self.manager,
                 feed_dict={
                     self.obs_ph: obs,
-                    self.states_ph: state[0]  # TODO: make state tuple in this case
+                    self.states_ph: state[0]
                 }
             )
         else:
@@ -338,7 +338,7 @@ class HIROPolicy(LSTMPolicy):
             self.worker,
             feed_dict={
                 self.obs_ph: obs,
-                self.states_ph: state[1],  # TODO: make state tuple in this case
+                self.states_ph: state[1],
                 self.goal_ph: self.cur_goal
             }
         )
@@ -375,7 +375,7 @@ class HIROPolicy(LSTMPolicy):
 
         v_worker = self.sess.run(self._worker_vf,
                                  feed_dict={self.obs_ph: obs,
-                                            self.states_ph: state[1],  # TODO: make state tuple in this case
+                                            self.states_ph: state[1],
                                             self.goal_ph: self.cur_goal,
                                             self.action_ph: action})
 
