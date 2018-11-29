@@ -2,19 +2,19 @@
 import unittest
 
 
-class TestFCNet(unittest.TestCase):
+class TestMemory(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
 
 
-class TestLSTM(unittest.TestCase):
+class TestRecurrentMemory(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
 
 
-class TestLinear(unittest.TestCase):
+class TestHierarchicalRecurrentMemory(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass

@@ -2,19 +2,13 @@
 import unittest
 
 
-class TestFCNet(unittest.TestCase):
+class TestParsers(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
 
 
-class TestLSTM(unittest.TestCase):
-    """A simple test to get Travis running."""
-
-    pass
-
-
-class TestLinear(unittest.TestCase):
+class TestEnsureDirectory(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass

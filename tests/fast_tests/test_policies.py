@@ -2,19 +2,25 @@
 import unittest
 
 
-class TestFCNet(unittest.TestCase):
+class TestFullyConnectedPolicy(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
 
 
-class TestLSTM(unittest.TestCase):
+class TestLSTMPolicy(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
 
 
-class TestLinear(unittest.TestCase):
+class TestFeudalPolicy(unittest.TestCase):
+    """A simple test to get Travis running."""
+
+    pass
+
+
+class TestHIROPolicy(unittest.TestCase):
     """A simple test to get Travis running."""
 
     pass
