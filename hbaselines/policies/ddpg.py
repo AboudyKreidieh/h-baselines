@@ -1,30 +1,120 @@
-from stable_baselines.ddpg.policies import FeedForwardPolicy, nature_cnn
-from hbaselines.models import build_fcnet, build_lstm
+from stable_baselines.common.input import observation_input
+import numpy as np
 import tensorflow as tf
+from hbaselines.models import build_fcnet, build_lstm
+from gym.spaces import Box
 
 
-class FullyConnectedPolicy(FeedForwardPolicy):
+class FullyConnectedPolicy(object):
     """Policy object that implements a DDPG-like actor critic, using MLPs."""
 
-    def make_actor(self, obs=None, reuse=False, scope="pi"):
-        """See parent class."""
+    def __init__(self,
+                 sess,
+                 ob_space,
+                 ac_space,
+                 layers=None,
+                 hidden_nonlinearity=tf.nn.relu,
+                 output_nonlinearity=tf.nn.tanh):
+        """Instantiate the policy model.
+
+        Parameters
+        ----------
+        sess : blank
+            blank
+        ob_space : blank
+            blank
+        ac_space : blank
+            blank
+        layers : blank
+            blank
+        hidden_nonlinearity : blank
+            blank
+        output_nonlinearity : blank
+            blank
+        """
+        if layers is None:
+            layers = [128, 128]
+
+        # inputs
+        self.sess = sess
+        self.ob_space = ob_space
+        self.ac_space = ac_space
+        self.layers = layers
+        self.hidden_nonlinearity = hidden_nonlinearity
+        self.output_nonlinearity = output_nonlinearity
+
+        # create placeholders for the observations and actions
+        with tf.variable_scope('input', reuse=False):
+            self.obs_ph, self.processed_x = observation_input(
+                ob_space, batch_size=None, scale=False)
+            self.action_ph = tf.placeholder(
+                dtype=ac_space.dtype, shape=(None,) + ac_space.shape,
+                name='action_ph')
+
+        # variables that will be created by later methods
+        self.policy = None
+        self.value_fn = None
+        self._value = None
+
+        # some assertions
+        assert isinstance(ac_space, Box), \
+            'Error: the action space must be of type gym.spaces.Box'
+        assert np.all(np.abs(ac_space.low) == ac_space.high), \
+            'Error: the action space low and high must be symmetric'
+        assert len(layers) >= 1, \
+            'Error: must have at least one hidden layer for the policy.'
+
+    def make_actor(self, obs=None, reuse=False, scope='pi'):
+        """Create an actor tensor.
+
+        Parameters
+        ----------
+        obs : tf.Tensor
+            The observation placeholder (can be None for default placeholder)
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tuple of tf.Tensor
+            the output tensor for the actor
+        """
         if obs is None:
             obs = self.processed_x
 
         self.policy = build_fcnet(
             inputs=tf.layers.flatten(obs),
             num_outputs=self.ac_space.shape[0],
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=reuse
         )
 
         return self.policy
 
-    def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
-        """See parent class."""
+    def make_critic(self, obs=None, action=None, reuse=False, scope='qf'):
+        """Create a critic tensor.
+
+        Parameters
+        ----------
+        obs : tf.Tensor
+            The observation placeholder (can be None for default placeholder)
+        action : tf.Tensor
+            The action placeholder (can be None for default placeholder)
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the critic
+
+        Returns
+        -------
+        tf.Tensor
+            the output tensor for the critic
+        """
         if obs is None:
             obs = self.processed_x
         if action is None:
@@ -35,9 +125,9 @@ class FullyConnectedPolicy(FeedForwardPolicy):
         value_fn = build_fcnet(
             inputs=tf.concat([vf_h, action], axis=-1),
             num_outputs=1,
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=reuse
         )
@@ -55,18 +145,18 @@ class LSTMPolicy(FullyConnectedPolicy):
                  sess,
                  ob_space,
                  ac_space,
-                 n_env,
-                 n_steps,
-                 n_batch,
-                 reuse=False,
                  layers=None,
-                 cnn_extractor=nature_cnn,
-                 feature_extraction="mlp",
-                 layer_norm=False,
-                 **kwargs):
+                 hidden_nonlinearity=tf.nn.relu,
+                 output_nonlinearity=tf.nn.tanh):
+        """See parent class."""
+        if layers is None:
+            layers = [64]
+
+        assert len(layers) == 1, 'Only one LSTM layer is allowed.'
+
         super(LSTMPolicy, self).__init__(
-            sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-            reuse=reuse, scale=(feature_extraction == "cnn"))
+            sess, ob_space, ac_space, layers, hidden_nonlinearity,
+            output_nonlinearity)
 
         # input placeholder to the internal states component of the actor
         self.states_ph = None
@@ -78,11 +168,8 @@ class LSTMPolicy(FullyConnectedPolicy):
         self.state_init = None
 
         # placeholders for the actor recurrent network
-        self.train_length = tf.placeholder(dtype=tf.int32, name="train_length")
-        self.batch_size = tf.placeholder(dtype=tf.int32, name="batch_size")
-
-        # hidden size of the actor LSTM
-        self.actor_size = 64
+        self.train_length = tf.placeholder(dtype=tf.int32, name='train_length')
+        self.batch_size = tf.placeholder(dtype=tf.int32, name='batch_size')
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """See parent class."""
@@ -99,7 +186,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         self.policy, self.state_init, self.states_ph, self.state = build_lstm(
             inputs=obs,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=self.actor_size,
+            hidden_size=self.layers[0],
             scope=scope,
             reuse=reuse,
             nonlinearity=tf.nn.tanh,
@@ -146,18 +233,17 @@ class HIROPolicy(LSTMPolicy):
                  sess,
                  ob_space,
                  ac_space,
-                 n_env,
-                 n_steps,
-                 n_batch,
-                 reuse=False,
                  layers=None,
-                 cnn_extractor=nature_cnn,
-                 feature_extraction="mlp",
-                 layer_norm=False,
-                 **kwargs):
+                 hidden_nonlinearity=tf.nn.relu,
+                 output_nonlinearity=tf.nn.tanh):
+        if layers is None:
+            layers = [256]
+
+        assert len(layers) == 1, 'Only one LSTM layer is allowed.'
+
         super(HIROPolicy, self).__init__(
-            sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-            reuse=reuse, scale=(feature_extraction == "cnn"))
+            sess, ob_space, ac_space, layers, hidden_nonlinearity,
+            output_nonlinearity)
 
         # number of steps after which the manager performs an action
         self.c = 0  # FIXME
@@ -322,7 +408,7 @@ class HIROPolicy(LSTMPolicy):
         list of float
             actions from the worker
         """
-        if kwargs["apply_manager"]:
+        if kwargs['apply_manager']:
             self.cur_goal = self.sess.run(
                 self.manager,
                 feed_dict={
@@ -366,7 +452,7 @@ class HIROPolicy(LSTMPolicy):
         list of float
             The associated value of the action from the worker
         """
-        if kwargs["apply_manager"]:
+        if kwargs['apply_manager']:
             v_manager = self.sess.run(self._manager_vf,
                                       feed_dict={self.obs_ph: obs,
                                                  self.goal_ph: self.cur_goal})

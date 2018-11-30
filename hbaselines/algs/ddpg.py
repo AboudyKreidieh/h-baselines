@@ -32,6 +32,8 @@ from stable_baselines.a2c.utils import find_trainable_variables, \
 from stable_baselines.ddpg.memory import Memory
 from hbaselines.utils.exp_replay import RecurrentMemory
 
+# TODO: read https://arxiv.org/pdf/1602.07714.pdf
+
 
 def normalize(tensor, stats):
     """Normalize a tensor using a running mean and std.
@@ -241,9 +243,6 @@ class DDPG(OffPolicyRLModel):
         the soft update coefficient (keep old values, between 0 and 1)
     normalize_returns : bool
         should the critic output be normalized
-    enable_popart : bool
-        enable pop-art normalization of the critic output
-        (https://arxiv.org/pdf/1602.07714.pdf)
     normalize_observations : bool
         should the observation be normalized
     batch_size : int
@@ -289,7 +288,6 @@ class DDPG(OffPolicyRLModel):
                  batch_size=128,
                  param_noise_adaption_interval=50,
                  normalize_returns=False,
-                 enable_popart=False,
                  observation_range=(-5, 5),
                  critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf),
@@ -328,7 +326,6 @@ class DDPG(OffPolicyRLModel):
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
-        self.enable_popart = enable_popart
         self.reward_scale = reward_scale
         self.batch_size = batch_size
         self.critic_l2_reg = critic_l2_reg
@@ -359,9 +356,6 @@ class DDPG(OffPolicyRLModel):
         self.actor_loss = None
         self.actor_grads = None
         self.actor_optimizer = None
-        self.old_std = None
-        self.old_mean = None
-        self.renormalize_q_outputs_op = None
         self.obs_rms = None
         self.ret_rms = None
         self.target_policy = None
@@ -405,11 +399,6 @@ class DDPG(OffPolicyRLModel):
                 "Error: DDPG cannot output a {} action space, only spaces." \
                 "Box is supported.".format(self.action_space)
 
-            # determine whether the policy is compatible with this algorithm
-            assert issubclass(self.policy, DDPGPolicy), \
-                "Error: the input policy for the DDPG model must be " \
-                "an instance of DDPGPolicy."
-
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.single_threaded_session(graph=self.graph)
@@ -439,19 +428,13 @@ class DDPG(OffPolicyRLModel):
                     self.policy_tf = self.policy(
                         sess=self.sess,
                         ob_space=self.observation_space,
-                        ac_space=self.action_space,
-                        n_env=1,
-                        n_steps=1,
-                        n_batch=None)
+                        ac_space=self.action_space)
 
                     # Create target networks.
                     self.target_policy = self.policy(
                         sess=self.sess,
                         ob_space=self.observation_space,
-                        ac_space=self.action_space,
-                        n_env=1,
-                        n_steps=1,
-                        n_batch=None)
+                        ac_space=self.action_space)
                     self.obs_target = self.target_policy.obs_ph
                     self.action_target = self.target_policy.action_ph
 
@@ -471,10 +454,7 @@ class DDPG(OffPolicyRLModel):
                         self.param_noise_actor = self.policy(
                             sess=self.sess,
                             ob_space=self.observation_space,
-                            ac_space=self.action_space,
-                            n_env=1,
-                            n_steps=1,
-                            n_batch=None)
+                            ac_space=self.action_space)
                         self.obs_noise = self.param_noise_actor.obs_ph
                         self.action_noise_ph = self.param_noise_actor.action_ph
 
@@ -482,10 +462,7 @@ class DDPG(OffPolicyRLModel):
                         self.adaptive_param_noise_actor = self.policy(
                             sess=self.sess,
                             ob_space=self.observation_space,
-                            ac_space=self.action_space,
-                            n_env=1,
-                            n_steps=1,
-                            n_batch=None)
+                            ac_space=self.action_space)
                         self.obs_adapt_noise = \
                             self.adaptive_param_noise_actor.obs_ph
                         self.action_adapt_noise = \
@@ -562,8 +539,6 @@ class DDPG(OffPolicyRLModel):
                                          self.critic_target)
 
                     # Set up parts.
-                    if self.normalize_returns and self.enable_popart:
-                        self._setup_popart()
                     self._setup_stats()
                     self._setup_target_network_updates()
 
@@ -591,7 +566,7 @@ class DDPG(OffPolicyRLModel):
                 with self.sess.as_default():
                     self._initialize(self.sess)
 
-                self.summary = tf.summary.merge_all()
+                self.summary = tf.summary.merge_all()  # TODO: remove
 
     def _setup_target_network_updates(self):
         """Set the target update operations."""
@@ -695,38 +670,6 @@ class DDPG(OffPolicyRLModel):
         self.critic_optimizer = MpiAdam(
             var_list=tf_util.get_trainable_vars('model/qf/'),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
-
-    def _setup_popart(self):
-        """Setup pop-art normalization of the critic output.
-
-        # TODO: read
-        See https://arxiv.org/pdf/1602.07714.pdf for details.
-        Preserving Outputs Precisely, while Adaptively Rescaling Targets”.
-        """
-        self.old_std = tf.placeholder(tf.float32, shape=[1], name='old_std')
-        new_std = self.ret_rms.std
-        self.old_mean = tf.placeholder(tf.float32, shape=[1], name='old_mean')
-        new_mean = self.ret_rms.mean
-
-        self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var
-                          in tf_util.get_trainable_vars('model/qf/')
-                          if 'output' in var.name],
-                         [var for var
-                          in tf_util.get_trainable_vars('target/qf/')
-                          if 'output' in var.name]]:
-            assert len(out_vars) == 2
-            # wieght and bias of the last layer
-            weight, bias = out_vars
-            assert 'kernel' in weight.name
-            assert 'bias' in bias.name
-            assert weight.get_shape()[-1] == 1
-            assert bias.get_shape()[-1] == 1
-            self.renormalize_q_outputs_op += [
-                weight.assign(weight * self.old_std / new_std)]
-            self.renormalize_q_outputs_op += [
-                bias.assign((bias * self.old_std + self.old_mean - new_mean)
-                            / new_std)]
 
     def _setup_stats(self):
         """Setup the running means and std of the model inputs and outputs."""
@@ -867,35 +810,19 @@ class DDPG(OffPolicyRLModel):
         # Get a batch
         batch = self.memory.sample(batch_size=self.batch_size)
 
-        if self.normalize_returns and self.enable_popart:
-            old_mean, old_std, target_q = self.sess.run(
-                [self.ret_rms.mean, self.ret_rms.std, self.target_q],
-                feed_dict={
-                    self.obs_target: batch['obs1'],
-                    self.rewards: batch['rewards'],
-                    self.terminals1: batch['terminals1'].astype('float32')
-                }
-            )
-            self.ret_rms.update(target_q.flatten())
-            self.sess.run(self.renormalize_q_outputs_op, feed_dict={
-                self.old_std: np.array([old_std]),
-                self.old_mean: np.array([old_mean]),
-            })
+        feed_dict = {
+            self.obs_target: batch['obs1'],
+            self.rewards: batch['rewards'],
+            self.terminals1: batch['terminals1'].astype('float32')
+        }
+        if self.recurrent:
+            feed_dict[self.target_train_length] = 8
+            feed_dict[self.target_batch_size] = self.batch_size
+            feed_dict[self.target_h_c] = (
+                np.zeros([self.batch_size, self.policy_tf.actor_size]),
+                np.zeros([self.batch_size, self.policy_tf.actor_size]))
 
-        else:
-            feed_dict = {
-                self.obs_target: batch['obs1'],
-                self.rewards: batch['rewards'],
-                self.terminals1: batch['terminals1'].astype('float32')
-            }
-            if self.recurrent:
-                feed_dict[self.target_train_length] = 8
-                feed_dict[self.target_batch_size] = self.batch_size
-                feed_dict[self.target_h_c] = (
-                    np.zeros([self.batch_size, self.policy_tf.actor_size]),
-                    np.zeros([self.batch_size, self.policy_tf.actor_size]))
-
-            target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
+        target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
 
         # Get all gradients and perform a synced update.
         ops = [self.actor_grads, self.actor_loss, self.critic_grads,
@@ -1288,6 +1215,7 @@ class DDPG(OffPolicyRLModel):
                                       'wb') as file_handler:
                                 pickle.dump(self.env.get_state(), file_handler)
 
+    # TODO: delete
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(
@@ -1335,7 +1263,6 @@ class DDPG(OffPolicyRLModel):
             "gamma": self.gamma,
             "tau": self.tau,
             "normalize_returns": self.normalize_returns,
-            "enable_popart": self.enable_popart,
             "normalize_observations": self.normalize_observations,
             "batch_size": self.batch_size,
             "observation_range": self.observation_range,

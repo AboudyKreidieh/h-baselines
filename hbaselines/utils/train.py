@@ -13,7 +13,6 @@ DEFAULT_DDPG_HP = dict(
     batch_size=128,
     param_noise_adaption_interval=50,
     normalize_returns=False,
-    enable_popart=False,
     observation_range=(-5, 5),
     critic_l2_reg=0.,
     return_range=(-np.inf, np.inf),
@@ -45,7 +44,6 @@ def get_hyperparameters(args, discrete):
              "tau": args.tau,
              "batch_size": args.batch_size,
              # "normalize_returns": args.normalize_returns,
-             # "enable_popart": args.enable_popart,
              "observation_range": (-5, 5),  # TODO: figure this out
              "critic_l2_reg": args.critic_l2_reg,
              "actor_lr": args.actor_lr,
