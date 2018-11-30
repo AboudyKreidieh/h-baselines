@@ -72,60 +72,6 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     return tf.group(*init_updates), tf.group(*soft_updates)
 
 
-def get_perturbed_actor_updates(actor,
-                                perturbed_actor,
-                                param_noise_stddev,
-                                verbose=0):
-    """Get the actor update, with noise.
-
-    Parameters
-    ----------
-    actor : str
-        the actor
-    perturbed_actor : str
-        the perturbed actor
-    param_noise_stddev : float
-        the std of the parameter noise
-    verbose : int
-        the verbosity level:
-
-        * 0 none
-        * 1 training information
-        * 2 tensorflow debug
-
-    Returns
-    -------
-    tf.Operation
-        the update function
-    """
-    assert len(tf_util.get_globals_vars(actor)) == \
-        len(tf_util.get_globals_vars(perturbed_actor))
-    assert len([var for var in tf_util.get_trainable_vars(actor)
-                if 'LayerNorm' not in var.name]) == \
-        len([var for var in tf_util.get_trainable_vars(perturbed_actor)
-             if 'LayerNorm' not in var.name])
-
-    updates = []
-    for var, perturbed_var in zip(tf_util.get_globals_vars(actor),
-                                  tf_util.get_globals_vars(perturbed_actor)):
-        if var in [v for v in tf_util.get_trainable_vars(actor)
-                   if 'LayerNorm' not in v.name]:
-            if verbose >= 2:
-                logger.info('  {} <- {} + noise'.format(perturbed_var.name,
-                                                        var.name))
-            updates.append(tf.assign(perturbed_var,
-                                     var + tf.random_normal(
-                                         shape=tf.shape(var),
-                                         mean=0,
-                                         stddev=param_noise_stddev)))
-        else:
-            if verbose >= 2:
-                logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
-            updates.append(tf.assign(perturbed_var, var))
-    assert len(updates) == len(tf_util.get_globals_vars(actor))
-    return tf.group(*updates)
-
-
 class DDPG(OffPolicyRLModel):
     """Deep Deterministic Policy Gradient (DDPG) model.
 
@@ -147,12 +93,8 @@ class DDPG(OffPolicyRLModel):
         the number of training steps
     nb_rollout_steps : int
         the number of rollout steps
-    param_noise : AdaptiveParamNoiseSpec
-        the parameter noise type (can be None)
     action_noise : ActionNoise
         the action noise type (can be None)
-    param_noise_adaption_interval : int
-        apply param noise every N steps
     tau : float
         the soft update coefficient (keep old values, between 0 and 1)
     normalize_returns : bool
@@ -195,12 +137,10 @@ class DDPG(OffPolicyRLModel):
                  memory_policy=None,
                  nb_train_steps=50,
                  nb_rollout_steps=100,
-                 param_noise=None,
                  action_noise=None,
                  normalize_observations=False,
                  tau=0.001,
                  batch_size=128,
-                 param_noise_adaption_interval=50,
                  normalize_returns=False,
                  observation_range=(-5, 5),
                  critic_l2_reg=0.,
@@ -234,7 +174,6 @@ class DDPG(OffPolicyRLModel):
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
-        self.param_noise = param_noise
         self.return_range = return_range
         self.observation_range = observation_range
         self.actor_lr = actor_lr
@@ -244,7 +183,6 @@ class DDPG(OffPolicyRLModel):
         self.batch_size = batch_size
         self.critic_l2_reg = critic_l2_reg
         self.render = render
-        self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.memory_limit = memory_limit
@@ -276,9 +214,6 @@ class DDPG(OffPolicyRLModel):
         self.action_adapt_noise = None
         self.terminals1 = None
         self.rewards = None
-        self.param_noise_stddev = None
-        self.param_noise_actor = None
-        self.adaptive_param_noise_actor = None
         self.params = None
         self.episode_reward = None
         self.tb_seen_steps = None
@@ -340,42 +275,11 @@ class DDPG(OffPolicyRLModel):
                         observation_range=self.observation_range
                     )
 
-                    if self.param_noise is not None:
-                        # Configure perturbed actor.
-                        self.param_noise_actor = self.policy(
-                            sess=self.sess,
-                            ob_space=self.observation_space,
-                            ac_space=self.action_space,
-                            obs_rms=self.obs_rms,
-                            ret_rms=self.ret_rms,
-                            return_range=self.return_range,
-                            observation_range=self.observation_range
-                        )
-                        self.obs_noise = self.param_noise_actor.obs_ph  # TODO: delete
-                        self.action_noise_ph = self.param_noise_actor.action_ph  # TODO: delete
-
-                        # Configure separate copy for stddev adoption.
-                        self.adaptive_param_noise_actor = self.policy(
-                            sess=self.sess,
-                            ob_space=self.observation_space,
-                            ac_space=self.action_space,
-                            obs_rms=self.obs_rms,
-                            ret_rms=self.ret_rms,
-                            return_range=self.return_range,
-                            observation_range=self.observation_range
-                        )
-                        self.obs_adapt_noise = \
-                            self.adaptive_param_noise_actor.obs_ph  # TODO: delete
-                        self.action_adapt_noise = \
-                            self.adaptive_param_noise_actor.action_ph  # TODO: delete
-
                     # Inputs.
                     self.terminals1 = tf.placeholder(
                         tf.float32, shape=(None, 1), name='terminals1')
                     self.rewards = tf.placeholder(
                         tf.float32, shape=(None, 1), name='rewards')
-                    self.param_noise_stddev = tf.placeholder(
-                        tf.float32, shape=(), name='param_noise_stddev')
 
                 # Create networks and core TF parts that are shared across
                 # setup parts.
@@ -384,10 +288,6 @@ class DDPG(OffPolicyRLModel):
                     _, _ = self.policy_tf.make_critic(use_actor=True)
                     if self.recurrent:
                         self.state_init = self.policy_tf.state_init
-
-                # Noise setup
-                if self.param_noise is not None:
-                    self._setup_param_noise()
 
                 with tf.variable_scope("target", reuse=False):
                     _ = self.target_policy.make_actor()
@@ -426,29 +326,6 @@ class DDPG(OffPolicyRLModel):
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
-    def _setup_param_noise(self):
-        """Set the parameter noise operations."""
-        assert self.param_noise is not None
-
-        with tf.variable_scope("noise", reuse=False):
-            self.perturbed_actor_tf = self.param_noise_actor.make_actor()
-
-        with tf.variable_scope("noise_adapt", reuse=False):
-            adaptive_actor_tf = self.adaptive_param_noise_actor.make_actor()
-
-        with tf.variable_scope("noise_update_func", reuse=False):
-            if self.verbose >= 2:
-                logger.info('setting up param noise')
-            self.perturb_policy_ops = get_perturbed_actor_updates(
-                'model/pi/', 'noise/pi/', self.param_noise_stddev,
-                verbose=self.verbose)
-
-            self.perturb_adaptive_policy_ops = get_perturbed_actor_updates(
-                'model/pi/', 'noise_adapt/pi/',
-                self.param_noise_stddev, verbose=self.verbose)
-            self.adaptive_policy_distance = tf.sqrt(
-                tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
-
     def _setup_stats(self):
         """Setup the running means and std of the model inputs and outputs."""
         ops = []
@@ -478,12 +355,6 @@ class DDPG(OffPolicyRLModel):
         ops += [reduce_std(self.actor_tf)]
         names += ['reference_action_std']
 
-        if self.param_noise:
-            ops += [tf.reduce_mean(self.perturbed_actor_tf)]
-            names += ['reference_perturbed_action_mean']
-            ops += [reduce_std(self.perturbed_actor_tf)]
-            names += ['reference_perturbed_action_std']
-
         self.stats_ops = ops
         self.stats_names = names
 
@@ -512,10 +383,7 @@ class DDPG(OffPolicyRLModel):
         """
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
-        if self.param_noise is not None and apply_noise:
-            action = self.param_noise_actor.step(obs=obs, state=state)
-        else:
-            action = self.policy_tf.step(obs=obs, state=state)
+        action = self.policy_tf.step(obs=obs, state=state)
 
         if self.recurrent:
             action, state1 = action
@@ -656,47 +524,12 @@ class DDPG(OffPolicyRLModel):
         assert len(names) == len(values)
         stats = dict(zip(names, values))
 
-        if self.param_noise is not None:
-            stats = {**stats, **self.param_noise.get_stats()}
-
         return stats
-
-    def _adapt_param_noise(self):
-        """Calculate the adaptation for the parameter noise.
-
-        Returns
-        -------
-        float
-            the mean distance for the parameter noise
-        """
-        if self.param_noise is None:
-            return 0.
-
-        # Perturb a separate copy of the policy to adjust the scale for the
-        # next "real" perturbation.
-        batch = self.memory.sample(batch_size=self.batch_size)
-        self.sess.run(self.perturb_adaptive_policy_ops, feed_dict={
-            self.param_noise_stddev: self.param_noise.current_stddev,
-        })
-        distance = self.sess.run(self.adaptive_policy_distance, feed_dict={
-            self.obs_adapt_noise: batch['obs0'],
-            self.policy_tf.obs_train: batch['obs0'],
-            self.param_noise_stddev: self.param_noise.current_stddev,
-        })
-
-        mean_distance = MPI.COMM_WORLD.allreduce(
-            distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
-        self.param_noise.adapt(mean_distance)
-        return mean_distance
 
     def _reset(self):
         """Reset internal state after an episode is complete."""
         if self.action_noise is not None:
             self.action_noise.reset()
-        if self.param_noise is not None:
-            self.sess.run(self.perturb_policy_ops, feed_dict={
-                self.param_noise_stddev: self.param_noise.current_stddev,
-            })
 
     def learn(self,
               total_timesteps,
@@ -831,13 +664,6 @@ class DDPG(OffPolicyRLModel):
                         epoch_critic_losses = []
                         epoch_adaptive_distances = []
                         for t_train in range(self.nb_train_steps):
-                            # Adapt param noise, if necessary.
-                            if self.memory.nb_entries >= self.batch_size and \
-                                    t_train % \
-                                    self.param_noise_adaption_interval == 0:
-                                distance = self._adapt_param_noise()
-                                epoch_adaptive_distances.append(distance)
-
                             # weird equation to deal with the fact the
                             # nb_train_steps will be different to
                             # nb_rollout_steps
@@ -872,9 +698,6 @@ class DDPG(OffPolicyRLModel):
                         epoch_actor_losses)
                     combined_stats['train/loss_critic'] = np.mean(
                         epoch_critic_losses)
-                    if len(epoch_adaptive_distances) != 0:
-                        combined_stats['train/param_noise_distance'] = np.mean(
-                            epoch_adaptive_distances)
                     combined_stats['total/duration'] = duration
                     combined_stats['total/steps_per_second'] = \
                         float(step) / float(duration)
