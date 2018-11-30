@@ -385,7 +385,6 @@ class DDPG(OffPolicyRLModel):
         self.param_noise_actor = None
         self.adaptive_param_noise_actor = None
         self.params = None
-        self.summary = None
         self.episode_reward = None
         self.tb_seen_steps = None
 
@@ -533,40 +532,18 @@ class DDPG(OffPolicyRLModel):
                     self.target_q = self.rewards + (1 - self.terminals1) * \
                         self.gamma * q_obs1
 
-                    tf.summary.scalar('critic_target',
-                                      tf.reduce_mean(self.critic_target))
-                    tf.summary.histogram('critic_target',
-                                         self.critic_target)
-
                     # Set up parts.
                     self._setup_stats()
                     self._setup_target_network_updates()
 
-                with tf.variable_scope("input_info", reuse=False):
-                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards))
-                    tf.summary.histogram('rewards', self.rewards)
-                    tf.summary.scalar('param_noise_stddev',
-                                      tf.reduce_mean(self.param_noise_stddev))
-                    tf.summary.histogram('param_noise_stddev',
-                                         self.param_noise_stddev)
-                    if len(self.observation_space.shape) == 3 \
-                            and self.observation_space.shape[0] in [1, 3, 4]:
-                        tf.summary.image('observation', self.obs_train)
-                    else:
-                        tf.summary.histogram('observation', self.obs_train)
-
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self._setup_actor_optimizer()
                     self._setup_critic_optimizer()
-                    tf.summary.scalar('actor_loss', self.actor_loss)
-                    tf.summary.scalar('critic_loss', self.critic_loss)
 
                 self.params = find_trainable_variables("model")
 
                 with self.sess.as_default():
                     self._initialize(self.sess)
-
-                self.summary = tf.summary.merge_all()  # TODO: remove
 
     def _setup_target_network_updates(self):
         """Set the target update operations."""
@@ -783,17 +760,8 @@ class DDPG(OffPolicyRLModel):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def _train_step(self, step, writer, log=False):
+    def _train_step(self):
         """Run a step of training from batch.
-
-        Parameters
-        ----------
-        step : int
-            the current step iteration
-        writer : tf.Summary.writer
-            the writer for tensorboard
-        log : bool
-            whether or not to log to metadata
 
         Returns
         -------
@@ -819,8 +787,8 @@ class DDPG(OffPolicyRLModel):
             feed_dict[self.target_train_length] = 8
             feed_dict[self.target_batch_size] = self.batch_size
             feed_dict[self.target_h_c] = (
-                np.zeros([self.batch_size, self.policy_tf.actor_size]),
-                np.zeros([self.batch_size, self.policy_tf.actor_size]))
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]))
 
         target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
 
@@ -841,30 +809,10 @@ class DDPG(OffPolicyRLModel):
             td_map[self.policy_train_length] = 8
             td_map[self.policy_batch_size] = self.batch_size
             td_map[self.h_c_train] = (
-                np.zeros([self.batch_size, self.policy_tf.actor_size]),
-                np.zeros([self.batch_size, self.policy_tf.actor_size]))
-        if writer is not None:
-            # run loss backprop with summary if the step_id was not already
-            # logged (can happen with the right parameters as the step value is
-            # only an estimate)
-            if log and step not in self.tb_seen_steps:
-                run_options = tf.RunOptions(
-                    trace_level=tf.RunOptions.FULL_TRACE)
-                run_metadata = tf.RunMetadata()
-                summary, actor_grads, actor_loss, critic_grads, critic_loss = \
-                    self.sess.run([self.summary] + ops, td_map,
-                                  options=run_options,
-                                  run_metadata=run_metadata)
-
-                writer.add_run_metadata(run_metadata, 'step%d' % step)
-                self.tb_seen_steps.append(step)
-            else:
-                summary, actor_grads, actor_loss, critic_grads, critic_loss = \
-                    self.sess.run([self.summary] + ops, td_map)
-            writer.add_summary(summary, step)
-        else:
-            actor_grads, actor_loss, critic_grads, critic_loss = \
-                self.sess.run(ops, td_map)
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+        actor_grads, actor_loss, critic_grads, critic_loss = \
+            self.sess.run(ops, td_map)
 
         self.actor_optimizer.update(actor_grads,
                                     learning_rate=self.actor_lr)
@@ -921,8 +869,8 @@ class DDPG(OffPolicyRLModel):
 
         if self.recurrent:
             feed_dict[self.h_c_train] = (
-                np.zeros([self.batch_size, self.policy_tf.actor_size]),
-                np.zeros([self.batch_size, self.policy_tf.actor_size]))
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                np.zeros([self.batch_size, self.policy_tf.layers[0]]))
             feed_dict[self.policy_batch_size] = self.batch_size
             feed_dict[self.policy_train_length] = 8
 
@@ -1217,22 +1165,7 @@ class DDPG(OffPolicyRLModel):
 
     # TODO: delete
     def predict(self, observation, state=None, mask=None, deterministic=True):
-        observation = np.array(observation)
-        vectorized_env = self._is_vectorized_observation(
-            observation, self.observation_space)
-
-        observation = observation.reshape((-1,) + self.observation_space.shape)
-        actions, _, = self._policy(
-            observation, apply_noise=not deterministic, compute_q=False)
-        # reshape to the correct action shape
-        actions = actions.reshape((-1,) + self.action_space.shape)
-        # scale the output for the prediction
-        actions = actions * np.abs(self.action_space.low)
-
-        if not vectorized_env:
-            actions = actions[0]
-
-        return actions, None
+        pass
 
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation)
