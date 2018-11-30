@@ -239,7 +239,7 @@ class DDPG(OffPolicyRLModel):
         self.action_noise = action_noise
         self.param_noise = param_noise
         self.return_range = return_range
-        self.observation_range = observation_range  # TODO: remove or specify
+        self.observation_range = observation_range
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
@@ -260,9 +260,6 @@ class DDPG(OffPolicyRLModel):
         self.policy_tf = None
         self.target_init_updates = None
         self.target_soft_updates = None
-        self.critic_loss = None
-        self.critic_grads = None
-        self.critic_optimizer = None
         self.sess = None
         self.stats_ops = None
         self.stats_names = None
@@ -270,16 +267,12 @@ class DDPG(OffPolicyRLModel):
         self.perturb_policy_ops = None
         self.perturb_adaptive_policy_ops = None
         self.adaptive_policy_distance = None
-        self.actor_loss = None
-        self.actor_grads = None
-        self.actor_optimizer = None
         self.obs_rms = None
         self.ret_rms = None
         self.target_policy = None
         self.actor_tf = None
         self.target_q = None
         self.obs_train = None
-        self.h_c_train = None
         self.state_init = None
         self.obs_noise = None
         self.action_noise_ph = None
@@ -395,8 +388,7 @@ class DDPG(OffPolicyRLModel):
                     self.actor_tf = self.policy_tf.make_actor()
                     _, _ = self.policy_tf.make_critic(use_actor=True)
                     if self.recurrent:
-                        self.h_c_train = self.policy_tf.states_ph  # TODO: delete
-                        self.state_init = self.policy_tf.state_init  # TODO: delete
+                        self.state_init = self.policy_tf.state_init
 
                 # Noise setup
                 if self.param_noise is not None:
@@ -468,9 +460,6 @@ class DDPG(OffPolicyRLModel):
             clip_norm=self.clip_norm,
             verbose=self.verbose
         )
-        self.actor_loss = self.policy_tf.actor_loss
-        self.actor_grads = self.policy_tf.actor_grads
-        self.actor_optimizer = self.policy_tf.actor_optimizer
 
     # TODO: update to include HRL dichotomy (?)
     def _setup_critic_optimizer(self):
@@ -480,9 +469,6 @@ class DDPG(OffPolicyRLModel):
             clip_norm=self.clip_norm,
             verbose=self.verbose
         )
-        self.critic_loss = self.policy_tf.critic_loss
-        self.critic_grads = self.policy_tf.critic_grads
-        self.critic_optimizer = self.policy_tf.critic_optimizer
 
     def _setup_stats(self):
         """Setup the running means and std of the model inputs and outputs."""
@@ -570,9 +556,8 @@ class DDPG(OffPolicyRLModel):
             action += noise
         action = np.clip(action, -1, 1)
 
-        return action, state1, q_value  # TODO: recurrent q function?
+        return action, state1, q_value
 
-    # TODO: add to transition the goals
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.
 
@@ -641,8 +626,8 @@ class DDPG(OffPolicyRLModel):
         """
         self.sess = sess
         self.sess.run(tf.global_variables_initializer())
-        self.actor_optimizer.sync()
-        self.critic_optimizer.sync()
+        self.policy_tf.actor_optimizer.sync()
+        self.policy_tf.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
 
     def _update_target_net(self):
