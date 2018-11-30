@@ -5,6 +5,7 @@ def build_linear(inputs,
                  num_outputs,
                  scope,
                  reuse,
+                 nonlinearity=None,
                  weights_initializer=None,
                  bias_initializer=0):
     """Create a linear model.
@@ -19,6 +20,8 @@ def build_linear(inputs,
         scope of the model
     reuse : bool
         whether to reuse the variables
+    nonlinearity : tf.nn.*
+        activation nonlinearity for the output of the model
     weights_initializer : tf.Operation
         initialization operation for the weights of the model
     bias_initializer : tf.Operation
@@ -31,6 +34,9 @@ def build_linear(inputs,
                             initializer=tf.constant_initializer(
                                 bias_initializer))
 
-        output = tf.matmul(inputs, w) + b
+        if nonlinearity is None:
+            output = tf.matmul(inputs, w) + b
+        else:
+            output = nonlinearity(tf.matmul(inputs, w) + b)
 
     return output

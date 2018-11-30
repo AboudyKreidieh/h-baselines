@@ -1,5 +1,5 @@
 from stable_baselines.ddpg.policies import FeedForwardPolicy, nature_cnn
-from hbaselines.models import build_fcnet
+from hbaselines.models import build_fcnet, build_lstm
 import tensorflow as tf
 
 
@@ -7,22 +7,7 @@ class FullyConnectedPolicy(FeedForwardPolicy):
     """Policy object that implements a DDPG-like actor critic, using MLPs."""
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
-        """Create an actor object.
-
-        Parameters
-        ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
-        reuse : bool
-            whether or not to reuse parameters
-        scope : str
-            the scope name of the actor
-
-        Returns
-        -------
-        tf.Tensor
-            the output tensor
-        """
+        """See parent class."""
         if obs is None:
             obs = self.processed_x
 
@@ -39,24 +24,7 @@ class FullyConnectedPolicy(FeedForwardPolicy):
         return self.policy
 
     def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
-        """Create a critic object.
-
-        Parameters
-        ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
-        action : tf.Tensor
-            The action placeholder (can be None for default placeholder)
-        reuse : bool
-            whether or not to reuse parameters
-        scope : str
-            the scope name of the critic
-
-        Returns
-        -------
-        tf.Tensor
-            the output tensor
-        """
+        """See parent class."""
         if obs is None:
             obs = self.processed_x
         if action is None:
@@ -83,73 +51,80 @@ class FullyConnectedPolicy(FeedForwardPolicy):
 class LSTMPolicy(FullyConnectedPolicy):
     """Policy object that implements a DDPG-like actor critic, using LSTMs."""
 
-    # TODO: observations need to be entire trajectories!
+    def __init__(self,
+                 sess,
+                 ob_space,
+                 ac_space,
+                 n_env,
+                 n_steps,
+                 n_batch,
+                 reuse=False,
+                 layers=None,
+                 cnn_extractor=nature_cnn,
+                 feature_extraction="mlp",
+                 layer_norm=False,
+                 **kwargs):
+        super(LSTMPolicy, self).__init__(
+            sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
+            reuse=reuse, scale=(feature_extraction == "cnn"))
+
+        # input placeholder to the internal states component of the actor
+        self.states_ph = None
+
+        # output internal states component from the actor
+        self.state = None
+
+        # initial internal state of the actor
+        self.state_init = None
+
+        # placeholders for the actor recurrent network
+        self.train_length = tf.placeholder(dtype=tf.int32, name="train_length")
+        self.batch_size = tf.placeholder(dtype=tf.int32, name="batch_size")
+
+        # hidden size of the actor LSTM
+        self.actor_size = 64
+
     def make_actor(self, obs=None, reuse=False, scope="pi"):
-        """Create an actor object.
-
-        Parameters
-        ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
-        reuse : bool
-            whether or not to reuse parameters
-        scope : str
-            the scope name of the actor
-
-        Returns
-        -------
-        tf.Tensor
-            the output tensor
-        """
+        """See parent class."""
         if obs is None:
             obs = self.processed_x
 
-        hidden_size = [256]
-        horizon = 1000
-
         # convert batch to sequence
-        obs = tf.split(obs, horizon, 1)
+        obs = tf.reshape(
+            tf.layers.flatten(obs),
+            [self.batch_size, self.train_length, self.ob_space.shape[0]]
+        )
 
-        with tf.variable_scope(scope, reuse=reuse):
-            # Part 1. create the LSTM hidden layers
-
-            # create the hidden layers
-            lstm_layers = [tf.contrib.rnn.BasicLSTMCell(size)
-                           for size in hidden_size]
-
-            # stack up multiple LSTM layers
-            cell = tf.contrib.rnn.MultiRNNCell(lstm_layers)
-
-            # getting an initial state of all zeros
-            lstm_outputs, final_state = tf.contrib.rnn.static_rnn(
-                cell, obs, dtype=tf.float32)
-
-            # Part 2. Create the output from the LSTM model
-
-            # initialize the weights and biases
-            out_w = tf.get_variable(
-                "W",
-                [hidden_size[-1], self.ac_space],
-                initializer=tf.truncated_normal_initializer())
-            out_b = tf.get_variable(
-                "b",
-                [self.ac_space],
-                initializer=tf.zeros_initializer())
-
-            # compute the output from the neural network model
-            self.policy = tf.matmul(lstm_outputs[-1], out_w) + out_b
+        # create the LSTM model
+        self.policy, self.state_init, self.states_ph, self.state = build_lstm(
+            inputs=obs,
+            num_outputs=self.ac_space.shape[0],
+            hidden_size=self.actor_size,
+            scope=scope,
+            reuse=reuse,
+            nonlinearity=tf.nn.tanh,
+        )
 
         return self.policy
 
+    def step(self, obs, state=None, mask=None):
+        """See parent class."""
+        return self.sess.run(
+            [self.policy, self.state],
+            feed_dict={self.obs_ph: obs, self.states_ph: state}
+        )
+
 
 # TODO
-class FeudalPolicy(FeedForwardPolicy):
+class FeudalPolicy(LSTMPolicy):
     """Policy object for the Feudal (FuN) hierarchical model.
+
+    blank
     """
     pass
 
 
-class HIROPolicy(FeedForwardPolicy):
+class HIROPolicy(LSTMPolicy):
     """Policy object for the HIRO hierarchical model.
 
     In this policy, we consider two actors and two critic, one for the manager
@@ -186,8 +161,6 @@ class HIROPolicy(FeedForwardPolicy):
 
         # number of steps after which the manager performs an action
         self.c = 0  # FIXME
-        # list of observations from the last c steps
-        self.prev_c_obs = []
 
         # manager policy
         self.manager = None
@@ -208,7 +181,10 @@ class HIROPolicy(FeedForwardPolicy):
                                       shape=self.ob_space.shape[0])
 
         # a variable that internally stores the most recent goal to the worker
-        self.cur_goal = [0 for _ in range(ob_space.shape[0])]
+        self.cur_goal = None  # [0 for _ in range(ob_space.shape[0])]
+
+        # hidden size of the actor LSTM  # TODO: add to inputs
+        self.actor_size = 64
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor object.
@@ -224,41 +200,50 @@ class HIROPolicy(FeedForwardPolicy):
 
         Returns
         -------
-        tf.Tensor
-            the output tensor from the manager
-        tf.Tensor
-            the output tensor from the worker
+        tuple of tf.Tensor
+            the output tensor from the manager and the worker
         """
         if obs is None:
             obs = self.processed_x
 
-        # TODO: more than the current obs?
-        # TODO: consider doing this with LSTMs
+        # input to the manager
+        manager_in = tf.reshape(
+            tf.layers.flatten(obs),
+            [self.batch_size, self.train_length, self.ob_space.shape[0]]
+        )
+
         # create the policy for the manager
-        self.manager = build_fcnet(
-            inputs=tf.layers.flatten(obs),
+        m_policy, m_state_init, m_states_ph, m_state = build_lstm(
+            inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
-            scope=scope,
+            hidden_size=self.actor_size,
+            scope='manager_{}'.format(scope),
             reuse=reuse,
-            prefix='manager',
+            nonlinearity=tf.nn.tanh,
+        )
+
+        # input to the worker
+        worker_in = tf.reshape(
+            tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
+            [self.batch_size, self.train_length, self.ob_space.shape[0]]
         )
 
         # create the policy for the worker
-        self.worker = build_fcnet(
-            inputs=tf.concat([tf.layers.flatten(obs), self.goal_ph], axis=-1),
+        w_policy, w_state_init, w_states_ph, w_state = build_lstm(
+            inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
-            scope=scope,
+            hidden_size=self.actor_size,
+            scope='worker_{}'.format(scope),
             reuse=reuse,
-            prefix='worker',
+            nonlinearity=tf.nn.tanh,
         )
 
-        return self.manager, self.worker
+        self.policy = (m_policy, w_policy)
+        self.state_init = (m_state_init, w_state_init)
+        self.states_ph = (m_states_ph, w_states_ph)
+        self.state = (m_state, w_state)
+
+        return self.policy
 
     def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
         """Create a critic object.
@@ -276,10 +261,8 @@ class HIROPolicy(FeedForwardPolicy):
 
         Returns
         -------
-        tf.Tensor
-            the output tensor for the manager
-        tf.Tensor
-            the output tensor for the worker
+        tuple of tf.Tensor
+            the output tensor for the manager and the worker
         """
         if obs is None:
             obs = self.processed_x
@@ -316,7 +299,9 @@ class HIROPolicy(FeedForwardPolicy):
         self.worker_vf = value_fn
         self._worker_vf = value_fn[:, 0]
 
-        return self.value_fn  # FIXME
+        self.value_fn = (self.manager_vf, self.worker_vf)
+
+        return self.value_fn
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """Return the policy for a single step.
@@ -338,16 +323,25 @@ class HIROPolicy(FeedForwardPolicy):
             actions from the worker
         """
         if kwargs["apply_manager"]:
-            # TODO: more than the current obs?
-            self.cur_goal = self.sess.run(self.manager,
-                                          feed_dict={self.obs_ph: obs})
+            self.cur_goal = self.sess.run(
+                self.manager,
+                feed_dict={
+                    self.obs_ph: obs,
+                    self.states_ph: state[0]  # TODO: make state tuple in this case
+                }
+            )
         else:
             # TODO: the thing they do in the HIRO paper
-            pass
+            self.cur_goal = self.update_goal(self.cur_goal)
 
-        action = self.sess.run(self.worker,
-                               feed_dict={self.obs_ph: obs,
-                                          self.goal_ph: self.cur_goal})
+        action = self.sess.run(
+            self.worker,
+            feed_dict={
+                self.obs_ph: obs,
+                self.states_ph: state[1],  # TODO: make state tuple in this case
+                self.goal_ph: self.cur_goal
+            }
+        )
 
         return self.cur_goal, action
 
@@ -372,20 +366,36 @@ class HIROPolicy(FeedForwardPolicy):
         list of float
             The associated value of the action from the worker
         """
-        self.prev_c_obs.append(obs)
-
         if kwargs["apply_manager"]:
-            # TODO: more than the current obs?
             v_manager = self.sess.run(self._manager_vf,
                                       feed_dict={self.obs_ph: obs,
                                                  self.goal_ph: self.cur_goal})
-            self.prev_c_obs.clear()
         else:
             v_manager = None
 
         v_worker = self.sess.run(self._worker_vf,
                                  feed_dict={self.obs_ph: obs,
+                                            self.states_ph: state[1],  # TODO: make state tuple in this case
                                             self.goal_ph: self.cur_goal,
                                             self.action_ph: action})
 
         return v_manager, v_worker
+
+    def update_goal(self, goal, obs, prev_obs):
+        """Update the goal when the manager isn't issuing commands.
+
+        Parameters
+        ----------
+        goal : list of float or np.ndarray
+            previous step goals
+        obs : list of float or np.ndarray
+            observations from the current time step
+        prev_obs : list of float or np.ndarray
+            observations from the previous time step
+
+        Returns
+        -------
+        list of float or list of int
+            current step goals
+        """
+        return prev_obs + goal - obs
