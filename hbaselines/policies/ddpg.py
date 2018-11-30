@@ -1,4 +1,8 @@
 from stable_baselines.common.input import observation_input
+from stable_baselines.common import tf_util
+from stable_baselines.common.mpi_adam import MpiAdam
+from stable_baselines import logger
+from functools import reduce
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
@@ -59,6 +63,8 @@ class FullyConnectedPolicy(object):
             self.action_ph = tf.placeholder(
                 dtype=ac_space.dtype, shape=(None,) + ac_space.shape,
                 name='action_ph')
+        self.critic_target = tf.placeholder(
+            tf.float32, shape=(None, 1), name='critic_target')
 
         # create normalized variants of the observationss and actions
         self.normalized_obs_ph = tf.clip_by_value(
@@ -118,8 +124,6 @@ class FullyConnectedPolicy(object):
         ----------
         obs : tf.Tensor
             The observation placeholder (can be None for default placeholder)
-        action : tf.Tensor
-            The action placeholder (can be None for default placeholder)
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -178,6 +182,90 @@ class FullyConnectedPolicy(object):
 
         return self.critic, self.critic_with_actor
 
+    def setup_actor_optimizer(self, clip_norm, verbose):
+        """
+
+        :return:
+        """
+        if verbose >= 2:
+            logger.info('setting up actor optimizer')
+        # TODO: add mask? (see Lample & Chatlot 2016)
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor)
+
+        actor_shapes = [var.get_shape().as_list()
+                        for var in tf_util.get_trainable_vars('model/pi/')]
+        actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                               for shape in actor_shapes])
+
+        if verbose >= 2:
+            logger.info('  actor shapes: {}'.format(actor_shapes))
+            logger.info('  actor params: {}'.format(actor_nb_params))
+
+        self.actor_grads = tf_util.flatgrad(
+            self.actor_loss, tf_util.get_trainable_vars('model/pi/'),
+            clip_norm=clip_norm)
+
+        self.actor_optimizer = MpiAdam(
+            var_list=tf_util.get_trainable_vars('model/pi/'),
+            beta1=0.9, beta2=0.999, epsilon=1e-08)
+
+    def setup_critic_optimizer(self,
+                               critic_l2_reg,
+                               clip_norm,
+                               verbose):
+        """
+
+        :param critic_target:
+        :param critic_l2_reg:
+        :param clip_norm:
+        :param verbose:
+        :return:
+        """
+        if verbose >= 2:
+            logger.info('setting up critic optimizer')
+
+        normalized_critic_target_tf = tf.clip_by_value(
+            normalize(self.critic_target, self.ret_rms),
+            self.return_range[0],
+            self.return_range[1])
+
+        # TODO: add mask? (see Lample & Chatlot 2016)
+        self.critic_loss = tf.reduce_mean(tf.square(
+            self.normalized_critic - normalized_critic_target_tf))
+
+        if critic_l2_reg > 0.:
+            critic_reg_vars = [var for var
+                               in tf_util.get_trainable_vars('model/qf/')
+                               if 'bias' not in var.name and 'output'
+                               not in var.name and 'b' not in var.name]
+            if verbose >= 2:
+                for var in critic_reg_vars:
+                    logger.info('  regularizing: {}'.format(var.name))
+                logger.info('  applying l2 regularization with {}'.
+                            format(critic_l2_reg))
+
+            critic_reg = tf.contrib.layers.apply_regularization(
+                tf.contrib.layers.l2_regularizer(critic_l2_reg),
+                weights_list=critic_reg_vars
+            )
+            self.critic_loss += critic_reg
+        critic_shapes = [var.get_shape().as_list()
+                         for var in tf_util.get_trainable_vars('model/qf/')]
+        critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                for shape in critic_shapes])
+        if verbose >= 2:
+            logger.info('  critic shapes: {}'.format(critic_shapes))
+            logger.info('  critic params: {}'.format(critic_nb_params))
+
+        self.critic_grads = tf_util.flatgrad(
+            self.critic_loss,
+            tf_util.get_trainable_vars('model/qf/'),
+            clip_norm=clip_norm)
+
+        self.critic_optimizer = MpiAdam(
+            var_list=tf_util.get_trainable_vars('model/qf/'),
+            beta1=0.9, beta2=0.999, epsilon=1e-08)
+
     def step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy, {self.obs_ph: obs})
 
@@ -189,6 +277,22 @@ class FullyConnectedPolicy(object):
             return self.sess.run(
                 self._critic,
                 feed_dict={self.obs_ph: obs, self.action_ph: action})
+
+    def train_actor_critic(self, batch, target_q, actor_lr, critic_lr):
+        actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+            [self.actor_grads, self.actor_loss, self.critic_grads,
+             self.critic_loss],
+            feed_dict={
+                self.obs_ph: batch['obs0'],
+                self.action_ph: batch['actions'],
+                self.critic_target: target_q,
+            }
+        )
+
+        self.actor_optimizer.update(actor_grads, learning_rate=actor_lr)
+        self.critic_optimizer.update(critic_grads, learning_rate=critic_lr)
+
+        return actor_loss, critic_loss
 
 
 class LSTMPolicy(FullyConnectedPolicy):
@@ -264,10 +368,54 @@ class LSTMPolicy(FullyConnectedPolicy):
             }
         )
 
-    def value(self, obs, action, state=None, mask=None):
-        """See parent class."""
-        return self.sess.run(self._value, {self.obs_ph: obs,
-                                           self.action_ph: action})
+    def value(self, obs, action, state=None, mask=None, use_actor=False):
+        if use_actor:
+            return self.sess.run(
+                self._critic_with_actor,
+                feed_dict={
+                    self.obs_ph: obs,
+                    self.states_ph: state,
+                    self.train_length: obs.shape[0],
+                    self.batch_size: obs.shape[0],
+                }
+            )
+        else:
+            return self.sess.run(
+                self._critic,
+                feed_dict={
+                    self.obs_ph: obs,
+                    self.action_ph: action
+                }
+            )
+
+    def train_actor_critic(self, batch, target_q, actor_lr, critic_lr):
+        """See parent class.
+
+        This method is further expanded to include placeholders needed by the
+        hierarchical actors.
+        """
+        # FIXME: trace length
+        trace_length = 8
+        batch_size = int(batch['obs0'].shape[0] / trace_length)
+
+        actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+            [self.actor_grads, self.actor_loss, self.critic_grads,
+             self.critic_loss],
+            feed_dict={
+                self.obs_ph: batch['obs0'],
+                self.action_ph: batch['actions'],
+                self.critic_target: target_q,
+                self.batch_size: batch_size,
+                self.train_length: trace_length,
+                self.states_ph: (np.zeros([batch_size, self.layers[0]]),
+                                 np.zeros([batch_size, self.layers[0]])),
+            }
+        )
+
+        self.actor_optimizer.update(actor_grads, learning_rate=actor_lr)
+        self.critic_optimizer.update(critic_grads, learning_rate=critic_lr)
+
+        return actor_loss, critic_loss
 
 
 # TODO
