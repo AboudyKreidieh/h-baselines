@@ -25,7 +25,7 @@ class TestModels(unittest.TestCase):
             inputs=self.input_ph,
             num_outputs=1,
             scope='test',
-            reuse=tf.AUTO_REUSE,
+            reuse=False,
             nonlinearity=None,
             weights_initializer=tf.constant_initializer(0))
 
@@ -44,7 +44,7 @@ class TestModels(unittest.TestCase):
             inputs=self.input_ph,
             num_outputs=1,
             scope='test',
-            reuse=tf.AUTO_REUSE,
+            reuse=False,
             nonlinearity=None,
             weights_initializer=tf.constant_initializer([[1],
                                                          [1],
@@ -57,9 +57,9 @@ class TestModels(unittest.TestCase):
 
         self.assertTrue(
             all(self.sess.run(output,
-                              feed_dict={self.input_ph: [[0, 0, 0, 1, 0],
+                              feed_dict={self.input_ph: [[0, 0, 0, -1, 0],
                                                          [1, 1, 1, 1, 1]]})
-                == [[1], [5]])
+                == [[-1], [5]])
         )
 
     def test_linear_nonlinearity(self):
@@ -68,7 +68,7 @@ class TestModels(unittest.TestCase):
             inputs=self.input_ph,
             num_outputs=1,
             scope='test',
-            reuse=tf.AUTO_REUSE,
+            reuse=False,
             nonlinearity=tf.nn.relu,
             weights_initializer=tf.constant_initializer([[1],
                                                          [1],
