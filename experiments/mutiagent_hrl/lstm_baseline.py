@@ -10,7 +10,8 @@ import ray
 
 from hbaselines.utils.logger import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
-from hbaselines.algs import DDPG, DQN
+from hbaselines.algs.ddpg import DDPG
+from hbaselines.algs.dqn import DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import LSTMPolicy as DDPGPolicy
 

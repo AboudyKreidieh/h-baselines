@@ -13,6 +13,7 @@ Example Usage
 import numpy as np
 import random
 import argparse
+import os
 import subprocess
 import ray
 import ray.tune as tune
@@ -23,6 +24,7 @@ GAMMA = [0.95, 0.99, 0.995, 0.999]
 REWARD_SCALE = [0.0005, 0.001, 0.01, 0.015, 0.1, 1]
 TARGET_UPDATE = [1e-3, 1e-1]
 GRADIENT_CLIPPING = [0, 10]
+NUM_CPUS = 6
 # TODO: look into nb_train_steps and nb_rollout_steps
 
 
@@ -57,60 +59,74 @@ def create_parser():
 
     return parser
 
+def call_baseline(config, reporter):
+    # retrieve hyperparameters
+    learning_rate = config['learning_rate']
+    gamma = config['gamma']
+    batch_size = config['batch_size']
+    reward_scale = config['reward_scale']
+    target_update = config['target_update']
+    gradient_clipping = config['gradient_clipping']
+    print('Chosen hyperparameters:')
+    print(' - learning rate: {}'.format(learning_rate))
+    print(' - gamma:         {}'.format(gamma))
+    print(' - batch size:    {}'.format(batch_size))
+    print(' - reward scale:  {}'.format(reward_scale))
+    print(' - target update: {}'.format(target_update))
+    print(' - grad clipping: {}'.format(gradient_clipping))
+    print()
+
+    # execute training on the chosen hyper-parameters
+    subprocess.call([
+        'python', '{}'.format(runner), '{}'.format(args.env),
+        '--n_training', '{}'.format(args.s),
+        '--actor_lr', '{}'.format(learning_rate),
+        '--critic_lr', '{}'.format(learning_rate),
+        '--gamma', '{}'.format(gamma),
+        '--batch_size', '{}'.format(batch_size),
+        '--reward_scale', '{}'.format(reward_scale),
+        '--tau', '{}'.format(target_update),
+        '--clip_norm', '{}'.format(gradient_clipping),
+    ])
+
+    reporter(done=True)
 
 if __name__ == '__main__':
-    # Initialize ray
-    ray.init()
-
     p = create_parser()
     args = p.parse_args()
 
     if args.policy == 'FullyConnectedPolicy':
-        runner = 'fcnet_baseline.py'
+        runner = os.path.join(os.getcwd(), 'fcnet_baseline.py')
     elif args.policy == 'LSTMPolicy':
-        runner = 'lstm_baseline.py'
+        runner = os.path.join(os.getcwd(), 'lstm_baseline_ray.py')
     elif args.policy == 'FeudalPolicy':
-        runner = 'feudal_baseline.py'
+        runner = os.path.join(os.getcwd(), 'feudal_baseline.py')
     elif args.policy == 'HIROPolicy':
-        runner = 'hiro_baseline.py'
+        runner = os.path.join(os.getcwd(), 'hiro_baseline.py')
     else:
         raise AssertionError('policy must be one of: {"FullyConnectedPolicy", '
                              '"LSTMPolicy", "FeudalPolicy", "HIROPolicy"}')
 
-    for i in range(args.n):
-        print('\n============================================================')
-        print('='.ljust(25) + 'Experiment {}'.format(i).ljust(34) + '=')
-        print('============================================================\n')
+    # initialize ray
+    ray.init(num_cpus=NUM_CPUS)
 
-        # choose a set of hyper-parameters
-        learning_rate = 10 ** random.uniform(
-            np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1]))
-        gamma = 0.99  # keeping this constant for now
-        batch_size = 256  # keeping this constant for now
-        reward_scale = 0.01 #random.choice(REWARD_SCALE)
-        target_update = 10 ** random.uniform(
-            np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1]))
-        gradient_clipping = random.uniform(
-            GRADIENT_CLIPPING[0], GRADIENT_CLIPPING[1])
-
-        print('Chosen hyperparameters:')
-        print(' - learning rate: {}'.format(learning_rate))
-        print(' - gamma:         {}'.format(gamma))
-        print(' - batch size:    {}'.format(batch_size))
-        print(' - reward scale:  {}'.format(reward_scale))
-        print(' - target update: {}'.format(target_update))
-        print(' - grad clipping: {}'.format(gradient_clipping))
-        print()
-
-        # execute training on the chosen hyper-parameters
-        subprocess.call([
-            'python', '{}'.format(runner), '{}'.format(args.env),
-            '--n_training', '{}'.format(args.s),
-            '--actor_lr', '{}'.format(learning_rate),
-            '--critic_lr', '{}'.format(learning_rate),
-            '--gamma', '{}'.format(gamma),
-            '--batch_size', '{}'.format(batch_size),
-            '--reward_scale', '{}'.format(reward_scale),
-            '--tau', '{}'.format(target_update),
-            '--clip_norm', '{}'.format(gradient_clipping),
-        ])
+    # choose a set of hyper-parameters
+    config = {}
+    config['learning_rate'] = 10 ** random.uniform(
+        np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1]))
+    config['gamma'] = 0.99  # keeping this constant for now
+    config['batch_size'] = 256  # keeping this constant for now
+    config['reward_scale'] = 0.01  # keeping this constant for now
+    config['target_update'] = 10 ** random.uniform(
+        np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1]))
+    config['gradient_clipping'] = random.uniform(
+        GRADIENT_CLIPPING[0], GRADIENT_CLIPPING[1])
+    trials = tune.run_experiments({
+        'lstm_baseline': {
+            'trial_resources': {'cpu': NUM_CPUS},
+            'run': call_baseline,
+            'config': {**config},
+            'stop': {'done': True},
+            'num_samples': args.n,
+        },
+    })
