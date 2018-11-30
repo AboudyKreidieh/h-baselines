@@ -14,5 +14,11 @@ class TestEnsureDirectory(unittest.TestCase):
     pass
 
 
+class TestStats(unittest.TestCase):
+    """A simple test to get Travis running."""
+
+    pass
+
+
 if __name__ == '__main__':
     unittest.main()

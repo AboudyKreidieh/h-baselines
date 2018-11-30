@@ -1,8 +1,9 @@
 from stable_baselines.common.input import observation_input
 import numpy as np
 import tensorflow as tf
-from hbaselines.models import build_fcnet, build_lstm
 from gym.spaces import Box
+from hbaselines.models import build_fcnet, build_lstm
+from hbaselines.utils.stats import normalize, denormalize
 
 
 class FullyConnectedPolicy(object):
@@ -14,23 +15,27 @@ class FullyConnectedPolicy(object):
                  ac_space,
                  layers=None,
                  hidden_nonlinearity=tf.nn.relu,
-                 output_nonlinearity=tf.nn.tanh):
+                 output_nonlinearity=tf.nn.tanh,
+                 obs_rms=None,
+                 ret_rms=None,
+                 observation_range=(-np.inf, np.inf),
+                 return_range=(-np.inf, np.inf)):
         """Instantiate the policy model.
 
         Parameters
         ----------
-        sess : blank
-            blank
-        ob_space : blank
-            blank
-        ac_space : blank
-            blank
-        layers : blank
-            blank
-        hidden_nonlinearity : blank
-            blank
-        output_nonlinearity : blank
-            blank
+        sess : tf.Session
+            the tensorflow session
+        ob_space : gym.spaces.Box
+            shape of the observation space
+        ac_space : gym.spaces.Box
+            shape of the action space
+        layers : list of int
+            number of nodes in each hidden layer
+        hidden_nonlinearity : tf.nn.*
+            activation nonlinearity for the hidden nodes of the model
+        output_nonlinearity : tf.nn.*
+            activation nonlinearity for the output of the model
         """
         if layers is None:
             layers = [128, 128]
@@ -42,6 +47,10 @@ class FullyConnectedPolicy(object):
         self.layers = layers
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
+        self.obs_rms = obs_rms
+        self.ret_rms = ret_rms
+        self.observation_range = observation_range
+        self.return_range = return_range
 
         # create placeholders for the observations and actions
         with tf.variable_scope('input', reuse=False):
@@ -51,10 +60,17 @@ class FullyConnectedPolicy(object):
                 dtype=ac_space.dtype, shape=(None,) + ac_space.shape,
                 name='action_ph')
 
+        # create normalized variants of the observationss and actions
+        self.normalized_obs_ph = tf.clip_by_value(
+            normalize(self.processed_x, obs_rms),
+            observation_range[0], observation_range[1])
+
         # variables that will be created by later methods
         self.policy = None
-        self.value_fn = None
-        self._value = None
+        self.normalized_critic_with_actor = None
+        self.normalized_critic = None
+        self.critic_with_actor = None
+        self.critic = None
 
         # some assertions
         assert isinstance(ac_space, Box), \
@@ -64,13 +80,11 @@ class FullyConnectedPolicy(object):
         assert len(layers) >= 1, \
             'Error: must have at least one hidden layer for the policy.'
 
-    def make_actor(self, obs=None, reuse=False, scope='pi'):
+    def make_actor(self, reuse=False, scope='pi'):
         """Create an actor tensor.
 
         Parameters
         ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -81,11 +95,8 @@ class FullyConnectedPolicy(object):
         tuple of tf.Tensor
             the output tensor for the actor
         """
-        if obs is None:
-            obs = self.processed_x
-
         self.policy = build_fcnet(
-            inputs=tf.layers.flatten(obs),
+            inputs=tf.layers.flatten(self.normalized_obs_ph),
             num_outputs=self.ac_space.shape[0],
             hidden_size=self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
@@ -96,7 +107,11 @@ class FullyConnectedPolicy(object):
 
         return self.policy
 
-    def make_critic(self, obs=None, action=None, reuse=False, scope='qf'):
+    def make_critic(self,
+                    obs=None,
+                    reuse=False,
+                    scope='qf',
+                    use_actor=False):
         """Create a critic tensor.
 
         Parameters
@@ -117,25 +132,63 @@ class FullyConnectedPolicy(object):
         """
         if obs is None:
             obs = self.processed_x
-        if action is None:
-            action = self.action_ph
 
         vf_h = tf.layers.flatten(obs)
 
-        value_fn = build_fcnet(
-            inputs=tf.concat([vf_h, action], axis=-1),
+        normalized_value_fn = build_fcnet(
+            inputs=tf.concat([vf_h, self.action_ph], axis=-1),
             num_outputs=1,
             hidden_size=self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
-            reuse=reuse
+            reuse=False
         )
 
-        self.value_fn = value_fn
-        self._value = value_fn[:, 0]
+        self.normalized_critic = denormalize(
+            tf.clip_by_value(normalized_value_fn,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
 
-        return self.value_fn
+        self.critic = self.normalized_critic
+        self._critic = self.normalized_critic[:, 0]
+
+        if use_actor:
+            self.normalized_critic_with_actor = build_fcnet(
+                inputs=tf.concat([vf_h, self.policy], axis=-1),
+                num_outputs=1,
+                hidden_size=self.layers,
+                hidden_nonlinearity=self.hidden_nonlinearity,
+                output_nonlinearity=self.output_nonlinearity,
+                scope=scope,
+                reuse=True
+            )
+
+            critic_with_actor = denormalize(
+                tf.clip_by_value(self.normalized_critic_with_actor,
+                                 self.return_range[0],
+                                 self.return_range[1]),
+                self.ret_rms)
+
+            self.critic_with_actor = critic_with_actor
+            self._critic_with_actor = critic_with_actor[:, 0]
+        else:
+            self.critic_with_actor = None
+
+        return self.critic, self.critic_with_actor
+
+    def step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy, {self.obs_ph: obs})
+
+    def value(self, obs, action, state=None, mask=None, use_actor=False):
+        if use_actor:
+            return self.sess.run(
+                self._critic_with_actor, feed_dict={self.obs_ph: obs})
+        else:
+            return self.sess.run(
+                self._critic,
+                feed_dict={self.obs_ph: obs, self.action_ph: action})
 
 
 class LSTMPolicy(FullyConnectedPolicy):
@@ -147,7 +200,11 @@ class LSTMPolicy(FullyConnectedPolicy):
                  ac_space,
                  layers=None,
                  hidden_nonlinearity=tf.nn.relu,
-                 output_nonlinearity=tf.nn.tanh):
+                 output_nonlinearity=tf.nn.tanh,
+                 obs_rms=None,
+                 ret_rms=None,
+                 observation_range=(-np.inf, np.inf),
+                 return_range=(-np.inf, np.inf)):
         """See parent class."""
         if layers is None:
             layers = [64]
@@ -156,7 +213,8 @@ class LSTMPolicy(FullyConnectedPolicy):
 
         super(LSTMPolicy, self).__init__(
             sess, ob_space, ac_space, layers, hidden_nonlinearity,
-            output_nonlinearity)
+            output_nonlinearity, obs_rms, ret_rms, observation_range,
+            return_range)
 
         # input placeholder to the internal states component of the actor
         self.states_ph = None
@@ -198,8 +256,18 @@ class LSTMPolicy(FullyConnectedPolicy):
         """See parent class."""
         return self.sess.run(
             [self.policy, self.state],
-            feed_dict={self.obs_ph: obs, self.states_ph: state}
+            feed_dict={
+                self.obs_ph: obs,
+                self.states_ph: state,
+                self.train_length: obs.shape[0],
+                self.batch_size: obs.shape[0],
+            }
         )
+
+    def value(self, obs, action, state=None, mask=None):
+        """See parent class."""
+        return self.sess.run(self._value, {self.obs_ph: obs,
+                                           self.action_ph: action})
 
 
 # TODO
@@ -237,7 +305,7 @@ class HIROPolicy(LSTMPolicy):
                  hidden_nonlinearity=tf.nn.relu,
                  output_nonlinearity=tf.nn.tanh):
         if layers is None:
-            layers = [256]
+            layers = [64]
 
         assert len(layers) == 1, 'Only one LSTM layer is allowed.'
 
