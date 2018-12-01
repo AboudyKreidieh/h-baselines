@@ -307,14 +307,14 @@ class DDPG(OffPolicyRLModel):
                 # Create networks and core TF parts that are shared across
                 # setup parts.
                 with tf.variable_scope("model", reuse=False):
-                    _ = self.policy_tf.make_actor()
-                    _, _ = self.policy_tf.make_critic(use_actor=True)
+                    self.policy_tf.make_actor()
+                    self.policy_tf.make_critic()
                     if self.recurrent:
                         self.state_init = self.policy_tf.state_init
 
                 with tf.variable_scope("target", reuse=False):
-                    _ = self.target_policy.make_actor()
-                    _, _ = self.target_policy.make_critic(use_actor=True)
+                    self.target_policy.make_actor()
+                    self.target_policy.make_critic()
 
                 with tf.variable_scope("loss", reuse=False):
                     self.target_q = self.rewards + (1 - self.terminals1) * \

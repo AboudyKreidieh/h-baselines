@@ -73,10 +73,24 @@ class FullyConnectedPolicy(object):
 
         # variables that will be created by later methods
         self.policy = None
-        self.normalized_critic_with_actor = None
-        self.normalized_critic = None
         self.critic_with_actor = None
         self.critic = None
+
+        # normalized versions of critics
+        self.normalized_critic_with_actor = None
+        self.normalized_critic = None
+
+        # flattened versions of critics
+        self._critic_with_actor = None
+        self._critic = None
+
+        # optimization variables for actors and critics
+        self.actor_loss = None
+        self.actor_grads = None
+        self.actor_optimizer = None
+        self.critic_loss = None
+        self.critic_grads = None
+        self.critic_optimizer = None
 
         # some assertions
         assert isinstance(ac_space, Box), \
@@ -111,13 +125,10 @@ class FullyConnectedPolicy(object):
             reuse=reuse
         )
 
-        return self.policy
-
     def make_critic(self,
                     obs=None,
                     reuse=False,
-                    scope='qf',
-                    use_actor=False):
+                    scope='qf'):
         """Create a critic tensor.
 
         Parameters
@@ -158,29 +169,24 @@ class FullyConnectedPolicy(object):
         self.critic = self.normalized_critic
         self._critic = self.normalized_critic[:, 0]
 
-        if use_actor:
-            self.normalized_critic_with_actor = build_fcnet(
-                inputs=tf.concat([vf_h, self.policy], axis=-1),
-                num_outputs=1,
-                hidden_size=self.layers,
-                hidden_nonlinearity=self.hidden_nonlinearity,
-                output_nonlinearity=self.output_nonlinearity,
-                scope=scope,
-                reuse=True
-            )
+        self.normalized_critic_with_actor = build_fcnet(
+            inputs=tf.concat([vf_h, self.policy], axis=-1),
+            num_outputs=1,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
+            scope=scope,
+            reuse=True
+        )
 
-            critic_with_actor = denormalize(
-                tf.clip_by_value(self.normalized_critic_with_actor,
-                                 self.return_range[0],
-                                 self.return_range[1]),
-                self.ret_rms)
+        critic_with_actor = denormalize(
+            tf.clip_by_value(self.normalized_critic_with_actor,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
 
-            self.critic_with_actor = critic_with_actor
-            self._critic_with_actor = critic_with_actor[:, 0]
-        else:
-            self.critic_with_actor = None
-
-        return self.critic, self.critic_with_actor
+        self.critic_with_actor = critic_with_actor
+        self._critic_with_actor = critic_with_actor[:, 0]
 
     def setup_actor_optimizer(self, clip_norm, verbose):
         """
@@ -215,7 +221,6 @@ class FullyConnectedPolicy(object):
                                verbose):
         """
 
-        :param critic_target:
         :param critic_l2_reg:
         :param clip_norm:
         :param verbose:
@@ -354,8 +359,6 @@ class LSTMPolicy(FullyConnectedPolicy):
             nonlinearity=tf.nn.tanh,
         )
 
-        return self.policy
-
     def step(self, obs, state=None, mask=None):
         """See parent class."""
         return self.sess.run(
@@ -369,7 +372,9 @@ class LSTMPolicy(FullyConnectedPolicy):
         )
 
     def value(self, obs, action, state=None, mask=None, use_actor=False):
+        """See parent class."""
         if use_actor:
+            # TODO: should we store the internal state for computing target q?
             return self.sess.run(
                 self._critic_with_actor,
                 feed_dict={
@@ -392,7 +397,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         """See parent class.
 
         This method is further expanded to include placeholders needed by the
-        hierarchical actors.
+        recurrent actors.
         """
         # FIXME: trace length
         trace_length = 8
