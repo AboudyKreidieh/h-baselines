@@ -31,6 +31,31 @@ from hbaselines.utils.exp_replay import RecurrentMemory
 from hbaselines.utils.stats import reduce_std
 
 
+def as_scalar(scalar):
+    """Check and return the input if it is a scalar.
+
+    If it is not scale, raise a ValueError.
+
+    Parameters
+    ----------
+    scalar : Any
+        the object to check
+
+    Returns
+    -------
+    float
+        the scalar if x is a scalar
+    """
+    if isinstance(scalar, np.ndarray):
+        assert scalar.size == 1
+        return scalar[0]
+    elif np.isscalar(scalar):
+        return scalar
+    else:
+        raise ValueError(
+            'expected scalar, got %s' % scalar)
+
+
 def get_target_updates(_vars, target_vars, tau, verbose=0):
     """Get target update operations.
 
@@ -205,13 +230,9 @@ class DDPG(OffPolicyRLModel):
         self.obs_rms = None
         self.ret_rms = None
         self.target_policy = None
-        self.actor_tf = None
+        self.q_obs1 = None
         self.target_q = None
         self.state_init = None
-        self.obs_noise = None
-        self.action_noise_ph = None
-        self.obs_adapt_noise = None
-        self.action_adapt_noise = None
         self.terminals1 = None
         self.rewards = None
         self.params = None
@@ -275,7 +296,9 @@ class DDPG(OffPolicyRLModel):
                         observation_range=self.observation_range
                     )
 
-                    # Inputs.
+                    # Inputs to the target q value.
+                    self.q_obs1 = tf.placeholder(
+                        tf.float32, shape=(None, 1), name='q_obs1')
                     self.terminals1 = tf.placeholder(
                         tf.float32, shape=(None, 1), name='terminals1')
                     self.rewards = tf.placeholder(
@@ -284,18 +307,18 @@ class DDPG(OffPolicyRLModel):
                 # Create networks and core TF parts that are shared across
                 # setup parts.
                 with tf.variable_scope("model", reuse=False):
-                    self.actor_tf = self.policy_tf.make_actor()
+                    _ = self.policy_tf.make_actor()
                     _, _ = self.policy_tf.make_critic(use_actor=True)
                     if self.recurrent:
                         self.state_init = self.policy_tf.state_init
 
                 with tf.variable_scope("target", reuse=False):
                     _ = self.target_policy.make_actor()
-                    _, q_obs1 = self.target_policy.make_critic(use_actor=True)
+                    _, _ = self.target_policy.make_critic(use_actor=True)
 
                 with tf.variable_scope("loss", reuse=False):
                     self.target_q = self.rewards + (1 - self.terminals1) * \
-                        self.gamma * q_obs1
+                        self.gamma * self.q_obs1
 
                     # Set up parts.
                     self._setup_stats()
@@ -350,9 +373,9 @@ class DDPG(OffPolicyRLModel):
         ops += [reduce_std(self.policy_tf.critic_with_actor)]
         names += ['reference_actor_Q_std']
 
-        ops += [tf.reduce_mean(self.actor_tf)]
+        ops += [tf.reduce_mean(self.policy_tf.policy)]
         names += ['reference_action_mean']
-        ops += [reduce_std(self.actor_tf)]
+        ops += [reduce_std(self.policy_tf.policy)]
         names += ['reference_action_std']
 
         self.stats_ops = ops
@@ -382,19 +405,15 @@ class DDPG(OffPolicyRLModel):
             the critic value
         """
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-
         action = self.policy_tf.step(obs=obs, state=state)
+        state1, q_value = None, None
 
         if self.recurrent:
             action, state1 = action
-        else:
-            state1 = None
 
         if compute_q:
             q_value = self.policy_tf.value(
                 obs=obs, action=None, state=state, use_actor=True)
-        else:
-            q_value = None
 
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
@@ -445,16 +464,15 @@ class DDPG(OffPolicyRLModel):
         batch = self.memory.sample(batch_size=self.batch_size)
 
         feed_dict = {
-            self.target_policy.obs_ph: batch['obs1'],
+            self.q_obs1: np.array([self.target_policy.value(
+                obs=batch['obs1'],
+                action=batch['actions'],
+                state=(np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                       np.zeros([self.batch_size, self.policy_tf.layers[0]])),
+                mask=batch['terminals1'])]).T,
             self.rewards: batch['rewards'],
             self.terminals1: batch['terminals1'].astype('float32')
         }
-        if self.recurrent:
-            feed_dict[self.target_policy.train_length] = 8
-            feed_dict[self.target_policy.batch_size] = self.batch_size
-            feed_dict[self.target_policy.states_ph] = (
-                np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                np.zeros([self.batch_size, self.policy_tf.layers[0]]))
 
         target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
 
@@ -498,18 +516,12 @@ class DDPG(OffPolicyRLModel):
         feed_dict = {}
 
         for placeholder in [self.policy_tf.action_ph,
-                            self.target_policy.action_ph,
-                            self.action_adapt_noise,
-                            self.action_noise_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['actions']
+                            self.target_policy.action_ph]:
+            feed_dict[placeholder] = self.stats_sample['actions']
 
         for placeholder in [self.policy_tf.obs_ph,
-                            self.target_policy.obs_ph,
-                            self.obs_adapt_noise,
-                            self.obs_noise]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['obs0']
+                            self.target_policy.obs_ph]:
+            feed_dict[placeholder] = self.stats_sample['obs0']
 
         if self.recurrent:
             feed_dict[self.policy_tf.states_ph] = (
@@ -705,30 +717,6 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['rollout/episodes'] = epoch_episodes
                     combined_stats['rollout/actions_std'] = np.std(
                         epoch_actions)
-
-                    def as_scalar(scalar):
-                        """Check and return the input if it is a scalar.
-
-                        If it is not scale, raise a ValueError.
-
-                        Parameters
-                        ----------
-                        scalar : Any
-                            the object to check
-
-                        Returns
-                        -------
-                        float
-                            the scalar if x is a scalar
-                        """
-                        if isinstance(scalar, np.ndarray):
-                            assert scalar.size == 1
-                            return scalar[0]
-                        elif np.isscalar(scalar):
-                            return scalar
-                        else:
-                            raise ValueError(
-                                'expected scalar, got %s' % scalar)
 
                     combined_stats_sums = MPI.COMM_WORLD.allreduce(
                         np.array([as_scalar(x)
