@@ -59,6 +59,7 @@ def create_parser():
 
     return parser
 
+
 def call_baseline(config, reporter):
     # retrieve hyperparameters
     learning_rate = config['learning_rate']
@@ -91,6 +92,7 @@ def call_baseline(config, reporter):
 
     reporter(done=True)
 
+
 if __name__ == '__main__':
     p = create_parser()
     args = p.parse_args()
@@ -111,16 +113,13 @@ if __name__ == '__main__':
     ray.init(num_cpus=NUM_CPUS)
 
     # choose a set of hyper-parameters
-    config = {}
-    config['learning_rate'] = 10 ** random.uniform(
-        np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1]))
-    config['gamma'] = 0.99  # keeping this constant for now
-    config['batch_size'] = 256  # keeping this constant for now
-    config['reward_scale'] = 0.01  # keeping this constant for now
-    config['target_update'] = 10 ** random.uniform(
-        np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1]))
-    config['gradient_clipping'] = random.uniform(
-        GRADIENT_CLIPPING[0], GRADIENT_CLIPPING[1])
+    config = {'learning_rate': 10 ** random.uniform(
+        np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1])), 'gamma': 0.99,
+              'batch_size': 256, 'reward_scale': 0.01,
+              'target_update': 10 ** random.uniform(
+                  np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1])),
+              'gradient_clipping': random.uniform(
+                  GRADIENT_CLIPPING[0], GRADIENT_CLIPPING[1])}
     trials = tune.run_experiments({
         'lstm_baseline': {
             'trial_resources': {'cpu': NUM_CPUS},
