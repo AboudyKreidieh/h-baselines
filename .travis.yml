@@ -17,7 +17,7 @@ before_script:
   - flake8 --show-source
 
 script:
-  - coverage run --source=h-baselines/ setup.py test
+  - python setup.py install
   - nose2 --with-coverage
 
 after_success:
