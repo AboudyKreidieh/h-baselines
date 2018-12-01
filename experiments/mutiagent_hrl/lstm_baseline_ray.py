@@ -6,7 +6,6 @@ on various environments.
 import os
 import datetime
 import csv
-import threading
 from threading import Thread
 
 from hbaselines.utils.logger import ensure_dir
@@ -29,7 +28,7 @@ def run_exp(env, discrete, hp, steps, dir_name, i):
         alg = DDPG(policy=DDPGPolicy, env=env, recurrent=True, **hp)
 
     # perform training
-    _ = alg.learn(
+    alg.learn(
         total_timesteps=steps,
         log_interval=10,
         file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
@@ -66,8 +65,9 @@ def main():
 
     for i in range(args.n_training):
         thread = Thread(target=run_exp,
-            args=[env, discrete, hp, args.steps, dir_name, i])
+                        args=[env, discrete, hp, args.steps, dir_name, i])
         thread.start()
+
 
 if __name__ == '__main__':
     main()

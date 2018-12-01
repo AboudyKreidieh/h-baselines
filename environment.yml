@@ -8,5 +8,5 @@ dependencies:
         - ray==0.5.3
         - redis==2.10.6
         - stable-baselines==2.2.1
-        - gym==0.10.5
+        - gym==0.10.9
         - mujoco-py==1.50.1.68

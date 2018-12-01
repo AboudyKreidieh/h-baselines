@@ -31,7 +31,7 @@ def run_exp(env, hp, steps, dir_name, i):
         alg = DDPG(policy=DDPGPolicy, env=env, **hp)
 
     # perform training
-    _ = alg.learn(
+    alg.learn(
         total_timesteps=steps,
         log_interval=10,
         file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
@@ -66,8 +66,8 @@ def main():
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    _ = ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
-                 for i in range(args.n_training)])
+    ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
+             for i in range(args.n_training)])
     ray.shutdown()
 
 

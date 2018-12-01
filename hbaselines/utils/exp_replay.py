@@ -3,8 +3,18 @@ from stable_baselines.ddpg.memory import Memory
 
 
 class RecurrentMemory(Memory):
+    """Recurrent variant of replay buffer.
 
-    def __init__(self, limit, action_shape, observation_shape):
+    Samples in this buffer are stored at a per-episode basis instead of a
+    per-time step basis. In addition, samples are extracted as sub-episodes of
+    length **trace_length**.
+    """
+
+    def __init__(self,
+                 limit,
+                 action_shape,
+                 observation_shape,
+                 trace_length=8):
         """The replay buffer object.
 
         Parameters
@@ -15,20 +25,20 @@ class RecurrentMemory(Memory):
             the action shape
         observation_shape : tuple
             the observation shape
+        trace_length : int, optional
+            number of time steps within each sample
         """
         super(RecurrentMemory, self).__init__(
             limit, action_shape, observation_shape)
 
         self.limit = limit
+        self.trace_length = trace_length
 
         self.observations0 = [[]]
         self.actions = [[]]
         self.rewards = [[]]
         self.terminals1 = [[]]
         self.observations1 = [[]]
-
-        # TODO: add to inputs
-        self.trace_length = 8
 
     def sample(self, batch_size):
         """Sample a random batch from the buffer.
@@ -123,7 +133,6 @@ class RecurrentMemory(Memory):
 
             # check if the most recent batch is too small, and if so, delete
             if len(self.observations0[-1]) <= self.trace_length:
-                print("oops:", self.observations0[-1])
                 del self.observations0[-1]
                 del self.actions[-1]
                 del self.rewards[-1]
