@@ -10,7 +10,8 @@ import ray
 
 from hbaselines.utils.logger import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
-from hbaselines.algs import DDPG, DQN
+from hbaselines.algs.ddpg import DDPG
+from hbaselines.algs.dqn import DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import LSTMPolicy as DDPGPolicy
 
@@ -29,7 +30,7 @@ def run_exp(env, discrete, hp, steps, dir_name, i):
         alg = DDPG(policy=DDPGPolicy, env=env, recurrent=True, **hp)
 
     # perform training
-    _ = alg.learn(
+    alg.learn(
         total_timesteps=steps,
         log_interval=10,
         file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
@@ -64,8 +65,8 @@ def main():
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    _ = ray.get([run_exp.remote(env, discrete, hp, args.steps, dir_name, i)
-                 for i in range(args.n_training)])
+    ray.get([run_exp.remote(env, discrete, hp, args.steps, dir_name, i)
+             for i in range(args.n_training)])
     ray.shutdown()
 
 

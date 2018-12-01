@@ -6,8 +6,9 @@ def build_linear(inputs,
                  scope,
                  reuse,
                  nonlinearity=None,
-                 weights_initializer=None,
-                 bias_initializer=0):
+                 weights_initializer=tf.random_uniform_initializer(
+                   minval=-3e-3, maxval=3e-3),
+                 bias_initializer=tf.zeros_initializer()):
     """Create a linear model.
 
     Parameters
@@ -18,11 +19,11 @@ def build_linear(inputs,
         number of outputs from the neural network
     scope : str
         scope of the model
-    reuse : bool
+    reuse : bool or tf.AUTO_REUSE
         whether to reuse the variables
     nonlinearity : tf.nn.*
         activation nonlinearity for the output of the model
-    weights_initializer : tf.Operation
+    weights_initializer : tf.*
         initialization operation for the weights of the model
     bias_initializer : tf.Operation
         initialization operation for the biases of the model
@@ -31,8 +32,7 @@ def build_linear(inputs,
         w = tf.get_variable("W", [inputs.get_shape()[1], num_outputs],
                             initializer=weights_initializer)
         b = tf.get_variable("b", [num_outputs],
-                            initializer=tf.constant_initializer(
-                                bias_initializer))
+                            initializer=bias_initializer)
 
         if nonlinearity is None:
             output = tf.matmul(inputs, w) + b

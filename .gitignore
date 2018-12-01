@@ -1,3 +1,7 @@
 *.csv
 *.pyc
 hbaselines.egg*
+__pycache__
+*zip
+run_tests.sh
+debug

@@ -1,34 +1,31 @@
-"""A runner script for fcnet models.
+"""A runner script for LSTM models.
 
-This run script used to test the performance of DDPG and DQN with fully
-connected network models on various environments.
+This run script used to test the performance of DDPG and DQN with LSTM models
+on various environments.
 """
 import os
 import datetime
 import csv
-import ray
+from threading import Thread
 
 from hbaselines.utils.logger import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
 from hbaselines.algs.ddpg import DDPG
 from hbaselines.algs.dqn import DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
-from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
+from hbaselines.policies.ddpg import LSTMPolicy as DDPGPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
-NUM_CPUS = 2
-discrete = False
+EXAMPLE_USAGE = 'python lstm_baseline.py "HalfCheetah-v2" --gamma 0.995'
 
 
-@ray.remote
-def run_exp(env, hp, steps, dir_name, i):
+def run_exp(env, discrete, hp, steps, dir_name, i):
     # initialize the algorithm
     if discrete:
         # if discrete, use DQN
-        alg = DQN(policy=DQNPolicy, env=env, **hp)
+        alg = DQN(policy=DQNPolicy, env=env, recurrent=True, **hp)
     else:
         # if continuous, use DDPG
-        alg = DDPG(policy=DDPGPolicy, env=env, **hp)
+        alg = DDPG(policy=DDPGPolicy, env=env, recurrent=True, **hp)
 
     # perform training
     alg.learn(
@@ -41,13 +38,14 @@ def run_exp(env, hp, steps, dir_name, i):
 
 def main():
     parser = create_parser(
-        description='Test the performance of DDPG and DQN with fully connected'
-                    ' network models on various environments.',
+        description='Test the performance of DDPG and DQN with LSTM models '
+                    'on various environments.',
         example_usage=EXAMPLE_USAGE)
     args = parser.parse_args()
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}'.format(datetime.datetime.now().time())
+    dir_name = 'data/lstm/{}'.format(datetime.datetime.now().time())
+    dir_name = os.path.join(os.getcwd(), dir_name)
     ensure_dir(dir_name)
 
     # if the environment is in Flow or h-baselines, register it
@@ -65,12 +63,11 @@ def main():
         w.writeheader()
         w.writerow(hp)
 
-    ray.init(num_cpus=NUM_CPUS)
-    ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
-             for i in range(args.n_training)])
-    ray.shutdown()
+    for i in range(args.n_training):
+        thread = Thread(target=run_exp,
+                        args=[env, discrete, hp, args.steps, dir_name, i])
+        thread.start()
 
 
 if __name__ == '__main__':
     main()
-    os._exit(1)
