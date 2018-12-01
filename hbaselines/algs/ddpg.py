@@ -422,8 +422,7 @@ class DDPG(OffPolicyRLModel):
                 state,
                 apply_noise=True,
                 compute_q=True,
-                apply_manager=False,
-                goal=None):
+                apply_manager=False):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -449,14 +448,19 @@ class DDPG(OffPolicyRLModel):
         float or list of float
             the critic value
         """
-        obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-        action = self.policy_tf.step(obs=obs, state=state)
+        # reshape the observation to be ready for the policy
+        obs_shape = self.observation_space.shape
+        if self.hierarchical:
+            obs = np.array(obs).reshape((-1,) + 2 * obs_shape)
+        else:
+            obs = np.array(obs).reshape((-1,) + obs_shape)
+
+        # get the next action from the policy
+        action = self.policy_tf.step(
+            obs=obs, state=state, apply_manager=apply_manager)
         state1, q_value = None, None
 
-        if self.hierarchical:  # FIXME
-            feed_dict[self.goal_ph] = goal
-
-        if self.recurrent:
+        if self.recurrent or self.hierarchical:
             action, state1 = action
 
         if compute_q:
@@ -484,22 +488,13 @@ class DDPG(OffPolicyRLModel):
         reward : float
             the reward
         obs1 : list fo float or list of int
-            the current observationself.observation_space.shape
+            the current observation
         terminal1 : bool
             is the episode done
         """
-        goal = np.array([])  # FIXME
         reward *= self.reward_scale
-        if self.hierarchical:
-            # FIXME
-            self.memory.append((obs0, list(obs0) + goal.astype(list)),
-                               (goal, action),
-                               (reward, reward),
-                               (obs1, obs1.astype(list) + goal.astype(list)),
-                               terminal1,
-                               apply_manager=True)
-        else:
-            self.memory.append(obs0, action, reward, obs1, terminal1)
+        self.memory.append(obs0, action, reward, obs1, terminal1,
+                           apply_manager=True)
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
@@ -653,7 +648,6 @@ class DDPG(OffPolicyRLModel):
                 # Prepare everything.
                 self._reset()
                 obs = self.env.reset()
-                goal = [[0 for _ in range(self.observation_space.shape[0])]]
                 episodes = 0
                 step = 0
                 total_steps = 0
@@ -681,9 +675,8 @@ class DDPG(OffPolicyRLModel):
                                 return self
 
                             # Predict next action.
-                            action, state, q_value, goal = self._policy(
-                                obs, state, apply_noise=True, compute_q=True,
-                                goal=goal)
+                            action, state, q_value = self._policy(
+                                obs, state, apply_noise=True, compute_q=True)
                             assert action.shape == self.env.action_space.shape
 
                             # Execute next action.
@@ -710,7 +703,7 @@ class DDPG(OffPolicyRLModel):
                             epoch_actions.append(action)
                             epoch_qs.append(q_value)
                             self._store_transition(
-                                obs, action, reward, new_obs, done, goal=goal)
+                                obs, action, reward, new_obs, done)
                             obs = new_obs
                             if callback is not None:
                                 callback(locals(), globals())
@@ -730,8 +723,6 @@ class DDPG(OffPolicyRLModel):
                                 self._reset()
                                 if not isinstance(self.env, VecEnv):
                                     obs = self.env.reset()
-                                goal = [[0 for _ in range(
-                                    self.observation_space.shape[0])]]
 
                         # Train.
                         epoch_actor_losses = []

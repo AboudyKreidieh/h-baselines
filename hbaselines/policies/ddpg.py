@@ -125,10 +125,7 @@ class FullyConnectedPolicy(object):
             reuse=reuse
         )
 
-    def make_critic(self,
-                    obs=None,
-                    reuse=False,
-                    scope='qf'):
+    def make_critic(self, obs=None, reuse=False, scope='qf'):
         """Create a critic tensor.
 
         Parameters
@@ -150,24 +147,25 @@ class FullyConnectedPolicy(object):
 
         vf_h = tf.layers.flatten(obs)
 
-        normalized_value_fn = build_fcnet(
+        self.normalized_critic = build_fcnet(
             inputs=tf.concat([vf_h, self.action_ph], axis=-1),
             num_outputs=1,
             hidden_size=self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
-            reuse=False
+            reuse=False,
+            prefix='normalized_critic'
         )
 
-        self.normalized_critic = denormalize(
-            tf.clip_by_value(normalized_value_fn,
+        critic = denormalize(
+            tf.clip_by_value(self.normalized_critic,
                              self.return_range[0],
                              self.return_range[1]),
             self.ret_rms)
 
-        self.critic = self.normalized_critic
-        self._critic = self.normalized_critic[:, 0]
+        self.critic = critic
+        self._critic = critic[:, 0]
 
         self.normalized_critic_with_actor = build_fcnet(
             inputs=tf.concat([vf_h, self.policy], axis=-1),
@@ -176,7 +174,8 @@ class FullyConnectedPolicy(object):
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
-            reuse=True
+            reuse=True,
+            prefix='normalized_critic'
         )
 
         critic_with_actor = denormalize(
@@ -338,14 +337,11 @@ class LSTMPolicy(FullyConnectedPolicy):
         self.train_length = tf.placeholder(dtype=tf.int32, name='train_length')
         self.batch_size = tf.placeholder(dtype=tf.int32, name='batch_size')
 
-    def make_actor(self, obs=None, reuse=False, scope="pi"):
+    def make_actor(self, reuse=False, scope="pi"):
         """See parent class."""
-        if obs is None:
-            obs = self.processed_x
-
         # convert batch to sequence
         obs = tf.reshape(
-            tf.layers.flatten(obs),
+            tf.layers.flatten(self.normalized_obs_ph),
             [self.batch_size, self.train_length, self.ob_space.shape[0]]
         )
 
@@ -456,7 +452,12 @@ class HIROPolicy(LSTMPolicy):
                  ac_space,
                  layers=None,
                  hidden_nonlinearity=tf.nn.relu,
-                 output_nonlinearity=tf.nn.tanh):
+                 output_nonlinearity=tf.nn.tanh,
+                 obs_rms=None,
+                 ret_rms=None,
+                 observation_range=(-np.inf, np.inf),
+                 return_range=(-np.inf, np.inf)):
+        """See parent class."""
         if layers is None:
             layers = [64]
 
@@ -464,7 +465,8 @@ class HIROPolicy(LSTMPolicy):
 
         super(HIROPolicy, self).__init__(
             sess, ob_space, ac_space, layers, hidden_nonlinearity,
-            output_nonlinearity)
+            output_nonlinearity, obs_rms, ret_rms, observation_range,
+            return_range)
 
         # number of steps after which the manager performs an action
         self.c = 0  # FIXME
@@ -497,13 +499,11 @@ class HIROPolicy(LSTMPolicy):
         # observation from the previous time step
         self.prev_obs = None
 
-    def make_actor(self, obs=None, reuse=False, scope="pi"):
+    def make_actor(self, reuse=False, scope='pi'):
         """Create an actor object.
 
         Parameters
         ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -514,8 +514,7 @@ class HIROPolicy(LSTMPolicy):
         tuple of tf.Tensor
             the output tensor from the manager and the worker
         """
-        if obs is None:
-            obs = self.processed_x
+        obs = self.normalized_obs_ph
 
         # input to the manager
         manager_in = tf.reshape(
@@ -524,7 +523,7 @@ class HIROPolicy(LSTMPolicy):
         )
 
         # create the policy for the manager
-        m_policy, m_state_init, m_states_ph, m_state = build_lstm(
+        self.manager, m_state_init, m_states_ph, m_state = build_lstm(
             inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
             hidden_size=self.actor_size,
@@ -541,7 +540,7 @@ class HIROPolicy(LSTMPolicy):
         )
 
         # create the policy for the worker
-        w_policy, w_state_init, w_states_ph, w_state = build_lstm(
+        self.worker, w_state_init, w_states_ph, w_state = build_lstm(
             inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
             hidden_size=self.actor_size,
@@ -550,22 +549,20 @@ class HIROPolicy(LSTMPolicy):
             nonlinearity=tf.nn.tanh,
         )
 
-        self.policy = (m_policy, w_policy)
+        self.policy = tf.concat([self.manager, self.worker], axis=1)
         self.state_init = (m_state_init, w_state_init)
-        self.states_ph = (m_states_ph, w_states_ph)
-        self.state = (m_state, w_state)
+        self.states_ph = tf.concat([m_states_ph, w_states_ph], axis=1)
+        self.state = tf.concat([m_state, w_state], axis=1)
 
         return self.policy
 
-    def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
+    def make_critic(self, obs=None, reuse=False, scope='qf'):
         """Create a critic object.
 
         Parameters
         ----------
         obs : tf.Tensor
             The observation placeholder (can be None for default placeholder)
-        action : tf.Tensor
-            The action placeholder (can be None for default placeholder)
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -576,47 +573,95 @@ class HIROPolicy(LSTMPolicy):
         tuple of tf.Tensor
             the output tensor for the manager and the worker
         """
-        if obs is None:
-            obs = self.processed_x
-        if action is None:
-            action = self.action_ph
+        vf_h = tf.layers.flatten(self.normalized_obs_ph)
 
-        vf_h = tf.layers.flatten(obs)
-        goal_ph, action = action
+        # PART 1. WITHOUT ACTORS
 
         # value function for the manager
-        value_fn = build_fcnet(
-            inputs=tf.concat([vf_h, tf.layers.flatten(goal_ph)], axis=-1),
+        m_normalized_critic = build_fcnet(
+            inputs=tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
             num_outputs=1,
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
             scope=scope,
-            reuse=reuse,
-            prefix='manager',
+            reuse=False,
+            prefix='m_normalized_critic'
         )
-        self.manager_vf = value_fn
-        self._manager_vf = value_fn[:, 0]
+        m_critic = denormalize(
+            tf.clip_by_value(m_normalized_critic,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
+        _m_critic = m_critic[:, 0]
 
         # value function for the worker
-        value_fn = build_fcnet(
+        w_normalized_critic = build_fcnet(
             inputs=tf.concat(values=[
-                tf.concat([vf_h, tf.layers.flatten(goal_ph)], axis=-1),
-                action], axis=-1),
+                tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
+                self.action_ph], axis=-1),
             num_outputs=1,
-            hidden_size=[128, 128],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
             scope=scope,
-            reuse=reuse,
-            prefix='worker',
+            reuse=False,
+            prefix='w_normalized_critic'
         )
-        self.worker_vf = value_fn
-        self._worker_vf = value_fn[:, 0]
+        w_critic = denormalize(
+            tf.clip_by_value(w_normalized_critic,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
+        _m_critic = w_critic[:, 0]
 
-        self.value_fn = (self.manager_vf, self.worker_vf)
+        # PART 2. WITH ACTORS
 
-        return self.value_fn
+        # value function for the manager
+        m_normalized_critic_with_actor = build_fcnet(
+            inputs=tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
+            num_outputs=1,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
+            scope=scope,
+            reuse=True,
+            prefix='m_normalized_critic'
+        )
+        m_critic_with_actor = denormalize(
+            tf.clip_by_value(m_normalized_critic_with_actor,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
+        _m_critic_with_actor = m_critic_with_actor[:, 0]
+
+        # value function for the worker
+        w_normalized_critic_with_actor = build_fcnet(
+            inputs=tf.concat(values=[
+                tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
+                tf.layers.flatten(self.worker)], axis=-1),
+            num_outputs=1,
+            hidden_size=self.layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
+            scope=scope,
+            reuse=True,
+            prefix='w_normalized_critic'
+        )
+        w_critic_with_actor = denormalize(
+            tf.clip_by_value(w_normalized_critic_with_actor,
+                             self.return_range[0],
+                             self.return_range[1]),
+            self.ret_rms)
+        _w_critic_with_actor = w_critic_with_actor[:, 0]
+
+        # PART 3. FORWARD-FACING REPRESENTATION
+        self.critic = tf.concat([m_critic, w_critic], axis=0)
+        self._critic = tf.concat([m_critic, w_critic], axis=0)
+        self.critic_with_actor = tf.concat(
+            [m_critic_with_actor, w_critic_with_actor], axis=0)
+        self._critic_with_actor = tf.concat(
+            [_m_critic_with_actor, _w_critic_with_actor], axis=0)
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """Return the policy for a single step.
