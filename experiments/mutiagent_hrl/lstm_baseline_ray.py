@@ -6,7 +6,8 @@ on various environments.
 import os
 import datetime
 import csv
-import ray
+import threading
+from threading import Thread
 
 from hbaselines.utils.logger import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
@@ -16,10 +17,8 @@ from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import LSTMPolicy as DDPGPolicy
 
 EXAMPLE_USAGE = 'python lstm_baseline.py "HalfCheetah-v2" --gamma 0.995'
-NUM_CPUS = 3
 
 
-@ray.remote
 def run_exp(env, discrete, hp, steps, dir_name, i):
     # initialize the algorithm
     if discrete:
@@ -30,7 +29,7 @@ def run_exp(env, discrete, hp, steps, dir_name, i):
         alg = DDPG(policy=DDPGPolicy, env=env, recurrent=True, **hp)
 
     # perform training
-    alg.learn(
+    _ = alg.learn(
         total_timesteps=steps,
         log_interval=10,
         file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
@@ -47,6 +46,7 @@ def main():
 
     # create a save directory folder (if it doesn't exist)
     dir_name = 'data/lstm/{}'.format(datetime.datetime.now().time())
+    dir_name = os.path.join(os.getcwd(), dir_name)
     ensure_dir(dir_name)
 
     # if the environment is in Flow or h-baselines, register it
@@ -64,12 +64,10 @@ def main():
         w.writeheader()
         w.writerow(hp)
 
-    ray.init(num_cpus=NUM_CPUS)
-    ray.get([run_exp.remote(env, discrete, hp, args.steps, dir_name, i)
-             for i in range(args.n_training)])
-    ray.shutdown()
-
+    for i in range(args.n_training):
+        thread = Thread(target=run_exp,
+            args=[env, discrete, hp, args.steps, dir_name, i])
+        thread.start()
 
 if __name__ == '__main__':
     main()
-    os._exit(1)
