@@ -466,6 +466,8 @@ class DDPG(OffPolicyRLModel):
         if self.hierarchical:
             action, goal = (action[:, :self.action_space.shape[0]],
                             action[:, self.action_space.shape[0]:])
+            goal = goal.flatten()
+            goal = np.clip(goal, -1, 1)
         else:
             goal = None
 
@@ -474,14 +476,12 @@ class DDPG(OffPolicyRLModel):
                 obs=obs, action=None, state=state, use_actor=True,
                 apply_manager=apply_manager)
 
-        goal = goal.flatten()
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
         action = np.clip(action, -1, 1)
-        goal = np.clip(goal, -1, 1)
 
         return action, state1, q_value, goal
 
@@ -708,6 +708,7 @@ class DDPG(OffPolicyRLModel):
                                 if not self.normalize_observations:
                                     goal *= np.abs(self.observation_space.low)
                                 action = np.append(action, goal)
+                                new_obs = np.append(new_obs, goal)
 
                             if writer is not None:
                                 ep_rew = np.array([reward]).reshape((1, -1))

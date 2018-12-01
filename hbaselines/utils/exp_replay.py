@@ -31,6 +31,9 @@ class RecurrentMemory(Memory):
         super(RecurrentMemory, self).__init__(
             limit, action_shape, observation_shape)
 
+        self.ob_shape = observation_shape
+        self.ac_shape = action_shape
+
         self.limit = limit
         self.trace_length = trace_length
 
@@ -94,7 +97,14 @@ class RecurrentMemory(Memory):
         }
         return result
 
-    def append(self, obs0, action, reward, obs1, terminal1, training=True):
+    def append(self,
+               obs0,
+               action,
+               reward,
+               obs1,
+               terminal1,
+               training=True,
+               **kwargs):
         """Append a transition to the buffer.
 
         This methods will store samples from the same episode in a single list.
@@ -292,11 +302,12 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
         if not training:
             return
 
+        print(obs0)
         # separate the manager and worker rewards
-        obs0_manager, obs0_worker = obs0
-        goal, action = action
-        reward_manager, reward_worker = reward
-        obs1_manager, obs1_worker = obs1
+        obs0_manager, obs0_worker = obs0[:self.ob_shape[0]], obs0.copy()
+        goal, action = action[self.ac_shape[0]:], action[:self.ac_shape[0]]
+        reward_manager, reward_worker = reward, reward  # FIXME
+        obs1_manager, obs1_worker = obs1[:self.ob_shape[0]], obs1.copy()
 
         # append the list of samples from the worker
         self.worker['observations0'][-1].append(obs0_worker)

@@ -284,7 +284,7 @@ class FullyConnectedPolicy(object):
             var_list=tf_util.get_trainable_vars('model/qf/'),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, state=None, mask=None, **kwargs):
         """Call the actor methods to compute policy actions.
 
         Parameters
@@ -435,7 +435,7 @@ class LSTMPolicy(FullyConnectedPolicy):
             nonlinearity=tf.nn.tanh,
         )
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
         return self.sess.run(
             [self.policy, self.state],
