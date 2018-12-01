@@ -7,7 +7,8 @@ sudo: required
 
 install:
   # dependencies for mpi4py
-  - sudo apt-get install openmpi-bin # libopenmpi-dev
+  - sudo apt-get install libopenmpi-dev
+  - sudo apt-get install openmpi-bin
   # other packages to install
   - pip install flake8 .
   - pip install coveralls
