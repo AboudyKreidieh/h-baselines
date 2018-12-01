@@ -5,6 +5,7 @@ from stable_baselines import logger
 from functools import reduce
 import numpy as np
 import tensorflow as tf
+from copy import deepcopy
 from gym.spaces import Box
 from hbaselines.models import build_fcnet, build_lstm
 from hbaselines.utils.stats import normalize, denormalize
@@ -188,9 +189,16 @@ class FullyConnectedPolicy(object):
         self._critic_with_actor = critic_with_actor[:, 0]
 
     def setup_actor_optimizer(self, clip_norm, verbose):
-        """
+        """Create the actor loss, gradient, and optimizer functions.
 
-        :return:
+        This structure is compatible with DDPG.
+
+        Parameters
+        ----------
+        clip_norm : blank
+            blank
+        verbose : blank
+            blank
         """
         if verbose >= 2:
             logger.info('setting up actor optimizer')
@@ -218,12 +226,18 @@ class FullyConnectedPolicy(object):
                                critic_l2_reg,
                                clip_norm,
                                verbose):
-        """
+        """Create the critic loss, gradient, and optimizer functions.
 
-        :param critic_l2_reg:
-        :param clip_norm:
-        :param verbose:
-        :return:
+        This structure is compatible with DDPG.
+
+        Parameters
+        ----------
+        critic_l2_reg : blank
+            blank
+        clip_norm : blank
+            blank
+        verbose : blank
+            blank
         """
         if verbose >= 2:
             logger.info('setting up critic optimizer')
@@ -271,9 +285,55 @@ class FullyConnectedPolicy(object):
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def step(self, obs, state=None, mask=None):
+        """Call the actor methods to compute policy actions.
+
+        Parameters
+        ----------
+        obs : list of float or np.ndarray
+            blank
+        state : blank
+            blank
+        mask : blank
+            blank
+
+        Returns
+        -------
+        list of float or list of int
+            computed action by the policy
+        """
         return self.sess.run(self.policy, {self.obs_ph: obs})
 
-    def value(self, obs, action, state=None, mask=None, use_actor=False):
+    def value(self,
+              obs,
+              action,
+              state=None,
+              mask=None,
+              use_actor=False,
+              **kwargs):
+        """Compute the estimated value by the critic.
+
+        This method may use an inputted action via placeholders, or can compute
+        the action from the state given the policy.
+
+        Parameters
+        ----------
+        obs : list of float or np.ndarray
+            blank
+        action : blank
+            blank
+        state : blank
+            blank
+        mask : blank
+            blank
+        use_actor : bool, defaults
+            specifies whether to use the actions derived from the actor or the
+            ones inputted by an external object (e.g. replay buffer)
+
+        Returns
+        -------
+        list of float or list of int
+            computed action by the policy
+        """
         if use_actor:
             return self.sess.run(
                 self._critic_with_actor, feed_dict={self.obs_ph: obs})
@@ -283,6 +343,26 @@ class FullyConnectedPolicy(object):
                 feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def train_actor_critic(self, batch, target_q, actor_lr, critic_lr):
+        """Perform one step of training on a given minibatch.
+
+        Parameters
+        ----------
+        batch : blank
+            blank
+        target_q : blank
+            blank
+        actor_lr : blank
+            blank
+        critic_lr : blank
+            blank
+
+        Returns
+        -------
+        blank
+            blank
+        blank
+            blank
+        """
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
             [self.actor_grads, self.actor_loss, self.critic_grads,
              self.critic_loss],
@@ -362,12 +442,18 @@ class LSTMPolicy(FullyConnectedPolicy):
             feed_dict={
                 self.obs_ph: obs,
                 self.states_ph: state,
-                self.train_length: obs.shape[0],
-                self.batch_size: obs.shape[0],
+                self.train_length: obs.shape[0],  # FIXME
+                self.batch_size: obs.shape[0],  # FIXME
             }
         )
 
-    def value(self, obs, action, state=None, mask=None, use_actor=False):
+    def value(self,
+              obs,
+              action,
+              state=None,
+              mask=None,
+              use_actor=False,
+              **kwargs):
         """See parent class."""
         if use_actor:
             # TODO: should we store the internal state for computing target q?
@@ -376,8 +462,8 @@ class LSTMPolicy(FullyConnectedPolicy):
                 feed_dict={
                     self.obs_ph: obs,
                     self.states_ph: state,
-                    self.train_length: obs.shape[0],
-                    self.batch_size: obs.shape[0],
+                    self.train_length: obs.shape[0],  # FIXME
+                    self.batch_size: obs.shape[0],  # FIXME
                 }
             )
         else:
@@ -550,11 +636,9 @@ class HIROPolicy(LSTMPolicy):
         )
 
         self.policy = tf.concat([self.manager, self.worker], axis=1)
-        self.state_init = (m_state_init, w_state_init)
-        self.states_ph = tf.concat([m_states_ph, w_states_ph], axis=1)
-        self.state = tf.concat([m_state, w_state], axis=1)
-
-        return self.policy
+        self.state_init = [m_state_init, w_state_init]
+        self.states_ph = [m_states_ph, w_states_ph]
+        self.state = [m_state, w_state]
 
     def make_critic(self, obs=None, reuse=False, scope='qf'):
         """Create a critic object.
@@ -586,7 +670,7 @@ class HIROPolicy(LSTMPolicy):
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=False,
-            prefix='m_normalized_critic'
+            prefix='manager/normalized_critic'
         )
         m_critic = denormalize(
             tf.clip_by_value(m_normalized_critic,
@@ -606,7 +690,7 @@ class HIROPolicy(LSTMPolicy):
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=False,
-            prefix='w_normalized_critic'
+            prefix='worker/normalized_critic'
         )
         w_critic = denormalize(
             tf.clip_by_value(w_normalized_critic,
@@ -626,7 +710,7 @@ class HIROPolicy(LSTMPolicy):
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=True,
-            prefix='m_normalized_critic'
+            prefix='manager/normalized_critic'
         )
         m_critic_with_actor = denormalize(
             tf.clip_by_value(m_normalized_critic_with_actor,
@@ -646,7 +730,7 @@ class HIROPolicy(LSTMPolicy):
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
             reuse=True,
-            prefix='w_normalized_critic'
+            prefix='worker/normalized_critic'
         )
         w_critic_with_actor = denormalize(
             tf.clip_by_value(w_normalized_critic_with_actor,
@@ -656,19 +740,125 @@ class HIROPolicy(LSTMPolicy):
         _w_critic_with_actor = w_critic_with_actor[:, 0]
 
         # PART 3. FORWARD-FACING REPRESENTATION
+        self.normalized_critic = tf.concat(
+            [m_normalized_critic, w_normalized_critic], axis=0)
         self.critic = tf.concat([m_critic, w_critic], axis=0)
         self._critic = tf.concat([m_critic, w_critic], axis=0)
         self.critic_with_actor = tf.concat(
             [m_critic_with_actor, w_critic_with_actor], axis=0)
-        self._critic_with_actor = tf.concat(
-            [_m_critic_with_actor, _w_critic_with_actor], axis=0)
+        self._critic_with_actor = [_m_critic_with_actor, _w_critic_with_actor]
+
+    def setup_actor_optimizer(self, clip_norm, verbose):
+        """See parent class.
+
+        Separate optimizers are generated for the manager and the worker, with
+        the same variables now holding a list of losses, gradients, and
+        optimizers.
+        """
+        if verbose >= 2:
+            logger.info('setting up actor optimizer')
+
+        self.actor_loss = []
+        self.actor_grads = []
+        self.actor_optimizer = []
+
+        for i, agent in enumerate(['manager', 'worker']):
+            self.actor_loss.append(-tf.reduce_mean(self.critic_with_actor))  # FIXME
+
+            actor_shapes = [
+                var.get_shape().as_list()
+                for var in
+                tf_util.get_trainable_vars('model/pi/{}'.format(agent))]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
+
+            if verbose >= 2:
+                logger.info('  {} actor shapes: {}'.format(
+                    agent, actor_shapes))
+                logger.info('  {} actor params: {}'.format(
+                    agent, actor_nb_params))
+
+            self.actor_grads.append(tf_util.flatgrad(
+                self.actor_loss[i],
+                tf_util.get_trainable_vars('model/pi/{}'.format(agent)),
+                clip_norm=clip_norm))
+
+            self.actor_optimizer.append(MpiAdam(
+                var_list=tf_util.get_trainable_vars(
+                    'model/pi/{}'.format(agent)),
+                beta1=0.9, beta2=0.999, epsilon=1e-08))
+
+    def setup_critic_optimizer(self,
+                               critic_l2_reg,
+                               clip_norm,
+                               verbose):
+        """See parent class.
+
+        Separate optimizers are generated for the manager and the worker, with
+        the same variables now holding a list of losses, gradients, and
+        optimizers.
+        """
+        if verbose >= 2:
+            logger.info('setting up critic optimizer')
+
+        self.critic_loss = []
+        self.critic_grads = []
+        self.critic_optimizer = []
+
+        for i, agent in enumerate(['manager', 'worker']):
+            normalized_critic_target_tf = tf.clip_by_value(
+                normalize(self.critic_target, self.ret_rms),  # TODO: make critic target a list?
+                self.return_range[0],
+                self.return_range[1])
+
+            self.critic_loss.append(tf.reduce_mean(tf.square(
+                self.normalized_critic - normalized_critic_target_tf)))  # FIXME
+
+            if critic_l2_reg > 0.:
+                critic_reg_vars = [
+                    var for var
+                    in tf_util.get_trainable_vars('model/qf/{}'.format(agent))
+                    if 'bias' not in var.name and 'output'
+                       not in var.name and 'b' not in var.name]
+                if verbose >= 2:
+                    for var in critic_reg_vars:
+                        logger.info('  regularizing: {}'.format(var.name))
+                    logger.info('  applying l2 regularization with {}'.
+                                format(critic_l2_reg))
+
+                critic_reg = tf.contrib.layers.apply_regularization(
+                    tf.contrib.layers.l2_regularizer(critic_l2_reg),
+                    weights_list=critic_reg_vars
+                )
+                self.critic_loss[i] += critic_reg
+            critic_shapes = [
+                var.get_shape().as_list() for var in
+                tf_util.get_trainable_vars('model/qf/{}'.format(agent))]
+            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                    for shape in critic_shapes])
+
+            if verbose >= 2:
+                logger.info('  {} critic shapes: {}'.format(
+                    agent, critic_shapes))
+                logger.info('  {} critic params: {}'.format(
+                    agent, critic_nb_params))
+
+            self.critic_grads.append(tf_util.flatgrad(
+                self.critic_loss[i],
+                tf_util.get_trainable_vars('model/qf/{}'.format(agent)),
+                clip_norm=clip_norm))
+
+            self.critic_optimizer.append(MpiAdam(
+                var_list=tf_util.get_trainable_vars(
+                    'model/qf/{}'.format(agent)),
+                beta1=0.9, beta2=0.999, epsilon=1e-08))
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """Return the policy for a single step.
 
         Parameters
         ----------
-        obs : list of float or list of int
+        obs : list of float or list of int or np.ndarray
             The current observation of the environment
         state : list of float
             The last states (used in recurrent policies)
@@ -682,63 +872,69 @@ class HIROPolicy(LSTMPolicy):
         list of float
             actions from the worker
         """
+        state1 = deepcopy(state)
+
         if kwargs['apply_manager']:
-            self.cur_goal = self.sess.run(
-                self.manager,
+            self.cur_goal, state1[0] = self.sess.run(
+                [self.manager, self.state[0]],  # TODO: add state
                 feed_dict={
-                    self.obs_ph: obs,
-                    self.states_ph: state[0]
+                    self.obs_ph: obs[:, :self.ob_space.shape[0]],
+                    self.states_ph[0]: state[0],
+                    self.train_length: obs.shape[0],  # FIXME
+                    self.batch_size: obs.shape[0],  # FIXME
                 }
             )
         else:
-            # TODO: the thing they do in the HIRO paper
             self.cur_goal = self.update_goal(self.cur_goal, obs, self.prev_obs)
 
-        action = self.sess.run(
-            self.worker,
+        action, state1[1] = self.sess.run(
+            [self.worker, self.state[1]],  # TODO: add state
             feed_dict={
-                self.obs_ph: obs,
-                self.states_ph: state[1],
-                self.goal_ph: self.cur_goal
+                self.obs_ph: obs[:, :self.ob_space.shape[0]],
+                self.states_ph[1]: state[1],
+                self.goal_ph: obs[:, self.ob_space.shape[0]:],
+                self.train_length: obs.shape[0],  # FIXME
+                self.batch_size: obs.shape[0],  # FIXME
             }
         )
 
         self.prev_obs = obs.copy()
-        return self.cur_goal, action
+        return np.concatenate([action, self.cur_goal], axis=1), state1
 
-    def value(self, obs, action, state=None, mask=None, **kwargs):
-        """Return the value for a single step.
+    def value(self,
+              obs,
+              action,
+              state=None,
+              mask=None,
+              use_actor=False,
+              **kwargs):
+        """See parent class."""
+        m_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
+                       self.train_length: obs.shape[0],  # FIXME
+                       self.batch_size: obs.shape[0],  # FIXME
+                       }
+        w_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
+                       self.goal_ph: obs[:, self.ob_space.shape[0]:],
+                       self.train_length: obs.shape[0],  # FIXME
+                       self.batch_size: obs.shape[0],  # FIXME
+                       }
 
-        Parameters
-        ----------
-        obs : list of float or list of int
-            The current observation of the environment
-        action : list of float or list of int
-            The taken action
-        state : list of float
-            The last states (used in recurrent policies)
-        mask : list of float
-            The last masks (used in recurrent policies)
-
-        Returns
-        -------
-        list of float
-            The associated value of the goal from the manager
-        list of float
-            The associated value of the action from the worker
-        """
-        if kwargs['apply_manager']:
-            v_manager = self.sess.run(self._manager_vf,
-                                      feed_dict={self.obs_ph: obs,
-                                                 self.goal_ph: self.cur_goal})
+        if use_actor:
+            _crtiic = self._critic_with_actor
+            m_feed_dict[self.states_ph[0]] = state[0]
+            w_feed_dict[self.states_ph[0]] = state[0]
+            w_feed_dict[self.states_ph[1]] = state[1]
         else:
-            v_manager = None
+            _crtiic = self._critic
+            m_feed_dict[self.goal_ph] = action[:, self.ac_space.shape[0]:]
+            w_feed_dict[self.action_ph] = action[:, :self.ac_space.shape[0]]
 
-        v_worker = self.sess.run(self._worker_vf,
-                                 feed_dict={self.obs_ph: obs,
-                                            self.states_ph: state[1],
-                                            self.goal_ph: self.cur_goal,
-                                            self.action_ph: action})
+        if kwargs['apply_manager']:
+            v_manager = self.sess.run(_crtiic[0], feed_dict=m_feed_dict)
+        else:
+            v_manager = np.array([0 for _ in range(obs.shape[0])])
+
+        v_worker = self.sess.run(_crtiic[1], feed_dict=w_feed_dict)
 
         return v_manager, v_worker
 
@@ -759,4 +955,6 @@ class HIROPolicy(LSTMPolicy):
         list of float or list of int
             current step goals
         """
+        obs = obs[:, :self.ob_space.shape[0]]
+        prev_obs = prev_obs[:, :self.ob_space.shape[0]]
         return prev_obs + goal - obs

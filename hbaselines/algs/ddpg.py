@@ -319,7 +319,7 @@ class DDPG(OffPolicyRLModel):
                 with tf.variable_scope("model", reuse=False):
                     self.policy_tf.make_actor()
                     self.policy_tf.make_critic()
-                    if self.recurrent:
+                    if self.recurrent or self.hierarchical:
                         self.state_init = self.policy_tf.state_init
 
                 with tf.variable_scope("target", reuse=False):
@@ -422,7 +422,7 @@ class DDPG(OffPolicyRLModel):
                 state,
                 apply_noise=True,
                 compute_q=True,
-                apply_manager=False):
+                apply_manager=True):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -451,7 +451,7 @@ class DDPG(OffPolicyRLModel):
         # reshape the observation to be ready for the policy
         obs_shape = self.observation_space.shape
         if self.hierarchical:
-            obs = np.array(obs).reshape((-1,) + 2 * obs_shape)
+            obs = np.array(obs).reshape((-1,) + tuple(2 * o for o in obs_shape))
         else:
             obs = np.array(obs).reshape((-1,) + obs_shape)
 
@@ -463,18 +463,27 @@ class DDPG(OffPolicyRLModel):
         if self.recurrent or self.hierarchical:
             action, state1 = action
 
+        if self.hierarchical:
+            action, goal = (action[:, :self.action_space.shape[0]],
+                            action[:, self.action_space.shape[0]:])
+        else:
+            goal = None
+
         if compute_q:
             q_value = self.policy_tf.value(
-                obs=obs, action=None, state=state, use_actor=True)
+                obs=obs, action=None, state=state, use_actor=True,
+                apply_manager=apply_manager)
 
+        goal = goal.flatten()
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
         action = np.clip(action, -1, 1)
+        goal = np.clip(goal, -1, 1)
 
-        return action, state1, q_value
+        return action, state1, q_value, goal
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.
@@ -544,8 +553,14 @@ class DDPG(OffPolicyRLModel):
         """
         self.sess = sess
         self.sess.run(tf.global_variables_initializer())
-        self.policy_tf.actor_optimizer.sync()
-        self.policy_tf.critic_optimizer.sync()
+        if isinstance(self.policy_tf.actor_optimizer, list):
+            # in the case of hierarchical policies
+            for i in range(len(self.policy_tf.actor_optimizer)):
+                self.policy_tf.actor_optimizer[i].sync()
+                self.policy_tf.critic_optimizer[i].sync()
+        else:
+            self.policy_tf.actor_optimizer.sync()
+            self.policy_tf.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
 
     def _update_target_net(self):
@@ -648,6 +663,9 @@ class DDPG(OffPolicyRLModel):
                 # Prepare everything.
                 self._reset()
                 obs = self.env.reset()
+                if self.hierarchical:
+                    obs = np.append(
+                        obs, [0 for _ in range(self.observation_space.shape[0])])
                 episodes = 0
                 step = 0
                 total_steps = 0
@@ -675,7 +693,7 @@ class DDPG(OffPolicyRLModel):
                                 return self
 
                             # Predict next action.
-                            action, state, q_value = self._policy(
+                            action, state, q_value, goal = self._policy(
                                 obs, state, apply_noise=True, compute_q=True)
                             assert action.shape == self.env.action_space.shape
 
@@ -684,6 +702,12 @@ class DDPG(OffPolicyRLModel):
                                 self.env.render()
                             new_obs, reward, done, _ = self.env.step(
                                 action * np.abs(self.action_space.low))
+
+                            # combine the action and goal
+                            if self.hierarchical:
+                                if not self.normalize_observations:
+                                    goal *= np.abs(self.observation_space.low)
+                                action = np.append(action, goal)
 
                             if writer is not None:
                                 ep_rew = np.array([reward]).reshape((1, -1))
@@ -723,6 +747,13 @@ class DDPG(OffPolicyRLModel):
                                 self._reset()
                                 if not isinstance(self.env, VecEnv):
                                     obs = self.env.reset()
+                                if self.hierarchical:
+                                    obs = np.append(
+                                        obs,
+                                        [0 for _ in
+                                         range(self.observation_space.shape[0])
+                                         ]
+                                    )
 
                         # Train.
                         epoch_actor_losses = []
