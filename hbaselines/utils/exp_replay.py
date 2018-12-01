@@ -2,6 +2,24 @@ import numpy as np
 from stable_baselines.ddpg.memory import Memory
 
 
+class Memory(Memory):
+
+    def append(self,
+               obs0,
+               action,
+               reward,
+               obs1,
+               terminal1,
+               training=True,
+               **kwargs):
+        """See parent class.
+
+        Slight modification to include kwargs.
+        """
+        return super(Memory, self).append(
+            obs0, action, reward, obs1, terminal1, training)
+
+
 class RecurrentMemory(Memory):
     """Recurrent variant of replay buffer.
 

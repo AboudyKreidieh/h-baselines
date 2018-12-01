@@ -26,8 +26,8 @@ from stable_baselines.ddpg.policies import DDPGPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
 from stable_baselines.a2c.utils import find_trainable_variables, \
     total_episode_reward_logger
-from stable_baselines.ddpg.memory import Memory
 
+from hbaselines.utils.exp_replay import Memory
 from hbaselines.utils.exp_replay import RecurrentMemory
 from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
 from hbaselines.utils.stats import reduce_std
