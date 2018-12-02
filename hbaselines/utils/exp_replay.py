@@ -320,11 +320,10 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
         if not training:
             return
 
-        print(obs0)
         # separate the manager and worker rewards
         obs0_manager, obs0_worker = obs0[:self.ob_shape[0]], obs0.copy()
         goal, action = action[self.ac_shape[0]:], action[:self.ac_shape[0]]
-        reward_manager, reward_worker = reward, reward  # FIXME
+        reward_manager, reward_worker = reward
         obs1_manager, obs1_worker = obs1[:self.ob_shape[0]], obs1.copy()
 
         # append the list of samples from the worker
@@ -360,43 +359,43 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
             self.worker['observations1'].append([])
             self.worker['terminals1'].append([])
 
+            # if the number of elements exceeds the batch size, remove the
+            # first element
+            if self.nb_entries_manager == self.limit:
+                del self.manager['observations0'][0]
+                del self.manager['actions'][0]
+                del self.manager['rewards'][0]
+                del self.manager['observations1'][0]
+                del self.manager['terminals1'][0]
+
+            # check if the most recent batch is too small, and if so,
+            # delete
+            if len(self.manager['observations0'][-1]) <= self.trace_length:
+                del self.manager['observations0'][-1]
+                del self.manager['actions'][-1]
+                del self.manager['rewards'][-1]
+                del self.manager['observations1'][-1]
+                del self.manager['terminals1'][-1]
+
+            # if this a termination stage, create a new list item to fill
+            # with rollout experience
+            self.manager['observations0'].append([])
+            self.manager['actions'].append([])
+            self.manager['rewards'].append([])
+            self.manager['observations1'].append([])
+            self.manager['terminals1'].append([])
+
         # append the list of samples from the manager
         if kwargs['apply_manager']:
             self.manager['observations0'][-1].append(obs0_manager)
             self.manager['actions'][-1].append(goal)
             self.manager['rewards'][-1].append(reward_manager)
-            self.manager['observations1'][-1].append(obs1_worker)  # FIXME
-            self.manager['terminals1'][-1].append(terminal1)  # FIXME
-
-            if terminal1:
-                # if the number of elements exceeds the batch size, remove the
-                # first element
-                if self.nb_entries_manager == self.limit:
-                    del self.manager['observations0'][0]
-                    del self.manager['actions'][0]
-                    del self.manager['rewards'][0]
-                    del self.manager['observations1'][0]
-                    del self.manager['terminals1'][0]
-
-                # check if the most recent batch is too small, and if so,
-                # delete
-                if len(self.manager['observations0'][-1]) <= self.trace_length:
-                    del self.manager['observations0'][-1]
-                    del self.manager['actions'][-1]
-                    del self.manager['rewards'][-1]
-                    del self.manager['observations1'][-1]
-                    del self.manager['terminals1'][-1]
-
-                # if this a termination stage, create a new list item to fill
-                # with rollout experience
-                self.manager['observations0'].append([])
-                self.manager['actions'].append([])
-                self.manager['rewards'].append([])
-                self.manager['observations1'].append([])
-                self.manager['terminals1'].append([])
-
+            self.manager['observations1'][-1].append(obs1_manager)  # FIXME
+            self.manager['terminals1'][-1].append(0)  # TODO: decide if good
+        elif not terminal1:
+            self.manager['rewards'][-1][-1] += reward_manager
         else:
-            self.manager['rewards'][-1] += reward_manager
+            self.manager['rewards'][-2][-1] += reward_manager
 
     @property
     def nb_entries_manager(self):
@@ -405,3 +404,7 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
     @property
     def nb_entries_worker(self):
         return len(self.worker['observations0'])
+
+    @property
+    def nb_entries(self):
+        return min(self.nb_entries_worker, self.nb_entries_manager)

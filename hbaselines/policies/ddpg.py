@@ -151,7 +151,7 @@ class FullyConnectedPolicy(object):
         self.normalized_critic = build_fcnet(
             inputs=tf.concat([vf_h, self.action_ph], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[128, 128],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -171,7 +171,7 @@ class FullyConnectedPolicy(object):
         self.normalized_critic_with_actor = build_fcnet(
             inputs=tf.concat([vf_h, self.policy], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[128, 128],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -481,8 +481,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         This method is further expanded to include placeholders needed by the
         recurrent actors.
         """
-        # FIXME: trace length
-        trace_length = 8
+        trace_length = 8  # FIXME: trace length
         batch_size = int(batch['obs0'].shape[0] / trace_length)
 
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
@@ -545,7 +544,7 @@ class HIROPolicy(LSTMPolicy):
                  return_range=(-np.inf, np.inf)):
         """See parent class."""
         if layers is None:
-            layers = [64]
+            layers = [32]
 
         assert len(layers) == 1, 'Only one LSTM layer is allowed.'
 
@@ -553,9 +552,6 @@ class HIROPolicy(LSTMPolicy):
             sess, ob_space, ac_space, layers, hidden_nonlinearity,
             output_nonlinearity, obs_rms, ret_rms, observation_range,
             return_range)
-
-        # number of steps after which the manager performs an action
-        self.c = 0  # FIXME
 
         # manager policy
         self.manager = None
@@ -575,12 +571,6 @@ class HIROPolicy(LSTMPolicy):
         self.goal_ph = tf.placeholder(dtype=tf.float32,
                                       shape=[None, self.ob_space.shape[0]],
                                       name='goal_ph')
-
-        # a variable that internally stores the most recent goal to the worker
-        self.cur_goal = None  # [0 for _ in range(ob_space.shape[0])]
-
-        # hidden size of the actor LSTM  # TODO: add to inputs
-        self.actor_size = 64
 
         # observation from the previous time step
         self.prev_obs = None
@@ -612,10 +602,10 @@ class HIROPolicy(LSTMPolicy):
         self.manager, m_state_init, m_states_ph, m_state = build_lstm(
             inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
-            hidden_size=self.actor_size,
+            hidden_size=self.layers[0],
             scope='{}/manager'.format(scope),
             reuse=reuse,
-            nonlinearity=tf.nn.tanh,
+            nonlinearity=tf.nn.relu,  # FIXME
         )
 
         # input to the worker
@@ -629,10 +619,10 @@ class HIROPolicy(LSTMPolicy):
         self.worker, w_state_init, w_states_ph, w_state = build_lstm(
             inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=self.actor_size,
+            hidden_size=self.layers[0],
             scope='{}/worker'.format(scope),
             reuse=reuse,
-            nonlinearity=tf.nn.tanh,
+            nonlinearity=self.output_nonlinearity,
         )
 
         self.policy = tf.concat([self.manager, self.worker], axis=1)
@@ -665,7 +655,7 @@ class HIROPolicy(LSTMPolicy):
         m_normalized_critic = build_fcnet(
             inputs=tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[64, 64],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -685,7 +675,7 @@ class HIROPolicy(LSTMPolicy):
                 tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
                 self.action_ph], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[64, 64],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -697,7 +687,7 @@ class HIROPolicy(LSTMPolicy):
                              self.return_range[0],
                              self.return_range[1]),
             self.ret_rms)
-        _m_critic = w_critic[:, 0]
+        _w_critic = w_critic[:, 0]
 
         # PART 2. WITH ACTORS
 
@@ -705,7 +695,7 @@ class HIROPolicy(LSTMPolicy):
         m_normalized_critic_with_actor = build_fcnet(
             inputs=tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[64, 64],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -725,7 +715,7 @@ class HIROPolicy(LSTMPolicy):
                 tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
                 tf.layers.flatten(self.worker)], axis=-1),
             num_outputs=1,
-            hidden_size=self.layers,
+            hidden_size=[64, 64],  # FIXME self.layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -740,12 +730,10 @@ class HIROPolicy(LSTMPolicy):
         _w_critic_with_actor = w_critic_with_actor[:, 0]
 
         # PART 3. FORWARD-FACING REPRESENTATION
-        self.normalized_critic = tf.concat(
-            [m_normalized_critic, w_normalized_critic], axis=0)
-        self.critic = tf.concat([m_critic, w_critic], axis=0)
-        self._critic = tf.concat([m_critic, w_critic], axis=0)
-        self.critic_with_actor = tf.concat(
-            [m_critic_with_actor, w_critic_with_actor], axis=0)
+        self.normalized_critic = [m_normalized_critic, w_normalized_critic]
+        self.critic = [m_critic, w_critic]
+        self._critic = [_m_critic, _w_critic]
+        self.critic_with_actor = [m_critic_with_actor, w_critic_with_actor]
         self._critic_with_actor = [_m_critic_with_actor, _w_critic_with_actor]
 
     def setup_actor_optimizer(self, clip_norm, verbose):
@@ -763,7 +751,7 @@ class HIROPolicy(LSTMPolicy):
         self.actor_optimizer = []
 
         for i, agent in enumerate(['manager', 'worker']):
-            self.actor_loss.append(-tf.reduce_mean(self.critic_with_actor))  # FIXME
+            self.actor_loss.append(-tf.reduce_mean(self.critic_with_actor[i]))
 
             actor_shapes = [
                 var.get_shape().as_list()
@@ -807,12 +795,12 @@ class HIROPolicy(LSTMPolicy):
 
         for i, agent in enumerate(['manager', 'worker']):
             normalized_critic_target_tf = tf.clip_by_value(
-                normalize(self.critic_target, self.ret_rms),  # TODO: make critic target a list?
+                normalize(self.critic_target, self.ret_rms),
                 self.return_range[0],
                 self.return_range[1])
 
             self.critic_loss.append(tf.reduce_mean(tf.square(
-                self.normalized_critic - normalized_critic_target_tf)))  # FIXME
+                self.normalized_critic[i] - normalized_critic_target_tf)))
 
             if critic_l2_reg > 0.:
                 critic_reg_vars = [
@@ -854,28 +842,11 @@ class HIROPolicy(LSTMPolicy):
                 beta1=0.9, beta2=0.999, epsilon=1e-08))
 
     def step(self, obs, state=None, mask=None, **kwargs):
-        """Return the policy for a single step.
-
-        Parameters
-        ----------
-        obs : list of float or list of int or np.ndarray
-            The current observation of the environment
-        state : list of float
-            The last states (used in recurrent policies)
-        mask : list of float
-            The last masks (used in recurrent policies)
-
-        Returns
-        -------
-        list of float
-            the current goal from the manager
-        list of float
-            actions from the worker
-        """
+        """See parent class."""
         state1 = deepcopy(state)
 
         if kwargs['apply_manager']:
-            self.cur_goal, state1[0] = self.sess.run(
+            goal, state1[0] = self.sess.run(
                 [self.manager, self.state[0]],  # TODO: add state
                 feed_dict={
                     self.obs_ph: obs[:, :self.ob_space.shape[0]],
@@ -885,7 +856,7 @@ class HIROPolicy(LSTMPolicy):
                 }
             )
         else:
-            self.cur_goal = self.update_goal(self.cur_goal, obs, self.prev_obs)
+            goal = self._update_goal(obs, self.prev_obs)
 
         action, state1[1] = self.sess.run(
             [self.worker, self.state[1]],  # TODO: add state
@@ -899,7 +870,7 @@ class HIROPolicy(LSTMPolicy):
         )
 
         self.prev_obs = obs.copy()
-        return np.concatenate([action, self.cur_goal], axis=1), state1
+        return (action, goal), state1
 
     def value(self,
               obs,
@@ -938,13 +909,11 @@ class HIROPolicy(LSTMPolicy):
 
         return v_manager, v_worker
 
-    def update_goal(self, goal, obs, prev_obs):
+    def _update_goal(self, obs, prev_obs):
         """Update the goal when the manager isn't issuing commands.
 
         Parameters
         ----------
-        goal : list of float or np.ndarray
-            previous step goals
         obs : list of float or np.ndarray
             observations from the current time step
         prev_obs : list of float or np.ndarray
@@ -956,5 +925,49 @@ class HIROPolicy(LSTMPolicy):
             current step goals
         """
         obs = obs[:, :self.ob_space.shape[0]]
+        prev_goal = prev_obs[:, self.ob_space.shape[0]:]
         prev_obs = prev_obs[:, :self.ob_space.shape[0]]
-        return prev_obs + goal - obs
+        return prev_obs + prev_goal - obs
+
+    def train_actor_critic(self, batch, target_q, actor_lr, critic_lr):
+        """See parent class.
+
+        This method is further expanded to include placeholders needed by the
+        recurrent actors.
+        """
+        trace_length = 8  # FIXME: trace length
+        batch_size = int(batch[0]['obs0'].shape[0] / trace_length)
+        actor_loss, critic_loss = [], []
+
+        for i in range(2):
+            feed_dict = {
+                self.critic_target: target_q[i],
+                self.batch_size: batch_size,
+                self.train_length: trace_length,
+                self.states_ph[i]: (
+                    np.zeros([batch_size, self.layers[0]]),
+                    np.zeros([batch_size, self.layers[0]])),
+            }
+            if i == 0:
+                feed_dict[self.obs_ph] = batch[i]['obs0']
+                feed_dict[self.goal_ph] = batch[i]['actions']
+            else:
+                feed_dict[self.action_ph] = batch[i]['actions']
+                feed_dict[self.obs_ph] = batch[i]['obs0'][
+                    :, :self.ob_space.shape[0]]
+                feed_dict[self.goal_ph] = batch[i]['obs0'][
+                    :, self.ob_space.shape[0]:]
+                feed_dict[self.states_ph[0]] = (
+                    np.zeros([batch_size, self.layers[0]]),
+                    np.zeros([batch_size, self.layers[0]]))
+
+            a_grads, a_loss, c_grads, c_loss = self.sess.run(
+                [self.actor_grads[i], self.actor_loss[i], self.critic_grads[i],
+                 self.critic_loss[i]], feed_dict=feed_dict)
+
+            actor_loss.append(a_loss)
+            critic_loss.append(c_loss)
+            self.actor_optimizer[i].update(a_grads, learning_rate=actor_lr)
+            self.critic_optimizer[i].update(c_grads, learning_rate=critic_lr)
+
+        return actor_loss, critic_loss

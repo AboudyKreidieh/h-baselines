@@ -102,7 +102,7 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
 class DDPG(OffPolicyRLModel):
     """Deep Deterministic Policy Gradient (DDPG) model.
 
-    DDPG: https://arxiv.org/pdf/1509.02971.pdf
+    See: https://arxiv.org/pdf/1509.02971.pdf
 
     Parameters
     ----------
@@ -249,6 +249,9 @@ class DDPG(OffPolicyRLModel):
         if hierarchical:
             self.memory_policy = memory_policy or HierarchicalRecurrentMemory
 
+        # number of steps after which the manager performs an action
+        self.c = 10  # FIXME
+
         if _init_setup_model:
             self.setup_model()
 
@@ -383,7 +386,8 @@ class DDPG(OffPolicyRLModel):
 
             ops += [tf.reduce_mean(self.policy_tf.critic_with_actor[0]),
                     tf.reduce_mean(self.policy_tf.critic_with_actor[1])]
-            names += ['reference_actor_Q_mean']
+            names += ['reference_actor_Q_mean_manager',
+                      'reference_actor_Q_mean_worker']
             ops += [reduce_std(self.policy_tf.critic_with_actor[0]),
                     reduce_std(self.policy_tf.critic_with_actor[1])]
             names += ['reference_actor_Q_std_manager',
@@ -420,9 +424,9 @@ class DDPG(OffPolicyRLModel):
     def _policy(self,
                 obs,
                 state,
+                apply_manager,
                 apply_noise=True,
-                compute_q=True,
-                apply_manager=True):
+                compute_q=True,):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -431,13 +435,13 @@ class DDPG(OffPolicyRLModel):
             the observation
         state : list of float or list of int
             internal state (for recurrent neural networks)
+        apply_manager : bool
+            specifies whether to perform an action by the manager (used by
+            hierarchical policies)
         apply_noise : bool
             enable the noise
         compute_q : bool
             compute the critic output
-        apply_manager : bool
-            specifies whether to perform an action by the manager (used by
-            hierarchical policies)
 
         Returns
         -------
@@ -447,13 +451,15 @@ class DDPG(OffPolicyRLModel):
             the next internal state of the actor (for RNNs)
         float or list of float
             the critic value
+        float or list of goal
+            the manager goals (for hierarchical policies)
         """
         # reshape the observation to be ready for the policy
-        obs_shape = self.observation_space.shape
+        o_shape = self.observation_space.shape
         if self.hierarchical:
-            obs = np.array(obs).reshape((-1,) + tuple(2 * o for o in obs_shape))
+            obs = np.array(obs).reshape((-1,) + tuple(2 * o for o in o_shape))
         else:
-            obs = np.array(obs).reshape((-1,) + obs_shape)
+            obs = np.array(obs).reshape((-1,) + o_shape)
 
         # get the next action from the policy
         action = self.policy_tf.step(
@@ -464,10 +470,9 @@ class DDPG(OffPolicyRLModel):
             action, state1 = action
 
         if self.hierarchical:
-            action, goal = (action[:, :self.action_space.shape[0]],
-                            action[:, self.action_space.shape[0]:])
+            action, goal = action
             goal = goal.flatten()
-            goal = np.clip(goal, -1, 1)
+            # goal = np.clip(goal, -1, 1)  FIXME
         else:
             goal = None
 
@@ -485,7 +490,13 @@ class DDPG(OffPolicyRLModel):
 
         return action, state1, q_value, goal
 
-    def _store_transition(self, obs0, action, reward, obs1, terminal1):
+    def _store_transition(self,
+                          obs0,
+                          action,
+                          reward,
+                          obs1,
+                          terminal1,
+                          apply_manager):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -500,10 +511,21 @@ class DDPG(OffPolicyRLModel):
             the current observation
         terminal1 : bool
             is the episode done
+        apply_manager : bool
+            specifies whether the manager policy performed an action in the
+            current time step (for hierarchical policies)
         """
         reward *= self.reward_scale
-        self.memory.append(obs0, action, reward, obs1, terminal1,
-                           apply_manager=True)
+
+        if self.hierarchical:
+            reward_worker = - self.reward_scale * np.linalg.norm(
+                np.array(obs1[:self.observation_space.shape[0]]) -
+                np.array(obs1[self.observation_space.shape[0]:]))
+            self.memory.append(obs0, action, (reward, reward_worker), obs1,
+                               terminal1, apply_manager=apply_manager)
+        else:
+            self.memory.append(obs0, action, reward, obs1, terminal1)
+
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
@@ -522,21 +544,76 @@ class DDPG(OffPolicyRLModel):
         if self.memory.nb_entries <= 1:
             return None, None
 
-        # Get a batch
-        batch = self.memory.sample(batch_size=self.batch_size)
+        if self.hierarchical:
+            target_q = []
 
-        feed_dict = {
-            self.q_obs1: np.array([self.target_policy.value(
-                obs=batch['obs1'],
-                action=batch['actions'],
-                state=(np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                       np.zeros([self.batch_size, self.policy_tf.layers[0]])),
-                mask=batch['terminals1'])]).T,
-            self.rewards: batch['rewards'],
-            self.terminals1: batch['terminals1'].astype('float32')
-        }
+            # Get a batch
+            m_batch, w_batch = self.memory.sample(batch_size=self.batch_size)
+            batch = [m_batch, w_batch]
 
-        target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
+            # manager target q
+            m_feed_dict = {
+                self.target_policy.obs_ph: m_batch['obs1'],
+                self.target_policy.train_length: 8,  # FIXME
+                self.target_policy.batch_size: self.batch_size,
+                self.target_policy.states_ph[0]: (
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+            }
+            q_obs = self.sess.run(
+                self.target_policy.critic_with_actor[0],
+                feed_dict=m_feed_dict
+            )
+            feed_dict = {
+                self.q_obs1: q_obs,
+                self.rewards: m_batch['rewards'],
+                self.terminals1: m_batch['terminals1'].astype('float32')
+            }
+            target_q.append(self.sess.run(self.target_q, feed_dict=feed_dict))
+
+            # worker target q
+            w_feed_dict = {
+                self.target_policy.obs_ph:
+                    w_batch['obs1'][:, :self.observation_space.shape[0]],
+                self.target_policy.goal_ph:
+                    w_batch['obs1'][:, self.observation_space.shape[0]:],
+                self.target_policy.train_length: 8,  # FIXME
+                self.target_policy.batch_size: self.batch_size,
+                self.target_policy.states_ph[0]: (
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]])),
+                self.target_policy.states_ph[1]: (
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+            }
+            q_obs = self.sess.run(
+                self.target_policy.critic_with_actor[1],
+                feed_dict=w_feed_dict
+            )
+            feed_dict = {
+                self.q_obs1: q_obs,
+                self.rewards: w_batch['rewards'],
+                self.terminals1: w_batch['terminals1'].astype('float32')
+            }
+            target_q.append(self.sess.run(self.target_q, feed_dict=feed_dict))
+
+        else:
+            # Get a batch
+            batch = self.memory.sample(batch_size=self.batch_size)
+
+            feed_dict = {
+                self.q_obs1: np.array([self.target_policy.value(
+                    obs=batch['obs1'],
+                    action=batch['actions'],
+                    state=(
+                        np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+                        np.zeros([self.batch_size, self.policy_tf.layers[0]])),
+                    mask=batch['terminals1'])]).T,
+                self.rewards: batch['rewards'],
+                self.terminals1: batch['terminals1'].astype('float32')
+            }
+
+            target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
 
         return self.policy_tf.train_actor_critic(batch=batch,
                                                  target_q=target_q,
@@ -581,6 +658,9 @@ class DDPG(OffPolicyRLModel):
             # of inputs.
             self.stats_sample = self.memory.sample(batch_size=self.batch_size)
 
+            if self.hierarchical:
+                _, self.stats_sample = self.stats_sample
+
         feed_dict = {}
 
         for placeholder in [self.policy_tf.action_ph,
@@ -589,14 +669,27 @@ class DDPG(OffPolicyRLModel):
 
         for placeholder in [self.policy_tf.obs_ph,
                             self.target_policy.obs_ph]:
-            feed_dict[placeholder] = self.stats_sample['obs0']
+            if self.hierarchical:
+                feed_dict[placeholder] = self.stats_sample['obs0'][
+                    :, :self.observation_space.shape[0]]
+            else:
+                feed_dict[placeholder] = self.stats_sample['obs0']
+
+        state_init = (
+            np.zeros([self.batch_size, self.policy_tf.layers[0]]),
+            np.zeros([self.batch_size, self.policy_tf.layers[0]]))
 
         if self.recurrent:
-            feed_dict[self.policy_tf.states_ph] = (
-                np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+            feed_dict[self.policy_tf.states_ph] = state_init
             feed_dict[self.policy_tf.batch_size] = self.batch_size
             feed_dict[self.policy_tf.train_length] = 8
+        if self.hierarchical:
+            feed_dict[self.policy_tf.states_ph[0]] = deepcopy(state_init)
+            feed_dict[self.policy_tf.states_ph[1]] = deepcopy(state_init)
+            feed_dict[self.policy_tf.batch_size] = self.batch_size
+            feed_dict[self.policy_tf.train_length] = 8
+            feed_dict[self.policy_tf.goal_ph] = self.stats_sample['obs0'][
+                :, self.observation_space.shape[0]:]
 
         values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
@@ -664,8 +757,8 @@ class DDPG(OffPolicyRLModel):
                 self._reset()
                 obs = self.env.reset()
                 if self.hierarchical:
-                    obs = np.append(
-                        obs, [0 for _ in range(self.observation_space.shape[0])])
+                    obs_shape = self.observation_space.shape[0]
+                    obs = np.append(obs, [0 for _ in range(obs_shape)])
                 episodes = 0
                 step = 0
                 total_steps = 0
@@ -676,7 +769,6 @@ class DDPG(OffPolicyRLModel):
                 epoch_episode_steps = []
                 epoch_actor_losses = []
                 epoch_critic_losses = []
-                epoch_adaptive_distances = []
                 epoch_actions = []
                 epoch_qs = []
                 episode_reward = 0
@@ -692,9 +784,14 @@ class DDPG(OffPolicyRLModel):
                             if total_steps >= total_timesteps:
                                 return self
 
+                            # this determines whether a manager policy can
+                            # perform actions in the current time step
+                            apply_manager = episode_step % self.c == 0
+
                             # Predict next action.
                             action, state, q_value, goal = self._policy(
-                                obs, state, apply_noise=True, compute_q=True)
+                                obs, state, apply_noise=True, compute_q=True,
+                                apply_manager=apply_manager)
                             assert action.shape == self.env.action_space.shape
 
                             # Execute next action.
@@ -705,8 +802,9 @@ class DDPG(OffPolicyRLModel):
 
                             # combine the action and goal
                             if self.hierarchical:
-                                if not self.normalize_observations:
-                                    goal *= np.abs(self.observation_space.low)
+                                # FIXME
+                                # if not self.normalize_observations:
+                                #     goal *= np.abs(self.observation_space.low)
                                 action = np.append(action, goal)
                                 new_obs = np.append(new_obs, goal)
 
@@ -728,7 +826,8 @@ class DDPG(OffPolicyRLModel):
                             epoch_actions.append(action)
                             epoch_qs.append(q_value)
                             self._store_transition(
-                                obs, action, reward, new_obs, done)
+                                obs, action, reward, new_obs, done,
+                                apply_manager=apply_manager)
                             obs = new_obs
                             if callback is not None:
                                 callback(locals(), globals())
@@ -748,18 +847,14 @@ class DDPG(OffPolicyRLModel):
                                 self._reset()
                                 if not isinstance(self.env, VecEnv):
                                     obs = self.env.reset()
-                                if self.hierarchical:
+                                if self.hierarchical and obs.shape[0] < 2 * self.observation_space.shape[0]:
+                                    obs_shape = self.observation_space.shape[0]
                                     obs = np.append(
-                                        obs,
-                                        [0 for _ in
-                                         range(self.observation_space.shape[0])
-                                         ]
-                                    )
+                                        obs, [0 for _ in range(obs_shape)])
 
                         # Train.
                         epoch_actor_losses = []
                         epoch_critic_losses = []
-                        epoch_adaptive_distances = []
                         for t_train in range(self.nb_train_steps):
                             # weird equation to deal with the fact the
                             # nb_train_steps will be different to
@@ -791,10 +886,20 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['rollout/actions_mean'] = np.mean(
                         epoch_actions)
                     combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-                    combined_stats['train/loss_actor'] = np.mean(
-                        epoch_actor_losses)
-                    combined_stats['train/loss_critic'] = np.mean(
-                        epoch_critic_losses)
+                    if self.hierarchical:
+                        combined_stats['train/loss_actor_manager'] = np.mean(
+                            np.array(epoch_actor_losses)[:, 0])
+                        combined_stats['train/loss_critic_manager'] = np.mean(
+                            np.array(epoch_critic_losses)[:, 0])
+                        combined_stats['train/loss_actor_worker'] = np.mean(
+                            np.array(epoch_actor_losses)[:, 1])
+                        combined_stats['train/loss_critic_worker'] = np.mean(
+                            np.array(epoch_critic_losses)[:, 1])
+                    else:
+                        combined_stats['train/loss_actor'] = np.mean(
+                            epoch_actor_losses)
+                        combined_stats['train/loss_critic'] = np.mean(
+                            epoch_critic_losses)
                     combined_stats['total/duration'] = duration
                     combined_stats['total/steps_per_second'] = \
                         float(step) / float(duration)
