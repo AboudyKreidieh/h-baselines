@@ -3,6 +3,9 @@ from stable_baselines.ddpg.memory import Memory
 
 
 class GenericMemory(Memory):
+    """FIXME
+
+    """
 
     def __init__(self, limit, action_shape, observation_shape):
         """See parent class."""
@@ -189,6 +192,9 @@ class RecurrentMemory(Memory):
 
 
 class HierarchicalRecurrentMemory(RecurrentMemory):
+    """FIXME
+
+    """
 
     def __init__(self, limit, action_shape, observation_shape, **kwargs):
         """Initialize the replay buffer object.
@@ -396,12 +402,19 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
             self.manager['observations0'][-1].append(obs0_manager)
             self.manager['actions'][-1].append(goal)
             self.manager['rewards'][-1].append(reward_manager)
-            self.manager['observations1'][-1].append(obs1_manager)  # FIXME
-            self.manager['terminals1'][-1].append(0)  # TODO: decide if good
+            if len(self.manager['observations0'][-1]) > 1:
+                # add the next observation only after the first observation has
+                # already been added in the past
+                self.manager['observations1'][-1].append(obs1_manager)
+            self.manager['terminals1'][-1].append(0)
         elif not terminal1:
             self.manager['rewards'][-1][-1] += reward_manager
         else:
+            # Add the last observation at the next observation for the manager.
+            # This should complete the list
+            self.manager['observations1'][-2].append(obs0_manager)
             self.manager['rewards'][-2][-1] += reward_manager
+            self.manager['terminals1'][-2][-1] = 1
 
     @property
     def nb_entries_manager(self):

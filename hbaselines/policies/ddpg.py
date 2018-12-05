@@ -239,7 +239,7 @@ class FullyConnectedPolicy(object):
         This structure is compatible with DDPG.
 
         Parameters
-        ----------
+        ----------FIXME
         critic_l2_reg : blank
             blank
         clip_norm : blank
@@ -296,7 +296,7 @@ class FullyConnectedPolicy(object):
         """Call the actor methods to compute policy actions.
 
         Parameters
-        ----------
+        ----------FIXME
         obs : list of float or np.ndarray
             blank
         state : blank
@@ -324,7 +324,7 @@ class FullyConnectedPolicy(object):
         the action from the state given the policy.
 
         Parameters
-        ----------
+        ----------FIXME
         obs : list of float or np.ndarray
             blank
         action : blank
@@ -354,7 +354,7 @@ class FullyConnectedPolicy(object):
         """Perform one step of training on a given minibatch.
 
         Parameters
-        ----------
+        ----------FIXME
         batch : blank
             blank
         target_q : blank
@@ -955,14 +955,15 @@ class HIROPolicy(LSTMPolicy):
         batch_size = int(batch[0]['obs0'].shape[0] / trace_length)
         actor_loss, critic_loss = [], []
 
+        init_state = (np.zeros([batch_size, self.actor_layers[0]]),
+                      np.zeros([batch_size, self.actor_layers[0]]))
+
         for i in range(2):
             feed_dict = {
                 self.critic_target: target_q[i],
                 self.batch_size: batch_size,
                 self.train_length: trace_length,
-                self.states_ph[i]: (
-                    np.zeros([batch_size, self.actor_layers[0]]),
-                    np.zeros([batch_size, self.actor_layers[0]])),
+                self.states_ph[i]: deepcopy(init_state),
             }
             if i == 0:
                 feed_dict[self.obs_ph] = batch[i]['obs0']
@@ -973,9 +974,7 @@ class HIROPolicy(LSTMPolicy):
                     :, :self.ob_space.shape[0]]
                 feed_dict[self.goal_ph] = batch[i]['obs0'][
                     :, self.ob_space.shape[0]:]
-                feed_dict[self.states_ph[0]] = (
-                    np.zeros([batch_size, self.actor_layers[0]]),
-                    np.zeros([batch_size, self.actor_layers[0]]))
+                feed_dict[self.states_ph[0]] = deepcopy(init_state)
 
             a_grads, a_loss, c_grads, c_loss = self.sess.run(
                 [self.actor_grads[i], self.actor_loss[i], self.critic_grads[i],

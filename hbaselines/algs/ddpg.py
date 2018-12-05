@@ -544,6 +544,10 @@ class DDPG(OffPolicyRLModel):
         if self.memory.nb_entries <= 1:
             return None, None
 
+        init_state = (
+            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
+
         if self.hierarchical:
             target_q = []
 
@@ -558,9 +562,7 @@ class DDPG(OffPolicyRLModel):
                 self.target_policy.obs_ph: m_batch['obs1'],
                 self.target_policy.train_length: self.memory.trace_length,
                 self.target_policy.batch_size: self.batch_size,
-                self.target_policy.states_ph[0]: (
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
+                self.target_policy.states_ph[0]: deepcopy(init_state)
             }
             q_obs = self.sess.run(
                 self.target_policy.critic_with_actor[0],
@@ -581,12 +583,8 @@ class DDPG(OffPolicyRLModel):
                     w_batch['obs1'][:, self.observation_space.shape[0]:],
                 self.target_policy.train_length: self.memory.trace_length,
                 self.target_policy.batch_size: self.batch_size,
-                self.target_policy.states_ph[0]: (
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]])),
-                self.target_policy.states_ph[1]: (
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
+                self.target_policy.states_ph[0]: deepcopy(init_state),
+                self.target_policy.states_ph[1]: deepcopy(init_state)
             }
             q_obs = self.sess.run(
                 self.target_policy.critic_with_actor[1],
@@ -609,9 +607,7 @@ class DDPG(OffPolicyRLModel):
                 self.q_obs1: np.array([self.target_policy.value(
                     obs=batch['obs1'],
                     action=batch['actions'],
-                    state=(
-                        np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
-                        np.zeros([self.batch_size, self.policy_tf.actor_layers[0]])),
+                    state=deepcopy(init_state),
                     mask=batch['terminals1'])]).T,
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32')
