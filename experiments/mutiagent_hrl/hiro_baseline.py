@@ -6,7 +6,7 @@ network model "HIRO" on various environments.
 See: TODO: add paper
 """
 import os
-import datetime
+import time
 import csv
 import ray
 
@@ -47,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/hiro/{}'.format(datetime.datetime.now().time())
+    dir_name = 'data/hiro/{}'.format(time.strftime("%Y-%m-%d-%H:%M:%S"))
     ensure_dir(dir_name)
 
     # if the environment is in Flow or h-baselines, register it
@@ -66,7 +66,7 @@ def main():
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    ray.get([run_exp(env, discrete, hp, args.steps, dir_name, i)
+    ray.get([run_exp.remote(env, discrete, hp, args.steps, dir_name, i)
              for i in range(args.n_training)])
     ray.shutdown()
 

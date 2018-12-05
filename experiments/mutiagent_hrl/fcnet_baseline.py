@@ -4,8 +4,8 @@ This run script used to test the performance of DDPG and DQN with fully
 connected network models on various environments.
 """
 import os
-import datetime
 import csv
+import time
 import ray
 
 from hbaselines.utils.train import ensure_dir
@@ -16,7 +16,7 @@ from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
-NUM_CPUS = 2
+NUM_CPUS = 3
 discrete = False
 
 
@@ -47,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}'.format(datetime.datetime.now().time())
+    dir_name = 'data/fcnet/{}'.format(time.strftime("%Y-%m-%d-%H:%M:%S"))
     ensure_dir(dir_name)
 
     # if the environment is in Flow or h-baselines, register it

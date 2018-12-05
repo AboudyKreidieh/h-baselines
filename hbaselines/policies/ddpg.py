@@ -620,7 +620,7 @@ class HIROPolicy(LSTMPolicy):
             hidden_size=self.actor_layers[0],
             scope='{}/manager'.format(scope),
             reuse=reuse,
-            nonlinearity=tf.nn.relu,  # FIXME
+            nonlinearity=self.output_nonlinearity,
         )
 
         # input to the worker
@@ -859,28 +859,30 @@ class HIROPolicy(LSTMPolicy):
     def step(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
         state1 = deepcopy(state)
+        trace_length = state[0][0].shape[0]
+        batch_size = int(obs.shape[0] / trace_length)
 
         if kwargs['apply_manager']:
             goal, state1[0] = self.sess.run(
-                [self.manager, self.state[0]],  # TODO: add state
+                [self.manager, self.state[0]],
                 feed_dict={
                     self.obs_ph: obs[:, :self.ob_space.shape[0]],
                     self.states_ph[0]: state[0],
-                    self.train_length: obs.shape[0],  # FIXME
-                    self.batch_size: obs.shape[0],  # FIXME
+                    self.train_length: trace_length,
+                    self.batch_size: batch_size
                 }
             )
         else:
             goal = self._update_goal(obs, self.prev_obs)
 
         action, state1[1] = self.sess.run(
-            [self.worker, self.state[1]],  # TODO: add state
+            [self.worker, self.state[1]],
             feed_dict={
                 self.obs_ph: obs[:, :self.ob_space.shape[0]],
                 self.states_ph[1]: state[1],
                 self.goal_ph: obs[:, self.ob_space.shape[0]:],
-                self.train_length: obs.shape[0],  # FIXME
-                self.batch_size: obs.shape[0],  # FIXME
+                self.train_length: trace_length,
+                self.batch_size: batch_size
             }
         )
 
