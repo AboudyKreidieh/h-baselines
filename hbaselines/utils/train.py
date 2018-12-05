@@ -1,5 +1,7 @@
 import argparse
 import numpy as np
+import os
+import errno
 
 DEFAULT_DDPG_HP = dict(
     gamma=0.99,
@@ -125,3 +127,13 @@ def create_ddpg_parser(parser):
                         help='the max number of transitions to store')
 
     return parser
+
+
+def ensure_dir(path):
+    """Ensure that the directory specified exists, and if not, create it."""
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+    return path
