@@ -20,7 +20,7 @@ class TestModels(unittest.TestCase):
         pass
 
     def test_linear_zeros(self):
-        # try an empty initialization (all zeros)
+        """Try an empty initialization (all zeros)."""
         output = build_linear(
             inputs=self.input_ph,
             num_outputs=1,
@@ -39,7 +39,7 @@ class TestModels(unittest.TestCase):
         )
 
     def test_linear_nonzeros(self):
-        # try with a non-empty initialization
+        """Try with a non-empty initialization."""
         output = build_linear(
             inputs=self.input_ph,
             num_outputs=1,
@@ -63,7 +63,7 @@ class TestModels(unittest.TestCase):
         )
 
     def test_linear_nonlinearity(self):
-        # try with an non-empty initialization and a non-linearity
+        """Try with an non-empty initialization and a non-linearity."""
         output = build_linear(
             inputs=self.input_ph,
             num_outputs=1,

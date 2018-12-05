@@ -8,7 +8,7 @@ import datetime
 import csv
 import ray
 
-from hbaselines.utils.logger import ensure_dir
+from hbaselines.utils.train import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
 from hbaselines.algs.ddpg import DDPG
 from hbaselines.algs.dqn import DQN

@@ -24,6 +24,11 @@ class TestRecurrentMemory(unittest.TestCase):
         self.exp_replay = None
 
     def test_append_no_terminal(self):
+        """Tests appends in the absence of terminations.
+
+        Samples should be appended to the same rollout minibatch, and not be
+        treated as separate samples.
+        """
         obs0 = [0, 0, 0, 0, 0]
         ac = [1]
         obs1 = [2, 2, 2, 2, 2]
@@ -47,6 +52,13 @@ class TestRecurrentMemory(unittest.TestCase):
                                == self.exp_replay.observations0))
 
     def test_append_terminal(self):
+        """Test the termination aspect of the replay buffer.
+
+        Tests:
+        - Terminations after sufficiently long rollouts are not deleted.
+        - Terminations are rollouts that are too short are removed from the
+          memory buffer.
+        """
         obs0 = [0, 0, 0, 0, 0]
         ac = [1]
         obs1 = [2, 2, 2, 2, 2]

@@ -2,22 +2,27 @@
 import unittest
 
 
-class TestParsers(unittest.TestCase):
+class TestTrain(unittest.TestCase):
     """A simple test to get Travis running."""
 
-    pass
-
-
-class TestEnsureDirectory(unittest.TestCase):
-    """A simple test to get Travis running."""
-
-    pass
+    def test_ensure_dir(self):
+        pass
 
 
 class TestStats(unittest.TestCase):
     """A simple test to get Travis running."""
 
-    pass
+    def test_normalize(self):
+        pass
+
+    def test_denormalize(self):
+        pass
+
+    def test_reduce_var(self):
+        pass
+
+    def test_reduce_std(self):
+        pass
 
 
 if __name__ == '__main__':

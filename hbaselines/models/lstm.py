@@ -34,7 +34,6 @@ def build_lstm(inputs,
         initialization operation for the weights of the model
     bias_initializer : tf.Operation
         initialization operation for the biases of the model
-    # TODO: add prefix
     """
     with tf.variable_scope(scope, reuse=reuse):
         lstm = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
@@ -60,14 +59,15 @@ def build_lstm(inputs,
         lstm_c, lstm_h = lstm_state
         state_out = [lstm_c[:1, :], lstm_h[:1, :]]
 
-        w = tf.get_variable("W", [hidden_size, num_outputs],
-                            initializer=weights_initializer)
-        b = tf.get_variable("b", [num_outputs],
-                            initializer=bias_initializer)
+        with tf.variable_scope("lstm_output", reuse=reuse):
+            w = tf.get_variable("kernel", [hidden_size, num_outputs],
+                                initializer=weights_initializer)
+            b = tf.get_variable("bias", [num_outputs],
+                                initializer=bias_initializer)
 
-        if nonlinearity is None:
-            output = tf.matmul(lstm_outputs, w) + b
-        else:
-            output = nonlinearity(tf.matmul(lstm_outputs, w) + b)
+            if nonlinearity is None:
+                output = tf.matmul(lstm_outputs, w) + b
+            else:
+                output = nonlinearity(tf.matmul(lstm_outputs, w) + b)
 
     return output, state_init, state_in, state_out

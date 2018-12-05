@@ -77,7 +77,7 @@ def plot_results(dir_path):
                          alpha=0.25, color=colors(i))
     plt.title('Training Performance of Different Algorithms', fontsize=25)
     plt.ylabel('Cumulative return', fontsize=20)
-    plt.xlabel('Number of steps', fontsize=20)
+    plt.xlabel('Steps', fontsize=20)
     plt.xlim([0, results[0].shape[1] * dx])
     plt.tick_params(labelsize=15)
     plt.ticklabel_format(axis='both', style='sci', scilimits=(-2, 2))
