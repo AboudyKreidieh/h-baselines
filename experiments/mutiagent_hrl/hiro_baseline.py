@@ -20,6 +20,7 @@ EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
 
 
+@ray.remote
 def run_exp(env, discrete, hp, steps, dir_name, i):
     # initialize the algorithm
     if discrete:
@@ -30,7 +31,7 @@ def run_exp(env, discrete, hp, steps, dir_name, i):
         alg = DDPG(policy=DDPGPolicy, env=env, hierarchical=True, **hp)
 
     # perform training
-    _ = alg.learn(
+    alg.learn(
         total_timesteps=steps,
         log_interval=10,
         file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
@@ -64,10 +65,10 @@ def main():
         w.writeheader()
         w.writerow(hp)
 
-    # ray.init(num_cpus=NUM_CPUS)
-    _ = [run_exp(env, discrete, hp, args.steps, dir_name, i)
-         for i in range(args.n_training)]
-    # ray.shutdown()
+    ray.init(num_cpus=NUM_CPUS)
+    [run_exp(env, discrete, hp, args.steps, dir_name, i)
+     for i in range(args.n_training)]
+    ray.shutdown()
 
 
 if __name__ == '__main__':

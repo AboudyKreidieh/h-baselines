@@ -12,7 +12,6 @@ import csv
 import os.path
 from copy import deepcopy
 
-import gym
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
@@ -258,7 +257,7 @@ class DDPG(OffPolicyRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
             # determine whether the action space is continuous
-            assert isinstance(self.action_space, gym.spaces.Box), \
+            assert isinstance(self.action_space, Box), \
                 "Error: DDPG cannot output a {} action space, only spaces." \
                 "Box is supported.".format(self.action_space)
 
@@ -804,7 +803,8 @@ class DDPG(OffPolicyRLModel):
                             if self.hierarchical:
                                 # FIXME
                                 # if not self.normalize_observations:
-                                #     goal *= np.abs(self.observation_space.low)
+                                #     goal *= np.abs(self.observation_space.
+                                #     low)
                                 action = np.append(action, goal)
                                 new_obs = np.append(new_obs, goal)
 
@@ -847,7 +847,8 @@ class DDPG(OffPolicyRLModel):
                                 self._reset()
                                 if not isinstance(self.env, VecEnv):
                                     obs = self.env.reset()
-                                if self.hierarchical and obs.shape[0] < 2 * self.observation_space.shape[0]:
+                                if self.hierarchical and obs.shape[0] < \
+                                        2 * self.observation_space.shape[0]:
                                     obs_shape = self.observation_space.shape[0]
                                     obs = np.append(
                                         obs, [0 for _ in range(obs_shape)])
