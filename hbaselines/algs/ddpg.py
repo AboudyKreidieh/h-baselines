@@ -333,6 +333,8 @@ class DDPG(OffPolicyRLModel):
                         self.gamma * self.q_obs1
 
                     # Set up parts.
+                    if self.normalize_returns:
+                        self._setup_popart()
                     self._setup_stats()
                     self._setup_target_network_updates()
 
@@ -360,6 +362,38 @@ class DDPG(OffPolicyRLModel):
             self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
+
+    def _setup_popart(self):
+        """Setup pop-art normalization of the critic output.
+
+        See https://arxiv.org/pdf/1602.07714.pdf for details.
+
+        Preserving Outputs Precisely, while Adaptively Rescaling Targets”.
+        """
+        self.old_std = tf.placeholder(tf.float32, shape=[1],
+                                      name='old_std')
+        new_std = self.ret_rms.std
+        self.old_mean = tf.placeholder(tf.float32, shape=[1],
+                                       name='old_mean')
+        new_mean = self.ret_rms.mean
+
+        self.renormalize_q_outputs_op = []
+        for out_vars in [
+            [var for var in tf_util.get_trainable_vars('model/qf/') if
+             'output' in var.name],
+            [var for var in tf_util.get_trainable_vars('target/qf/') if
+             'output' in var.name]]:
+            assert len(out_vars) == 2
+            # wieght and bias of the last layer
+            weight, bias = out_vars
+            assert 'kernel' in weight.name
+            assert 'bias' in bias.name
+            assert weight.get_shape()[-1] == 1
+            assert bias.get_shape()[-1] == 1
+            self.renormalize_q_outputs_op += [
+                weight.assign(weight * self.old_std / new_std)]
+            self.renormalize_q_outputs_op += [bias.assign(
+                (bias * self.old_std + self.old_mean - new_mean) / new_std)]
 
     def _setup_stats(self):
         """Setup the running means and std of the model inputs and outputs."""
@@ -498,6 +532,11 @@ class DDPG(OffPolicyRLModel):
                           apply_manager):
         """Store a transition in the replay buffer.
 
+        Note that in the case of hierarchical policies, the observation
+        consists of the [env_obs, goal_obs], and the action consists of the
+        [env_action, goal_action]. The latter consists of a None when actions
+        are not being applied.
+
         Parameters
         ----------
         obs0 : list of float or list of int
@@ -526,6 +565,7 @@ class DDPG(OffPolicyRLModel):
             self.memory.append(obs0, action, reward, obs1, terminal1)
 
         if self.normalize_observations:
+            # FIXME: for hierarchical policies
             self.obs_rms.update(np.array([obs0]))
 
     def _train_step(self):
@@ -613,6 +653,16 @@ class DDPG(OffPolicyRLModel):
             }
 
             target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
+
+            if self.normalize_returns:
+                old_mean, old_std = self.sess.run(
+                    [self.ret_rms.mean, self.ret_rms.std])
+
+                self.ret_rms.update(target_q.flatten())
+                self.sess.run(self.renormalize_q_outputs_op, feed_dict={
+                    self.old_std: np.array([old_std]),
+                    self.old_mean: np.array([old_mean]),
+                })
 
         return self.policy_tf.train_actor_critic(batch=batch,
                                                  target_q=target_q,

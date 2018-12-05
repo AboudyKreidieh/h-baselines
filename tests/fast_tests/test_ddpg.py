@@ -6,7 +6,7 @@ import tensorflow as tf
 from hbaselines.algs.ddpg import as_scalar, DDPG
 from hbaselines.utils.exp_replay import GenericMemory, RecurrentMemory
 from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
-from hbaselines.policies.ddpg import FullyConnectedPolicy
+from hbaselines.policies.ddpg import FullyConnectedPolicy, LSTMPolicy
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -137,26 +137,89 @@ class TestDDPG(unittest.TestCase):
                              'model/pi/fc_0/bias:0',
                              'model/pi/fc_1/kernel:0',
                              'model/pi/fc_1/bias:0',
-                             'model/pi/fc_pi/kernel:0',
-                             'model/pi/fc_pi/bias:0',
+                             'model/pi/fc_output/kernel:0',
+                             'model/pi/fc_output/bias:0',
                              'model/qf/normalized_critic_0/kernel:0',
                              'model/qf/normalized_critic_0/bias:0',
                              'model/qf/normalized_critic_1/kernel:0',
                              'model/qf/normalized_critic_1/bias:0',
-                             'model/qf/normalized_critic_qf/kernel:0',
-                             'model/qf/normalized_critic_qf/bias:0',
+                             'model/qf/normalized_critic_output/kernel:0',
+                             'model/qf/normalized_critic_output/bias:0',
                              'target/pi/fc_0/kernel:0',
                              'target/pi/fc_0/bias:0',
                              'target/pi/fc_1/kernel:0',
                              'target/pi/fc_1/bias:0',
-                             'target/pi/fc_pi/kernel:0',
-                             'target/pi/fc_pi/bias:0',
+                             'target/pi/fc_output/kernel:0',
+                             'target/pi/fc_output/bias:0',
                              'target/qf/normalized_critic_0/kernel:0',
                              'target/qf/normalized_critic_0/bias:0',
                              'target/qf/normalized_critic_1/kernel:0',
                              'target/qf/normalized_critic_1/bias:0',
-                             'target/qf/normalized_critic_qf/kernel:0',
-                             'target/qf/normalized_critic_qf/bias:0']
+                             'target/qf/normalized_critic_output/kernel:0',
+                             'target/qf/normalized_critic_output/bias:0']
+            actual_vars = [tv_i.name for tv_i in tv]
+            self.assertCountEqual(expected_vars, actual_vars)
+
+            # check that the shapes of the policy and target match
+            policy_names = [tv_i.name[6:] for tv_i in
+                            tv if "model" in tv_i.name]
+
+            with tf.variable_scope('model', reuse=True):
+                for name in policy_names:
+                    t1 = next(tv_i for tv_i in tv
+                              if tv_i.name == 'model/{}'.format(name))
+                    t2 = next(tv_i for tv_i in tv
+                              if tv_i.name == 'target/{}'.format(name))
+                    self.assertEqual(t1.shape, t2.shape)
+
+        # Check the stats.
+        expected_stats = [
+            'reference_Q_mean', 'reference_Q_std', 'reference_actor_Q_mean',
+            'reference_actor_Q_std', 'reference_action_mean',
+            'reference_action_std'
+        ]
+        self.assertCountEqual(alg.stats_names, expected_stats)
+
+    def test_model_stats_recurrent(self):
+        policy_params = self.init_parameters.copy()
+        policy_params['env'] = self.env
+        policy_params['policy'] = LSTMPolicy
+        policy_params['recurrent'] = True
+        policy_params['_init_setup_model'] = True
+        alg = DDPG(**policy_params)
+        self.assertEqual(alg.memory_policy, RecurrentMemory)
+        self.assertEqual(alg.recurrent, True)
+        self.assertEqual(alg.hierarchical, False)
+
+        # Check the primary policy.
+        with alg.graph.as_default():
+            # get the training variable of the policy
+            with tf.variable_scope('model'):
+                tv = tf.trainable_variables()
+
+            # check that the training variables of the policy are as expected
+            # (note that these include the policy and and target)
+            expected_vars = ['model/pi/rnn/basic_lstm_cell/kernel:0',
+                             'model/pi/rnn/basic_lstm_cell/bias:0',
+                             'model/pi/lstm_output/kernel:0',
+                             'model/pi/lstm_output/bias:0',
+                             'model/qf/normalized_critic_0/kernel:0',
+                             'model/qf/normalized_critic_0/bias:0',
+                             'model/qf/normalized_critic_1/kernel:0',
+                             'model/qf/normalized_critic_1/bias:0',
+                             'model/qf/normalized_critic_output/kernel:0',
+                             'model/qf/normalized_critic_output/bias:0',
+                             'target/pi/rnn/basic_lstm_cell/kernel:0',
+                             'target/pi/rnn/basic_lstm_cell/bias:0',
+                             'target/pi/lstm_output/kernel:0',
+                             'target/pi/lstm_output/bias:0',
+                             'target/qf/normalized_critic_0/kernel:0',
+                             'target/qf/normalized_critic_0/bias:0',
+                             'target/qf/normalized_critic_1/kernel:0',
+                             'target/qf/normalized_critic_1/bias:0',
+                             'target/qf/normalized_critic_output/kernel:0',
+                             'target/qf/normalized_critic_output/bias:0']
+
             actual_vars = [tv_i.name for tv_i in tv]
             self.assertCountEqual(expected_vars, actual_vars)
 

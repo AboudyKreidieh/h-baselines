@@ -66,8 +66,8 @@ def main():
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    [run_exp(env, discrete, hp, args.steps, dir_name, i)
-     for i in range(args.n_training)]
+    ray.get([run_exp(env, discrete, hp, args.steps, dir_name, i)
+             for i in range(args.n_training)])
     ray.shutdown()
 
 

@@ -55,7 +55,7 @@ def build_fcnet(inputs,
             units=num_outputs,
             kernel_initializer=tf.random_uniform_initializer(
                 minval=-3e-3, maxval=3e-3),
-            name='{}_{}'.format(prefix, scope),
+            name='{}_output'.format(prefix),
             activation=output_nonlinearity
         )
 
