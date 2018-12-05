@@ -31,7 +31,7 @@ class TestDDPG(unittest.TestCase):
     """Test the components of the DDPG algorithm."""
 
     def setUp(self):
-        self.env = 'HalfCheetah-v2'
+        self.env = 'MountainCarContinuous-v0'
 
         self.init_parameters = {
             'policy': None,
