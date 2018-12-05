@@ -2,7 +2,13 @@ import numpy as np
 from stable_baselines.ddpg.memory import Memory
 
 
-class Memory(Memory):
+class GenericMemory(Memory):
+
+    def __init__(self, limit, action_shape, observation_shape):
+        """See parent class."""
+        super(GenericMemory, self).__init__(
+            limit, action_shape, observation_shape)
+        self.trace_length = 1
 
     def append(self,
                obs0,
@@ -16,7 +22,7 @@ class Memory(Memory):
 
         Slight modification to include kwargs.
         """
-        return super(Memory, self).append(
+        return super(GenericMemory, self).append(
             obs0, action, reward, obs1, terminal1, training)
 
 
@@ -218,7 +224,7 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
         }
 
     def sample(self, batch_size):
-        """
+        """FIXME
 
         :param batch_size:
         :return:
@@ -307,7 +313,7 @@ class HierarchicalRecurrentMemory(RecurrentMemory):
                terminal1,
                training=True,
                **kwargs):
-        """
+        """FIXME
 
         :param obs0:
         :param action:

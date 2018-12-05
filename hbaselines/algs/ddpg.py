@@ -27,7 +27,7 @@ from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
 from stable_baselines.a2c.utils import find_trainable_variables, \
     total_episode_reward_logger
 
-from hbaselines.utils.exp_replay import Memory
+from hbaselines.utils.exp_replay import GenericMemory
 from hbaselines.utils.exp_replay import RecurrentMemory
 from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
 from hbaselines.utils.stats import reduce_std
@@ -195,7 +195,7 @@ class DDPG(OffPolicyRLModel):
         # Parameters
         self.gamma = gamma
         self.tau = tau
-        self.memory_policy = memory_policy or Memory
+        self.memory_policy = memory_policy or GenericMemory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
@@ -548,17 +548,19 @@ class DDPG(OffPolicyRLModel):
             target_q = []
 
             # Get a batch
-            m_batch, w_batch = self.memory.sample(batch_size=self.batch_size)
+            m_batch, w_batch = self.memory.sample(
+                batch_size=int(self.batch_size/self.memory.trace_length)
+            )
             batch = [m_batch, w_batch]
 
             # manager target q
             m_feed_dict = {
                 self.target_policy.obs_ph: m_batch['obs1'],
-                self.target_policy.train_length: 8,  # FIXME
+                self.target_policy.train_length: self.memory.trace_length,
                 self.target_policy.batch_size: self.batch_size,
                 self.target_policy.states_ph[0]: (
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
             }
             q_obs = self.sess.run(
                 self.target_policy.critic_with_actor[0],
@@ -577,14 +579,14 @@ class DDPG(OffPolicyRLModel):
                     w_batch['obs1'][:, :self.observation_space.shape[0]],
                 self.target_policy.goal_ph:
                     w_batch['obs1'][:, self.observation_space.shape[0]:],
-                self.target_policy.train_length: 8,  # FIXME
+                self.target_policy.train_length: self.memory.trace_length,
                 self.target_policy.batch_size: self.batch_size,
                 self.target_policy.states_ph[0]: (
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]])),
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]])),
                 self.target_policy.states_ph[1]: (
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                    np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+                    np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
             }
             q_obs = self.sess.run(
                 self.target_policy.critic_with_actor[1],
@@ -599,15 +601,17 @@ class DDPG(OffPolicyRLModel):
 
         else:
             # Get a batch
-            batch = self.memory.sample(batch_size=self.batch_size)
+            batch = self.memory.sample(
+                batch_size=int(self.batch_size/self.memory.trace_length)
+            )
 
             feed_dict = {
                 self.q_obs1: np.array([self.target_policy.value(
                     obs=batch['obs1'],
                     action=batch['actions'],
                     state=(
-                        np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-                        np.zeros([self.batch_size, self.policy_tf.layers[0]])),
+                        np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+                        np.zeros([self.batch_size, self.policy_tf.actor_layers[0]])),
                     mask=batch['terminals1'])]).T,
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32')
@@ -676,8 +680,8 @@ class DDPG(OffPolicyRLModel):
                 feed_dict[placeholder] = self.stats_sample['obs0']
 
         state_init = (
-            np.zeros([self.batch_size, self.policy_tf.layers[0]]),
-            np.zeros([self.batch_size, self.policy_tf.layers[0]]))
+            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
+            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
 
         if self.recurrent:
             feed_dict[self.policy_tf.states_ph] = state_init

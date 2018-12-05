@@ -18,7 +18,8 @@ class FullyConnectedPolicy(object):
                  sess,
                  ob_space,
                  ac_space,
-                 layers=None,
+                 actor_layers=None,
+                 critic_layers=None,
                  hidden_nonlinearity=tf.nn.relu,
                  output_nonlinearity=tf.nn.tanh,
                  obs_rms=None,
@@ -35,21 +36,26 @@ class FullyConnectedPolicy(object):
             shape of the observation space
         ac_space : gym.spaces.Box
             shape of the action space
-        layers : list of int
-            number of nodes in each hidden layer
+        actor_layers : list of int
+            number of nodes in each hidden layer of the actor
+        critic_layers : list of int
+            number of nodes in each hidden layer of the critic
         hidden_nonlinearity : tf.nn.*
             activation nonlinearity for the hidden nodes of the model
         output_nonlinearity : tf.nn.*
             activation nonlinearity for the output of the model
         """
-        if layers is None:
-            layers = [128, 128]
+        if actor_layers is None:
+            actor_layers = [128, 128]
+        if critic_layers is None:
+            critic_layers = [128, 128]
 
         # inputs
         self.sess = sess
         self.ob_space = ob_space
         self.ac_space = ac_space
-        self.layers = layers
+        self.actor_layers = actor_layers
+        self.critic_layers = critic_layers
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
         self.obs_rms = obs_rms
@@ -98,8 +104,10 @@ class FullyConnectedPolicy(object):
             'Error: the action space must be of type gym.spaces.Box'
         assert np.all(np.abs(ac_space.low) == ac_space.high), \
             'Error: the action space low and high must be symmetric'
-        assert len(layers) >= 1, \
-            'Error: must have at least one hidden layer for the policy.'
+        assert len(actor_layers) >= 1, \
+            'Error: must have at least one hidden layer for the actor.'
+        assert len(critic_layers) >= 1, \
+            'Error: must have at least one hidden layer for the critic.'
 
     def make_actor(self, reuse=False, scope='pi'):
         """Create an actor tensor.
@@ -119,7 +127,7 @@ class FullyConnectedPolicy(object):
         self.policy = build_fcnet(
             inputs=tf.layers.flatten(self.normalized_obs_ph),
             num_outputs=self.ac_space.shape[0],
-            hidden_size=self.layers,
+            hidden_size=self.actor_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -151,7 +159,7 @@ class FullyConnectedPolicy(object):
         self.normalized_critic = build_fcnet(
             inputs=tf.concat([vf_h, self.action_ph], axis=-1),
             num_outputs=1,
-            hidden_size=[128, 128],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -171,7 +179,7 @@ class FullyConnectedPolicy(object):
         self.normalized_critic_with_actor = build_fcnet(
             inputs=tf.concat([vf_h, self.policy], axis=-1),
             num_outputs=1,
-            hidden_size=[128, 128],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -386,7 +394,8 @@ class LSTMPolicy(FullyConnectedPolicy):
                  sess,
                  ob_space,
                  ac_space,
-                 layers=None,
+                 actor_layers=None,
+                 critic_layers=None,
                  hidden_nonlinearity=tf.nn.relu,
                  output_nonlinearity=tf.nn.tanh,
                  obs_rms=None,
@@ -394,15 +403,15 @@ class LSTMPolicy(FullyConnectedPolicy):
                  observation_range=(-np.inf, np.inf),
                  return_range=(-np.inf, np.inf)):
         """See parent class."""
-        if layers is None:
-            layers = [64]
+        if actor_layers is None:
+            actor_layers = [64]
 
-        assert len(layers) == 1, 'Only one LSTM layer is allowed.'
+        assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
 
         super(LSTMPolicy, self).__init__(
-            sess, ob_space, ac_space, layers, hidden_nonlinearity,
-            output_nonlinearity, obs_rms, ret_rms, observation_range,
-            return_range)
+            sess, ob_space, ac_space, actor_layers, critic_layers,
+            hidden_nonlinearity, output_nonlinearity, obs_rms, ret_rms,
+            observation_range, return_range)
 
         # input placeholder to the internal states component of the actor
         self.states_ph = None
@@ -429,7 +438,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         self.policy, self.state_init, self.states_ph, self.state = build_lstm(
             inputs=obs,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=self.layers[0],
+            hidden_size=self.actor_layers[0],
             scope=scope,
             reuse=reuse,
             nonlinearity=tf.nn.tanh,
@@ -437,13 +446,15 @@ class LSTMPolicy(FullyConnectedPolicy):
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
+        trace_length = state[0].shape[0]
+        batch_size = int(obs.shape[0] / trace_length)
         return self.sess.run(
             [self.policy, self.state],
             feed_dict={
                 self.obs_ph: obs,
                 self.states_ph: state,
-                self.train_length: obs.shape[0],  # FIXME
-                self.batch_size: obs.shape[0],  # FIXME
+                self.train_length: trace_length,
+                self.batch_size: batch_size
             }
         )
 
@@ -456,14 +467,15 @@ class LSTMPolicy(FullyConnectedPolicy):
               **kwargs):
         """See parent class."""
         if use_actor:
-            # TODO: should we store the internal state for computing target q?
+            trace_length = state[0].shape[0]
+            batch_size = int(obs.shape[0] / trace_length)
             return self.sess.run(
                 self._critic_with_actor,
                 feed_dict={
                     self.obs_ph: obs,
                     self.states_ph: state,
-                    self.train_length: obs.shape[0],  # FIXME
-                    self.batch_size: obs.shape[0],  # FIXME
+                    self.train_length: trace_length,
+                    self.batch_size: batch_size,
                 }
             )
         else:
@@ -493,8 +505,8 @@ class LSTMPolicy(FullyConnectedPolicy):
                 self.critic_target: target_q,
                 self.batch_size: batch_size,
                 self.train_length: trace_length,
-                self.states_ph: (np.zeros([batch_size, self.layers[0]]),
-                                 np.zeros([batch_size, self.layers[0]])),
+                self.states_ph: (np.zeros([batch_size, self.actor_layers[0]]),
+                                 np.zeros([batch_size, self.actor_layers[0]])),
             }
         )
 
@@ -535,7 +547,8 @@ class HIROPolicy(LSTMPolicy):
                  sess,
                  ob_space,
                  ac_space,
-                 layers=None,
+                 actor_layers=None,
+                 critic_layers=None,
                  hidden_nonlinearity=tf.nn.relu,
                  output_nonlinearity=tf.nn.tanh,
                  obs_rms=None,
@@ -543,15 +556,17 @@ class HIROPolicy(LSTMPolicy):
                  observation_range=(-np.inf, np.inf),
                  return_range=(-np.inf, np.inf)):
         """See parent class."""
-        if layers is None:
-            layers = [32]
+        if actor_layers is None:
+            actor_layers = [32]
+        if critic_layers is None:
+            critic_layers = [64, 64]
 
-        assert len(layers) == 1, 'Only one LSTM layer is allowed.'
+        assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
 
         super(HIROPolicy, self).__init__(
-            sess, ob_space, ac_space, layers, hidden_nonlinearity,
-            output_nonlinearity, obs_rms, ret_rms, observation_range,
-            return_range)
+            sess, ob_space, ac_space, actor_layers, critic_layers,
+            hidden_nonlinearity, output_nonlinearity, obs_rms, ret_rms,
+            observation_range, return_range)
 
         # manager policy
         self.manager = None
@@ -602,7 +617,7 @@ class HIROPolicy(LSTMPolicy):
         self.manager, m_state_init, m_states_ph, m_state = build_lstm(
             inputs=manager_in,
             num_outputs=self.ob_space.shape[0],
-            hidden_size=self.layers[0],
+            hidden_size=self.actor_layers[0],
             scope='{}/manager'.format(scope),
             reuse=reuse,
             nonlinearity=tf.nn.relu,  # FIXME
@@ -619,7 +634,7 @@ class HIROPolicy(LSTMPolicy):
         self.worker, w_state_init, w_states_ph, w_state = build_lstm(
             inputs=worker_in,
             num_outputs=self.ac_space.shape[0],
-            hidden_size=self.layers[0],
+            hidden_size=self.actor_layers[0],
             scope='{}/worker'.format(scope),
             reuse=reuse,
             nonlinearity=self.output_nonlinearity,
@@ -655,7 +670,7 @@ class HIROPolicy(LSTMPolicy):
         m_normalized_critic = build_fcnet(
             inputs=tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
             num_outputs=1,
-            hidden_size=[64, 64],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -675,7 +690,7 @@ class HIROPolicy(LSTMPolicy):
                 tf.concat([vf_h, tf.layers.flatten(self.goal_ph)], axis=-1),
                 self.action_ph], axis=-1),
             num_outputs=1,
-            hidden_size=[64, 64],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -695,7 +710,7 @@ class HIROPolicy(LSTMPolicy):
         m_normalized_critic_with_actor = build_fcnet(
             inputs=tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
             num_outputs=1,
-            hidden_size=[64, 64],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -715,7 +730,7 @@ class HIROPolicy(LSTMPolicy):
                 tf.concat([vf_h, tf.layers.flatten(self.manager)], axis=-1),
                 tf.layers.flatten(self.worker)], axis=-1),
             num_outputs=1,
-            hidden_size=[64, 64],  # FIXME self.layers,
+            hidden_size=self.critic_layers,
             hidden_nonlinearity=self.hidden_nonlinearity,
             output_nonlinearity=self.output_nonlinearity,
             scope=scope,
@@ -880,15 +895,16 @@ class HIROPolicy(LSTMPolicy):
               use_actor=False,
               **kwargs):
         """See parent class."""
+        trace_length = state[0][0].shape[0]
+        batch_size = int(obs.shape[0] / trace_length)
+
         m_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
-                       self.train_length: obs.shape[0],  # FIXME
-                       self.batch_size: obs.shape[0],  # FIXME
-                       }
+                       self.train_length: trace_length,
+                       self.batch_size: batch_size}
         w_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
                        self.goal_ph: obs[:, self.ob_space.shape[0]:],
-                       self.train_length: obs.shape[0],  # FIXME
-                       self.batch_size: obs.shape[0],  # FIXME
-                       }
+                       self.train_length: trace_length,
+                       self.batch_size: batch_size}
 
         if use_actor:
             _crtiic = self._critic_with_actor
@@ -945,8 +961,8 @@ class HIROPolicy(LSTMPolicy):
                 self.batch_size: batch_size,
                 self.train_length: trace_length,
                 self.states_ph[i]: (
-                    np.zeros([batch_size, self.layers[0]]),
-                    np.zeros([batch_size, self.layers[0]])),
+                    np.zeros([batch_size, self.actor_layers[0]]),
+                    np.zeros([batch_size, self.actor_layers[0]])),
             }
             if i == 0:
                 feed_dict[self.obs_ph] = batch[i]['obs0']
@@ -958,8 +974,8 @@ class HIROPolicy(LSTMPolicy):
                 feed_dict[self.goal_ph] = batch[i]['obs0'][
                     :, self.ob_space.shape[0]:]
                 feed_dict[self.states_ph[0]] = (
-                    np.zeros([batch_size, self.layers[0]]),
-                    np.zeros([batch_size, self.layers[0]]))
+                    np.zeros([batch_size, self.actor_layers[0]]),
+                    np.zeros([batch_size, self.actor_layers[0]]))
 
             a_grads, a_loss, c_grads, c_loss = self.sess.run(
                 [self.actor_grads[i], self.actor_loss[i], self.critic_grads[i],
