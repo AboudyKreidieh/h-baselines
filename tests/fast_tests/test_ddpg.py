@@ -1,10 +1,12 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
 import numpy as np
+import tensorflow as tf
 
 from hbaselines.algs.ddpg import as_scalar, DDPG
 from hbaselines.utils.exp_replay import GenericMemory, RecurrentMemory
 from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
+from hbaselines.policies.ddpg import FullyConnectedPolicy
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -67,34 +69,32 @@ class TestDDPG(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
         policy_params['_init_setup_model'] = False
-        policy = DDPG(**policy_params)
-        self.assertEqual(policy.gamma, policy_params['gamma'])
-        self.assertEqual(policy.tau, policy_params['tau'])
-        self.assertEqual(policy.normalize_observations,
+        alg = DDPG(**policy_params)
+        self.assertEqual(alg.gamma, policy_params['gamma'])
+        self.assertEqual(alg.tau, policy_params['tau'])
+        self.assertEqual(alg.normalize_observations,
                          policy_params['normalize_observations'])
-        self.assertEqual(policy.normalize_returns,
+        self.assertEqual(alg.normalize_returns,
                          policy_params['normalize_returns'])
-        self.assertEqual(policy.action_noise, policy_params['action_noise'])
-        self.assertEqual(policy.return_range, policy_params['return_range'])
-        self.assertEqual(policy.observation_range,
+        self.assertEqual(alg.action_noise, policy_params['action_noise'])
+        self.assertEqual(alg.return_range, policy_params['return_range'])
+        self.assertEqual(alg.observation_range,
                          policy_params['observation_range'])
-        self.assertEqual(policy.actor_lr, policy_params['actor_lr'])
-        self.assertEqual(policy.critic_lr, policy_params['critic_lr'])
-        self.assertEqual(policy.clip_norm, policy_params['clip_norm'])
-        self.assertEqual(policy.reward_scale, policy_params['reward_scale'])
-        self.assertEqual(policy.batch_size, policy_params['batch_size'])
-        self.assertEqual(policy.critic_l2_reg, policy_params['critic_l2_reg'])
-        self.assertEqual(policy.render, policy_params['render'])
-        self.assertEqual(policy.nb_train_steps,
-                         policy_params['nb_train_steps'])
-        self.assertEqual(policy.nb_rollout_steps,
+        self.assertEqual(alg.actor_lr, policy_params['actor_lr'])
+        self.assertEqual(alg.critic_lr, policy_params['critic_lr'])
+        self.assertEqual(alg.clip_norm, policy_params['clip_norm'])
+        self.assertEqual(alg.reward_scale, policy_params['reward_scale'])
+        self.assertEqual(alg.batch_size, policy_params['batch_size'])
+        self.assertEqual(alg.critic_l2_reg, policy_params['critic_l2_reg'])
+        self.assertEqual(alg.render, policy_params['render'])
+        self.assertEqual(alg.nb_train_steps, policy_params['nb_train_steps'])
+        self.assertEqual(alg.nb_rollout_steps,
                          policy_params['nb_rollout_steps'])
-        self.assertEqual(policy.memory_limit, policy_params['memory_limit'])
-        self.assertEqual(policy.tensorboard_log,
-                         policy_params['tensorboard_log'])
-        self.assertEqual(policy.memory_policy, GenericMemory)
-        self.assertEqual(policy.recurrent, False)
-        self.assertEqual(policy.hierarchical, False)
+        self.assertEqual(alg.memory_limit, policy_params['memory_limit'])
+        self.assertEqual(alg.tensorboard_log, policy_params['tensorboard_log'])
+        self.assertEqual(alg.memory_policy, GenericMemory)
+        self.assertEqual(alg.recurrent, False)
+        self.assertEqual(alg.hierarchical, False)
 
         # Part 2. Recurrent Policies
         policy_params = self.init_parameters.copy()
@@ -116,15 +116,89 @@ class TestDDPG(unittest.TestCase):
         self.assertEqual(policy.recurrent, False)
         self.assertEqual(policy.hierarchical, True)
 
-    def test_setup_model_stats(self):
-        """Ensure that the correct policies were generated."""
-        # Part 1. Fully Connected Network
+    def test_setup_model_stats_generic(self):
+        """Ensure that the correct policies were generated in the
+        non-recurrent, non-hierarchical case."""
+        policy_params = self.init_parameters.copy()
+        policy_params['env'] = self.env
+        policy_params['policy'] = FullyConnectedPolicy
+        policy_params['_init_setup_model'] = True
+        alg = DDPG(**policy_params)
 
-        # Part 2. Recurrent Policies
+        # Check the primary policy.
+        with alg.graph.as_default():
+            # get the training variable of the policy
+            with tf.variable_scope('model'):
+                tv = tf.trainable_variables()
 
-        # Part 3. Hierarchical Policies
+            # check that the training variables of the policy are as expected
+            # (note that these include the policy and and target)
+            expected_vars = ['model/pi/fc_0/kernel:0',
+                             'model/pi/fc_0/bias:0',
+                             'model/pi/fc_1/kernel:0',
+                             'model/pi/fc_1/bias:0',
+                             'model/pi/fc_pi/kernel:0',
+                             'model/pi/fc_pi/bias:0',
+                             'model/qf/normalized_critic_0/kernel:0',
+                             'model/qf/normalized_critic_0/bias:0',
+                             'model/qf/normalized_critic_1/kernel:0',
+                             'model/qf/normalized_critic_1/bias:0',
+                             'model/qf/normalized_critic_qf/kernel:0',
+                             'model/qf/normalized_critic_qf/bias:0',
+                             'target/pi/fc_0/kernel:0',
+                             'target/pi/fc_0/bias:0',
+                             'target/pi/fc_1/kernel:0',
+                             'target/pi/fc_1/bias:0',
+                             'target/pi/fc_pi/kernel:0',
+                             'target/pi/fc_pi/bias:0',
+                             'target/qf/normalized_critic_0/kernel:0',
+                             'target/qf/normalized_critic_0/bias:0',
+                             'target/qf/normalized_critic_1/kernel:0',
+                             'target/qf/normalized_critic_1/bias:0',
+                             'target/qf/normalized_critic_qf/kernel:0',
+                             'target/qf/normalized_critic_qf/bias:0']
+            actual_vars = [tv_i.name for tv_i in tv]
+            self.assertCountEqual(expected_vars, actual_vars)
 
-        pass
+            # check that the shapes of the policy and target match
+            policy_names = [tv_i.name[6:] for tv_i in
+                            tv if "model" in tv_i.name]
+
+            with tf.variable_scope('model', reuse=True):
+                for name in policy_names:
+                    t1 = next(tv_i for tv_i in tv
+                              if tv_i.name == 'model/{}'.format(name))
+                    t2 = next(tv_i for tv_i in tv
+                              if tv_i.name == 'target/{}'.format(name))
+                    self.assertEqual(t1.shape, t2.shape)
+
+        # Check the stats.
+        expected_stats = [
+            'reference_Q_mean', 'reference_Q_std', 'reference_actor_Q_mean',
+            'reference_actor_Q_std', 'reference_action_mean',
+            'reference_action_std'
+        ]
+        self.assertCountEqual(alg.stats_names, expected_stats)
+
+    def test_target_q(self):
+        """Ensure that target q returns the right values."""
+        policy_params = self.init_parameters.copy()
+        policy_params['env'] = self.env
+        policy_params['policy'] = FullyConnectedPolicy
+        policy_params['gamma'] = 1
+        policy_params['_init_setup_model'] = True
+        alg = DDPG(**policy_params)
+
+        rewards = np.array([[0], [1], [2], [3], [4], [5]])
+        terminal = np.array([[0], [1], [0], [1], [0], [1]])
+        q_obs1 = np.array([[0], [1], [2], [4], [4], [4]])
+
+        expected_res = np.array([[0], [1], [4], [3], [8], [5]])
+        actual_res = alg.sess.run(alg.target_q,
+                                  feed_dict={alg.rewards: rewards,
+                                             alg.terminals1: terminal,
+                                             alg.q_obs1: q_obs1})
+        self.assertTrue((expected_res == actual_res).all())
 
     def test_normalize_observations(self):
         pass
