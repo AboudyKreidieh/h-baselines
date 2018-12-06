@@ -4,7 +4,7 @@ This run script used to test the performance of DDPG and DQN with LSTM models
 on various environments.
 """
 import os
-import datetime
+import time
 import csv
 from threading import Thread
 
@@ -44,7 +44,7 @@ def main():
     args = parser.parse_args()
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/lstm/{}'.format(datetime.datetime.now().time())
+    dir_name = 'data/lstm/{}'.format(time.strftime("%Y-%m-%d-%H:%M:%S"))
     dir_name = os.path.join(os.getcwd(), dir_name)
     ensure_dir(dir_name)
 
