@@ -14,6 +14,8 @@ from hbaselines.algs.ddpg import DDPG
 from hbaselines.algs.dqn import DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
+from hbaselines.envs.efficient_hrl import EnvWithGoal, create_maze_env
+from hbaselines.envs.snn4hrl.mujoco.gather.ant_gather_env import AntGatherEnv
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
@@ -22,6 +24,11 @@ discrete = False
 
 @ray.remote
 def run_exp(env, hp, steps, dir_name, i):
+    if env in ['AntPush', 'AntFall', 'AntMaze']:
+        env = EnvWithGoal(create_maze_env(env), env)
+    if env == 'AntGather':
+        env = AntGatherEnv()
+
     # initialize the algorithm
     if discrete:
         # if discrete, use DQN
@@ -46,12 +53,12 @@ def main():
         example_usage=EXAMPLE_USAGE)
     args = parser.parse_args()
 
-    # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}'.format(time.strftime("%Y-%m-%d-%H:%M:%S"))
-    ensure_dir(dir_name)
-
     # if the environment is in Flow or h-baselines, register it
     env = args.env_name
+
+    # create a save directory folder (if it doesn't exist)
+    dir_name = 'data/fcnet/{}/{}'.format(env, time.strftime("%Y-%m-%d-%H:%M:%S"))
+    ensure_dir(dir_name)
 
     # determine whether the env is discrete or continuous in the action space
     discrete = False
@@ -68,6 +75,8 @@ def main():
     ray.init(num_cpus=NUM_CPUS)
     ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
              for i in range(args.n_training)])
+    # [run_exp(env, hp, args.steps, dir_name, i)
+    #  for i in range(args.n_training)]
     ray.shutdown()
 
 

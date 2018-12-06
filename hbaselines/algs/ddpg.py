@@ -384,7 +384,7 @@ class DDPG(OffPolicyRLModel):
             [var for var in tf_util.get_trainable_vars('target/qf/') if
              'output' in var.name]]:
             assert len(out_vars) == 2
-            # wieght and bias of the last layer
+            # weight and bias of the last layer
             weight, bias = out_vars
             assert 'kernel' in weight.name
             assert 'bias' in bias.name
@@ -556,8 +556,10 @@ class DDPG(OffPolicyRLModel):
         reward *= self.reward_scale
 
         if self.hierarchical:
+            obs_mean, obs_std = self.sess.run(
+                [self.obs_rms.mean, self.obs_rms.std])
             reward_worker = - self.reward_scale * np.linalg.norm(
-                np.array(obs1[:self.observation_space.shape[0]]) -
+                (np.array(obs1[:self.observation_space.shape[0]]) - obs_mean) / (2 * obs_std) -
                 np.array(obs1[self.observation_space.shape[0]:]))
             self.memory.append(obs0, action, (reward, reward_worker), obs1,
                                terminal1, apply_manager=apply_manager)

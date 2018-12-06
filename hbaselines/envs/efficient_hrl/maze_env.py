@@ -41,6 +41,7 @@ class MazeEnv(gym.Env):
             *args,
             **kwargs):
         self._maze_id = maze_id
+        self.t = 0
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
@@ -234,5 +235,5 @@ class MazeEnv(gym.Env):
         inner_next_obs, inner_reward, done, info = self.wrapped_env.step(
             action)
         next_obs = self._get_obs()
-        done = False
+        done = self.t == 500
         return next_obs, inner_reward, done, info

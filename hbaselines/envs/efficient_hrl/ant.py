@@ -49,7 +49,6 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ctrl_cost = .5 * np.square(a).sum()
         survive_reward = 1.0
         reward = forward_reward - ctrl_cost + survive_reward
-        state = self.state_vector()
         done = False
         ob = self._get_obs()
         return ob, reward, done, dict(
@@ -61,13 +60,13 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
-                self.physics.data.qvel.flat[:14],
+                self.sim.data.qpos.flat[:15],  # Ensures only ant obs.
+                self.sim.data.qvel.flat[:14],
             ])
         else:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[2:15],
-                self.physics.data.qvel.flat[:14],
+                self.sim.data.qpos.flat[2:15],
+                self.sim.data.qvel.flat[:14],
             ])
 
         if self._expose_body_coms is not None:
