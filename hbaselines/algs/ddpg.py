@@ -559,8 +559,9 @@ class DDPG(OffPolicyRLModel):
             obs_mean, obs_std = self.sess.run(
                 [self.obs_rms.mean, self.obs_rms.std])
             reward_worker = - self.reward_scale * np.linalg.norm(
-                (np.array(obs1[:self.observation_space.shape[0]]) - obs_mean) / (2 * obs_std) -
-                np.array(obs1[self.observation_space.shape[0]:]))
+                (np.array(obs1[:self.observation_space.shape[0]])
+                 - obs_mean) / (2 * obs_std)
+                - np.array(obs1[self.observation_space.shape[0]:]))
             self.memory.append(obs0, action, (reward, reward_worker), obs1,
                                terminal1, apply_manager=apply_manager)
         else:
@@ -586,30 +587,25 @@ class DDPG(OffPolicyRLModel):
         if self.memory.nb_entries <= 1:
             return None, None
 
-        init_state = (
-            np.zeros([self.memory.trace_length, self.policy_tf.actor_layers[0]]),
-            np.zeros([self.memory.trace_length, self.policy_tf.actor_layers[0]]))
+        init_state = (np.zeros([self.batch_size,
+                                self.policy_tf.actor_layers[0]]),
+                      np.zeros([self.batch_size,
+                                self.policy_tf.actor_layers[0]]))
 
         if self.hierarchical:
             target_q = []
 
             # Get a batch
-            m_batch, w_batch = self.memory.sample(
-                batch_size=int(self.batch_size/self.memory.trace_length)
-            )
+            m_batch, w_batch = self.memory.sample(batch_size=self.batch_size)
             batch = [m_batch, w_batch]
 
             # manager target q
             m_feed_dict = {
                 self.target_policy.obs_ph: m_batch['obs1'],
                 self.target_policy.goal_ph: m_batch['actions'],
-                # self.target_policy.train_length: self.memory.trace_length,
-                # self.target_policy.batch_size:
-                #     int(self.batch_size / self.memory.trace_length),
-                # self.target_policy.states_ph[0]: deepcopy(init_state)
             }
             q_obs = self.sess.run(
-                self.target_policy.critic[0],
+                self.target_policy.critic_with_actor[0],
                 feed_dict=m_feed_dict
             )
             feed_dict = {
@@ -626,14 +622,13 @@ class DDPG(OffPolicyRLModel):
                 self.target_policy.goal_ph:
                     w_batch['obs1'][:, self.observation_space.shape[0]:],
                 self.target_policy.action_ph: w_batch['actions'],
-                # self.target_policy.train_length: self.memory.trace_length,
-                # self.target_policy.batch_size:
-                #     int(self.batch_size/self.memory.trace_length),
-                # self.target_policy.states_ph[0]: deepcopy(init_state),
-                # self.target_policy.states_ph[1]: deepcopy(init_state)
+                self.target_policy.train_length: self.memory.trace_length,
+                self.target_policy.batch_size: self.batch_size,
+                self.target_policy.states_ph[0]: deepcopy(init_state),
+                self.target_policy.states_ph[1]: deepcopy(init_state)
             }
             q_obs = self.sess.run(
-                self.target_policy.critic[1],
+                self.target_policy.critic_with_actor[1],
                 feed_dict=w_feed_dict
             )
             feed_dict = {
@@ -645,16 +640,20 @@ class DDPG(OffPolicyRLModel):
 
         else:
             # Get a batch
-            batch = self.memory.sample(
-                batch_size=int(self.batch_size/self.memory.trace_length)
+            batch = self.memory.sample(batch_size=self.batch_size)
+
+            q_obs1 = self.sess.run(
+                self.target_policy.critic_with_actor,
+                feed_dict={
+                    self.target_policy.obs_ph: batch['obs1'],
+                    self.target_policy.batch_size: self.batch_size,
+                    self.target_policy.train_length: self.memory.trace_length,
+                    self.target_policy.states_ph: deepcopy(init_state)
+                }
             )
 
             feed_dict = {
-                self.q_obs1: np.array([self.target_policy.value(
-                    obs=batch['obs1'],
-                    action=batch['actions'],
-                    state=deepcopy(init_state),
-                    mask=batch['terminals1'])]).T,
+                self.q_obs1: q_obs1,
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32')
             }

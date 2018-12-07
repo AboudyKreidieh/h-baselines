@@ -23,7 +23,7 @@ TARGET_UPDATE = [1e-3, 1e-1]
 GRADIENT_CLIPPING = [0, 10]
 # TODO: look into nb_train_steps and nb_rollout_steps
 NB_ROLLOUT_STEPS = 100
-NB_TRAIN_STEPS = 50
+NB_TRAIN_STEPS = 5
 
 
 def create_parser():
@@ -83,8 +83,8 @@ if __name__ == '__main__':
         learning_rate = 10 ** random.uniform(
             np.log10(LEARNING_RATE[0]), np.log10(LEARNING_RATE[1]))
         gamma = 0.99  # keeping this constant for now
-        batch_size = 128  # 128  # keeping this constant for now
-        reward_scale = 0.0001  # 0.01  # keeping this constant for now
+        batch_size = int(256/8)  # keeping this constant for now
+        reward_scale = 0.01  # keeping this constant for now
         # reward_scale = random.choice(REWARD_SCALE)
         target_update = 10 ** random.uniform(
             np.log10(TARGET_UPDATE[0]), np.log10(TARGET_UPDATE[1]))

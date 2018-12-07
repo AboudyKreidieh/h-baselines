@@ -15,7 +15,7 @@ from hbaselines.algs.dqn import DQN
 from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
 from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
 from hbaselines.envs.efficient_hrl import EnvWithGoal, create_maze_env
-from hbaselines.envs.snn4hrl.mujoco.gather.ant_gather_env import AntGatherEnv
+# from hbaselines.envs.snn4hrl.mujoco.gather.ant_gather_env import AntGatherEnv
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3

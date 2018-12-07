@@ -487,6 +487,39 @@ class LSTMPolicy(FullyConnectedPolicy):
                 }
             )
 
+    def setup_actor_optimizer(self, clip_norm, verbose):
+        if verbose >= 2:
+            logger.info('setting up actor optimizer')
+
+        # In order to only propagate accurate gradients through the network, we
+        # will mask the first half of the losses for each trace as per Lample &
+        # Chatlot 2016
+        maskA = tf.zeros(
+            [self.batch_size, tf.cast(self.train_length / 2, tf.int32)])
+        maskB = tf.ones(
+            [self.batch_size, tf.cast(self.train_length / 2, tf.int32)])
+        mask = tf.concat([maskA, maskB], axis=1)
+        mask = tf.reshape(mask, [-1])
+
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor * mask)
+
+        actor_shapes = [var.get_shape().as_list()
+                        for var in tf_util.get_trainable_vars('model/pi/')]
+        actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                               for shape in actor_shapes])
+
+        if verbose >= 2:
+            logger.info('  actor shapes: {}'.format(actor_shapes))
+            logger.info('  actor params: {}'.format(actor_nb_params))
+
+        self.actor_grads = tf_util.flatgrad(
+            self.actor_loss, tf_util.get_trainable_vars('model/pi/'),
+            clip_norm=clip_norm)
+
+        self.actor_optimizer = MpiAdam(
+            var_list=tf_util.get_trainable_vars('model/pi/'),
+            beta1=0.9, beta2=0.999, epsilon=1e-08)
+
     def train_actor_critic(self, batch, target_q, actor_lr, critic_lr):
         """See parent class.
 
