@@ -737,12 +737,12 @@ class DDPG(OffPolicyRLModel):
         if self.recurrent:
             feed_dict[self.policy_tf.states_ph] = state_init
             feed_dict[self.policy_tf.batch_size] = self.batch_size
-            feed_dict[self.policy_tf.train_length] = 8
+            feed_dict[self.policy_tf.train_length] = self.memory.trace_length
         if self.hierarchical:
             feed_dict[self.policy_tf.states_ph[0]] = deepcopy(state_init)
             feed_dict[self.policy_tf.states_ph[1]] = deepcopy(state_init)
             feed_dict[self.policy_tf.batch_size] = self.batch_size
-            feed_dict[self.policy_tf.train_length] = 8
+            feed_dict[self.policy_tf.train_length] = self.memory.trace_length
             feed_dict[self.policy_tf.goal_ph] = self.stats_sample['obs0'][
                 :, self.observation_space.shape[0]:]
 
