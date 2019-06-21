@@ -321,7 +321,7 @@ class DDPG(OffPolicyRLModel):
                 with tf.variable_scope("model", reuse=False):
                     self.policy_tf.make_actor()
                     self.policy_tf.make_critic()
-                    if self.recurrent or self.hierarchical:
+                    if self.recurrent:
                         self.state_init = self.policy_tf.state_init
 
                 with tf.variable_scope("target", reuse=False):
@@ -499,7 +499,7 @@ class DDPG(OffPolicyRLModel):
             obs=obs, state=state, apply_manager=apply_manager)
         state1, q_value = None, None
 
-        if self.recurrent or self.hierarchical:
+        if self.recurrent:
             action, state1 = action
 
         if self.hierarchical:
@@ -622,10 +622,10 @@ class DDPG(OffPolicyRLModel):
                 self.target_policy.goal_ph:
                     w_batch['obs1'][:, self.observation_space.shape[0]:],
                 self.target_policy.action_ph: w_batch['actions'],
-                self.target_policy.train_length: self.memory.trace_length,
-                self.target_policy.batch_size: self.batch_size,
-                self.target_policy.states_ph[0]: deepcopy(init_state),
-                self.target_policy.states_ph[1]: deepcopy(init_state)
+                # self.target_policy.train_length: self.memory.trace_length,
+                # self.target_policy.batch_size: self.batch_size,
+                # self.target_policy.states_ph[0]: deepcopy(init_state),
+                # self.target_policy.states_ph[1]: deepcopy(init_state)
             }
             q_obs = self.sess.run(
                 self.target_policy.critic_with_actor[1],
@@ -739,10 +739,10 @@ class DDPG(OffPolicyRLModel):
             feed_dict[self.policy_tf.batch_size] = self.batch_size
             feed_dict[self.policy_tf.train_length] = self.memory.trace_length
         if self.hierarchical:
-            feed_dict[self.policy_tf.states_ph[0]] = deepcopy(state_init)
-            feed_dict[self.policy_tf.states_ph[1]] = deepcopy(state_init)
-            feed_dict[self.policy_tf.batch_size] = self.batch_size
-            feed_dict[self.policy_tf.train_length] = self.memory.trace_length
+            # feed_dict[self.policy_tf.states_ph[0]] = deepcopy(state_init)
+            # feed_dict[self.policy_tf.states_ph[1]] = deepcopy(state_init)
+            # feed_dict[self.policy_tf.batch_size] = self.batch_size
+            # feed_dict[self.policy_tf.train_length] = self.memory.trace_length
             feed_dict[self.policy_tf.goal_ph] = self.stats_sample['obs0'][
                 :, self.observation_space.shape[0]:]
 

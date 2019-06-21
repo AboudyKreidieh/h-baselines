@@ -210,7 +210,7 @@ class FullyConnectedPolicy(object):
         """
         if verbose >= 2:
             logger.info('setting up actor optimizer')
-        # TODO: add mask? (see Lample & Chatlot 2016)
+
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor)
 
         actor_shapes = [var.get_shape().as_list()
@@ -255,7 +255,6 @@ class FullyConnectedPolicy(object):
             self.return_range[0],
             self.return_range[1])
 
-        # TODO: add mask? (see Lample & Chatlot 2016)
         self.critic_loss = tf.reduce_mean(tf.square(
             self.normalized_critic - normalized_critic_target_tf))
 
@@ -406,7 +405,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         if actor_layers is None:
             actor_layers = [64]
 
-        assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
+        # assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
 
         super(LSTMPolicy, self).__init__(
             sess, ob_space, ac_space, actor_layers, critic_layers,
@@ -488,6 +487,12 @@ class LSTMPolicy(FullyConnectedPolicy):
             )
 
     def setup_actor_optimizer(self, clip_norm, verbose):
+        """FIXME
+
+        :param clip_norm:
+        :param verbose:
+        :return:
+        """
         if verbose >= 2:
             logger.info('setting up actor optimizer')
 
@@ -526,7 +531,7 @@ class LSTMPolicy(FullyConnectedPolicy):
         This method is further expanded to include placeholders needed by the
         recurrent actors.
         """
-        trace_length = 8  # FIXME: trace length
+        trace_length = 500  # FIXME: trace length
         batch_size = int(batch['obs0'].shape[0] / trace_length)
 
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
@@ -549,31 +554,10 @@ class LSTMPolicy(FullyConnectedPolicy):
         return actor_loss, critic_loss
 
 
-# TODO
 class FeudalPolicy(LSTMPolicy):
     """Policy object for the Feudal (FuN) hierarchical model.
 
-    blank
-    """
-    pass
-
-
-class HIROPolicy(LSTMPolicy):
-    """Policy object for the HIRO hierarchical model.
-
-    In this policy, we consider two actors and two critic, one for the manager
-    and another for the worker.
-
-    The manager receives state information and returns goals, while the worker
-    receives the states and goals and returns an action. Moreover, while the
-    worker performs actions at every time step, the manager only does so every
-    c time steps (he is informed when to act from the algorithm).
-
-    The manager is trained to maximize the total expected return from the
-    environment, while the worker is rewarded to achieving states that are
-    similar to those requested by the manager.
-
-    See: https://arxiv.org/abs/1805.08296
+    blank FIXME
     """
 
     def __init__(self,
@@ -594,9 +578,9 @@ class HIROPolicy(LSTMPolicy):
         if critic_layers is None:
             critic_layers = [64, 64]
 
-        assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
+        # assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
 
-        super(HIROPolicy, self).__init__(
+        super(FeudalPolicy, self).__init__(
             sess, ob_space, ac_space, actor_layers, critic_layers,
             hidden_nonlinearity, output_nonlinearity, obs_rms, ret_rms,
             observation_range, return_range)
@@ -620,58 +604,59 @@ class HIROPolicy(LSTMPolicy):
                                       shape=[None, self.ob_space.shape[0]],
                                       name='goal_ph')
 
-        # observation from the previous time step
-        self.prev_obs = None
+        # FIXME
+        self.k = 5
+
+        # FIXME
+        self.g_dim = self.ob_space.shape[0]
+
+        # goals from the previous k time steps
+        self.prev_g = tf.placeholder(tf.float32, (None, None, self.g_dim))
 
     def make_actor(self, reuse=False, scope='pi'):
-        """Create an actor object.
+        """See parent class.
 
-        Parameters
-        ----------
-        reuse : bool
-            whether or not to reuse parameters
-        scope : str
-            the scope name of the actor
-
-        Returns
-        -------
-        tuple of tf.Tensor
-            the output tensor from the manager and the worker
+        FIXME
         """
-        obs = self.normalized_obs_ph
-
-        # input to the manager
-        manager_in = tf.reshape(
-            tf.layers.flatten(obs),
+        # input to the manager and worker
+        obs = tf.reshape(
+            tf.layers.flatten(self.normalized_obs_ph),
             [self.batch_size, self.train_length, self.ob_space.shape[0]]
         )
 
         # create the policy for the manager
         self.manager, m_state_init, m_states_ph, m_state = build_lstm(
-            inputs=manager_in,
-            num_outputs=self.ob_space.shape[0],
+            inputs=obs,
+            num_outputs=self.g_dim,
             hidden_size=self.actor_layers[0],
             scope='{}/manager'.format(scope),
             reuse=reuse,
             nonlinearity=self.output_nonlinearity,
         )
+        self.manager = tf.nn.l2_normalize(self.manager, dim=1)
 
-        # input to the worker
-        worker_in = tf.reshape(
-            tf.concat([tf.layers.flatten(obs),
-                       tf.layers.flatten(self.goal_ph)], axis=-1),
-            [self.batch_size, self.train_length, 2 * self.ob_space.shape[0]]
-        )
+        # compute the output of the goal wrt the input to the worker
+        cut_g = tf.stop_gradient(self.manager)
+        cut_g = tf.reshape(cut_g [1])
+        gstack = tf.concat([self.prev_g, cut_g], axis=1)
+        gsum = tf.reduce_sum(gstack, axis=1)
+
+        # create the phi variable that determines how the worker interacts with
+        # the communication signals from the manager
+        phi = tf.get_variable("phi", (self.g_dim, self.k))
 
         # create the policy for the worker
         self.worker, w_state_init, w_states_ph, w_state = build_lstm(
-            inputs=worker_in,
-            num_outputs=self.ac_space.shape[0],
+            inputs=obs,
+            num_outputs=self.ac_space.shape[0] * self.k,
             hidden_size=self.actor_layers[0],
             scope='{}/worker'.format(scope),
             reuse=reuse,
             nonlinearity=self.output_nonlinearity,
         )
+        U = tf.reshape(self.worker, [-1, self.ac_space.shape[0], self.k])
+        w = tf.expand_dims(tf.matmul(gsum, phi), [2])
+        self.worker = tf.reshape(tf.matmul(U, w), [-1, self.ac_space.shape[0]])
 
         self.policy = tf.concat([self.manager, self.worker], axis=1)
         self.state_init = [m_state_init, w_state_init]
@@ -679,21 +664,9 @@ class HIROPolicy(LSTMPolicy):
         self.state = [m_state, w_state]
 
     def make_critic(self, obs=None, reuse=False, scope='qf'):
-        """Create a critic object.
+        """See parent class.
 
-        Parameters
-        ----------
-        obs : tf.Tensor
-            The observation placeholder (can be None for default placeholder)
-        reuse : bool
-            whether or not to reuse parameters
-        scope : str
-            the scope name of the critic
-
-        Returns
-        -------
-        tuple of tf.Tensor
-            the output tensor for the manager and the worker
+        FIXME
         """
         vf_h = tf.layers.flatten(self.normalized_obs_ph)
 
@@ -783,6 +756,176 @@ class HIROPolicy(LSTMPolicy):
         self._critic = [_m_critic, _w_critic]
         self.critic_with_actor = [m_critic_with_actor, w_critic_with_actor]
         self._critic_with_actor = [_m_critic_with_actor, _w_critic_with_actor]
+
+    def step(self, obs, state=None, mask=None, **kwargs):
+        """See parent class.
+
+        FIXME
+        """
+        state1 = deepcopy(state)
+        trace_length = state[0][0].shape[0]
+        batch_size = int(obs.shape[0] / trace_length)
+
+        if kwargs['reset']:
+            self.prev_g = [np.zeros(self.ob_space.shape)
+                           for _ in range(self.k)]
+
+        goal, state1[0], action, state1[1] = self.sess.run(
+            [self.manager, self.state[0], self.worker, self.state[1]],
+            feed_dict={
+                self.obs_ph: obs[:, :self.ob_space.shape[0]],
+                self.goal_ph: obs[:, self.ob_space.shape[0]:],
+                self.states_ph[0]: state[0],
+                self.states_ph[1]: state[1],
+                self.train_length: trace_length,
+                self.batch_size: batch_size
+            }
+        )
+
+        self.prev_g = self.prev_g[1:] + [goal]
+        return (action, goal), state1
+
+
+class HIROPolicy(FeudalPolicy):
+    """Policy object for the HIRO hierarchical model.
+
+    In this policy, we consider two actors and two critic, one for the manager
+    and another for the worker.
+
+    The manager receives state information and returns goals, while the worker
+    receives the states and goals and returns an action. Moreover, while the
+    worker performs actions at every time step, the manager only does so every
+    c time steps (he is informed when to act from the algorithm).
+
+    The manager is trained to maximize the total expected return from the
+    environment, while the worker is rewarded to achieving states that are
+    similar to those requested by the manager.
+
+    See: https://arxiv.org/abs/1805.08296
+    """
+
+    def __init__(self,
+                 sess,
+                 ob_space,
+                 ac_space,
+                 actor_layers=None,
+                 critic_layers=None,
+                 hidden_nonlinearity=tf.nn.relu,
+                 output_nonlinearity=tf.nn.tanh,
+                 obs_rms=None,
+                 ret_rms=None,
+                 observation_range=(-np.inf, np.inf),
+                 return_range=(-np.inf, np.inf)):
+        """See parent class."""
+        if actor_layers is None:
+            actor_layers = [64, 64]
+        if critic_layers is None:
+            critic_layers = [64, 64]
+
+        # assert len(actor_layers) == 1, 'Only one LSTM layer is allowed.'
+
+        super(HIROPolicy, self).__init__(
+            sess, ob_space, ac_space, actor_layers, critic_layers,
+            hidden_nonlinearity, output_nonlinearity, obs_rms, ret_rms,
+            observation_range, return_range)
+
+        # manager policy
+        self.manager = None
+
+        # worker policy
+        self.worker = None
+
+        # manager value function
+        self.manager_vf = None
+        self._manager_vf = None
+
+        # worker value function
+        self.worker_vf = None
+        self._worker_vf = None
+
+        # a placeholder for goals that are communicated to the worker
+        self.goal_ph = tf.placeholder(dtype=tf.float32,
+                                      shape=[None, self.ob_space.shape[0]],
+                                      name='goal_ph')
+
+        # observation from the previous time step
+        self.prev_obs = None
+
+    def make_actor(self, reuse=False, scope='pi'):
+        """Create an actor object.
+
+        Parameters
+        ----------
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tuple of tf.Tensor
+            the output tensor from the manager and the worker
+        """
+        obs = self.normalized_obs_ph
+
+        # input to the manager
+        manager_in = tf.layers.flatten(obs)
+        # manager_in = tf.reshape(
+        #     tf.layers.flatten(obs),
+        #     [self.batch_size, self.train_length, self.ob_space.shape[0]]
+        # )
+
+        # create the policy for the manager
+        self.manager = build_fcnet(
+            inputs=manager_in,
+            num_outputs=self.ob_space.shape[0],
+            hidden_size=self.actor_layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
+            scope='{}/manager'.format(scope),
+            reuse=reuse
+        )
+        # self.manager, m_state_init, m_states_ph, m_state = build_lstm(
+        #     inputs=manager_in,
+        #     num_outputs=self.ob_space.shape[0],
+        #     hidden_size=self.actor_layers[0],
+        #     scope='{}/manager'.format(scope),
+        #     reuse=reuse,
+        #     nonlinearity=self.output_nonlinearity,
+        # )
+
+        # input to the worker
+        worker_in = tf.concat([tf.layers.flatten(obs),
+                               tf.layers.flatten(self.goal_ph)], axis=-1)
+        # worker_in = tf.reshape(
+        #     tf.concat([tf.layers.flatten(obs),
+        #                tf.layers.flatten(self.goal_ph)], axis=-1),
+        #     [self.batch_size, self.train_length, 2 * self.ob_space.shape[0]]
+        # )
+
+        # create the policy for the worker
+        self.worker = build_fcnet(
+            inputs=worker_in,
+            num_outputs=self.ac_space.shape[0],
+            hidden_size=self.actor_layers,
+            hidden_nonlinearity=self.hidden_nonlinearity,
+            output_nonlinearity=self.output_nonlinearity,
+            scope='{}/worker'.format(scope),
+            reuse=reuse,
+        )
+        # self.worker, w_state_init, w_states_ph, w_state = build_lstm(
+        #     inputs=worker_in,
+        #     num_outputs=self.ac_space.shape[0],
+        #     hidden_size=self.actor_layers[0],
+        #     scope='{}/worker'.format(scope),
+        #     reuse=reuse,
+        #     nonlinearity=self.output_nonlinearity,
+        # )
+
+        self.policy = tf.concat([self.manager, self.worker], axis=1)
+        # self.state_init = [m_state_init, w_state_init]
+        # self.states_ph = [m_states_ph, w_states_ph]
+        # self.state = [m_state, w_state]
 
     def setup_actor_optimizer(self, clip_norm, verbose):
         """See parent class.
@@ -891,39 +1034,43 @@ class HIROPolicy(LSTMPolicy):
 
     def step(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
-        state1 = deepcopy(state)
-        trace_length = state[0][0].shape[0]
-        batch_size = int(obs.shape[0] / trace_length)
+        # state1 = deepcopy(state)
+        # trace_length = state[0][0].shape[0]
+        # batch_size = int(obs.shape[0] / trace_length)
 
         if kwargs['apply_manager']:
-            goal, state1[0], action, state1[1] = self.sess.run(
-                [self.manager, self.state[0], self.worker, self.state[1]],
+            goal, action = self.sess.run(
+                [self.manager,
+                 # self.state[0],
+                 self.worker,
+                 # self.state[1]
+                 ],
                 feed_dict={
                     self.obs_ph: obs[:, :self.ob_space.shape[0]],
                     self.goal_ph: obs[:, self.ob_space.shape[0]:],
-                    self.states_ph[0]: state[0],
-                    self.states_ph[1]: state[1],
-                    self.train_length: trace_length,
-                    self.batch_size: batch_size
+                    # self.states_ph[0]: state[0],
+                    # self.states_ph[1]: state[1],
+                    # self.train_length: trace_length,
+                    # self.batch_size: batch_size
                 }
             )
         else:
             # goal = self._update_goal(obs, self.prev_obs)
             goal = obs[:, self.ob_space.shape[0]:].copy()
 
-            action, state1[1] = self.sess.run(
-                [self.worker, self.state[1]],
+            action = self.sess.run(
+                self.worker,
                 feed_dict={
                     self.obs_ph: obs[:, :self.ob_space.shape[0]],
-                    self.states_ph[1]: state[1],
+                    # self.states_ph[1]: state[1],
                     self.goal_ph: obs[:, self.ob_space.shape[0]:],
-                    self.train_length: trace_length,
-                    self.batch_size: batch_size
+                    # self.train_length: trace_length,
+                    # self.batch_size: batch_size
                 }
             )
 
         self.prev_obs = obs.copy()
-        return (action, goal), state1
+        return (action, goal)
 
     def value(self,
               obs,
@@ -933,22 +1080,24 @@ class HIROPolicy(LSTMPolicy):
               use_actor=False,
               **kwargs):
         """See parent class."""
-        trace_length = state[0][0].shape[0]
-        batch_size = int(obs.shape[0] / trace_length)
+        # trace_length = state[0][0].shape[0]
+        # batch_size = int(obs.shape[0] / trace_length)
 
         m_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
-                       self.train_length: trace_length,
-                       self.batch_size: batch_size}
+                       # self.train_length: trace_length,
+                       # self.batch_size: batch_size
+                       }
         w_feed_dict = {self.obs_ph: obs[:, :self.ob_space.shape[0]],
                        self.goal_ph: obs[:, self.ob_space.shape[0]:],
-                       self.train_length: trace_length,
-                       self.batch_size: batch_size}
+                       # self.train_length: trace_length,
+                       # self.batch_size: batch_size
+                       }
 
         if use_actor:
             _crtic = self._critic_with_actor
-            m_feed_dict[self.states_ph[0]] = state[0]
-            w_feed_dict[self.states_ph[0]] = state[0]
-            w_feed_dict[self.states_ph[1]] = state[1]
+            # m_feed_dict[self.states_ph[0]] = state[0]
+            # w_feed_dict[self.states_ph[0]] = state[0]
+            # w_feed_dict[self.states_ph[1]] = state[1]
         else:
             _crtic = self._critic
             m_feed_dict[self.goal_ph] = action[:, self.ac_space.shape[0]:]
@@ -989,19 +1138,19 @@ class HIROPolicy(LSTMPolicy):
         This method is further expanded to include placeholders needed by the
         recurrent actors.
         """
-        trace_length = 8  # FIXME: trace length
-        batch_size = int(batch[0]['obs0'].shape[0] / trace_length)
+        # trace_length = 500  # FIXME: trace length
+        # batch_size = int(batch[0]['obs0'].shape[0] / trace_length)
         actor_loss, critic_loss = [], []
 
-        init_state = (np.zeros([batch_size, self.actor_layers[0]]),
-                      np.zeros([batch_size, self.actor_layers[0]]))
+        # init_state = (np.zeros([batch_size, self.actor_layers[0]]),
+        #               np.zeros([batch_size, self.actor_layers[0]]))
 
         for i in range(2): # FIXME: obs_ph and action_ph as lists (like state_ph), then one sess.run
             feed_dict = {
                 self.critic_target: target_q[i],
-                self.batch_size: batch_size,
-                self.train_length: trace_length,
-                self.states_ph[i]: deepcopy(init_state),
+                # self.batch_size: batch_size,
+                # self.train_length: trace_length,
+                # self.states_ph[i]: deepcopy(init_state),
             }
             if i == 0:
                 feed_dict[self.obs_ph] = batch[i]['obs0']
@@ -1012,7 +1161,7 @@ class HIROPolicy(LSTMPolicy):
                     :, :self.ob_space.shape[0]]
                 feed_dict[self.goal_ph] = batch[i]['obs0'][
                     :, self.ob_space.shape[0]:]
-                feed_dict[self.states_ph[0]] = deepcopy(init_state)
+                # feed_dict[self.states_ph[0]] = deepcopy(init_state)
 
             a_grads, a_loss, c_grads, c_loss = self.sess.run(
                 [self.actor_grads[i], self.actor_loss[i], self.critic_grads[i],
