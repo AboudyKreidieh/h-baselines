@@ -5,37 +5,115 @@ See: https://arxiv.org/pdf/1509.02971.pdf
 A large portion of this code is adapted from the following repository:
 https://github.com/hill-a/stable-baselines
 """
+from functools import reduce
 import os
 import time
 from collections import deque
 import csv
-import os.path
-from copy import deepcopy
+import pickle
+import warnings
 
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib as tc
 from mpi4py import MPI
 
 from stable_baselines import logger
-from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, \
-    TensorboardWriter
-from stable_baselines.common.vec_env import VecEnv
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity
+from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.ddpg.policies import DDPGPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-from stable_baselines.a2c.utils import find_trainable_variables, \
-    total_episode_reward_logger
+from stable_baselines.a2c.utils import total_episode_reward_logger
+from stable_baselines.deepq.replay_buffer import ReplayBuffer
 
-from hbaselines.utils.exp_replay import GenericMemory
-from hbaselines.utils.exp_replay import RecurrentMemory
-from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
-from hbaselines.utils.stats import reduce_std
+
+def normalize(tensor, stats):
+    """Normalize a tensor using a running mean and std.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+    stats : RunningMeanStd
+        the running mean and std of the input to normalize
+
+    Returns
+    -------
+    tf.Tensor
+        the normalized tensor
+    """
+    if stats is None:
+        return tensor
+    return (tensor - stats.mean) / stats.std
+
+
+def denormalize(tensor, stats):
+    """Denormalize a tensor using a running mean and std.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the normalized tensor
+    stats : RunningMeanStd
+        the running mean and std of the input to normalize
+
+    Returns
+    -------
+    tf.Tensor
+        the restored tensor
+    """
+    if stats is None:
+        return tensor
+    return tensor * stats.std + stats.mean
+
+
+def reduce_std(tensor, axis=None, keepdims=False):
+    """Get the standard deviation of a Tensor.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+    axis : int or list of int
+        the axis to itterate the std over
+    keepdims : bool
+        keep the other dimensions the same
+
+    Returns
+    -------
+    tf.Tensor
+        the std of the tensor
+    """
+    return tf.sqrt(reduce_var(tensor, axis=axis, keepdims=keepdims))
+
+
+def reduce_var(tensor, axis=None, keepdims=False):
+    """Get the variance of a Tensor.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+    axis : int or list of int
+        the axis to itterate the variance over
+    keepdims : bool
+        keep the other dimensions the same
+
+    Returns
+    -------
+    tf.Tensor
+        the variance of the tensor
+    """
+    tensor_mean = tf.reduce_mean(tensor, axis=axis, keepdims=True)
+    devs_squared = tf.square(tensor - tensor_mean)
+    return tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims)
 
 
 def as_scalar(scalar):
     """Check and return the input if it is a scalar.
 
-    If it is not scale, raise a ValueError.
+    If it is not scalar, raise a ValueError.
 
     Parameters
     ----------
@@ -53,8 +131,7 @@ def as_scalar(scalar):
     elif np.isscalar(scalar):
         return scalar
     else:
-        raise ValueError(
-            'expected scalar, got %s' % scalar)
+        raise ValueError('expected scalar, got %s' % scalar)
 
 
 def get_target_updates(_vars, target_vars, tau, verbose=0):
@@ -69,11 +146,7 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     tau : float
         the soft update coefficient (keep old values, between 0 and 1)
     verbose : int
-        the verbosity level:
-
-        * 0 none,
-        * 1 training information,
-        * 2 tensorflow debug
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
 
     Returns
     -------
@@ -83,19 +156,73 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
         soft update
     """
     if verbose >= 2:
-        logger.info('Setting up target updates ...')
+        logger.info('setting up target updates ...')
+
     soft_updates = []
     init_updates = []
     assert len(_vars) == len(target_vars)
+
     for var, target_var in zip(_vars, target_vars):
         if verbose >= 2:
             logger.info('  {} <- {}'.format(target_var.name, var.name))
         init_updates.append(tf.assign(target_var, var))
         soft_updates.append(
-            tf.assign(target_var, (1 - tau) * target_var + tau * var))
+            tf.assign(target_var, (1. - tau) * target_var + tau * var))
+
     assert len(init_updates) == len(_vars)
     assert len(soft_updates) == len(_vars)
+
     return tf.group(*init_updates), tf.group(*soft_updates)
+
+
+def get_perturbed_actor_updates(actor,
+                                perturbed_actor,
+                                param_noise_stddev,
+                                verbose=0):
+    """Get the actor update, with noise.
+
+    Parameters
+    ----------
+    actor : str
+        the actor
+    perturbed_actor : str
+        the pertubed actor
+    param_noise_stddev : float
+        the std of the parameter noise
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+
+    Returns
+    -------
+    tf.Operation
+        the update function
+    """
+
+    assert len(tf_util.get_globals_vars(actor)) == \
+        len(tf_util.get_globals_vars(perturbed_actor))
+    assert \
+        len([var for var in tf_util.get_trainable_vars(actor)
+             if 'LayerNorm' not in var.name]) == \
+        len([var for var in tf_util.get_trainable_vars(perturbed_actor)
+             if 'LayerNorm' not in var.name])
+
+    updates = []
+    for var, perturbed_var in zip(tf_util.get_globals_vars(actor),
+                                  tf_util.get_globals_vars(perturbed_actor)):
+        if var in [var for var in tf_util.get_trainable_vars(actor)
+                   if 'LayerNorm' not in var.name]:
+            if verbose >= 2:
+                logger.info('  {} <- {} + noise'.format(
+                    perturbed_var.name, var.name))
+            updates.append(
+                tf.assign(perturbed_var, var + tf.random_normal(
+                    tf.shape(var), mean=0., stddev=param_noise_stddev)))
+        else:
+            if verbose >= 2:
+                logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
+            updates.append(tf.assign(perturbed_var, var))
+    assert len(updates) == len(tf_util.get_globals_vars(actor))
+    return tf.group(*updates)
 
 
 class DDPG(OffPolicyRLModel):
@@ -109,14 +236,8 @@ class DDPG(OffPolicyRLModel):
         The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     env : gym.Env or str
         The environment to learn from (if registered in Gym, can be str)
-    recurrent : bool
-        specifies whether recurrent policies are being used
-    hierarchical : bool
-        specifies whether hierarchical policies are being used
     gamma : float
         the discount rate
-    memory_policy : Memory type
-        the replay buffer (if None, default to baselines.ddpg.memory.Memory)
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -160,18 +281,19 @@ class DDPG(OffPolicyRLModel):
     def __init__(self,
                  policy,
                  env,
-                 recurrent=False,
-                 hierarchical=False,
                  gamma=0.99,
-                 memory_policy=None,
+                 eval_env=None,
                  nb_train_steps=50,
                  nb_rollout_steps=100,
+                 nb_eval_steps=100,
+                 param_noise=None,
                  action_noise=None,
                  normalize_observations=False,
                  tau=0.001,
                  batch_size=128,
+                 param_noise_adaption_interval=50,
                  normalize_returns=False,
-                 observation_range=(-5, 5),
+                 observation_range=(-5., 5.),
                  critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf),
                  actor_lr=1e-4,
@@ -179,25 +301,33 @@ class DDPG(OffPolicyRLModel):
                  clip_norm=None,
                  reward_scale=1.,
                  render=False,
-                 memory_limit=100,
+                 render_eval=False,
+                 memory_limit=None,
+                 buffer_size=50000,
+                 random_exploration=0.0,
                  verbose=0,
                  tensorboard_log=None,
-                 _init_setup_model=True):
-
-        super(DDPG, self).__init__(policy=policy,
-                                   env=env,
-                                   replay_buffer=None,
-                                   verbose=verbose,
-                                   policy_base=DDPGPolicy,
-                                   requires_vec_env=False)
-
-        # Parameters
+                 _init_setup_model=True,
+                 policy_kwargs=None):
+        # Parameters.
         self.gamma = gamma
         self.tau = tau
-        self.memory_policy = memory_policy or GenericMemory
+
+        super(DDPG, self).__init__(
+            policy=policy, env=env, replay_buffer=None, verbose=verbose,
+            policy_base=DDPGPolicy, requires_vec_env=False,
+            policy_kwargs=policy_kwargs)
+
+        if memory_limit is not None:
+            warnings.warn(
+                "memory_limit will be removed in a future version (v3.x.x) "
+                "use buffer_size instead", DeprecationWarning)
+            buffer_size = memory_limit
+
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
+        self.param_noise = param_noise
         self.return_range = return_range
         self.observation_range = observation_range
         self.actor_lr = actor_lr
@@ -206,16 +336,22 @@ class DDPG(OffPolicyRLModel):
         self.reward_scale = reward_scale
         self.batch_size = batch_size
         self.critic_l2_reg = critic_l2_reg
+        self.eval_env = eval_env
         self.render = render
+        self.render_eval = render_eval
+        self.nb_eval_steps = nb_eval_steps
+        self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.memory_limit = memory_limit
+        self.buffer_size = buffer_size
         self.tensorboard_log = tensorboard_log
+        self.random_exploration = random_exploration
 
         # init
         self.graph = None
         self.stats_sample = None
-        self.memory = None
+        self.replay_buffer = None
         self.policy_tf = None
         self.target_init_updates = None
         self.target_soft_updates = None
@@ -226,49 +362,106 @@ class DDPG(OffPolicyRLModel):
         self.perturb_policy_ops = None
         self.perturb_adaptive_policy_ops = None
         self.adaptive_policy_distance = None
+        self.old_std = None
+        self.old_mean = None
+        self.renormalize_q_outputs_op = None
         self.obs_rms = None
         self.ret_rms = None
-        self.target_policy = None
-        self.q_obs1 = None
         self.target_q = None
+        self.obs_train = None
+        self.action_train_ph = None
+        self.obs_target = None
+        self.action_target = None
+        self.obs_noise = None
+        self.action_noise_ph = None
+        self.obs_adapt_noise = None
+        self.action_adapt_noise = None
         self.terminals1 = None
         self.rewards = None
+        self.actions = None
+        self.param_noise_stddev = None
+        self.param_noise_actor = None
+        self.adaptive_param_noise_actor = None
         self.params = None
+        self.summary = None
         self.episode_reward = None
         self.tb_seen_steps = None
 
-        # for recurrent RL
-        self.recurrent = recurrent
-        if recurrent:
-            self.memory_policy = memory_policy or RecurrentMemory
-        self.state_init = None
+        # TODO: move to actor class
+        self.actor_loss = None
+        self.actor_grads = None
+        self.actor_optimizer = None
+        self.target_policy = None
+        self.actor_tf = None
 
-        # for hierarchical RL
-        self.hierarchical = hierarchical
-        if hierarchical:
-            self.memory_policy = memory_policy or HierarchicalRecurrentMemory
+        # TODO: move to critic class
+        self.critic_loss = None
+        self.critic_grads = None
+        self.critic_optimizer = None
+        self.normalized_critic_tf = None
+        self.critic_tf = None
+        self.normalized_critic_with_actor_tf = None
+        self.critic_with_actor_tf = None
+        self.critic_target = None
 
-        # number of steps after which the manager performs an action
-        self.c = 10  # FIXME
+        self.target_params = None
+        self.obs_rms_params = None
+        self.ret_rms_params = None
+
+        # TODO: my hacks
+        if "feature_extraction" not in self.policy_kwargs:
+            self.policy_kwargs["feature_extraction"] = None
+        self.policy_kwargs["feature_extraction"] = "mlp"
+        self.obs = None
+        self.eval_obs = None
+        self.episode_reward = 0.
+        self.episode_step = 0
+        self.episodes = 0
+        self.step = 0
+        self.total_steps = 0
+        self.epoch_episode_rewards = []
+        self.epoch_episode_steps = []
+        self.epoch_actor_losses = []
+        self.epoch_critic_losses = []
+        self.epoch_adaptive_distances = []
+        self.eval_episode_rewards = []
+        self.eval_qs = []
+        self.epoch_actions = []
+        self.epoch_qs = []
+        self.epoch_episodes = 0
+        self.epoch = 0
+        self.eval_episode_rewards_history = deque(maxlen=100)
+        self.episode_rewards_history = deque(maxlen=100)
+        self.episode_reward = np.zeros((1,))
+        self.episode_successes = []
 
         if _init_setup_model:
             self.setup_model()
 
+    def _get_pretrain_placeholders(self):
+        policy = self.policy_tf
+        # Rescale
+        deterministic_action = self.actor_tf * np.abs(self.action_space.low)
+
+        return policy.obs_ph, self.actions, deterministic_action
+
     def setup_model(self):
+
         with SetVerbosity(self.verbose):
             # determine whether the action space is continuous
             assert isinstance(self.action_space, Box), \
-                "Error: DDPG cannot output a {} action space, only spaces." \
-                "Box is supported.".format(self.action_space)
+                "Error: DDPG cannot output a {} action space, only " \
+                "spaces.Box is supported.".format(self.action_space)
+            # print(self.policy)
+            # assert issubclass(self.policy, DDPGPolicy), \
+            #     "Error: the input policy for the DDPG model must be " \
+            #     "an instance of DDPGPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-                self.memory = self.memory_policy(
-                    limit=self.memory_limit,
-                    action_shape=self.action_space.shape,
-                    observation_shape=self.observation_space.shape)
+                self.replay_buffer = ReplayBuffer(self.buffer_size)
 
                 with tf.variable_scope("input", reuse=False):
                     # Observation normalization.
@@ -286,114 +479,259 @@ class DDPG(OffPolicyRLModel):
                     else:
                         self.ret_rms = None
 
-                    # Create the policy networks.
                     self.policy_tf = self.policy(
-                        sess=self.sess,
-                        ob_space=self.observation_space,
-                        ac_space=self.action_space,
-                        obs_rms=self.obs_rms,
-                        ret_rms=self.ret_rms,
-                        return_range=self.return_range,
-                        observation_range=self.observation_range
-                    )
+                        self.sess,
+                        self.observation_space,
+                        self.action_space,
+                        1, 1, None, **self.policy_kwargs)
 
                     # Create target networks.
                     self.target_policy = self.policy(
-                        sess=self.sess,
-                        ob_space=self.observation_space,
-                        ac_space=self.action_space,
-                        obs_rms=self.obs_rms,
-                        ret_rms=self.ret_rms,
-                        return_range=self.return_range,
-                        observation_range=self.observation_range
-                    )
+                        self.sess,
+                        self.observation_space,
+                        self.action_space,
+                        1, 1, None, **self.policy_kwargs)
 
-                    # Inputs to the target q value.
-                    self.q_obs1 = tf.placeholder(
-                        tf.float32, shape=(None, 1), name='q_obs1')
+                    self.obs_target = self.target_policy.obs_ph
+                    self.action_target = self.target_policy.action_ph
+
+                    normalized_obs0 = tf.clip_by_value(
+                        normalize(self.policy_tf.processed_obs, self.obs_rms),
+                        self.observation_range[0], self.observation_range[1])
+                    normalized_obs1 = tf.clip_by_value(
+                        normalize(self.target_policy.processed_obs,
+                                  self.obs_rms),
+                        self.observation_range[0], self.observation_range[1])
+
+                    if self.param_noise is not None:
+                        # Configure perturbed actor.
+                        self.param_noise_actor = self.policy(
+                            self.sess,
+                            self.observation_space,
+                            self.action_space,
+                            1, 1, None, **self.policy_kwargs)
+                        self.obs_noise = self.param_noise_actor.obs_ph
+                        self.action_noise_ph = self.param_noise_actor.action_ph
+
+                        # Configure separate copy for stddev adoption.
+                        self.adaptive_param_noise_actor = self.policy(
+                            self.sess,
+                            self.observation_space,
+                            self.action_space,
+                            1, 1, None, **self.policy_kwargs)
+                        self.obs_adapt_noise = \
+                            self.adaptive_param_noise_actor.obs_ph
+                        self.action_adapt_noise = \
+                            self.adaptive_param_noise_actor.action_ph
+
+                    # Inputs.
+                    self.obs_train = self.policy_tf.obs_ph
+                    self.action_train_ph = self.policy_tf.action_ph
                     self.terminals1 = tf.placeholder(
-                        tf.float32, shape=(None, 1), name='terminals1')
+                        tf.float32,
+                        shape=(None, 1),
+                        name='terminals1')
                     self.rewards = tf.placeholder(
-                        tf.float32, shape=(None, 1), name='rewards')
+                        tf.float32,
+                        shape=(None, 1),
+                        name='rewards')
+                    self.actions = tf.placeholder(
+                        tf.float32,
+                        shape=(None,) + self.action_space.shape,
+                        name='actions')
+                    self.critic_target = tf.placeholder(
+                        tf.float32,
+                        shape=(None, 1),
+                        name='critic_target')
+                    self.param_noise_stddev = tf.placeholder(
+                        tf.float32,
+                        shape=(),
+                        name='param_noise_stddev')
 
                 # Create networks and core TF parts that are shared across
                 # setup parts.
                 with tf.variable_scope("model", reuse=False):
-                    self.policy_tf.make_actor()
-                    self.policy_tf.make_critic()
-                    if self.recurrent:
-                        self.state_init = self.policy_tf.state_init
+                    self.actor_tf = self.policy_tf.make_actor(normalized_obs0)
+                    self.normalized_critic_tf = self.policy_tf.make_critic(
+                        normalized_obs0,
+                        self.actions)
+                    self.normalized_critic_with_actor_tf = \
+                        self.policy_tf.make_critic(normalized_obs0,
+                                                   self.actor_tf,
+                                                   reuse=True)
+
+                # Noise setup
+                if self.param_noise is not None:
+                    self._setup_param_noise(normalized_obs0)
 
                 with tf.variable_scope("target", reuse=False):
-                    self.target_policy.make_actor()
-                    self.target_policy.make_critic()
+                    critic_target = self.target_policy.make_critic(
+                        normalized_obs1,
+                        self.target_policy.make_actor(normalized_obs1))
 
                 with tf.variable_scope("loss", reuse=False):
-                    self.target_q = self.rewards + (1 - self.terminals1) * \
-                        self.gamma * self.q_obs1
+                    self.critic_tf = denormalize(
+                        tf.clip_by_value(
+                            self.normalized_critic_tf,
+                            self.return_range[0],
+                            self.return_range[1]),
+                        self.ret_rms)
 
-                    # Set up parts.
-                    if self.normalize_returns:
-                        self._setup_popart()
+                    self.critic_with_actor_tf = denormalize(
+                        tf.clip_by_value(
+                            self.normalized_critic_with_actor_tf,
+                            self.return_range[0],
+                            self.return_range[1]),
+                        self.ret_rms)
+
+                    q_obs1 = denormalize(critic_target, self.ret_rms)
+                    self.target_q = self.rewards + \
+                        (1. - self.terminals1) * self.gamma * q_obs1
+
+                    tf.summary.scalar('critic_target',
+                                      tf.reduce_mean(self.critic_target))
+
                     self._setup_stats()
                     self._setup_target_network_updates()
 
+                with tf.variable_scope("input_info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards))
+                    tf.summary.scalar('param_noise_stddev',
+                                      tf.reduce_mean(self.param_noise_stddev))
+
                 with tf.variable_scope("Adam_mpi", reuse=False):
-                    # Setup the optimizer for the actor.
-                    self.policy_tf.setup_actor_optimizer(
-                        clip_norm=self.clip_norm, verbose=self.verbose)
+                    self._setup_actor_optimizer()
+                    self._setup_critic_optimizer()
+                    tf.summary.scalar('actor_loss', self.actor_loss)
+                    tf.summary.scalar('critic_loss', self.critic_loss)
 
-                    # Setup the optimizer for the critic.
-                    self.policy_tf.setup_critic_optimizer(
-                        critic_l2_reg=self.critic_l2_reg,
-                        clip_norm=self.clip_norm,
-                        verbose=self.verbose)
+                self.params = \
+                    tf_util.get_trainable_vars("model") + \
+                    tf_util.get_trainable_vars('noise/') + \
+                    tf_util.get_trainable_vars('noise_adapt/')
 
-                self.params = find_trainable_variables("model")
+                self.target_params = tf_util.get_trainable_vars("target")
+                self.obs_rms_params = [var for var in tf.global_variables()
+                                       if "obs_rms" in var.name]
+                self.ret_rms_params = [var for var in tf.global_variables()
+                                       if "ret_rms" in var.name]
 
                 with self.sess.as_default():
                     self._initialize(self.sess)
+
+                self.summary = tf.summary.merge_all()
 
     def _setup_target_network_updates(self):
         """Set the target update operations."""
         init_updates, soft_updates = get_target_updates(
             tf_util.get_trainable_vars('model/'),
-            tf_util.get_trainable_vars('target/'), self.tau,
-            self.verbose)
+            tf_util.get_trainable_vars('target/'),
+            self.tau, self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
-    def _setup_popart(self):
-        """Setup pop-art normalization of the critic output.
+    def _setup_param_noise(self, normalized_obs0):
+        """Set the parameter noise operations.
 
-        See https://arxiv.org/pdf/1602.07714.pdf for details.
-
-        Preserving Outputs Precisely, while Adaptively Rescaling Targets”.
+        :param normalized_obs0: (TensorFlow Tensor) the normalized observation
         """
-        self.old_std = tf.placeholder(tf.float32, shape=[1],
-                                      name='old_std')
-        new_std = self.ret_rms.std
-        self.old_mean = tf.placeholder(tf.float32, shape=[1],
-                                       name='old_mean')
-        new_mean = self.ret_rms.mean
+        assert self.param_noise is not None
 
-        self.renormalize_q_outputs_op = []
-        for out_vars in [
-            [var for var in tf_util.get_trainable_vars('model/qf/') if
-             'output' in var.name],
-            [var for var in tf_util.get_trainable_vars('target/qf/') if
-             'output' in var.name]]:
-            assert len(out_vars) == 2
-            # weight and bias of the last layer
-            weight, bias = out_vars
-            assert 'kernel' in weight.name
-            assert 'bias' in bias.name
-            assert weight.get_shape()[-1] == 1
-            assert bias.get_shape()[-1] == 1
-            self.renormalize_q_outputs_op += [
-                weight.assign(weight * self.old_std / new_std)]
-            self.renormalize_q_outputs_op += [bias.assign(
-                (bias * self.old_std + self.old_mean - new_mean) / new_std)]
+        with tf.variable_scope("noise", reuse=False):
+            self.perturbed_actor_tf = self.param_noise_actor.make_actor(
+                normalized_obs0)
+
+        with tf.variable_scope("noise_adapt", reuse=False):
+            adaptive_actor_tf = self.adaptive_param_noise_actor.make_actor(
+                normalized_obs0)
+
+        with tf.variable_scope("noise_update_func", reuse=False):
+            if self.verbose >= 2:
+                logger.info('setting up param noise')
+            self.perturb_policy_ops = get_perturbed_actor_updates(
+                'model/pi/',
+                'noise/pi/',
+                self.param_noise_stddev,
+                verbose=self.verbose)
+
+            self.perturb_adaptive_policy_ops = get_perturbed_actor_updates(
+                'model/pi/',
+                'noise_adapt/pi/',
+                self.param_noise_stddev,
+                verbose=self.verbose)
+            self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(
+                tf.square(self.actor_tf - adaptive_actor_tf)))
+
+    def _setup_actor_optimizer(self):
+        """Setup the optimizer for the actor."""
+        if self.verbose >= 2:
+            logger.info('setting up actor optimizer')
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
+        actor_shapes = [var.get_shape().as_list()
+                        for var in tf_util.get_trainable_vars('model/pi/')]
+        actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                               for shape in actor_shapes])
+        if self.verbose >= 2:
+            logger.info('  actor shapes: {}'.format(actor_shapes))
+            logger.info('  actor params: {}'.format(actor_nb_params))
+        self.actor_grads = tf_util.flatgrad(
+            self.actor_loss,
+            tf_util.get_trainable_vars('model/pi/'),
+            clip_norm=self.clip_norm)
+        self.actor_optimizer = MpiAdam(
+            var_list=tf_util.get_trainable_vars('model/pi/'),
+            beta1=0.9, beta2=0.999, epsilon=1e-08)
+
+    def _setup_critic_optimizer(self):
+        """Setup the optimizer for the critic."""
+        if self.verbose >= 2:
+            logger.info('setting up critic optimizer')
+
+        normalized_critic_target_tf = tf.clip_by_value(
+            normalize(self.critic_target, self.ret_rms),
+            self.return_range[0],
+            self.return_range[1])
+
+        self.critic_loss = tf.reduce_mean(tf.square(
+            self.normalized_critic_tf - normalized_critic_target_tf))
+
+        if self.critic_l2_reg > 0.:
+            critic_reg_vars = [
+                var for var in tf_util.get_trainable_vars('model/qf/')
+                if 'bias' not in var.name
+                and 'qf_output' not in var.name
+                and 'b' not in var.name
+            ]
+
+            if self.verbose >= 2:
+                for var in critic_reg_vars:
+                    logger.info('  regularizing: {}'.format(var.name))
+                logger.info('  applying l2 regularization with {}'.format(
+                    self.critic_l2_reg))
+
+            critic_reg = tc.layers.apply_regularization(
+                tc.layers.l2_regularizer(self.critic_l2_reg),
+                weights_list=critic_reg_vars
+            )
+            self.critic_loss += critic_reg
+
+        critic_shapes = [var.get_shape().as_list()
+                         for var in tf_util.get_trainable_vars('model/qf/')]
+        critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                for shape in critic_shapes])
+
+        if self.verbose >= 2:
+            logger.info('  critic shapes: {}'.format(critic_shapes))
+            logger.info('  critic params: {}'.format(critic_nb_params))
+
+        self.critic_grads = tf_util.flatgrad(
+            self.critic_loss,
+            tf_util.get_trainable_vars('model/qf/'),
+            clip_norm=self.clip_norm)
+
+        self.critic_optimizer = MpiAdam(
+            var_list=tf_util.get_trainable_vars('model/qf/'),
+            beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def _setup_stats(self):
         """Setup the running means and std of the model inputs and outputs."""
@@ -405,114 +743,58 @@ class DDPG(OffPolicyRLModel):
             names += ['ret_rms_mean', 'ret_rms_std']
 
         if self.normalize_observations:
-            ops += [tf.reduce_mean(self.obs_rms.mean), tf.reduce_mean(
-                self.obs_rms.std)]
+            ops += [tf.reduce_mean(self.obs_rms.mean),
+                    tf.reduce_mean(self.obs_rms.std)]
             names += ['obs_rms_mean', 'obs_rms_std']
 
-        if self.hierarchical:
-            ops += [tf.reduce_mean(self.policy_tf.critic[0]),
-                    tf.reduce_mean(self.policy_tf.critic[1])]
-            names += ['reference_Q_mean_manager', 'reference_Q_mean_worker']
-            ops += [reduce_std(self.policy_tf.critic[0]),
-                    reduce_std(self.policy_tf.critic[1])]
-            names += ['reference_Q_std_manager', 'reference_Q_std_worker']
+        ops += [tf.reduce_mean(self.critic_tf)]
+        names += ['reference_Q_mean']
+        ops += [reduce_std(self.critic_tf)]
+        names += ['reference_Q_std']
 
-            ops += [tf.reduce_mean(self.policy_tf.critic_with_actor[0]),
-                    tf.reduce_mean(self.policy_tf.critic_with_actor[1])]
-            names += ['reference_actor_Q_mean_manager',
-                      'reference_actor_Q_mean_worker']
-            ops += [reduce_std(self.policy_tf.critic_with_actor[0]),
-                    reduce_std(self.policy_tf.critic_with_actor[1])]
-            names += ['reference_actor_Q_std_manager',
-                      'reference_actor_Q_std_worker']
+        ops += [tf.reduce_mean(self.critic_with_actor_tf)]
+        names += ['reference_actor_Q_mean']
+        ops += [reduce_std(self.critic_with_actor_tf)]
+        names += ['reference_actor_Q_std']
 
-            ops += [tf.reduce_mean(self.policy_tf.policy[0]),
-                    tf.reduce_mean(self.policy_tf.policy[1])]
-            names += ['reference_action_mean_manager',
-                      'reference_action_mean_worker']
-            ops += [reduce_std(self.policy_tf.policy[0]),
-                    reduce_std(self.policy_tf.policy[1])]
-            names += ['reference_action_std_manager',
-                      'reference_action_std_worker']
+        ops += [tf.reduce_mean(self.actor_tf)]
+        names += ['reference_action_mean']
+        ops += [reduce_std(self.actor_tf)]
+        names += ['reference_action_std']
 
-        else:
-            ops += [tf.reduce_mean(self.policy_tf.critic)]
-            names += ['reference_Q_mean']
-            ops += [reduce_std(self.policy_tf.critic)]
-            names += ['reference_Q_std']
-
-            ops += [tf.reduce_mean(self.policy_tf.critic_with_actor)]
-            names += ['reference_actor_Q_mean']
-            ops += [reduce_std(self.policy_tf.critic_with_actor)]
-            names += ['reference_actor_Q_std']
-
-            ops += [tf.reduce_mean(self.policy_tf.policy)]
-            names += ['reference_action_mean']
-            ops += [reduce_std(self.policy_tf.policy)]
-            names += ['reference_action_std']
+        if self.param_noise:
+            ops += [tf.reduce_mean(self.perturbed_actor_tf)]
+            names += ['reference_perturbed_action_mean']
+            ops += [reduce_std(self.perturbed_actor_tf)]
+            names += ['reference_perturbed_action_std']
 
         self.stats_ops = ops
         self.stats_names = names
 
-    def _policy(self,
-                obs,
-                state,
-                apply_manager,
-                apply_noise=True,
-                compute_q=True,):
-        """Get the actions and critic output, from a given observation.
-
-        Parameters
-        ----------
-        obs : list of float or list of int
-            the observation
-        state : list of float or list of int
-            internal state (for recurrent neural networks)
-        apply_manager : bool
-            specifies whether to perform an action by the manager (used by
-            hierarchical policies)
-        apply_noise : bool
-            enable the noise
-        compute_q : bool
-            compute the critic output
-
-        Returns
-        -------
-        float or list of float
-            the action
-        float or list of float
-            the next internal state of the actor (for RNNs)
-        float or list of float
-            the critic value
-        float or list of goal
-            the manager goals (for hierarchical policies)
+    def _policy(self, obs, apply_noise=True, compute_q=True):
         """
-        # reshape the observation to be ready for the policy
-        o_shape = self.observation_space.shape
-        if self.hierarchical:
-            obs = np.array(obs).reshape((-1,) + tuple(2 * o for o in o_shape))
+        Get the actions and critic output, from a given observation
+
+        :param obs: ([float] or [int]) the observation
+        :param apply_noise: (bool) enable the noise
+        :param compute_q: (bool) compute the critic output
+        :return: ([float], float) the action and critic value
+        """
+        obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+        feed_dict = {self.obs_train: obs}
+        if self.param_noise is not None and apply_noise:
+            actor_tf = self.perturbed_actor_tf
+            feed_dict[self.obs_noise] = obs
         else:
-            obs = np.array(obs).reshape((-1,) + o_shape)
-
-        # get the next action from the policy
-        action = self.policy_tf.step(
-            obs=obs, state=state, apply_manager=apply_manager)
-        state1, q_value = None, None
-
-        if self.recurrent:
-            action, state1 = action
-
-        if self.hierarchical:
-            action, goal = action
-            goal = goal.flatten()
-            # goal = np.clip(goal, -1, 1)  FIXME
-        else:
-            goal = None
+            actor_tf = self.actor_tf
 
         if compute_q:
-            q_value = self.policy_tf.value(
-                obs=obs, action=None, state=state, use_actor=True,
-                apply_manager=apply_manager)
+            action, q_value = self.sess.run(
+                [actor_tf, self.critic_with_actor_tf],
+                feed_dict=feed_dict)
+        else:
+            action = self.sess.run(actor_tf, feed_dict=feed_dict)
+            q_value = None
 
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
@@ -521,21 +803,10 @@ class DDPG(OffPolicyRLModel):
             action += noise
         action = np.clip(action, -1, 1)
 
-        return action, state1, q_value, goal
+        return action, q_value
 
-    def _store_transition(self,
-                          obs0,
-                          action,
-                          reward,
-                          obs1,
-                          terminal1,
-                          apply_manager):
+    def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.
-
-        Note that in the case of hierarchical policies, the observation
-        consists of the [env_obs, goal_obs], and the action consists of the
-        [env_action, goal_action]. The latter consists of a None when actions
-        are not being applied.
 
         Parameters
         ----------
@@ -549,31 +820,23 @@ class DDPG(OffPolicyRLModel):
             the current observation
         terminal1 : bool
             is the episode done
-        apply_manager : bool
-            specifies whether the manager policy performed an action in the
-            current time step (for hierarchical policies)
         """
         reward *= self.reward_scale
-
-        if self.hierarchical:
-            obs_mean, obs_std = self.sess.run(
-                [self.obs_rms.mean, self.obs_rms.std])
-            reward_worker = - self.reward_scale * np.linalg.norm(
-                (np.array(obs1[:self.observation_space.shape[0]])
-                 - obs_mean) / (2 * obs_std)
-                - np.array(obs1[self.observation_space.shape[0]:]))
-            self.memory.append(obs0, action, (reward, reward_worker), obs1,
-                               terminal1, apply_manager=apply_manager)
-        else:
-            self.memory.append(obs0, action, reward, obs1, terminal1)
-
+        self.replay_buffer.add(obs0, action, reward, obs1, float(terminal1))
         if self.normalize_observations:
-            if self.hierarchical:
-                obs0 = obs0[:self.observation_space.shape[0]]
             self.obs_rms.update(np.array([obs0]))
 
-    def _train_step(self):
+    def _train_step(self, step, writer, log=False):
         """Run a step of training from batch.
+
+        Parameters
+        ----------
+        step : int
+            the current step iteration
+        writer : tf.Summary.writer
+            the writer for tensorboard
+        log : bool
+            whether or not to log to metadata
 
         Returns
         -------
@@ -582,98 +845,50 @@ class DDPG(OffPolicyRLModel):
         float
             actor loss
         """
-        # do not start until there are at least two entries in the memory
-        # buffer (needed for recurrent networks)
-        if self.memory.nb_entries <= 1:
-            return None, None
+        # Get a batch
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
+            batch_size=self.batch_size)
 
-        init_state = (np.zeros([self.batch_size,
-                                self.policy_tf.actor_layers[0]]),
-                      np.zeros([self.batch_size,
-                                self.policy_tf.actor_layers[0]]))
+        # Reshape to match previous behavior and placeholder shape
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
 
-        if self.hierarchical:
-            target_q = []
+        target_q = self.sess.run(self.target_q, feed_dict={
+            self.obs_target: obs1,
+            self.rewards: rewards,
+            self.terminals1: terminals1
+        })
 
-            # Get a batch
-            m_batch, w_batch = self.memory.sample(batch_size=self.batch_size)
-            batch = [m_batch, w_batch]
-
-            # manager target q
-            m_feed_dict = {
-                self.target_policy.obs_ph: m_batch['obs1'],
-                self.target_policy.goal_ph: m_batch['actions'],
-            }
-            q_obs = self.sess.run(
-                self.target_policy.critic_with_actor[0],
-                feed_dict=m_feed_dict
-            )
-            feed_dict = {
-                self.q_obs1: q_obs,
-                self.rewards: m_batch['rewards'],
-                self.terminals1: m_batch['terminals1'].astype('float32')
-            }
-            target_q.append(self.sess.run(self.target_q, feed_dict=feed_dict))
-
-            # worker target q
-            w_feed_dict = {
-                self.target_policy.obs_ph:
-                    w_batch['obs1'][:, :self.observation_space.shape[0]],
-                self.target_policy.goal_ph:
-                    w_batch['obs1'][:, self.observation_space.shape[0]:],
-                self.target_policy.action_ph: w_batch['actions'],
-                # self.target_policy.train_length: self.memory.trace_length,
-                # self.target_policy.batch_size: self.batch_size,
-                # self.target_policy.states_ph[0]: deepcopy(init_state),
-                # self.target_policy.states_ph[1]: deepcopy(init_state)
-            }
-            q_obs = self.sess.run(
-                self.target_policy.critic_with_actor[1],
-                feed_dict=w_feed_dict
-            )
-            feed_dict = {
-                self.q_obs1: q_obs,
-                self.rewards: w_batch['rewards'],
-                self.terminals1: w_batch['terminals1'].astype('float32')
-            }
-            target_q.append(self.sess.run(self.target_q, feed_dict=feed_dict))
-
+        # Get all gradients and perform a synced update.
+        ops = [self.actor_grads, self.actor_loss, self.critic_grads,
+               self.critic_loss]
+        td_map = {
+            self.obs_train: obs0,
+            self.actions: actions,
+            self.action_train_ph: actions,
+            self.rewards: rewards,
+            self.critic_target: target_q,
+            self.param_noise_stddev:
+                0 if self.param_noise is None
+                else self.param_noise.current_stddev
+        }
+        if writer is not None:
+            # run loss backprop with summary if the step_id was not already
+            # logged (can happen with the right parameters as the step value is
+            # only an estimate)
+            summary, actor_grads, actor_loss, critic_grads, critic_loss = \
+                self.sess.run([self.summary] + ops, td_map)
+            writer.add_summary(summary, step)
         else:
-            # Get a batch
-            batch = self.memory.sample(batch_size=self.batch_size)
+            actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+                ops, td_map)
 
-            q_obs1 = self.sess.run(
-                self.target_policy.critic_with_actor,
-                feed_dict={
-                    self.target_policy.obs_ph: batch['obs1'],
-                    self.target_policy.batch_size: self.batch_size,
-                    self.target_policy.train_length: self.memory.trace_length,
-                    self.target_policy.states_ph: deepcopy(init_state)
-                }
-            )
+        self.actor_optimizer.update(
+            actor_grads, learning_rate=self.actor_lr)
+        self.critic_optimizer.update(
+            critic_grads, learning_rate=self.critic_lr)
 
-            feed_dict = {
-                self.q_obs1: q_obs1,
-                self.rewards: batch['rewards'],
-                self.terminals1: batch['terminals1'].astype('float32')
-            }
-
-            target_q = self.sess.run(self.target_q, feed_dict=feed_dict)
-
-            if self.normalize_returns:
-                old_mean, old_std = self.sess.run(
-                    [self.ret_rms.mean, self.ret_rms.std])
-
-                self.ret_rms.update(target_q.flatten())
-                self.sess.run(self.renormalize_q_outputs_op, feed_dict={
-                    self.old_std: np.array([old_std]),
-                    self.old_mean: np.array([old_mean]),
-                })
-
-        return self.policy_tf.train_actor_critic(batch=batch,
-                                                 target_q=target_q,
-                                                 actor_lr=self.actor_lr,
-                                                 critic_lr=self.critic_lr)
+        return critic_loss, actor_loss
 
     def _initialize(self, sess):
         """Initialize the model parameters and optimizers.
@@ -685,14 +900,8 @@ class DDPG(OffPolicyRLModel):
         """
         self.sess = sess
         self.sess.run(tf.global_variables_initializer())
-        if isinstance(self.policy_tf.actor_optimizer, list):
-            # in the case of hierarchical policies
-            for i in range(len(self.policy_tf.actor_optimizer)):
-                self.policy_tf.actor_optimizer[i].sync()
-                self.policy_tf.critic_optimizer[i].sync()
-        else:
-            self.policy_tf.actor_optimizer.sync()
-            self.policy_tf.critic_optimizer.sync()
+        self.actor_optimizer.sync()
+        self.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
 
     def _update_target_net(self):
@@ -711,40 +920,29 @@ class DDPG(OffPolicyRLModel):
             # Get a sample and keep that fixed for all further computations.
             # This allows us to estimate the change in value for the same set
             # of inputs.
-            self.stats_sample = self.memory.sample(batch_size=self.batch_size)
+            obs0, actions, rewards, obs1, terminals1 = \
+                self.replay_buffer.sample(batch_size=self.batch_size)
+            self.stats_sample = {
+                'obs0': obs0,
+                'actions': actions,
+                'rewards': rewards,
+                'obs1': obs1,
+                'terminals1': terminals1
+            }
 
-            if self.hierarchical:
-                _, self.stats_sample = self.stats_sample
+        feed_dict = {
+            self.actions: self.stats_sample['actions']
+        }
 
-        feed_dict = {}
+        for placeholder in [self.action_train_ph, self.action_target,
+                            self.action_adapt_noise, self.action_noise_ph]:
+            if placeholder is not None:
+                feed_dict[placeholder] = self.stats_sample['actions']
 
-        for placeholder in [self.policy_tf.action_ph,
-                            self.target_policy.action_ph]:
-            feed_dict[placeholder] = self.stats_sample['actions']
-
-        for placeholder in [self.policy_tf.obs_ph,
-                            self.target_policy.obs_ph]:
-            if self.hierarchical:
-                feed_dict[placeholder] = self.stats_sample['obs0'][
-                    :, :self.observation_space.shape[0]]
-            else:
+        for placeholder in [self.obs_train, self.obs_target,
+                            self.obs_adapt_noise, self.obs_noise]:
+            if placeholder is not None:
                 feed_dict[placeholder] = self.stats_sample['obs0']
-
-        state_init = (
-            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]),
-            np.zeros([self.batch_size, self.policy_tf.actor_layers[0]]))
-
-        if self.recurrent:
-            feed_dict[self.policy_tf.states_ph] = state_init
-            feed_dict[self.policy_tf.batch_size] = self.batch_size
-            feed_dict[self.policy_tf.train_length] = self.memory.trace_length
-        if self.hierarchical:
-            # feed_dict[self.policy_tf.states_ph[0]] = deepcopy(state_init)
-            # feed_dict[self.policy_tf.states_ph[1]] = deepcopy(state_init)
-            # feed_dict[self.policy_tf.batch_size] = self.batch_size
-            # feed_dict[self.policy_tf.train_length] = self.memory.trace_length
-            feed_dict[self.policy_tf.goal_ph] = self.stats_sample['obs0'][
-                :, self.observation_space.shape[0]:]
 
         values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
@@ -752,12 +950,47 @@ class DDPG(OffPolicyRLModel):
         assert len(names) == len(values)
         stats = dict(zip(names, values))
 
+        if self.param_noise is not None:
+            stats = {**stats, **self.param_noise.get_stats()}
+
         return stats
+
+    def _adapt_param_noise(self):
+        """Calculate the adaptation for the parameter noise.
+
+        Returns
+        -------
+        float
+            the mean distance for the parameter noise
+        """
+        if self.param_noise is None:
+            return 0.
+
+        # Perturb a separate copy of the policy to adjust the scale for the
+        # next "real" perturbation.
+        obs0, *_ = self.replay_buffer.sample(batch_size=self.batch_size)
+        self.sess.run(self.perturb_adaptive_policy_ops, feed_dict={
+            self.param_noise_stddev: self.param_noise.current_stddev,
+        })
+        distance = self.sess.run(self.adaptive_policy_distance, feed_dict={
+            self.obs_adapt_noise: obs0, self.obs_train: obs0,
+            self.param_noise_stddev: self.param_noise.current_stddev,
+        })
+
+        mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) \
+            / MPI.COMM_WORLD.Get_size()
+        self.param_noise.adapt(mean_distance)
+
+        return mean_distance
 
     def _reset(self):
         """Reset internal state after an episode is complete."""
         if self.action_noise is not None:
             self.action_noise.reset()
+        if self.param_noise is not None:
+            self.sess.run(self.perturb_policy_ops, feed_dict={
+                self.param_noise_stddev: self.param_noise.current_stddev,
+            })
 
     def learn(self,
               total_timesteps,
@@ -765,257 +998,436 @@ class DDPG(OffPolicyRLModel):
               callback=None,
               seed=None,
               log_interval=100,
-              tb_log_name="DDPG"):
-        """Train an RL model.
+              tb_log_name="DDPG",
+              reset_num_timesteps=True,
+              replay_wrapper=None):
+        """TODO
 
-        Parameters
-        ----------
-        total_timesteps : int
-            The total number of samples to train on
-        file_path : str, optional
-            location of the save file
-        seed : int
-            The initial seed for training, if None: keep current seed
-        callback : function (dict, dict)
-            function called at every steps with state of the algorithm.
-            It takes the local and global variables.
-        log_interval : int
-            The number of timesteps before logging.
-        tb_log_name : str
-            the name of the run for tensorboard log
-
-        Returns
-        -------
-        BaseRLModel
-            the trained model
+        :param total_timesteps:
+        :param file_path:
+        :param callback:
+        :param seed:
+        :param log_interval:
+        :param tb_log_name:
+        :param reset_num_timesteps:
+        :param replay_wrapper:
+        :return:
         """
-        with SetVerbosity(self.verbose), TensorboardWriter(
-                self.graph, self.tensorboard_log, tb_log_name) as writer:
+        # new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        if replay_wrapper is not None:
+            self.replay_buffer = replay_wrapper(self.replay_buffer)
+
+        # Create a tensorboard object for logging.
+        # save_path = os.path.join()
+        # writer = tf.summary.FileWriter(save_path, graph=self.graph)
+        writer = None
+
+        with SetVerbosity(self.verbose):
             self._setup_learn(seed)
 
             # a list for tensorboard logging, to prevent logging with the same
             # step number, if it already occurred
             self.tb_seen_steps = []
 
-            rank = MPI.COMM_WORLD.Get_rank()
-            # we assume symmetric actions.
-            assert np.all(np.abs(self.env.action_space.low) ==
-                          self.env.action_space.high)
+            # we assume symmetric actions.  # FIXME
+            assert np.all(np.abs(self.env.action_space.low)
+                          == self.env.action_space.high)
             if self.verbose >= 2:
                 logger.log('Using agent with the following configuration:')
                 logger.log(str(self.__dict__.items()))
 
-            episode_rewards_history = deque(maxlen=100)
+            # Reset class variables.
+            self.episode_reward = 0.
+            self.episode_step = 0
+            self.episodes = 0
+            self.step = 0
+            self.total_steps = 0
+            self.epoch_episode_rewards = []
+            self.epoch_episode_steps = []
+            self.epoch_actor_losses = []
+            self.epoch_critic_losses = []
+            self.epoch_adaptive_distances = []
+            self.eval_episode_rewards = []
+            self.eval_qs = []
+            self.epoch_actions = []
+            self.epoch_qs = []
+            self.epoch_episodes = 0
+            self.epoch = 0
+            self.eval_episode_rewards_history = deque(maxlen=100)
+            self.episode_rewards_history = deque(maxlen=100)
             self.episode_reward = np.zeros((1,))
+            self.episode_successes = []
+
             with self.sess.as_default(), self.graph.as_default():
                 # Prepare everything.
                 self._reset()
-                obs = self.env.reset()
-                if self.hierarchical:
-                    obs_shape = self.observation_space.shape[0]
-                    obs = np.append(obs, [0 for _ in range(obs_shape)])
-                episodes = 0
-                step = 0
-                total_steps = 0
-
+                self.obs = self.env.reset()
+                if self.eval_env is not None:
+                    self.eval_obs = self.eval_env.reset()
                 start_time = time.time()
 
-                epoch_episode_rewards = []
-                epoch_episode_steps = []
-                epoch_actor_losses = []
-                epoch_critic_losses = []
-                epoch_actions = []
-                epoch_qs = []
-                episode_reward = 0
-                episode_step = 0
-                epoch_episodes = 0
-                epoch = 0
-                # internal state (for recurrent actors)
-                state = deepcopy(self.state_init)
                 while True:
                     for _ in range(log_interval):
+                        # If the requirement number of time steps has been met,
+                        # terminate training.
+                        if self.total_steps >= total_timesteps:
+                            return self
+
                         # Perform rollouts.
-                        for _ in range(self.nb_rollout_steps):
-                            if total_steps >= total_timesteps:
-                                return self
-
-                            # this determines whether a manager policy can
-                            # perform actions in the current time step
-                            apply_manager = episode_step % self.c == 0
-
-                            # Predict next action.
-                            action, state, q_value, goal = self._policy(
-                                obs, state, apply_noise=True, compute_q=True,
-                                apply_manager=apply_manager)
-                            assert action.shape == self.env.action_space.shape
-
-                            # Execute next action.
-                            if rank == 0 and self.render:
-                                self.env.render()
-                            new_obs, reward, done, _ = self.env.step(
-                                action * np.abs(self.action_space.low))
-
-                            # combine the action and goal
-                            if self.hierarchical:
-                                # FIXME
-                                # if not self.normalize_observations:
-                                #     goal *= np.abs(self.observation_space.
-                                #     low)
-                                action = np.append(action, goal)
-                                new_obs = np.append(new_obs, goal)
-
-                            if writer is not None:
-                                ep_rew = np.array([reward]).reshape((1, -1))
-                                ep_done = np.array([done]).reshape((1, -1))
-                                self.episode_reward = \
-                                    total_episode_reward_logger(
-                                        self.episode_reward, ep_rew, ep_done,
-                                        writer, total_steps)
-                            step += 1
-                            total_steps += 1
-                            if rank == 0 and self.render:
-                                self.env.render()
-                            episode_reward += reward
-                            episode_step += 1
-
-                            # Book-keeping.
-                            epoch_actions.append(action)
-                            epoch_qs.append(q_value)
-                            self._store_transition(
-                                obs, action, reward, new_obs, done,
-                                apply_manager=apply_manager)
-                            obs = new_obs
-                            if callback is not None:
-                                callback(locals(), globals())
-
-                            if done:
-                                # Episode done.
-                                epoch_episode_rewards.append(episode_reward)
-                                episode_rewards_history.append(episode_reward)
-                                epoch_episode_steps.append(episode_step)
-                                episode_reward = 0.
-                                episode_step = 0
-                                epoch_episodes += 1
-                                episodes += 1
-                                # internal state (for recurrent actors)
-                                state = deepcopy(self.state_init)
-
-                                self._reset()
-                                if not isinstance(self.env, VecEnv):
-                                    obs = self.env.reset()
-                                if self.hierarchical and obs.shape[0] < \
-                                        2 * self.observation_space.shape[0]:
-                                    obs_shape = self.observation_space.shape[0]
-                                    obs = np.append(
-                                        obs, [0 for _ in range(obs_shape)])
+                        self._collect_samples(writer, callback)
 
                         # Train.
-                        epoch_actor_losses = []
-                        epoch_critic_losses = []
-                        for t_train in range(self.nb_train_steps):
-                            # weird equation to deal with the fact the
-                            # nb_train_steps will be different to
-                            # nb_rollout_steps
-                            step = (int(t_train * (self.nb_rollout_steps /
-                                                   self.nb_train_steps)) +
-                                    total_steps - self.nb_rollout_steps)
+                        self._train(writer)
 
-                            critic_loss, actor_loss = self._train_step()
-
-                            if critic_loss is not None:
-                                epoch_critic_losses.append(critic_loss)
-                                epoch_actor_losses.append(actor_loss)
-                                self._update_target_net()
-
-                    mpi_size = MPI.COMM_WORLD.Get_size()
+                        # Evaluate.
+                        eval_episode_rewards = []
+                        eval_qs = []
+                        if self.eval_env is not None:
+                            eval_episode_rewards, eval_qs = self._evaluate()
+                            self.eval_episode_rewards_history.extend(
+                                eval_episode_rewards)
 
                     # Log statistics.
-                    # XXX shouldn't call np.mean on variable length lists
-                    duration = time.time() - start_time
-                    stats = self._get_stats()
-                    combined_stats = stats.copy()
-                    combined_stats['rollout/return'] = np.mean(
-                        epoch_episode_rewards)
-                    combined_stats['rollout/return_history'] = np.mean(
-                        episode_rewards_history)
-                    combined_stats['rollout/episode_steps'] = np.mean(
-                        epoch_episode_steps)
-                    combined_stats['rollout/actions_mean'] = np.mean(
-                        epoch_actions)
-                    combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-                    if self.hierarchical:
-                        combined_stats['train/loss_actor_manager'] = np.mean(
-                            np.array(epoch_actor_losses)[:, 0])
-                        combined_stats['train/loss_critic_manager'] = np.mean(
-                            np.array(epoch_critic_losses)[:, 0])
-                        combined_stats['train/loss_actor_worker'] = np.mean(
-                            np.array(epoch_actor_losses)[:, 1])
-                        combined_stats['train/loss_critic_worker'] = np.mean(
-                            np.array(epoch_critic_losses)[:, 1])
-                    else:
-                        combined_stats['train/loss_actor'] = np.mean(
-                            epoch_actor_losses)
-                        combined_stats['train/loss_critic'] = np.mean(
-                            epoch_critic_losses)
-                    combined_stats['total/duration'] = duration
-                    combined_stats['total/steps_per_second'] = \
-                        float(step) / float(duration)
-                    combined_stats['total/episodes'] = episodes
-                    combined_stats['rollout/episodes'] = epoch_episodes
-                    combined_stats['rollout/actions_std'] = np.std(
-                        epoch_actions)
+                    self._log_stats(
+                        file_path,
+                        start_time,
+                        eval_episode_rewards,
+                        eval_qs,
+                    )
 
-                    combined_stats_sums = MPI.COMM_WORLD.allreduce(
-                        np.array([as_scalar(x)
-                                  for x in combined_stats.values()]))
-                    combined_stats = {k: v / mpi_size for (k, v) in zip(
-                        combined_stats.keys(), combined_stats_sums)}
-
-                    # Total statistics.
-                    combined_stats['total/epochs'] = epoch + 1
-                    combined_stats['total/steps'] = step
-
-                    # save combined_stats in a csv file
-                    if file_path is not None:
-                        exists = os.path.exists(file_path)
-                        with open(file_path, 'a') as f:
-                            w = csv.DictWriter(
-                                f, fieldnames=combined_stats.keys())
-                            if not exists:
-                                w.writeheader()
-                            w.writerow(combined_stats)
-
-                    for key in sorted(combined_stats.keys()):
-                        logger.record_tabular(key, combined_stats[key])
-                    logger.dump_tabular()
-                    logger.info('')
-                    logdir = logger.get_dir()
-
-    # TODO: delete
     def predict(self, observation, state=None, mask=None, deterministic=True):
-        pass
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(
+            observation, self.observation_space)
 
-    # TODO: delete
-    def action_probability(self, observation, state=None, mask=None):
-        pass
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions, _, = self._policy(
+            observation, apply_noise=not deterministic, compute_q=False)
 
-    # TODO: delete
+        # reshape to the correct action shape
+        actions = actions.reshape((-1,) + self.action_space.shape)
+        # scale the output for the prediction
+        actions = actions * np.abs(self.action_space.low)
+
+        if not vectorized_env:
+            actions = actions[0]
+
+        return actions, None
+
+    def action_probability(self, observation, state=None, mask=None,
+                           actions=None):
+        if actions is not None:
+            raise ValueError("Error: DDPG does not have action probabilities.")
+
+        # here there are no action probabilities, as DDPG does not use a
+        # probability distribution
+        warnings.warn("Warning: action probability is meaningless for DDPG. "
+                      "Returning None")
+
+        return None
+
+    def get_parameter_list(self):
+        return (self.params +
+                self.target_params +
+                self.obs_rms_params +
+                self.ret_rms_params)
+
     def save(self, save_path):
-        pass
+        data = {
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "nb_eval_steps": self.nb_eval_steps,
+            "param_noise_adaption_interval":
+                self.param_noise_adaption_interval,
+            "nb_train_steps": self.nb_train_steps,
+            "nb_rollout_steps": self.nb_rollout_steps,
+            "verbose": self.verbose,
+            "param_noise": self.param_noise,
+            "action_noise": self.action_noise,
+            "gamma": self.gamma,
+            "tau": self.tau,
+            "normalize_returns": self.normalize_returns,
+            "normalize_observations": self.normalize_observations,
+            "batch_size": self.batch_size,
+            "observation_range": self.observation_range,
+            "return_range": self.return_range,
+            "critic_l2_reg": self.critic_l2_reg,
+            "actor_lr": self.actor_lr,
+            "critic_lr": self.critic_lr,
+            "clip_norm": self.clip_norm,
+            "reward_scale": self.reward_scale,
+            "memory_limit": self.memory_limit,
+            "buffer_size": self.buffer_size,
+            "random_exploration": self.random_exploration,
+            "policy": self.policy,
+            "n_envs": self.n_envs,
+            "_vectorize_action": self._vectorize_action,
+            "policy_kwargs": self.policy_kwargs
+        }
+
+        params_to_save = self.get_parameters()
+
+        self._save_to_file(save_path,
+                           data=data,
+                           params=params_to_save)
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
+
+        if 'policy_kwargs' in kwargs \
+                and kwargs['policy_kwargs'] != data['policy_kwargs']:
+            raise ValueError(
+                "The specified policy kwargs do not equal the stored policy "
+                "kwargs. Stored kwargs: {}, specified kwargs: {}".
+                format(data['policy_kwargs'], kwargs['policy_kwargs']))
 
         model = cls(None, env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
         model.set_env(env)
         model.setup_model()
+        # Patch for version < v2.6.0, duplicated keys where saved
+        if len(params) > len(model.get_parameter_list()):
+            n_params = len(model.params)
+            n_target_params = len(model.target_params)
+            n_normalisation_params = len(model.obs_rms_params) + len(
+                model.ret_rms_params)
+            # Check that the issue is the one from
+            # https://github.com/hill-a/stable-baselines/issues/363
+            assert len(params) == 2 * (n_params + n_target_params) \
+                + n_normalisation_params,\
+                "The number of parameter saved differs from the number of " \
+                "parameters that should be loaded: {}!={}".format(
+                    len(params), len(model.get_parameter_list()))
 
-        restores = []
-        for param, loaded_p in zip(model.params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
+            # Remove duplicates
+            params_ = params[:n_params + n_target_params]
+            if n_normalisation_params > 0:
+                params_ += params[-n_normalisation_params:]
+            params = params_
+        model.load_parameters(params)
 
         return model
+
+    def _collect_samples(self, writer, callback):
+        """
+
+        :return:
+        """
+        rank = MPI.COMM_WORLD.Get_rank()
+
+        for _ in range(self.nb_rollout_steps):
+            # Predict next action.
+            action, q_value = self._policy(
+                self.obs, apply_noise=True, compute_q=True)
+            assert action.shape == self.env.action_space.shape
+
+            # Execute next action.
+            if rank == 0 and self.render:
+                self.env.render()
+
+            # Randomly sample actions from a uniform distribution with a
+            # probability self.random_exploration (used in HER + DDPG)
+            if np.random.rand() < self.random_exploration:
+                rescaled_action = action = self.action_space.sample()
+            else:
+                rescaled_action = action * np.abs(self.action_space.low)
+
+            new_obs, reward, done, info = self.env.step(rescaled_action)
+
+            if writer is not None:
+                ep_rew = np.array([reward]).reshape((1, -1))
+                ep_done = np.array([done]).reshape((1, -1))
+                self.episode_reward = total_episode_reward_logger(
+                    self.episode_reward, ep_rew, ep_done, writer,
+                    self.num_timesteps)
+
+            self.step += 1
+            self.total_steps += 1
+            self.num_timesteps += 1
+            if rank == 0 and self.render:
+                self.env.render()
+            self.episode_reward += reward
+            self.episode_step += 1
+
+            # Book-keeping.
+            self.epoch_actions.append(action)
+            self.epoch_qs.append(q_value)
+            self._store_transition(self.obs, action, reward, new_obs, done)
+
+            self.obs = new_obs
+            if callback is not None:
+                # Only stop training if return value is False, not when it is
+                # None. This is for backwards compatibility with callbacks that
+                # have no return statement.
+                if callback(locals(), globals()) is False:
+                    return self
+
+            if done:
+                # Episode done.
+                self.epoch_episode_rewards.append(self.episode_reward)
+                self.episode_rewards_history.append(self.episode_reward)
+                self.epoch_episode_steps.append(self.episode_step)
+                self.episode_reward = 0.
+                self.episode_step = 0
+                self.epoch_episodes += 1
+                self.episodes += 1
+
+                maybe_is_success = info.get('is_success')
+                if maybe_is_success is not None:
+                    self.episode_successes.append(float(maybe_is_success))
+
+                self._reset()
+                self.obs = self.env.reset()
+
+    def _train(self, writer):
+        self.epoch_actor_losses = []
+        self.epoch_critic_losses = []
+        self.epoch_adaptive_distances = []
+        for t_train in range(self.nb_train_steps):
+            # Not enough samples in the replay buffer.
+            if not self.replay_buffer.can_sample(self.batch_size):
+                break
+
+            # Adapt param noise, if necessary.
+            if len(self.replay_buffer) >= self.batch_size and \
+                    t_train % self.param_noise_adaption_interval == 0:
+                distance = self._adapt_param_noise()
+                self.epoch_adaptive_distances.append(distance)
+
+            # weird equation to deal with the fact the nb_train steps will be
+            # different to nb_rollout_steps
+            step = (
+                int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
+                self.num_timesteps - self.nb_rollout_steps)
+
+            critic_loss, actor_loss = self._train_step(
+                step, writer, log=t_train == 0)
+
+            # add actor and critic loss information for logging purposes
+            self.epoch_critic_losses.append(critic_loss)
+            self.epoch_actor_losses.append(actor_loss)
+
+            # update the target networks
+            self._update_target_net()
+
+    def _evaluate(self):
+        """
+
+        :return:
+        """
+        eval_episode_rewards = []
+        eval_qs = []
+        eval_episode_reward = 0.
+        for _ in range(self.nb_eval_steps):
+            eval_action, eval_q = self._policy(
+                self.eval_obs,
+                apply_noise=False,
+                compute_q=True)
+
+            self.eval_obs, eval_r, eval_done, _ = self.eval_env.step(
+                eval_action * np.abs(self.action_space.low))
+
+            if self.render_eval:
+                self.eval_env.render()
+
+            eval_episode_reward += eval_r
+            eval_qs.append(eval_q)
+
+            if eval_done:
+                self.eval_obs = self.eval_env.reset()
+                eval_episode_rewards.append(eval_episode_reward)
+                eval_episode_reward = 0.
+
+        return eval_episode_rewards, eval_qs
+
+    def _log_stats(self,
+                   file_path,
+                   start_time,
+                   eval_episode_rewards,
+                   eval_qs):
+        """TODO
+
+        :param start_time:
+        :param eval_episode_rewards:
+        :param eval_qs:
+        :return:
+        """
+        rank = MPI.COMM_WORLD.Get_rank()
+        mpi_size = MPI.COMM_WORLD.Get_size()
+
+        # Log statistics.
+        duration = time.time() - start_time
+        stats = self._get_stats()
+        combined_stats = stats.copy()
+        combined_stats['rollout/return'] = np.mean(self.epoch_episode_rewards)
+        combined_stats['rollout/return_history'] = np.mean(
+            self.episode_rewards_history)
+        combined_stats['rollout/episode_steps'] = np.mean(
+            self.epoch_episode_steps)
+        combined_stats['rollout/actions_mean'] = np.mean(self.epoch_actions)
+        combined_stats['rollout/Q_mean'] = np.mean(self.epoch_qs)
+        combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
+        combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
+        if len(self.epoch_adaptive_distances) != 0:
+            combined_stats['train/param_noise_distance'] = np.mean(
+                self.epoch_adaptive_distances)
+        combined_stats['total/duration'] = duration
+        combined_stats['total/steps_per_second'] = float(self.step) \
+            / float(duration)
+        combined_stats['total/episodes'] = self.episodes
+        combined_stats['rollout/episodes'] = self.epoch_episodes
+        combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
+
+        # Evaluation statistics.
+        if self.eval_env is not None:
+            combined_stats['eval/return'] = np.mean(eval_episode_rewards)
+            combined_stats['eval/return_history'] = np.mean(
+                self.eval_episode_rewards_history)
+            combined_stats['eval/Q'] = np.mean(eval_qs)
+            combined_stats['eval/episodes'] = len(eval_episode_rewards)
+
+        combined_stats_sums = MPI.COMM_WORLD.allreduce(
+            np.array([as_scalar(x)
+                      for x in combined_stats.values()]))
+        combined_stats = {
+            k: v / mpi_size for (k, v) in
+            zip(combined_stats.keys(), combined_stats_sums)
+        }
+
+        # Total statistics.
+        combined_stats['total/epochs'] = self.epoch + 1
+        combined_stats['total/steps'] = self.step
+
+        # Save combined_stats in a csv file.
+        if file_path is not None:
+            exists = os.path.exists(file_path)
+            with open(file_path, 'a') as f:
+                w = csv.DictWriter(
+                    f, fieldnames=combined_stats.keys())
+                if not exists:
+                    w.writeheader()
+
+                w.writerow(combined_stats)
+
+        # Print statistics.
+        for key in sorted(combined_stats.keys()):
+            logger.record_tabular(key, combined_stats[key])
+        if len(self.episode_successes) > 0:
+            logger.logkv("success rate",
+                         np.mean(self.episode_successes[-100:]))
+        logger.dump_tabular()
+        logger.info('')
+        logdir = logger.get_dir()
+        if rank == 0 and logdir:
+            if hasattr(self.env, 'get_state'):
+                with open(os.path.join(logdir, 'env_state.pkl'), 'wb') \
+                        as file_handler:
+                    pickle.dump(self.env.get_state(), file_handler)
+
+            if self.eval_env and hasattr(self.eval_env, 'get_state'):
+                with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') \
+                        as file_handler:
+                    pickle.dump(self.eval_env.get_state(), file_handler)

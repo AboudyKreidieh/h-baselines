@@ -5,43 +5,38 @@ connected network models on various environments.
 """
 import os
 import csv
-import time
+from time import strftime
 import ray
 
 from hbaselines.utils.train import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
 from hbaselines.algs.ddpg import DDPG
-from hbaselines.algs.dqn import DQN
-from stable_baselines.deepq.policies import MlpPolicy as DQNPolicy
-from hbaselines.policies.ddpg import FullyConnectedPolicy as DDPGPolicy
-from hbaselines.envs.efficient_hrl import EnvWithGoal, create_maze_env
-# from hbaselines.envs.snn4hrl.mujoco.gather.ant_gather_env import AntGatherEnv
+from hbaselines.hiro.policy import FeedForwardPolicy
+import gym
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
-discrete = False
 
 
 @ray.remote
 def run_exp(env, hp, steps, dir_name, i):
-    if env in ['AntPush', 'AntFall', 'AntMaze']:
-        env = EnvWithGoal(create_maze_env(env), env)
-    if env == 'AntGather':
-        env = AntGatherEnv()
+    # use Pendulum for now
+    env = gym.make("Pendulum-v0")
 
-    # initialize the algorithm
-    if discrete:
-        # if discrete, use DQN
-        alg = DQN(policy=DQNPolicy, env=env, **hp)
-    else:
-        # if continuous, use DDPG
-        alg = DDPG(policy=DDPGPolicy, env=env, **hp)
+    # use DDPG
+    alg = DDPG(policy=FeedForwardPolicy, env=env, **hp)
 
     # perform training
     alg.learn(
         total_timesteps=steps,
+        file_path=os.path.join(dir_name, "results_{}.csv".format(i)),
         log_interval=10,
-        file_path=os.path.join(dir_name, "results_{}.csv".format(i)))
+        callback=None,
+        seed=None,
+        tb_log_name=dir_name,
+        reset_num_timesteps=True,
+        replay_wrapper=None
+    )
 
     return None
 
@@ -57,14 +52,11 @@ def main():
     env = args.env_name
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}/{}'.format(env, time.strftime("%Y-%m-%d-%H:%M:%S"))
+    dir_name = 'data/fcnet/{}/{}'.format(env, strftime("%Y-%m-%d-%H:%M:%S"))
     ensure_dir(dir_name)
 
-    # determine whether the env is discrete or continuous in the action space
-    discrete = False
-
     # get the hyperparameters
-    hp = get_hyperparameters(args, discrete)
+    hp = get_hyperparameters(args)
 
     # add the hyperparameters to the folder
     with open(os.path.join(dir_name, 'hyperparameters.csv'), 'w') as f:
