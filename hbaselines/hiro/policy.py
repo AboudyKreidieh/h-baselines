@@ -40,32 +40,69 @@ class ActorCriticPolicy(object):
         self.ob_space = ob_space
         self.ac_space = ac_space
 
-    def update(self):
-        """
+    def initialize(self):
+        """Initialize the policy.
 
-        :return:
+        This is used at the beginning of training by the algorithm, after the
+        model parameters have been initialized.
+        """
+        raise NotImplementedError
+
+    def update(self):
+        """Perform a gradient update step.
+
+        Returns
+        -------
+        float
+            critic loss
+        float
+            actor loss
+        dict
+            feed_dict map for the summary (to be run in the algorithm)
         """
         raise NotImplementedError
 
     def get_action(self, obs, state=None, mask=None):
-        """
+        """Call the actor methods to compute policy actions.
 
-        :param obs:
-        :param state:
-        :param mask:
-        :return:
+        Parameters
+        ----------
+        obs : array_like
+            the observation
+        state : TODO
+            TODO
+        mask : TODO
+            TODO
+
+        Returns
+        -------
+        array_like
+            computed action by the policy
         """
         raise NotImplementedError
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
-        """
+        """Call the critic methods to compute the value.
 
-        :param obs:
-        :param action:
-        :param with_actor:
-        :param state:
-        :param mask:
-        :return:
+        Parameters
+        ----------
+        obs : array_like
+            the observation
+        action : array_like, optional
+            the actions performed in the given observation
+        with_actor : bool, optional
+            specifies whether to use the actor when computing the values. In
+            this case, the actions are computed directly from the actor, and
+            the input actions are not used.
+        state : TODO
+            TODO
+        mask : TODO
+            TODO
+
+        Returns
+        -------
+        array_like
+            computed value by the critic
         """
         raise NotImplementedError
 
@@ -87,13 +124,6 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_summary(self):
-        """
-
-        :return:
-        """
-        raise NotImplementedError
-
 
 class FeedForwardPolicy(ActorCriticPolicy):
     """Feed forward neural network actor-critic policy.
@@ -106,10 +136,86 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the observation space of the environment
     ac_space : gym.space.*
         the action space of the environment
-    :param reuse: (bool) If the policy is reusable or not
-    :param layers: ([int]) The size of the Neural network for the policy (if None, default to [64, 64])
-    :param layer_norm: (bool) enable layer normalisation
-    :param act_fun: (tf.func) the activation function to use in the neural network.
+    buffer_size : int
+        the max number of transitions to store
+    batch_size : int
+        SGD batch size
+    actor_lr : float
+        actor learning rate
+    critic_lr : float
+        critic learning rate
+    clip_norm : float
+        clip the gradients (disabled if None)
+    critic_l2_reg : float
+        l2 regularizer coefficient
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    reuse : bool
+        if the policy is reusable or not
+    layers : list of int
+        the size of the Neural network for the policy
+    tau : float
+        target update rate
+    gamma : float
+        discount factor
+    layer_norm : bool
+        enable layer normalisation
+    normalize_observations : bool
+        should the observation be normalized
+    observation_range : (float, float)
+        the bounding values for the observation
+    normalize_returns : bool
+        should the critic output be normalized
+    return_range : (float, float)
+        the bounding values for the critic output
+    act_fun : tf.nn.*
+        the activation function to use in the neural network
+    replay_buffer : TODO
+        the replay buffer
+    critic_target : tf.placeholder
+        TODO
+    terminals1 : tf.placeholder
+        placeholder for the next step terminals
+    rew_ph : tf.placeholder
+        placeholder for the rewards
+    action_ph : tf.placeholder
+        placeholder for the actions
+    obs_ph : tf.placholder
+        placeholder for the observations
+    obs1_ph : tf.placeholder
+        placeholder for the next step observations
+    obs_rms : TODO
+        TODO
+    ret_rms : TODO
+        TODO
+    actor_tf : tf.Variable
+        the output from the actor network
+    normalized_critic_tf : tf.Variable
+        TODO
+    normalized_critic_with_actor_tf : tf.Variable
+        TODO
+    critic_tf : tf.Variable
+        TODO
+    critic_with_actor_tf : tf.Variable
+        TODO
+    target_q : tf.Variable
+        TODO
+    target_init_updates : tf.Operation
+        TODO
+    target_soft_updates : tf.Operation
+        TODO
+    actor_loss : tf.Operation
+        TODO
+    actor_grads : tf.Operation
+        TODO
+    actor_optimizer : tf.Operation
+        TODO
+    critic_loss : tf.Operation
+        TODO
+    critic_grads : tf.Operation
+        TODO
+    critic_optimizer : tf.Operation
+        TODO
     """
 
     def __init__(self,
@@ -118,22 +224,24 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  ac_space,
                  buffer_size,
                  batch_size,
-                 actor_lr=1e-3,
-                 critic_lr=1e-4,
-                 clip_norm=0,  # FIXME
-                 critic_l2_reg=0,  # FIXME
-                 verbose=0,
+                 actor_lr,
+                 critic_lr,
+                 clip_norm,  # FIXME
+                 critic_l2_reg,  # FIXME
+                 verbose,
+                 tau,
+                 gamma,
+                 normalize_observations,
+                 observation_range,
+                 normalize_returns,
+                 return_range,
+                 layer_norm=False,
                  reuse=False,
                  layers=None,
-                 tau=0.05,
-                 gamma=0.995,
-                 layer_norm=False,
-                 normalize_observations=False,
-                 observation_range=(-5, 5),
-                 normalize_returns=False,
-                 return_range=(-np.inf, np.inf),
                  act_fun=tf.nn.relu):
         """Instantiate the feedforward neural network policy.
+
+        TODO: describe the scope and the summary.
 
         Parameters
         ----------
@@ -144,40 +252,41 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ac_space : gym.space.*
             the action space of the environment
         buffer_size : int
-            the maximum amount of elements that can be stored by the replay
-            buffer
+            the max number of transitions to store
         batch_size : int
             SGD batch size
         actor_lr : float
-            TODO
+            actor learning rate
         critic_lr : float
-            TODO
+            critic learning rate
         clip_norm : float
-            TODO
+            clip the gradients (disabled if None)
         critic_l2_reg : float
-            TODO
+            l2 regularizer coefficient
         verbose : int
-            TODO
-        reuse : bool
-            TODO
-        layers : list of int or None
-            TODO
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
         tau : float
             target update rate
         gamma : float
             discount factor
-        layer_norm : TODO
-            TODO
         normalize_observations : bool
-            TODO
+            should the observation be normalized
         observation_range : (float, float)
-            TODO
+            the bounding values for the observation
         normalize_returns : bool
-            TODO
+            should the critic output be normalized
         return_range : (float, float)
-            TODO
+            the bounding values for the critic output
+        layer_norm : bool
+            enable layer normalisation
+        reuse : bool
+            if the policy is reusable or not
+        layers : list of int or None
+            the size of the Neural network for the policy (if None, default to
+            [64, 64])
         act_fun : tf.nn.*
-            activation function
+            the activation function to use in the neural network
 
         Raises
         ------
@@ -278,16 +387,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=False):
-            self.actor_tf = self.make_actor(normalized_obs0)
-            self.normalized_critic_tf = self.make_critic(
+            self.actor_tf = self._make_actor(normalized_obs0)
+            self.normalized_critic_tf = self._make_critic(
                 normalized_obs0,
                 self.action_ph)
-            self.normalized_critic_with_actor_tf = self.make_critic(
+            self.normalized_critic_with_actor_tf = self._make_critic(
                 normalized_obs0, self.actor_tf, reuse=True)
 
         with tf.variable_scope("target", reuse=False):
-            actor_target = self.make_actor(normalized_obs1)
-            critic_target = self.make_critic(normalized_obs1, actor_target)
+            actor_target = self._make_actor(normalized_obs1)
+            critic_target = self._make_critic(normalized_obs1, actor_target)
 
         with tf.variable_scope("loss", reuse=False):
             self.critic_tf = denormalize(
@@ -324,20 +433,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         with tf.variable_scope("Adam_mpi", reuse=False):
-            self._setup_actor_optimizer(verbose, clip_norm)
-            self._setup_critic_optimizer(verbose, clip_norm, critic_l2_reg,
-                                         return_range)
+            self._setup_actor_optimizer()
+            self._setup_critic_optimizer()
             tf.summary.scalar('actor_loss', self.actor_loss)
             tf.summary.scalar('critic_loss', self.critic_loss)
 
-    def _setup_actor_optimizer(self, verbose, clip_norm):
-        """
-
-        :param verbose:
-        :param clip_norm:
-        :return:
-        """
-        if verbose >= 2:
+    def _setup_actor_optimizer(self):
+        """Create the actor loss, gradient, and optimizer."""
+        if self.verbose >= 2:
             logger.info('setting up actor optimizer')
 
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
@@ -345,43 +448,32 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         for var in get_trainable_vars('model/pi/')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                for shape in actor_shapes])
-        if verbose >= 2:
+        if self.verbose >= 2:
             logger.info('  actor shapes: {}'.format(actor_shapes))
             logger.info('  actor params: {}'.format(actor_nb_params))
 
         self.actor_grads = flatgrad(
             self.actor_loss,
             get_trainable_vars('model/pi/'),
-            clip_norm=clip_norm)
+            clip_norm=self.clip_norm)
         self.actor_optimizer = MpiAdam(
             var_list=get_trainable_vars('model/pi/'),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def _setup_critic_optimizer(self,
-                                verbose,
-                                clip_norm,
-                                critic_l2_reg,
-                                return_range):
-        """
-
-        :param verbose:
-        :param clip_norm:
-        :param critic_l2_reg:
-        :param return_range:
-        :return:
-        """
-        if verbose >= 2:
+    def _setup_critic_optimizer(self):
+        """Create the critic loss, gradient, and optimizer."""
+        if self.verbose >= 2:
             logger.info('setting up critic optimizer')
 
         normalized_critic_target_tf = tf.clip_by_value(
             normalize(self.critic_target, self.ret_rms),
-            return_range[0],
-            return_range[1])
+            self.return_range[0],
+            self.return_range[1])
 
         self.critic_loss = tf.reduce_mean(tf.square(
             self.normalized_critic_tf - normalized_critic_target_tf))
 
-        if critic_l2_reg > 0.:
+        if self.critic_l2_reg > 0.:
             critic_reg_vars = [
                 var for var in get_trainable_vars('model/qf/')
                 if 'bias' not in var.name
@@ -389,14 +481,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 and 'b' not in var.name
             ]
 
-            if verbose >= 2:
+            if self.verbose >= 2:
                 for var in critic_reg_vars:
                     logger.info('  regularizing: {}'.format(var.name))
                 logger.info('  applying l2 regularization with {}'.format(
-                    critic_l2_reg))
+                    self.critic_l2_reg))
 
             critic_reg = tc.layers.apply_regularization(
-                tc.layers.l2_regularizer(critic_l2_reg),
+                tc.layers.l2_regularizer(self.critic_l2_reg),
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
@@ -406,25 +498,30 @@ class FeedForwardPolicy(ActorCriticPolicy):
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                 for shape in critic_shapes])
 
-        if verbose >= 2:
+        if self.verbose >= 2:
             logger.info('  critic shapes: {}'.format(critic_shapes))
             logger.info('  critic params: {}'.format(critic_nb_params))
 
         self.critic_grads = flatgrad(
             self.critic_loss,
             get_trainable_vars('model/qf/'),
-            clip_norm=clip_norm)
+            clip_norm=self.clip_norm)
 
         self.critic_optimizer = MpiAdam(
             var_list=get_trainable_vars('model/qf/'),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def make_actor(self, obs=None, reuse=False, scope="pi"):
-        """
+    def _make_actor(self, obs=None, reuse=False, scope="pi"):
+        """Create an actor tensor.
 
-        :param obs:
-        :param reuse:
-        :param scope:
+        Parameters
+        ----------
+        obs : tf.placeholder or None
+            the input observation placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
 
         Returns
         -------
@@ -456,13 +553,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return policy
 
-    def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
-        """
+    def _make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
+        """Create a critic tensor.
 
-        :param obs:
-        :param action:
-        :param reuse:
-        :param scope:
+        Parameters
+        ----------
+        obs : tf.placeholder or None
+            the input observation placeholder
+        action : tf.placeholder or None
+            the input action placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
 
         Returns
         -------
@@ -499,10 +602,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return qvalue_fn
 
     def update(self):
-        """
-
-        :return:
-        """
+        """See parent class."""
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
@@ -541,25 +641,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return critic_loss, actor_loss, td_map
 
     def get_action(self, obs, state=None, mask=None):
-        """
-
-        :param obs:
-        :param state:
-        :param mask:
-        :return:
-        """
+        """See parent class."""
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
-        """
-
-        :param obs:
-        :param action:
-        :param with_actor:
-        :param state:
-        :param mask:
-        :return:
-        """
+        """See parent class."""
         if with_actor:
             return self.sess.run(
                 self.critic_with_actor_tf,
@@ -570,6 +656,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, action, reward, obs1, terminal1):
+        """See parent class."""
         self.replay_buffer.add(obs0, action, reward, obs1, float(terminal1))
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
+
+    def initialize(self):
+        """See parent class.
+
+        This method syncs the actor and critic optimizers across CPUs, and
+        initializes the target parameters to match the model parameters.
+        """
+        self.actor_optimizer.sync()
+        self.critic_optimizer.sync()
+        self.sess.run(self.target_init_updates)

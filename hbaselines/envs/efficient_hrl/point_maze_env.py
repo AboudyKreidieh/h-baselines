@@ -11,19 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =============================================================================
+# ==============================================================================
 
-from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
+from hbaselines.envs.efficient_hrl.maze_env import MazeEnv
+from hbaselines.envs.efficient_hrl.point import PointEnv
 
 
-def create_maze_env(env_name=None):
-    if env_name.startswith('AntMaze'):
-        maze_id = 'Maze'
-    elif env_name.startswith('AntPush'):
-        maze_id = 'Push'
-    elif env_name.startswith('AntFall'):
-        maze_id = 'Fall'
-    else:
-        raise ValueError('Unknown maze environment %s' % env_name)
-
-    return AntMazeEnv(maze_id=maze_id)
+class PointMazeEnv(MazeEnv):
+    MODEL_CLASS = PointEnv

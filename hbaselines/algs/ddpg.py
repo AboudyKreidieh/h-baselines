@@ -9,8 +9,8 @@ import os
 import time
 from collections import deque
 import csv
-import pickle
 import warnings
+import random
 
 from gym.spaces import Box
 import numpy as np
@@ -55,7 +55,7 @@ class DDPG(OffPolicyRLModel):
 
     Attributes
     ----------
-    policy : hbaselines.hiro.policy.ActorCriticPolicy
+    policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
         the policy model to use
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
@@ -97,13 +97,79 @@ class DDPG(OffPolicyRLModel):
         enable rendering of the evaluation environment
     buffer_size : int
         the max number of transitions to store
-    random_exploration : TODO
-        TODO
+    random_exploration : float
+        fraction of actions that are randomly selected between the action range
+        (to be used in HER+DDPG)
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     tensorboard_log : str
         the log location for tensorboard (if None, no logging)
-    policy_kwargs : TODO
+    policy_kwargs : dict
+        additional policy parameters
+    graph : tf.Graph
+        the current tensorflow graph
+    stats_sample : TODO
+        TODO
+    policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
+        the policy object
+    sess : tf.Session
+        the current tensorflow session
+    stats_ops : TODO
+        TODO
+    stats_names : TODO
+        TODO
+    params : list of str
+        the names of the trainable parameters
+    summary : TODO
+        TODO
+    tb_seen_steps : TODO
+        a list for tensorboard logging, to prevent logging with the same step
+        number, if it already occurred
+    target_params : list of str
+        the names of the parameters in the target actor/critic
+    obs_rms_params : list of str
+        TODO
+    ret_rms_params : list of str
+        TODO
+    obs : array_like
+        the most recent training observation
+    eval_obs : array_like
+        the most recent evaluation observation
+    episode_step : int
+        the number of steps since the most recent rollout began
+    episodes : int
+        the total number of rollouts performed since training began
+    total_steps : int
+        the total number of steps that have been executed since training began
+    epoch_episode_rewards : list of float
+        a list of cumulative rollout rewards from the most recent training
+        iterations
+    epoch_episode_steps : list of int
+        a list of rollout lengths from the most recent training iterations
+    epoch_actor_losses : list of float
+        the actor loss values from each SGD step in the most recent training
+        iteration
+    epoch_critic_losses : list of float
+        the critic loss values from each SGD step in the most recent training
+        iteration
+    epoch_actions : list of array_like
+        a list of the actions that were performed during the most recent
+        training iteration
+    epoch_qs : list of float
+        a list of the Q values that were calculated during the most recent
+        training iteration
+    epoch_episodes : int
+        the total number of rollouts performed since the most recent training
+        iteration began
+    epoch : int
+        the total number of training iterations
+    eval_episode_rewards_history : list of float
+        the cumulative return from the last 100 evaluation episodes
+    episode_rewards_history : list of float
+        the cumulative return from the last 100 training episodes
+    episode_reward : float
+        the cumulative reward since the most reward began
+    episode_successes : TODO
         TODO
     """
 
@@ -139,7 +205,7 @@ class DDPG(OffPolicyRLModel):
 
         Parameters
         ----------
-        policy : hbaselines.hiro.policy.ActorCriticPolicy
+        policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
@@ -181,8 +247,9 @@ class DDPG(OffPolicyRLModel):
             enable rendering of the evaluation environment
         buffer_size : int
             the max number of transitions to store
-        random_exploration : TODO
-            TODO
+        random_exploration : float
+            fraction of actions that are randomly selected between the action
+            range (to be used in HER+DDPG)
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -190,37 +257,40 @@ class DDPG(OffPolicyRLModel):
             the log location for tensorboard (if None, no logging)
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
-        policy_kwargs : TODO
-            TODO
+        policy_kwargs : dict
+            additional policy parameters
         """
-        self.gamma = gamma
-        self.tau = tau
-
         super(DDPG, self).__init__(
             policy=policy, env=env, replay_buffer=None, verbose=verbose,
             policy_base=DDPGPolicy, requires_vec_env=False,
             policy_kwargs=policy_kwargs)
 
+        self.policy = policy
+        self.env = self._create_env(env)
+        self.gamma = gamma
+        self.eval_env = self._create_env(eval_env)
+        self.nb_train_steps = nb_train_steps
+        self.nb_rollout_steps = nb_rollout_steps
+        self.nb_eval_steps = nb_eval_steps
         self.normalize_observations = normalize_observations
+        self.tau = tau
+        self.batch_size = batch_size
         self.normalize_returns = normalize_returns
-        self.return_range = return_range
         self.observation_range = observation_range
+        self.critic_l2_reg = critic_l2_reg
+        self.return_range = return_range
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
         self.reward_scale = reward_scale
-        self.batch_size = batch_size
-        self.critic_l2_reg = critic_l2_reg
-        self.eval_env = eval_env
         self.render = render
         self.render_eval = render_eval
-        self.nb_eval_steps = nb_eval_steps
-        self.nb_train_steps = nb_train_steps
-        self.nb_rollout_steps = nb_rollout_steps
         self.memory_limit = memory_limit
         self.buffer_size = buffer_size
-        self.tensorboard_log = tensorboard_log
         self.random_exploration = random_exploration
+        self.verbose = verbose
+        self.tensorboard_log = tensorboard_log
+        self.policy_kwargs = policy_kwargs
 
         # init
         self.graph = None
@@ -231,44 +301,50 @@ class DDPG(OffPolicyRLModel):
         self.stats_names = None
         self.params = None
         self.summary = None
-        self.episode_reward = None
         self.tb_seen_steps = None
         self.target_params = None
         self.obs_rms_params = None
         self.ret_rms_params = None
-
-        # TODO: my hacks
         self.obs = None
         self.eval_obs = None
-        self.episode_reward = 0.
-        self.episode_step = 0
-        self.episodes = 0
-        self.step = 0
-        self.total_steps = 0
-        self.epoch_episode_rewards = []
-        self.epoch_episode_steps = []
-        self.epoch_actor_losses = []
-        self.epoch_critic_losses = []
-        self.epoch_adaptive_distances = []
-        self.eval_episode_rewards = []
-        self.eval_qs = []
-        self.epoch_actions = []
-        self.epoch_qs = []
-        self.epoch_episodes = 0
-        self.epoch = 0
-        self.eval_episode_rewards_history = deque(maxlen=100)
-        self.episode_rewards_history = deque(maxlen=100)
-        self.episode_reward = np.zeros((1,))
-        self.episode_successes = []
+        self.episode_reward = None
+        self.episode_step = None
+        self.episodes = None
+        self.total_steps = None
+        self.epoch_episode_rewards = None
+        self.epoch_episode_steps = None
+        self.epoch_actor_losses = None
+        self.epoch_critic_losses = None
+        self.epoch_actions = None
+        self.epoch_qs = None
+        self.epoch_episodes = None
+        self.epoch = None
+        self.eval_episode_rewards_history = None
+        self.episode_rewards_history = None
+        self.episode_reward = None
+        self.episode_successes = None
 
         if _init_setup_model:
             self.setup_model()
 
-    def setup_model(self):
-        """
+    # FIXME
+    def _create_env(self, env):
+        """Return, and potentially create, the environment.
 
-        :return:
+        Parameters
+        ----------
+        env : str or gym.Env
+            the environment, or the name of a registered environment.
+
+        Returns
+        -------
+        gym.Env
+            a gym-compatible environment
         """
+        return env
+
+    def setup_model(self):
+        """Create the graph, session, policy, and summary objects."""
         with SetVerbosity(self.verbose):
             # determine whether the action space is continuous
             assert isinstance(self.action_space, Box), \
@@ -285,6 +361,7 @@ class DDPG(OffPolicyRLModel):
                     self.sess,
                     self.observation_space,
                     self.action_space,
+                    return_range=self.return_range,
                     buffer_size=self.buffer_size,
                     batch_size=self.batch_size,
                     actor_lr=self.actor_lr,
@@ -314,8 +391,10 @@ class DDPG(OffPolicyRLModel):
                 self.ret_rms_params = [var for var in tf.global_variables()
                                        if "ret_rms" in var.name]
 
+                # Initialize the model parameters and optimizers.
                 with self.sess.as_default():
-                    self._initialize()
+                    self.sess.run(tf.global_variables_initializer())
+                    self.policy_tf.initialize()
 
                 self.summary = tf.summary.merge_all()
 
@@ -390,7 +469,6 @@ class DDPG(OffPolicyRLModel):
 
         return action, q_value
 
-    # TODO: move to policy
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.
 
@@ -410,33 +488,9 @@ class DDPG(OffPolicyRLModel):
         reward *= self.reward_scale
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1)
 
-    def _train_step(self, step, writer, log=False):
-        """Run a step of training from batch.
-
-        Parameters
-        ----------
-        step : int
-            the current step iteration
-        writer : tf.Summary.writer
-            the writer for tensorboard
-        log : bool
-            whether or not to log to metadata
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
-        """
-        return self.policy_tf.update()
-
     def _initialize(self):
         """Initialize the model parameters and optimizers."""
         self.sess.run(tf.global_variables_initializer())
-        self.policy_tf.actor_optimizer.sync()
-        self.policy_tf.critic_optimizer.sync()
-        self.sess.run(self.policy_tf.target_init_updates)
 
     def _get_stats(self):
         """Get the mean and standard dev of the model's inputs and outputs.
@@ -521,7 +575,10 @@ class DDPG(OffPolicyRLModel):
         writer = None
 
         with SetVerbosity(self.verbose):
-            self._setup_learn(seed)
+            # Setup the seed value.
+            random.seed(seed)
+            np.random.seed(seed)
+            tf.set_random_seed(seed)
 
             # a list for tensorboard logging, to prevent logging with the same
             # step number, if it already occurred
@@ -534,22 +591,11 @@ class DDPG(OffPolicyRLModel):
                 logger.log('Using agent with the following configuration:')
                 logger.log(str(self.__dict__.items()))
 
-            # Reset class variables.
+            # Initialize class variables.
             self.episode_reward = 0.
             self.episode_step = 0
             self.episodes = 0
-            self.step = 0
             self.total_steps = 0
-            self.epoch_episode_rewards = []
-            self.epoch_episode_steps = []
-            self.epoch_actor_losses = []
-            self.epoch_critic_losses = []
-            self.epoch_adaptive_distances = []
-            self.eval_episode_rewards = []
-            self.eval_qs = []
-            self.epoch_actions = []
-            self.epoch_qs = []
-            self.epoch_episodes = 0
             self.epoch = 0
             self.eval_episode_rewards_history = deque(maxlen=100)
             self.episode_rewards_history = deque(maxlen=100)
@@ -564,6 +610,15 @@ class DDPG(OffPolicyRLModel):
                 start_time = time.time()
 
                 while True:
+                    # Reset epoch-specific variables.
+                    self.epoch_episodes = 0
+                    self.epoch_actions = []
+                    self.epoch_qs = []
+                    self.epoch_actor_losses = []
+                    self.epoch_critic_losses = []
+                    self.epoch_episode_rewards = []
+                    self.epoch_episode_steps = []
+
                     for _ in range(log_interval):
                         # If the requirement number of time steps has been met,
                         # terminate training.
@@ -591,6 +646,9 @@ class DDPG(OffPolicyRLModel):
                         eval_episode_rewards,
                         eval_qs,
                     )
+
+                    # Update the epoch count.
+                    self.epoch += 1
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
@@ -719,10 +777,6 @@ class DDPG(OffPolicyRLModel):
                 self.obs, apply_noise=True, compute_q=True)
             assert action.shape == self.env.action_space.shape
 
-            # Execute next action.
-            if rank == 0 and self.render:
-                self.env.render()
-
             # Randomly sample actions from a uniform distribution with a
             # probability self.random_exploration (used in HER + DDPG)
             if np.random.rand() < self.random_exploration:
@@ -730,7 +784,12 @@ class DDPG(OffPolicyRLModel):
             else:
                 rescaled_action = action * np.abs(self.action_space.low)
 
+            # Execute next action.
             new_obs, reward, done, info = self.env.step(rescaled_action)
+
+            # Visualize the current step.
+            if rank == 0 and self.render:
+                self.env.render()
 
             if writer is not None:
                 ep_rew = np.array([reward]).reshape((1, -1))
@@ -739,19 +798,20 @@ class DDPG(OffPolicyRLModel):
                     self.episode_reward, ep_rew, ep_done, writer,
                     self.num_timesteps)
 
-            self.step += 1
+            # Book-keeping.
             self.total_steps += 1
             self.num_timesteps += 1
             if rank == 0 and self.render:
                 self.env.render()
             self.episode_reward += reward
             self.episode_step += 1
-
-            # Book-keeping.
             self.epoch_actions.append(action)
             self.epoch_qs.append(q_value)
+
+            # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
 
+            # Update the current observation.
             self.obs = new_obs
 
             if done:
@@ -778,10 +838,6 @@ class DDPG(OffPolicyRLModel):
         :param writer:
         :return:
         """
-        self.epoch_actor_losses.clear()
-        self.epoch_critic_losses.clear()
-        self.epoch_adaptive_distances.clear()
-
         for t_train in range(self.nb_train_steps):
             # Not enough samples in the replay buffer.
             if not self.policy_tf.replay_buffer.can_sample(self.batch_size):
@@ -843,7 +899,6 @@ class DDPG(OffPolicyRLModel):
         :param eval_qs:
         :return:
         """
-        rank = MPI.COMM_WORLD.Get_rank()
         mpi_size = MPI.COMM_WORLD.Get_size()
 
         # Log statistics.
@@ -859,11 +914,8 @@ class DDPG(OffPolicyRLModel):
         combined_stats['rollout/Q_mean'] = np.mean(self.epoch_qs)
         combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
         combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
-        if len(self.epoch_adaptive_distances) != 0:
-            combined_stats['train/param_noise_distance'] = np.mean(
-                self.epoch_adaptive_distances)
         combined_stats['total/duration'] = duration
-        combined_stats['total/steps_per_second'] = float(self.step) \
+        combined_stats['total/steps_per_second'] = float(self.total_steps) \
             / float(duration)
         combined_stats['total/episodes'] = self.episodes
         combined_stats['rollout/episodes'] = self.epoch_episodes
@@ -887,7 +939,7 @@ class DDPG(OffPolicyRLModel):
 
         # Total statistics.
         combined_stats['total/epochs'] = self.epoch + 1
-        combined_stats['total/steps'] = self.step
+        combined_stats['total/steps'] = self.total_steps
 
         # Save combined_stats in a csv file.
         if file_path is not None:
@@ -905,14 +957,3 @@ class DDPG(OffPolicyRLModel):
                          np.mean(self.episode_successes[-100:]))
         logger.dump_tabular()
         logger.info('')
-        logdir = logger.get_dir()
-        if rank == 0 and logdir:
-            if hasattr(self.env, 'get_state'):
-                with open(os.path.join(logdir, 'env_state.pkl'), 'wb') \
-                        as file_handler:
-                    pickle.dump(self.env.get_state(), file_handler)
-
-            if self.eval_env and hasattr(self.eval_env, 'get_state'):
-                with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') \
-                        as file_handler:
-                    pickle.dump(self.eval_env.get_state(), file_handler)
