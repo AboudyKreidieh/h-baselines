@@ -26,7 +26,8 @@ import gym
 from hbaselines.envs.efficient_hrl import maze_env_utils
 
 # Directory that contains mujoco xml files.
-MODEL_DIR = 'environments/assets'
+SCRIPT_PATH = os.path.abspath(os.path.dirname(__file__))
+MODEL_DIR = os.path.join(SCRIPT_PATH, 'assets')
 
 
 class MazeEnv(gym.Env):

@@ -2,7 +2,7 @@ name: h-baselines
 
 dependencies:
     - python==3.6.6
-    - numpy==1.14.0
+    - numpy==1.16.0
     - tensorflow==1.10.0
     - pip:
         - ray==0.5.3
