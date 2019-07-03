@@ -8,7 +8,7 @@ DEFAULT_DDPG_HP = dict(
     eval_env=None,
     nb_train_steps=50,
     nb_rollout_steps=100,
-    nb_eval_steps=100,
+    nb_eval_episodes=50,
     normalize_observations=False,
     tau=0.001,
     batch_size=128,
@@ -22,7 +22,6 @@ DEFAULT_DDPG_HP = dict(
     reward_scale=1.,
     render=False,
     render_eval=False,
-    memory_limit=None,
     buffer_size=50000,
     random_exploration=0.0,
     verbose=2,
@@ -40,6 +39,7 @@ def get_hyperparameters(args):
         "gamma": args.gamma,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
+        "nb_eval_episodes": args.nb_eval_episodes,
         # "normalize_observations": args.normalize_observations,
         "tau": args.tau,
         "batch_size": args.batch_size,
@@ -51,7 +51,7 @@ def get_hyperparameters(args):
         "clip_norm": args.clip_norm,
         "reward_scale": args.reward_scale,
         "render": args.render,
-        "memory_limit": int(args.memory_limit),
+        "buffer_size": int(args.buffer_size),
         "verbose": args.verbose
     })
 
@@ -134,10 +134,13 @@ def create_ddpg_parser(parser):
                         type=int,
                         default=DEFAULT_DDPG_HP['nb_rollout_steps'],
                         help='the number of rollout steps')
+    parser.add_argument('--nb_eval_episodes',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['nb_eval_episodes'],
+                        help='the number of evaluation episodes')
     parser.add_argument('--normalize_observations',
                         action='store_true',
                         help='should the observation be normalized')
-
     parser.add_argument('--render',
                         action='store_true',
                         help='enable rendering of the environment')
@@ -146,9 +149,9 @@ def create_ddpg_parser(parser):
                         default=DEFAULT_DDPG_HP['verbose'],
                         help='the verbosity level: 0 none, 1 training '
                              'information, 2 tensorflow debug')
-    parser.add_argument('--memory_limit',
+    parser.add_argument('--buffer_size',
                         type=int,
-                        default=1e5,  # FIXME
+                        default=DEFAULT_DDPG_HP['buffer_size'],
                         help='the max number of transitions to store')
 
     return parser

@@ -12,7 +12,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer
 
 
 class ActorCriticPolicy(object):
-    """TODO
+    """Base Actor Critic Policy.
 
     Attributes
     ----------
@@ -126,7 +126,7 @@ class ActorCriticPolicy(object):
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
-    """Feed forward neural network actor-critic policy.
+    """Feed-forward neural network actor-critic policy.
 
     Attributes
     ----------
@@ -168,7 +168,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         should the critic output be normalized
     return_range : (float, float)
         the bounding values for the critic output
-    act_fun : tf.nn.*
+    activ : tf.nn.*
         the activation function to use in the neural network
     replay_buffer : TODO
         the replay buffer
@@ -226,8 +226,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  batch_size,
                  actor_lr,
                  critic_lr,
-                 clip_norm,  # FIXME
-                 critic_l2_reg,  # FIXME
+                 clip_norm,
+                 critic_l2_reg,
                  verbose,
                  tau,
                  gamma,
@@ -239,7 +239,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu):
-        """Instantiate the feedforward neural network policy.
+        """Instantiate the feed-forward neural network policy.
 
         TODO: describe the scope and the summary.
 
@@ -603,6 +603,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def update(self):
         """See parent class."""
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample(self.batch_size):
+            return 0, 0, {}
+
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)

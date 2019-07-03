@@ -319,10 +319,21 @@ def negative_distance(states,
         list of state indices to select.
     goal_indices : list of int
         list of goal indices to select.
-    norm : {"L1", "L2"},
+    relative_context : bool
+        if True, then the goal is a relative goal, i.e. the requested position
+        is the current position plus the requested goal.
+    diff : bool
+        specifies whether to reward the current distance or the difference in
+        consecutive differences
+    norm : {"L1", "L2"}
         specifies whether to use L1 or L2 normalization.
     epsilon : float
         small offset to ensure non-negative/zero distance.
+    bonus_epsilon : float
+        if the distance is below this value, an additional bonus is added to
+        the output reward
+    offset : float
+        an offset value that is added to the returned reward
 
     Returns
     -------

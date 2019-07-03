@@ -18,6 +18,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 from hbaselines.hiro.tf_util import reduce_std, get_trainable_vars
+from hbaselines.envs.efficient_hrl.envs import AntPush, AntFall, AntMaze
 from stable_baselines import logger
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity
 from stable_baselines.ddpg.policies import DDPGPolicy
@@ -67,8 +68,8 @@ class DDPG(OffPolicyRLModel):
         the number of training steps
     nb_rollout_steps : int
         the number of rollout steps
-    nb_eval_steps : int
-        the number of evaluation steps
+    nb_eval_episodes : int
+        the number of evaluation episodes
     normalize_observations : bool
         should the observation be normalized
     tau : float
@@ -133,8 +134,6 @@ class DDPG(OffPolicyRLModel):
         TODO
     obs : array_like
         the most recent training observation
-    eval_obs : array_like
-        the most recent evaluation observation
     episode_step : int
         the number of steps since the most recent rollout began
     episodes : int
@@ -169,8 +168,6 @@ class DDPG(OffPolicyRLModel):
         the cumulative return from the last 100 training episodes
     episode_reward : float
         the cumulative reward since the most reward began
-    episode_successes : TODO
-        TODO
     """
 
     def __init__(self,
@@ -180,7 +177,7 @@ class DDPG(OffPolicyRLModel):
                  eval_env=None,
                  nb_train_steps=50,
                  nb_rollout_steps=100,
-                 nb_eval_steps=100,
+                 nb_eval_episodes=50,
                  normalize_observations=False,
                  tau=0.001,
                  batch_size=128,
@@ -217,8 +214,8 @@ class DDPG(OffPolicyRLModel):
             the number of training steps
         nb_rollout_steps : int
             the number of rollout steps
-        nb_eval_steps : int
-            the number of evaluation steps
+        nb_eval_episodes : int
+            the number of evaluation episodes
         normalize_observations : bool
             should the observation be normalized
         tau : float
@@ -260,18 +257,20 @@ class DDPG(OffPolicyRLModel):
         policy_kwargs : dict
             additional policy parameters
         """
+        self.policy = policy
+        self.env = self._create_env(env, evaluate=False)
+        self.gamma = gamma
+        self.eval_env = self._create_env(eval_env, evaluate=True)
+
+        # TODO: hack
         super(DDPG, self).__init__(
-            policy=policy, env=env, replay_buffer=None, verbose=verbose,
+            policy=policy, env=self.env, replay_buffer=None, verbose=verbose,
             policy_base=DDPGPolicy, requires_vec_env=False,
             policy_kwargs=policy_kwargs)
 
-        self.policy = policy
-        self.env = self._create_env(env)
-        self.gamma = gamma
-        self.eval_env = self._create_env(eval_env)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
-        self.nb_eval_steps = nb_eval_steps
+        self.nb_eval_episodes = nb_eval_episodes
         self.normalize_observations = normalize_observations
         self.tau = tau
         self.batch_size = batch_size
@@ -306,7 +305,6 @@ class DDPG(OffPolicyRLModel):
         self.obs_rms_params = None
         self.ret_rms_params = None
         self.obs = None
-        self.eval_obs = None
         self.episode_reward = None
         self.episode_step = None
         self.episodes = None
@@ -322,25 +320,56 @@ class DDPG(OffPolicyRLModel):
         self.eval_episode_rewards_history = None
         self.episode_rewards_history = None
         self.episode_reward = None
-        self.episode_successes = None
 
         if _init_setup_model:
             self.setup_model()
 
-    # FIXME
-    def _create_env(self, env):
+    @staticmethod
+    def _create_env(env, evaluate=False):
         """Return, and potentially create, the environment.
 
         Parameters
         ----------
         env : str or gym.Env
             the environment, or the name of a registered environment.
+        evaluate : bool, optional
+            specifies whether this is a training or evaluation environment
 
         Returns
         -------
         gym.Env
             a gym-compatible environment
         """
+        if env == "AntMaze":
+            if evaluate:
+                env = AntMaze(use_contexts=True, context_range=[16, 0])
+                # env = AntMaze(use_contexts=True, context_range=[16, 16])
+                # env = AntMaze(use_contexts=True, context_range=[0, 16])
+            else:
+                env = AntMaze(use_contexts=True,
+                              random_contexts=True,
+                              context_range=[(-4, 20), (-4, 20)])
+        elif env == "AntPush":
+            if evaluate:
+                env = AntPush(use_contexts=True, context_range=[0, 19])
+            else:
+                env = AntPush(use_contexts=True, context_range=[0, 19])
+                # env = AntPush(use_contexts=True,
+                #               random_contexts=True,
+                #               context_range=[(-16, 16), (-4, 20)])
+        elif env == "AntFall":
+            if evaluate:
+                env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            else:
+                env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+                # env = AntFall(use_contexts=True,
+                #               random_contexts=True,
+                #               context_range=[(-4, 12), (-4, 28), (0, 5)])
+
+        # TODO: remove once I've eliminated the parent class.
+        if env is not None:
+            env.reset()
+
         return env
 
     def setup_model(self):
@@ -540,6 +569,7 @@ class DDPG(OffPolicyRLModel):
               callback=None,  # TODO: delete
               seed=None,
               log_interval=100,
+              eval_interval=5e4,
               tb_log_name="DDPG",
               reset_num_timesteps=True):  # TODO: delete
         """Return a trained model.
@@ -549,7 +579,8 @@ class DDPG(OffPolicyRLModel):
         total_timesteps : int
             the total number of samples to train on
         log_dir : str
-            TODO
+            the directory where the training and evaluation statistics, as well
+            as the tensorboard log, should be stored
         seed : int or None
             the initial seed for training, if None: keep current seed
         callback : function (dict, dict) -> boolean
@@ -557,7 +588,10 @@ class DDPG(OffPolicyRLModel):
             takes the local and global variables. If it returns False, training
             is aborted.
         log_interval : int
-            the number of timesteps before logging.
+            the number of training steps before logging training results
+        eval_interval : int
+            number of simulation steps in the training environment before an
+            evaluation is performed
         tb_log_name : str
             the name of the run for tensorboard log
         reset_num_timesteps : bool
@@ -592,6 +626,7 @@ class DDPG(OffPolicyRLModel):
                 logger.log(str(self.__dict__.items()))
 
             # Initialize class variables.
+            steps_incr = 0
             self.episode_reward = 0.
             self.episode_step = 0
             self.episodes = 0
@@ -600,13 +635,10 @@ class DDPG(OffPolicyRLModel):
             self.eval_episode_rewards_history = deque(maxlen=100)
             self.episode_rewards_history = deque(maxlen=100)
             self.episode_reward = np.zeros((1,))
-            self.episode_successes = []
 
             with self.sess.as_default(), self.graph.as_default():
                 # Prepare everything.
                 self.obs = self.env.reset()
-                if self.eval_env is not None:
-                    self.eval_obs = self.eval_env.reset()
                 start_time = time.time()
 
                 while True:
@@ -631,21 +663,19 @@ class DDPG(OffPolicyRLModel):
                         # Train.
                         self._train(writer)
 
-                        # Evaluate.
-                        eval_episode_rewards = []
-                        eval_qs = []
-                        if self.eval_env is not None:
-                            eval_episode_rewards, eval_qs = self._evaluate()
-                            self.eval_episode_rewards_history.extend(
-                                eval_episode_rewards)
-
                     # Log statistics.
-                    self._log_stats(
+                    self._log_training(
                         log_dir,
                         start_time,
-                        eval_episode_rewards,
-                        eval_qs,
                     )
+
+                    # Evaluate.
+                    if self.eval_env is not None and \
+                            (self.total_steps - steps_incr) > eval_interval:
+                        steps_incr += eval_interval
+                        eval_rewards, eval_successes = self._evaluate()
+                        self.eval_episode_rewards_history.extend(eval_rewards)
+                        self._log_eval(log_dir, eval_rewards, eval_successes)
 
                     # Update the epoch count.
                     self.epoch += 1
@@ -692,7 +722,7 @@ class DDPG(OffPolicyRLModel):
         data = {
             "observation_space": self.observation_space,
             "action_space": self.action_space,
-            "nb_eval_steps": self.nb_eval_steps,
+            "nb_eval_episodes": self.nb_eval_episodes,
             "nb_train_steps": self.nb_train_steps,
             "nb_rollout_steps": self.nb_rollout_steps,
             "verbose": self.verbose,
@@ -824,25 +854,21 @@ class DDPG(OffPolicyRLModel):
                 self.epoch_episodes += 1
                 self.episodes += 1
 
-                maybe_is_success = info.get('is_success')
-                if maybe_is_success is not None:
-                    self.episode_successes.append(float(maybe_is_success))
-
+                # Reset the environment.
                 self.obs = self.env.reset()
 
     def _train(self, writer):
         """Perform the training operation.
 
-        TODO
+        Through this method, the actor and critic networks are updated within
+        the policy, and the summary information is logged to tensorboard.
 
-        :param writer:
-        :return:
+        Parameters
+        ----------
+        writer : TODO
+            TODO
         """
         for t_train in range(self.nb_train_steps):
-            # Not enough samples in the replay buffer.
-            if not self.policy_tf.replay_buffer.can_sample(self.batch_size):
-                break
-
             # Run a step of training from batch.
             critic_loss, actor_loss, td_map = self.policy_tf.update()
 
@@ -860,44 +886,60 @@ class DDPG(OffPolicyRLModel):
 
         TODO
 
-        :return:
+        Returns
+        -------
+        array_like
+            TODO
+        list of bool
+            a list of boolean terms representing if each episode ended in
+            success or not. If the list is empty, then the environment did not
+            output successes or failures, and the success rate will be set to
+            zero.
         """
         eval_episode_rewards = []
-        eval_qs = []
-        eval_episode_reward = 0.
-        for _ in range(self.nb_eval_steps):
-            eval_action, eval_q = self._policy(
-                self.eval_obs,
-                apply_noise=False,
-                compute_q=True)
+        eval_episode_successes = []
 
-            self.eval_obs, eval_r, eval_done, _ = self.eval_env.step(
-                eval_action * np.abs(self.action_space.low))
+        for _ in range(self.nb_eval_episodes):
+            # Reset the environment and episode reward.
+            eval_obs = self.eval_env.reset()
+            eval_episode_reward = 0.
 
-            if self.render_eval:
-                self.eval_env.render()
+            while True:
+                eval_action, _ = self._policy(
+                    eval_obs,
+                    apply_noise=False,
+                    compute_q=False)
 
-            eval_episode_reward += eval_r
-            eval_qs.append(eval_q)
+                eval_obs, eval_r, eval_done, eval_info = self.eval_env.step(
+                    eval_action * np.abs(self.action_space.low))
 
-            if eval_done:
-                self.eval_obs = self.eval_env.reset()
-                eval_episode_rewards.append(eval_episode_reward)
-                eval_episode_reward = 0.
+                if self.render_eval:
+                    self.eval_env.render()
 
-        return eval_episode_rewards, eval_qs
+                eval_episode_reward += eval_r
 
-    def _log_stats(self,
-                   file_path,
-                   start_time,
-                   eval_episode_rewards,
-                   eval_qs):
-        """TODO
+                if eval_done:
+                    eval_episode_rewards.append(eval_episode_reward)
+                    maybe_is_success = eval_info.get('is_success')
+                    if maybe_is_success is not None:
+                        eval_episode_successes.append(float(maybe_is_success))
 
-        :param start_time:
-        :param eval_episode_rewards:
-        :param eval_qs:
-        :return:
+                    # Exit the loop.
+                    break
+
+        return eval_episode_rewards, eval_episode_successes
+
+    def _log_training(self, file_path, start_time):
+        """Log training statistics.
+
+        Parameters
+        ----------
+        file_path : str
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        start_time : float
+            the time when training began. This is used to print the total
+            training time.
         """
         mpi_size = MPI.COMM_WORLD.Get_size()
 
@@ -920,14 +962,6 @@ class DDPG(OffPolicyRLModel):
         combined_stats['total/episodes'] = self.episodes
         combined_stats['rollout/episodes'] = self.epoch_episodes
         combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
-
-        # Evaluation statistics.
-        if self.eval_env is not None:
-            combined_stats['eval/return'] = np.mean(eval_episode_rewards)
-            combined_stats['eval/return_history'] = np.mean(
-                self.eval_episode_rewards_history)
-            combined_stats['eval/Q'] = np.mean(eval_qs)
-            combined_stats['eval/episodes'] = len(eval_episode_rewards)
 
         combined_stats_sums = MPI.COMM_WORLD.allreduce(
             np.array([as_scalar(x)
@@ -952,8 +986,29 @@ class DDPG(OffPolicyRLModel):
         # Print statistics.
         for key in sorted(combined_stats.keys()):
             logger.record_tabular(key, combined_stats[key])
-        if len(self.episode_successes) > 0:
-            logger.logkv("success rate",
-                         np.mean(self.episode_successes[-100:]))
         logger.dump_tabular()
         logger.info('')
+
+    def _log_eval(self,
+                  file_path,
+                  eval_episode_rewards,
+                  eval_episode_successes):
+        """Log evaluation statistics.
+
+        Parameters
+        ----------
+        file_path : str
+            TODO
+        eval_episode_rewards : array_like
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        eval_episode_successes : list of bool
+            a list of boolean terms representing if each episode ended in
+            success or not. If the list is empty, then the environment did not
+            output successes or failures, and the success rate will be set to
+            zero.
+        """
+        if len(eval_episode_successes) > 0:
+            success_rate = np.mean(eval_episode_successes)
+        else:
+            success_rate = 0  # no success rate to log

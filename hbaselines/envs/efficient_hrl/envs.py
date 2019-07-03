@@ -9,7 +9,10 @@ from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
-    TODO: description
+    This environment extends the generic gym environment by including contexts,
+    or goals. The goals are added to the observation, and an additional
+    contextual reward is included to the generic rewards. If a certain goal is
+    met, the environment registers a "done" flag and the environment is reset.
     """
 
     def __init__(self,
@@ -35,14 +38,16 @@ class UniversalAntMazeEnv(AntMazeEnv):
             specifies whether the context is a single value, or a random set of
             values between some range
         context_range : list of float or list of (float, float)
-            TODO
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
         horizon : float, optional
             time horizon
 
         Raises
         ------
         AssertionError
-            TODO
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
         """
         # Initialize the maze variant of the environment.
         super(UniversalAntMazeEnv, self).__init__(
@@ -64,14 +69,24 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # contextual variables
         self.use_contexts = use_contexts
         self.random_contexts = random_contexts
-        self.context_range = context_range or [16, 0]
-        self.current_context = None
+        self.context_range = context_range
         self.contextual_reward = contextual_reward
+        self.current_context = None
 
         # a hack to deal with previous observations in the reward
         self.prev_obs = None
 
-        # TODO: add assertions
+        # Check that context_range is the right form based on whether contexts
+        # are a single value or random across a range.
+        if self.use_contexts:
+            if self.random_contexts:
+                assert all(isinstance(i, tuple) for i in self.context_range), \
+                    "When using random contexts, every element in " \
+                    "context_range, must be a tuple of (min,max) values."
+            else:
+                assert all(isinstance(i, float) for i in self.context_range), \
+                    "When not using random contexts, every element in " \
+                    "context_range, must be a single value."
 
     @property
     def observation_space(self):
@@ -98,6 +113,9 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
             # Compute the done in terms of the distance to the current context.
             done = done or new_done != 1  # FIXME
+
+            # Add success to the info dict.
+            info["is_success"] = new_done != 1  # FIXME
 
         # Check if the time horizon has been met.
         done = done or self.step_number == self.horizon
@@ -136,7 +154,12 @@ class UniversalAntMazeEnv(AntMazeEnv):
 class AntMaze(UniversalAntMazeEnv):
     """Ant Maze Environment.
 
-    TODO: description
+    In this task, immovable blocks are placed to confine the agent to a
+    U-shaped corridor. That is, blocks are placed everywhere except at (0,0),
+    (8,0), (16,0), (16,8), (16,16), (8,16), and (0,16). The agent is
+    initialized at position (0,0) and tasked at reaching a specific target
+    position. "Success" in this environment is defined as being within an L2
+    distance of 5 from the target.
     """
 
     def __init__(self,
@@ -152,12 +175,14 @@ class AntMaze(UniversalAntMazeEnv):
             specifies whether the context is a single value, or a random set of
             values between some range
         context_range : list of float or list of (float, float)
-            TODO
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
 
         Raises
         ------
         AssertionError
-            TODO
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
         """
         maze_id = "Maze"
 
@@ -172,7 +197,7 @@ class AntMaze(UniversalAntMazeEnv):
                 offset=0.0
             )
 
-        super(UniversalAntMazeEnv, self).__init__(
+        super(AntMaze, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
@@ -184,7 +209,13 @@ class AntMaze(UniversalAntMazeEnv):
 class AntPush(UniversalAntMazeEnv):
     """Ant Push Environment.
 
-    TODO: description
+    In this task, immovable blocks are placed every where except at (0,0),
+    (-8,0), (-8,8), (0,8), (8,8), (16,8), and (0,16), and a movable block is
+    placed at (0,8). The agent is initialized at position (0,0), and is tasked
+    with the objective of reaching position (0,19). Therefore, the agent must
+    first move to the left, push the movable block to the right, and then
+    finally navigate to the target. "Success" in this environment is defined as
+    being within an L2 distance of 5 from the target.
     """
 
     def __init__(self,
@@ -200,12 +231,14 @@ class AntPush(UniversalAntMazeEnv):
             specifies whether the context is a single value, or a random set of
             values between some range
         context_range : list of float or list of (float, float)
-            TODO
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
 
         Raises
         ------
         AssertionError
-            TODO
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
         """
         maze_id = "Push"
 
@@ -220,7 +253,7 @@ class AntPush(UniversalAntMazeEnv):
                 offset=0.0
             )
 
-        super(UniversalAntMazeEnv, self).__init__(
+        super(AntPush, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
@@ -232,7 +265,15 @@ class AntPush(UniversalAntMazeEnv):
 class AntFall(UniversalAntMazeEnv):
     """Ant Fall Environment.
 
-    TODO: description
+    In this task, the agent is initialized on a platform of height 4. Immovable
+    blocks are placed everywhere except at (-8,0), (0,0), (-8,8), (0,8),
+    (-8,16), (0,16), (-8,24), and (0,24). The raised platform is absent in the
+    region [-4,12]x[12,20], and a movable block is placed at (8,8). The agent
+    is initialized at position (0,0,4.5), and is with the objective of reaching
+    position (0,27,4.5). Therefore, to achieve this, the agent must first push
+    the movable block into the chasm and walk on top of it before navigating to
+    the target. "Success" in this environment is defined as being within an L2
+    distance of 5 from the target.
     """
 
     def __init__(self,
@@ -248,12 +289,14 @@ class AntFall(UniversalAntMazeEnv):
             specifies whether the context is a single value, or a random set of
             values between some range
         context_range : list of float or list of (float, float)
-            TODO
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
 
         Raises
         ------
         AssertionError
-            TODO
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
         """
         maze_id = "Fall"
 
@@ -268,7 +311,7 @@ class AntFall(UniversalAntMazeEnv):
                 offset=0.0
             )
 
-        super(UniversalAntMazeEnv, self).__init__(
+        super(AntFall, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
