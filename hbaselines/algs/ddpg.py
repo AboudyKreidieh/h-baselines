@@ -9,7 +9,6 @@ import os
 import time
 from collections import deque
 import csv
-import warnings
 import random
 
 from gym.spaces import Box
@@ -21,8 +20,7 @@ from hbaselines.utils.train import ensure_dir
 from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from stable_baselines import logger
-from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity
-from stable_baselines.ddpg.policies import DDPGPolicy
+from stable_baselines.common import tf_util, SetVerbosity
 
 
 def as_scalar(scalar):
@@ -49,7 +47,7 @@ def as_scalar(scalar):
         raise ValueError('expected scalar, got %s' % scalar)
 
 
-class DDPG(OffPolicyRLModel):
+class DDPG(object):
     """Deep Deterministic Policy Gradient (DDPG) model.
 
     See: https://arxiv.org/pdf/1509.02971.pdf
@@ -103,10 +101,12 @@ class DDPG(OffPolicyRLModel):
         (to be used in HER+DDPG)
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    tensorboard_log : str
-        the log location for tensorboard (if None, no logging)
     policy_kwargs : dict
         additional policy parameters
+    action_space : gym.spaces.*
+        the action space of the training environment
+    observation_space : gym.spaces.*
+        the observation space of the training environment
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -115,14 +115,8 @@ class DDPG(OffPolicyRLModel):
         the current tensorflow session
     params : list of str
         the names of the trainable parameters
-    summary : TODO
-        TODO
-    target_params : list of str
-        the names of the parameters in the target actor/critic
-    obs_rms_params : list of str
-        TODO
-    ret_rms_params : list of str
-        TODO
+    summary : tf.Summary
+        tensorboard summary object
     obs : array_like
         the most recent training observation
     episode_step : int
@@ -184,7 +178,6 @@ class DDPG(OffPolicyRLModel):
                  buffer_size=50000,
                  random_exploration=0.0,
                  verbose=0,
-                 tensorboard_log=None,
                  _init_setup_model=True,
                  policy_kwargs=None):
         """Instantiate the algorithm object.
@@ -239,8 +232,6 @@ class DDPG(OffPolicyRLModel):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        tensorboard_log : str
-            the log location for tensorboard (if None, no logging)
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         policy_kwargs : dict
@@ -250,13 +241,6 @@ class DDPG(OffPolicyRLModel):
         self.env = self._create_env(env, evaluate=False)
         self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
-
-        # TODO: hack
-        super(DDPG, self).__init__(
-            policy=policy, env=self.env, replay_buffer=None, verbose=verbose,
-            policy_base=DDPGPolicy, requires_vec_env=False,
-            policy_kwargs=policy_kwargs)
-
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -277,8 +261,9 @@ class DDPG(OffPolicyRLModel):
         self.buffer_size = buffer_size
         self.random_exploration = random_exploration
         self.verbose = verbose
-        self.tensorboard_log = tensorboard_log
         self.policy_kwargs = policy_kwargs
+        self.action_space = env.action_space
+        self.observation_space = env.observation_space
 
         # init
         self.graph = None
@@ -286,9 +271,6 @@ class DDPG(OffPolicyRLModel):
         self.sess = None
         self.params = None
         self.summary = None
-        self.target_params = None
-        self.obs_rms_params = None
-        self.ret_rms_params = None
         self.obs = None
         self.episode_step = None
         self.episodes = None
@@ -349,7 +331,6 @@ class DDPG(OffPolicyRLModel):
                 #               random_contexts=True,
                 #               context_range=[(-4, 12), (-4, 28), (0, 5)])
 
-        # TODO: remove once I've eliminated the parent class.
         if env is not None:
             env.reset()
 
@@ -393,26 +374,12 @@ class DDPG(OffPolicyRLModel):
                     get_trainable_vars('noise/') + \
                     get_trainable_vars('noise_adapt/')
 
-                self.target_params = get_trainable_vars("target")
-                self.obs_rms_params = [var for var in tf.global_variables()
-                                       if "obs_rms" in var.name]
-                self.ret_rms_params = [var for var in tf.global_variables()
-                                       if "ret_rms" in var.name]
-
                 # Initialize the model parameters and optimizers.
                 with self.sess.as_default():
                     self.sess.run(tf.global_variables_initializer())
                     self.policy_tf.initialize()
 
                 self.summary = tf.summary.merge_all()
-
-    # TODO: delete
-    def _get_pretrain_placeholders(self):
-        policy = self.policy_tf
-        # Rescale
-        deterministic_action = policy.actor_tf * np.abs(self.action_space.low)
-
-        return policy.obs_ph, self.actions, deterministic_action
 
     def _policy(self, obs, apply_noise=True, compute_q=True):
         """Get the actions and critic output, from a given observation.
@@ -461,7 +428,8 @@ class DDPG(OffPolicyRLModel):
             is the episode done
         """
         reward *= self.reward_scale
-        self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1)
+        self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
+                                        time=self.episode_step)
 
     def _initialize(self):
         """Initialize the model parameters and optimizers."""
@@ -470,12 +438,9 @@ class DDPG(OffPolicyRLModel):
     def learn(self,
               total_timesteps,
               log_dir=None,
-              callback=None,  # TODO: delete
               seed=None,
               log_interval=100,
               eval_interval=5e4,
-              tb_log_name="DDPG",  # TODO: delete
-              reset_num_timesteps=True,  # TODO: delete
               exp_num=None):
         """Return a trained model.
 
@@ -488,20 +453,11 @@ class DDPG(OffPolicyRLModel):
             as the tensorboard log, should be stored
         seed : int or None
             the initial seed for training, if None: keep current seed
-        callback : function (dict, dict) -> boolean
-            function called at every steps with state of the algorithm. It
-            takes the local and global variables. If it returns False, training
-            is aborted.
         log_interval : int
             the number of training steps before logging training results
         eval_interval : int
             number of simulation steps in the training environment before an
             evaluation is performed
-        tb_log_name : str
-            the name of the run for tensorboard log
-        reset_num_timesteps : bool
-            whether or not to reset the current timestep number (used in
-            logging)
         exp_num : int, optional
             an additional experiment number term used by the runner scripts
             when running multiple experiments simultaneously. If set to None,
@@ -543,13 +499,12 @@ class DDPG(OffPolicyRLModel):
 
             # Initialize class variables.
             steps_incr = 0
-            self.episode_reward = 0.
+            self.episode_reward = 0
             self.episode_step = 0
             self.episodes = 0
             self.total_steps = 0
             self.epoch = 0
             self.episode_rewards_history = deque(maxlen=100)
-            self.episode_reward = np.zeros((1,))
 
             with self.sess.as_default(), self.graph.as_default():
                 # Prepare everything.
@@ -573,7 +528,7 @@ class DDPG(OffPolicyRLModel):
                             return self
 
                         # Perform rollouts.
-                        self._collect_samples(writer)
+                        self._collect_samples()
 
                         # Train.
                         self._train(writer)
@@ -599,126 +554,30 @@ class DDPG(OffPolicyRLModel):
                     # Update the epoch count.
                     self.epoch += 1
 
-    def predict(self, observation, state=None, mask=None, deterministic=True):
-        observation = np.array(observation)
-        vectorized_env = self._is_vectorized_observation(
-            observation, self.observation_space)
-
-        observation = observation.reshape((-1,) + self.observation_space.shape)
-        actions, _, = self._policy(
-            observation, apply_noise=not deterministic, compute_q=False)
-
-        # reshape to the correct action shape
-        actions = actions.reshape((-1,) + self.action_space.shape)
-        # scale the output for the prediction
-        actions = actions * np.abs(self.action_space.low)
-
-        if not vectorized_env:
-            actions = actions[0]
-
-        return actions, None
-
-    # TODO: delete
-    def action_probability(self, observation, state=None, mask=None,
-                           actions=None):
-        if actions is not None:
-            raise ValueError("Error: DDPG does not have action probabilities.")
-
-        # here there are no action probabilities, as DDPG does not use a
-        # probability distribution
-        warnings.warn("Warning: action probability is meaningless for DDPG. "
-                      "Returning None")
-
-        return None
-
-    def get_parameter_list(self):
-        return (self.params +
-                self.target_params +
-                self.obs_rms_params +
-                self.ret_rms_params)
-
     # TODO: modify to match the way I want it
     def save(self, save_path):
-        data = {
-            "observation_space": self.observation_space,
-            "action_space": self.action_space,
-            "nb_eval_episodes": self.nb_eval_episodes,
-            "nb_train_steps": self.nb_train_steps,
-            "nb_rollout_steps": self.nb_rollout_steps,
-            "verbose": self.verbose,
-            "gamma": self.gamma,
-            "tau": self.tau,
-            "normalize_returns": self.normalize_returns,
-            "normalize_observations": self.normalize_observations,
-            "batch_size": self.batch_size,
-            "observation_range": self.observation_range,
-            "return_range": self.return_range,
-            "critic_l2_reg": self.critic_l2_reg,
-            "actor_lr": self.actor_lr,
-            "critic_lr": self.critic_lr,
-            "clip_norm": self.clip_norm,
-            "reward_scale": self.reward_scale,
-            "memory_limit": self.memory_limit,
-            "buffer_size": self.buffer_size,
-            "random_exploration": self.random_exploration,
-            "policy": self.policy,
-            "n_envs": self.n_envs,
-            "_vectorize_action": self._vectorize_action,
-            "policy_kwargs": self.policy_kwargs
-        }
+        """
 
-        params_to_save = self.get_parameters()
-
-        self._save_to_file(save_path,
-                           data=data,
-                           params=params_to_save)
+        :param save_path:
+        :return:
+        """
+        pass
 
     # TODO: modify to match the way I want it
-    @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
+    def load(self, load_path):
+        """
 
-        if 'policy_kwargs' in kwargs \
-                and kwargs['policy_kwargs'] != data['policy_kwargs']:
-            raise ValueError(
-                "The specified policy kwargs do not equal the stored policy "
-                "kwargs. Stored kwargs: {}, specified kwargs: {}".
-                format(data['policy_kwargs'], kwargs['policy_kwargs']))
+        :param load_path:
+        :return:
+        """
+        pass
 
-        model = cls(None, env, _init_setup_model=False)
-        model.__dict__.update(data)
-        model.__dict__.update(kwargs)
-        model.set_env(env)
-        model.setup_model()
-        # Patch for version < v2.6.0, duplicated keys where saved
-        if len(params) > len(model.get_parameter_list()):
-            n_params = len(model.params)
-            n_target_params = len(model.target_params)
-            n_normalisation_params = len(model.obs_rms_params) + len(
-                model.ret_rms_params)
-            # Check that the issue is the one from
-            # https://github.com/hill-a/stable-baselines/issues/363
-            assert len(params) == 2 * (n_params + n_target_params) \
-                + n_normalisation_params,\
-                "The number of parameter saved differs from the number of " \
-                "parameters that should be loaded: {}!={}".format(
-                    len(params), len(model.get_parameter_list()))
-
-            # Remove duplicates
-            params_ = params[:n_params + n_target_params]
-            if n_normalisation_params > 0:
-                params_ += params[-n_normalisation_params:]
-            params = params_
-        model.load_parameters(params)
-
-        return model
-
-    def _collect_samples(self, writer):
+    def _collect_samples(self):
         """Perform the sample collection operation.
 
-        TODO
-
-        :return:
+        This method is responsible for executing rollouts for a number of steps
+        before training is executed. The data from the rollouts is stored in
+        the policy's replay buffer(s).
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
@@ -744,7 +603,6 @@ class DDPG(OffPolicyRLModel):
 
             # Book-keeping.
             self.total_steps += 1
-            self.num_timesteps += 1
             if rank == 0 and self.render:
                 self.env.render()
             self.episode_reward += reward
@@ -779,8 +637,8 @@ class DDPG(OffPolicyRLModel):
 
         Parameters
         ----------
-        writer : TODO
-            TODO
+        writer : tf.Writer
+            the tensorboard writer object
         """
         for t_train in range(self.nb_train_steps):
             # Run a step of training from batch.
@@ -798,12 +656,14 @@ class DDPG(OffPolicyRLModel):
     def _evaluate(self):
         """Perform the evaluation operation.
 
-        TODO
+        This method runs the evaluation environment for a number of episodes
+        and returns the cumulative rewards and successes from each environment.
 
         Returns
         -------
         array_like
-            TODO
+            the list of cumulative rewards from every episode in the evaluation
+            phase
         list of bool
             a list of boolean terms representing if each episode ended in
             success or not. If the list is empty, then the environment did not
@@ -890,8 +750,7 @@ class DDPG(OffPolicyRLModel):
         combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
         combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
         combined_stats['total/duration'] = duration
-        combined_stats['total/steps_per_second'] = float(self.total_steps) \
-            / float(duration)
+        combined_stats['total/steps_per_second'] = self.total_steps / duration
         combined_stats['total/episodes'] = self.episodes
         combined_stats['rollout/episodes'] = self.epoch_episodes
         combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)

@@ -1,15 +1,13 @@
 """Script contain the ReplayBuffer object.
 
-This script is adapted largely from: TODO.
+This script is adapted largely from: https://github.com/hill-a/stable-baselines
 """
 import random
 import numpy as np
 
 
 class ReplayBuffer(object):
-    """TODO
-
-    """
+    """Experience replay buffer."""
 
     def __init__(self, size):
         """Instantiate a ring buffer (FIFO).
@@ -78,7 +76,7 @@ class ReplayBuffer(object):
             the reward of the transition
         obs_tp1 : Any
             the current observation
-        done : bool
+        done : float
             is the episode done
         """
         data = (obs_t, action, reward, obs_tp1, done)
@@ -113,14 +111,18 @@ class ReplayBuffer(object):
 
         Returns
         -------
-        FIXME
-        :return:
-            - obs_batch: (np.ndarray) batch of observations
-            - act_batch: (numpy float) batch of actions executed given obs_batch
-            - rew_batch: (numpy float) rewards received as results of executing act_batch
-            - next_obs_batch: (np.ndarray) next set of observations seen after executing act_batch
-            - done_mask: (numpy bool) done_mask[i] = 1 if executing act_batch[i] resulted in the end of an episode
-                and 0 otherwise.
+        np.ndarray
+            batch of observations
+        numpy float
+            batch of actions executed given obs_batch
+        numpy float
+            rewards received as results of executing act_batch
+        np.ndarray
+            next set of observations seen after executing act_batch
+        numpy bool
+            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
+            an episode and 0 otherwise.
         """
-        idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
-        return self._encode_sample(idxes)
+        indices = [random.randint(0, len(self._storage) - 1)
+                   for _ in range(batch_size)]
+        return self._encode_sample(indices)

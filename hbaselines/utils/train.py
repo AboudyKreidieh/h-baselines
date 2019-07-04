@@ -24,7 +24,6 @@ DEFAULT_DDPG_HP = dict(
     buffer_size=200000,
     random_exploration=0.0,
     verbose=2,
-    tensorboard_log=None,
     _init_setup_model=True,
     policy_kwargs=None
 )

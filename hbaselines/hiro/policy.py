@@ -442,9 +442,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # TODO: do I need indent?
         # Create the target update operations.
+        model_scope = 'model/'
+        target_scope = 'target/'
+        if scope is not None:
+            model_scope = scope + '/' + model_scope
+            target_scope = scope + '/' + target_scope
         init_updates, soft_updates = tf_util.get_target_updates(
-            tf_util.get_trainable_vars('model/'),
-            tf_util.get_trainable_vars('target/'),
+            tf_util.get_trainable_vars(model_scope),
+            tf_util.get_trainable_vars(target_scope),
             tau, verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
@@ -627,7 +632,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
                 qf_h = self.activ(qf_h)
-                if i == 0:  # FIXME: ????
+                if i == 0:
                     qf_h = tf.concat([qf_h, action], axis=-1)
 
             # create the output layer
@@ -791,8 +796,29 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
 
 class HIROPolicy(ActorCriticPolicy):
-    """
+    """Hierarchical reinforcement learning with off-policy correction.
 
+    See: https://arxiv.org/pdf/1805.08296.pdf
+
+    Attributes
+    ----------
+    manager : hbaselines.hiro.policy.FeedForwardPolicy
+        the manager policy
+    meta_period : int
+        manger action period
+    prev_meta_obs : array_like
+        previous observation by the Manager
+    prev_meta_action : array_like
+        action by the Manager at the previous time step
+    meta_action : array_like
+        current action by the Manager
+    meta_reward : float
+        current meta reward, counting as the cumulative environment reward
+        during the meta period
+    worker : hbaselines.hiro.policy.FeedForwardPolicy
+        the worker policy
+    worker_reward : function
+        reward function for the worker
     """
 
     def __init__(self,
@@ -816,9 +842,7 @@ class HIROPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu):
-        """Instantiate the feed-forward neural network policy.
-
-        TODO: describe the scope and the summary.
+        """Instantiate the HIRO policy.
 
         Parameters
         ----------
@@ -988,7 +1012,7 @@ class HIROPolicy(ActorCriticPolicy):
             self.meta_action = self.manager.get_action(obs)
 
         # Return the worker action.
-        worker_obs = list(obs) + list(self.meta_action)
+        worker_obs = np.concatenate((obs, self.meta_action), axis=1)
         return self.worker.get_action(worker_obs)
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
@@ -997,9 +1021,6 @@ class HIROPolicy(ActorCriticPolicy):
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
-        # Increment the meta reward with the most recent reward.
-        self.meta_reward += reward
-
         # Add a sample to the meta transition, if required.
         if kwargs["time"] % self.meta_period == 0 or done:
             # If this is the first time step, do not add the transition to the
@@ -1008,7 +1029,7 @@ class HIROPolicy(ActorCriticPolicy):
                 self.manager.store_transition(
                     obs0=list(self.prev_meta_obs),
                     action=self.prev_meta_action,
-                    reward=self.meta_reward,
+                    reward=self.meta_reward + reward,
                     obs1=obs1,
                     done=done
                 )
@@ -1019,6 +1040,9 @@ class HIROPolicy(ActorCriticPolicy):
             # Reset the meta reward and previous meta observation.
             self.meta_reward = 0
             self.prev_meta_obs = np.copy(obs0)
+        else:
+            # Increment the meta reward with the most recent reward.
+            self.meta_reward += reward
 
         # Compute the worker reward.
         worker_reward = self.worker_reward(obs0, self.meta_action, obs1)

@@ -27,9 +27,7 @@ def run_exp(env, hp, steps, dir_name, i):
         total_timesteps=steps,
         log_dir=dir_name,
         log_interval=10000,
-        callback=None,
         seed=None,
-        reset_num_timesteps=True,
         exp_num=i
     )
 
