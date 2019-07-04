@@ -17,12 +17,12 @@ import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
-from hbaselines.hiro.tf_util import reduce_std, get_trainable_vars
-from hbaselines.envs.efficient_hrl.envs import AntPush, AntFall, AntMaze
+from hbaselines.utils.train import ensure_dir
+from hbaselines.hiro.tf_util import get_trainable_vars
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from stable_baselines import logger
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity
 from stable_baselines.ddpg.policies import DDPGPolicy
-from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
 def as_scalar(scalar):
@@ -109,23 +109,14 @@ class DDPG(OffPolicyRLModel):
         additional policy parameters
     graph : tf.Graph
         the current tensorflow graph
-    stats_sample : TODO
-        TODO
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
         the policy object
     sess : tf.Session
         the current tensorflow session
-    stats_ops : TODO
-        TODO
-    stats_names : TODO
-        TODO
     params : list of str
         the names of the trainable parameters
     summary : TODO
         TODO
-    tb_seen_steps : TODO
-        a list for tensorboard logging, to prevent logging with the same step
-        number, if it already occurred
     target_params : list of str
         the names of the parameters in the target actor/critic
     obs_rms_params : list of str
@@ -162,8 +153,6 @@ class DDPG(OffPolicyRLModel):
         iteration began
     epoch : int
         the total number of training iterations
-    eval_episode_rewards_history : list of float
-        the cumulative return from the last 100 evaluation episodes
     episode_rewards_history : list of float
         the cumulative return from the last 100 training episodes
     episode_reward : float
@@ -293,19 +282,14 @@ class DDPG(OffPolicyRLModel):
 
         # init
         self.graph = None
-        self.stats_sample = None
         self.policy_tf = None
         self.sess = None
-        self.stats_ops = None
-        self.stats_names = None
         self.params = None
         self.summary = None
-        self.tb_seen_steps = None
         self.target_params = None
         self.obs_rms_params = None
         self.ret_rms_params = None
         self.obs = None
-        self.episode_reward = None
         self.episode_step = None
         self.episodes = None
         self.total_steps = None
@@ -317,7 +301,6 @@ class DDPG(OffPolicyRLModel):
         self.epoch_qs = None
         self.epoch_episodes = None
         self.epoch = None
-        self.eval_episode_rewards_history = None
         self.episode_rewards_history = None
         self.episode_reward = None
 
@@ -405,10 +388,6 @@ class DDPG(OffPolicyRLModel):
                     observation_range=self.observation_range
                 )
 
-                # Setup the running means and standard deviations of the model
-                # inputs and outputs.
-                self._setup_stats()
-
                 self.params = \
                     get_trainable_vars("model") + \
                     get_trainable_vars('noise/') + \
@@ -435,39 +414,6 @@ class DDPG(OffPolicyRLModel):
 
         return policy.obs_ph, self.actions, deterministic_action
 
-    # TODO: move to policy
-    def _setup_stats(self):
-        """Setup the running means and std of the model inputs and outputs."""
-        ops = []
-        names = []
-
-        if self.normalize_returns:
-            ops += [self.policy_tf.ret_rms.mean, self.policy_tf.ret_rms.std]
-            names += ['ret_rms_mean', 'ret_rms_std']
-
-        if self.normalize_observations:
-            ops += [tf.reduce_mean(self.policy_tf.obs_rms.mean),
-                    tf.reduce_mean(self.policy_tf.obs_rms.std)]
-            names += ['obs_rms_mean', 'obs_rms_std']
-
-        ops += [tf.reduce_mean(self.policy_tf.critic_tf)]
-        names += ['reference_Q_mean']
-        ops += [reduce_std(self.policy_tf.critic_tf)]
-        names += ['reference_Q_std']
-
-        ops += [tf.reduce_mean(self.policy_tf.critic_with_actor_tf)]
-        names += ['reference_actor_Q_mean']
-        ops += [reduce_std(self.policy_tf.critic_with_actor_tf)]
-        names += ['reference_actor_Q_std']
-
-        ops += [tf.reduce_mean(self.policy_tf.actor_tf)]
-        names += ['reference_action_mean']
-        ops += [reduce_std(self.policy_tf.actor_tf)]
-        names += ['reference_action_std']
-
-        self.stats_ops = ops
-        self.stats_names = names
-
     def _policy(self, obs, apply_noise=True, compute_q=True):
         """Get the actions and critic output, from a given observation.
 
@@ -490,7 +436,7 @@ class DDPG(OffPolicyRLModel):
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         # TODO: add noise
-        action = self.policy_tf.get_action(obs)
+        action = self.policy_tf.get_action(obs, time=self.episode_step)
         action = action.flatten()
         action = np.clip(action, -1, 1)
 
@@ -521,48 +467,6 @@ class DDPG(OffPolicyRLModel):
         """Initialize the model parameters and optimizers."""
         self.sess.run(tf.global_variables_initializer())
 
-    def _get_stats(self):
-        """Get the mean and standard dev of the model's inputs and outputs.
-
-        Returns
-        -------
-        dict
-            the means and stds
-        """
-        if self.stats_sample is None:
-            # Get a sample and keep that fixed for all further computations.
-            # This allows us to estimate the change in value for the same set
-            # of inputs.
-            obs0, actions, rewards, obs1, terminals1 = \
-                self.policy_tf.replay_buffer.sample(batch_size=self.batch_size)
-            self.stats_sample = {
-                'obs0': obs0,
-                'actions': actions,
-                'rewards': rewards,
-                'obs1': obs1,
-                'terminals1': terminals1
-            }
-
-        feed_dict = {
-            self.policy_tf.action_ph: self.stats_sample['actions']
-        }
-
-        for placeholder in [self.policy_tf.action_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['actions']
-
-        for placeholder in [self.policy_tf.obs_ph, self.policy_tf.obs1_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['obs0']
-
-        values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
-
-        names = self.stats_names[:]
-        assert len(names) == len(values)
-        stats = dict(zip(names, values))
-
-        return stats
-
     def learn(self,
               total_timesteps,
               log_dir=None,
@@ -570,8 +474,9 @@ class DDPG(OffPolicyRLModel):
               seed=None,
               log_interval=100,
               eval_interval=5e4,
-              tb_log_name="DDPG",
-              reset_num_timesteps=True):  # TODO: delete
+              tb_log_name="DDPG",  # TODO: delete
+              reset_num_timesteps=True,  # TODO: delete
+              exp_num=None):
         """Return a trained model.
 
         Parameters
@@ -597,26 +502,37 @@ class DDPG(OffPolicyRLModel):
         reset_num_timesteps : bool
             whether or not to reset the current timestep number (used in
             logging)
+        exp_num : int, optional
+            an additional experiment number term used by the runner scripts
+            when running multiple experiments simultaneously. If set to None,
+            the train, evaluate, and tensorboard results are stored in log_dir
+            immediately
 
         Returns
         -------
         TODO
             the trained model
         """
+        if exp_num is not None:
+            log_dir = os.path.join(log_dir, "trial_{}".format(exp_num))
+
+        # Make sure that the log directory exists, and if not, make it.
+        ensure_dir(log_dir)
+
         # Create a tensorboard object for logging.
-        # save_path = os.path.join()
+        # save_path = os.path.join(log_dir, tb_log_name)
         # writer = tf.summary.FileWriter(save_path, graph=self.graph)
         writer = None
+
+        # file path for training and evaluation results
+        train_filepath = os.path.join(log_dir, "train.csv")
+        eval_filepath = os.path.join(log_dir, "eval.csv")
 
         with SetVerbosity(self.verbose):
             # Setup the seed value.
             random.seed(seed)
             np.random.seed(seed)
             tf.set_random_seed(seed)
-
-            # a list for tensorboard logging, to prevent logging with the same
-            # step number, if it already occurred
-            self.tb_seen_steps = []
 
             # we assume symmetric actions.  # FIXME
             assert np.all(np.abs(self.env.action_space.low)
@@ -632,7 +548,6 @@ class DDPG(OffPolicyRLModel):
             self.episodes = 0
             self.total_steps = 0
             self.epoch = 0
-            self.eval_episode_rewards_history = deque(maxlen=100)
             self.episode_rewards_history = deque(maxlen=100)
             self.episode_reward = np.zeros((1,))
 
@@ -654,7 +569,7 @@ class DDPG(OffPolicyRLModel):
                     for _ in range(log_interval):
                         # If the requirement number of time steps has been met,
                         # terminate training.
-                        if self.total_steps >= total_timesteps:
+                        if self.total_steps > total_timesteps:
                             return self
 
                         # Perform rollouts.
@@ -665,17 +580,21 @@ class DDPG(OffPolicyRLModel):
 
                     # Log statistics.
                     self._log_training(
-                        log_dir,
+                        train_filepath,
                         start_time,
                     )
 
                     # Evaluate.
                     if self.eval_env is not None and \
-                            (self.total_steps - steps_incr) > eval_interval:
+                            (self.total_steps - steps_incr) >= eval_interval:
                         steps_incr += eval_interval
                         eval_rewards, eval_successes = self._evaluate()
-                        self.eval_episode_rewards_history.extend(eval_rewards)
-                        self._log_eval(log_dir, eval_rewards, eval_successes)
+                        self._log_eval(
+                            eval_filepath,
+                            start_time,
+                            eval_rewards,
+                            eval_successes
+                        )
 
                     # Update the epoch count.
                     self.epoch += 1
@@ -718,6 +637,7 @@ class DDPG(OffPolicyRLModel):
                 self.obs_rms_params +
                 self.ret_rms_params)
 
+    # TODO: modify to match the way I want it
     def save(self, save_path):
         data = {
             "observation_space": self.observation_space,
@@ -753,6 +673,7 @@ class DDPG(OffPolicyRLModel):
                            data=data,
                            params=params_to_save)
 
+    # TODO: modify to match the way I want it
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
@@ -820,13 +741,6 @@ class DDPG(OffPolicyRLModel):
             # Visualize the current step.
             if rank == 0 and self.render:
                 self.env.render()
-
-            if writer is not None:
-                ep_rew = np.array([reward]).reshape((1, -1))
-                ep_done = np.array([done]).reshape((1, -1))
-                self.episode_reward = total_episode_reward_logger(
-                    self.episode_reward, ep_rew, ep_done, writer,
-                    self.num_timesteps)
 
             # Book-keeping.
             self.total_steps += 1
@@ -899,7 +813,13 @@ class DDPG(OffPolicyRLModel):
         eval_episode_rewards = []
         eval_episode_successes = []
 
-        for _ in range(self.nb_eval_episodes):
+        if self.verbose >= 1:
+            for _ in range(3):
+                print("-------------------")
+            print("Running evaluation for {} episodes:".format(
+                self.nb_eval_episodes))
+
+        for i in range(self.nb_eval_episodes):
             # Reset the environment and episode reward.
             eval_obs = self.eval_env.reset()
             eval_episode_reward = 0.
@@ -927,6 +847,19 @@ class DDPG(OffPolicyRLModel):
                     # Exit the loop.
                     break
 
+            if self.verbose >= 1:
+                print("{}/{}...".format(i+1, self.nb_eval_episodes))
+
+        if self.verbose >= 1:
+            print("Done.")
+            print("Average return: {}".format(np.mean(eval_episode_rewards)))
+            if len(eval_episode_successes) > 0:
+                print("Success rate: {}".format(
+                    np.mean(eval_episode_successes)))
+            for _ in range(3):
+                print("-------------------")
+            print("")
+
         return eval_episode_rewards, eval_episode_successes
 
     def _log_training(self, file_path, start_time):
@@ -945,7 +878,7 @@ class DDPG(OffPolicyRLModel):
 
         # Log statistics.
         duration = time.time() - start_time
-        stats = self._get_stats()
+        stats = self.policy_tf.get_stats()
         combined_stats = stats.copy()
         combined_stats['rollout/return'] = np.mean(self.epoch_episode_rewards)
         combined_stats['rollout/return_history'] = np.mean(
@@ -977,9 +910,10 @@ class DDPG(OffPolicyRLModel):
 
         # Save combined_stats in a csv file.
         if file_path is not None:
+            exists = os.path.exists(file_path)
             with open(file_path, 'a') as f:
                 w = csv.DictWriter(f, fieldnames=combined_stats.keys())
-                if not os.path.exists(file_path):
+                if not exists:
                     w.writeheader()
                 w.writerow(combined_stats)
 
@@ -991,6 +925,7 @@ class DDPG(OffPolicyRLModel):
 
     def _log_eval(self,
                   file_path,
+                  start_time,
                   eval_episode_rewards,
                   eval_episode_successes):
         """Log evaluation statistics.
@@ -998,7 +933,10 @@ class DDPG(OffPolicyRLModel):
         Parameters
         ----------
         file_path : str
-            TODO
+            path to the evaluation csv file
+        start_time : float
+            the time when training began. This is used to print the total
+            training time.
         eval_episode_rewards : array_like
             the list of cumulative rewards from every episode in the evaluation
             phase
@@ -1008,7 +946,25 @@ class DDPG(OffPolicyRLModel):
             output successes or failures, and the success rate will be set to
             zero.
         """
+        duration = time.time() - start_time
+
         if len(eval_episode_successes) > 0:
             success_rate = np.mean(eval_episode_successes)
         else:
             success_rate = 0  # no success rate to log
+
+        evaluation_stats = {
+            "duration": duration,
+            "total_step": self.total_steps,
+            "success_rate": success_rate,
+            "average_return": np.mean(eval_episode_rewards)
+        }
+
+        # Save evaluation statistics in a csv file.
+        if file_path is not None:
+            exists = os.path.exists(file_path)
+            with open(file_path, "a") as f:
+                w = csv.DictWriter(f, fieldnames=evaluation_stats.keys())
+                if not exists:
+                    w.writeheader()
+                w.writerow(evaluation_stats)

@@ -6,6 +6,7 @@ connected network models on various environments.
 import os
 import csv
 from time import strftime
+import ray
 
 from hbaselines.utils.train import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
@@ -18,18 +19,18 @@ NUM_CPUS = 3
 
 @ray.remote
 def run_exp(env, hp, steps, dir_name, i):
-    # use DDPG
-    alg = DDPG(policy=FeedForwardPolicy, env=env, **hp)
+    # use DDPG  TODO: make evaluation an option
+    alg = DDPG(policy=FeedForwardPolicy, env=env, eval_env=env, **hp)
 
     # perform training
     alg.learn(
         total_timesteps=steps,
-        log_dir=os.path.join(dir_name, "results_{}.csv".format(i)),
-        log_interval=10,
+        log_dir=dir_name,
+        log_interval=10000,
         callback=None,
         seed=None,
-        tb_log_name=dir_name,
         reset_num_timesteps=True,
+        exp_num=i
     )
 
     return None

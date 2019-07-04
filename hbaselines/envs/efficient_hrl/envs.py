@@ -84,7 +84,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     "When using random contexts, every element in " \
                     "context_range, must be a tuple of (min,max) values."
             else:
-                assert all(isinstance(i, float) for i in self.context_range), \
+                assert all(not isinstance(i, tuple) for i in
+                           self.context_range), \
                     "When not using random contexts, every element in " \
                     "context_range, must be a single value."
 
