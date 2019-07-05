@@ -71,7 +71,6 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ctrl_cost = .5 * np.square(a).sum()
         survive_reward = 1.0
         reward = forward_reward - ctrl_cost + survive_reward
-        state = self.state_vector()
         done = False
         ob = self._get_obs()
         return ob, reward, done, dict(

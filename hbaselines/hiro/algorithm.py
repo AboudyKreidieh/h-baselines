@@ -407,7 +407,6 @@ class DDPG(object):
         # TODO: add noise
         action = self.policy_tf.get_action(
             obs, time=self.episode_step, context_obs=context)
-        # print(action)
         action = action.flatten()
         action *= self.action_space.high  # FIXME: In policy
 

@@ -96,4 +96,4 @@ class PointEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos[0] = xy[0]
         qpos[1] = xy[1]
 
-        qvel = self.physics.data.qvel
+        # qvel = self.physics.data.qvel

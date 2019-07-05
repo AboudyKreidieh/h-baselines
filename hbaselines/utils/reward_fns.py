@@ -35,7 +35,8 @@ def index_states(states, indices):
     indices: (a list of Numpy integer array) Indices of states dimensions
       to be mapped.
   Returns:
-    A [batch_size, num_indices] Tensor representing the batch of indexed states.
+    A [batch_size, num_indices] Tensor representing the batch of indexed
+    states.
   """
     if indices is None:
         return states
@@ -195,7 +196,8 @@ def tanh_similarity(states,
                     state_scales=1.0,
                     goal_scales=1.0,
                     summarize=False):
-    """Returns the similarity between next_states and contexts using tanh and mse.
+    """Returns the similarity between next_states and contexts using tanh and
+    mse.
 
   Args:
     states: A [batch_size, num_state_dims] Tensor representing a batch
@@ -208,7 +210,8 @@ def tanh_similarity(states,
     contexts: A list of [batch_size, num_context_dims] Tensor representing
       a batch of contexts.
     mse_scale: A float, to scale mse before tanh.
-    state_scales: multiplicative scale for (next) states. A scalar or 1D tensor,
+    state_scales: multiplicative scale for (next) states. A scalar or 1D
+    tensor,
       must be broadcastable to number of state dimensions.
     goal_scales: multiplicative scale for contexts. A scalar or 1D tensor,
       must be broadcastable to number of goal dimensions.
@@ -253,7 +256,8 @@ def negative_mse(states,
       of next states.
     contexts: A list of [batch_size, num_context_dims] Tensor representing
       a batch of contexts.
-    state_scales: multiplicative scale for (next) states. A scalar or 1D tensor,
+    state_scales: multiplicative scale for (next) states. A scalar or 1D
+    tensor,
       must be broadcastable to number of state dimensions.
     goal_scales: multiplicative scale for contexts. A scalar or 1D tensor,
       must be broadcastable to number of goal dimensions.
@@ -418,7 +422,8 @@ def cosine_similarity(states,
       of next states.
     contexts: A list of [batch_size, num_context_dims] Tensor representing
       a batch of contexts.
-    state_scales: multiplicative scale for (next) states. A scalar or 1D tensor,
+    state_scales: multiplicative scale for (next) states. A scalar or 1D
+    tensor,
       must be broadcastable to number of state dimensions.
     goal_scales: multiplicative scale for goals. A scalar or 1D tensor,
       must be broadcastable to number of goal dimensions.
@@ -480,7 +485,8 @@ def diff_distance(states,
                   goal_indices=None,
                   norm='L2',
                   epsilon=1e-10):
-    """Returns the difference in euclidean distance between states/next_states and contexts.
+    """Return the difference in euclidean distance between states/next_states
+    and contexts.
 
   Args:
     states: A [batch_size, num_state_dims] Tensor representing a batch
@@ -492,7 +498,8 @@ def diff_distance(states,
       of next states.
     contexts: A list of [batch_size, num_context_dims] Tensor representing
       a batch of contexts.
-    state_scales: multiplicative scale for (next) states. A scalar or 1D tensor,
+    state_scales: multiplicative scale for (next) states. A scalar or 1D
+    tensor,
       must be broadcastable to number of state dimensions.
     goal_scales: multiplicative scale for goals. A scalar or 1D tensor,
       must be broadcastable to number of goal dimensions.

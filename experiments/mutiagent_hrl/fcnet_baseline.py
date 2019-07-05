@@ -10,7 +10,7 @@ import ray
 
 from hbaselines.utils.train import ensure_dir
 from hbaselines.utils.train import create_parser, get_hyperparameters
-from hbaselines.algs.ddpg import DDPG
+from hbaselines.hiro.algorithm import DDPG
 from hbaselines.hiro.policy import FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'

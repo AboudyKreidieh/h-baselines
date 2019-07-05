@@ -257,7 +257,7 @@ class MazeEnv(gym.Env):
             if row is None or col is None:
                 x = x - self._robot_x
                 y = y - self._robot_y
-                th = self._robot_ori
+                # th = self._robot_ori
 
                 row, col = self._xy_to_rowcol(x, y)
                 update_view(x, y, d, row=row, col=col)
@@ -310,7 +310,7 @@ class MazeEnv(gym.Env):
 
         structure = self.MAZE_STRUCTURE
         size_scaling = self.MAZE_SIZE_SCALING
-        height = self.MAZE_HEIGHT
+        # height = self.MAZE_HEIGHT
 
         # Draw immovable blocks and chasms.
         for i in range(len(structure)):
