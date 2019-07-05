@@ -1,4 +1,3 @@
-from hbaselines.envs.efficient_hrl.ant import AntEnv
-from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntPush, AntFall
 
-__all__ = ['AntEnv', 'AntMazeEnv']
+__all__ = ["AntMaze", "AntPush", "AntFall"]

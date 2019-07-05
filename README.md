@@ -88,11 +88,43 @@ This repository contains multiple
 
 blank
 
-**Pendulum** blank
+**Pendulum** 
 
-**Ant Push** blank
+blank
 
-**Ant Fall** blank
+**UR5** 
+
+blank
+
+**AntMaze** 
+
+In this task, immovable blocks are placed to confine the agent to a
+U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0), 
+(16,0), (16,8), (16,16), (8,16), and (0,16). The agent is initialized at 
+position (0,0) and tasked at reaching a specific target position. "Success" in 
+this environment is defined as being within an L2 distance of 5 from the target.
+
+**AntPush** 
+
+In this task, immovable blocks are placed every where except at 
+(0,0), (-8,0), (-8,8), (0,8), (8,8), (16,8), and (0,16), and a movable block is
+placed at (0,8). The agent is initialized at position (0,0), and is tasked with 
+the objective of reaching position (0,19). Therefore, the agent must first move 
+to the left, push the movable block to the right, and then finally navigate to 
+the target. "Success" in this environment is defined as being within an L2 
+distance of 5 from the target.
+
+**AntFall** 
+
+In this task, the agent is initialized on a platform of height 4. 
+Immovable blocks are placed everywhere except at (-8,0), (0,0), (-8,8), (0,8),
+(-8,16), (0,16), (-8,24), and (0,24). The raised platform is absent in the 
+region [-4,12]x[12,20], and a movable block is placed at (8,8). The agent is 
+initialized at position (0,0,4.5), and is with the objective of reaching 
+position (0,27,4.5). Therefore, to achieve this, the agent must first push the 
+movable block into the chasm and walk on top of it before navigating to the 
+target. "Success" in this environment is defined as being within an L2 distance 
+of 5 from the target.
 
 ### Mixed Autonomy Traffic
 
