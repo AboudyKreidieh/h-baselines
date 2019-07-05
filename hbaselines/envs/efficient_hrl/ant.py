@@ -11,17 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =============================================================================
+# ==============================================================================
 
 """Wrapper for creating the ant environment in gym_mujoco."""
 
+import math
 import numpy as np
+import mujoco_py
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 
+def q_inv(a):
+    return [a[0], -a[1], -a[2], -a[3]]
+
+
+def q_mult(a, b):  # multiply two quaternion
+    w = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
+    i = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
+    j = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]
+    k = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]
+    return [w, i, j, k]
+
+
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     FILE = "ant.xml"
+    ORI_IND = 3
 
     def __init__(self, file_path=None, expose_all_qpos=True,
                  expose_body_coms=None, expose_body_comvels=None):
@@ -36,7 +51,14 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     @property
     def physics(self):
-        return self.model
+        # check mujoco version is greater than version 1.50 to call correct
+        # physics model containing PyMjData object for getting and setting
+        # position/velocity check https://github.com/openai/mujoco-py/issues/80
+        # for updates to api
+        if mujoco_py.get_version() >= '1.50':
+            return self.sim
+        else:
+            return self.model
 
     def _step(self, a):
         return self.step(a)
@@ -60,13 +82,13 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.sim.data.qpos.flat[:15],  # Ensures only ant obs.
-                self.sim.data.qvel.flat[:14],
+                self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
+                self.physics.data.qvel.flat[:14],
             ])
         else:
             obs = np.concatenate([
-                self.sim.data.qpos.flat[2:15],
-                self.sim.data.qvel.flat[:14],
+                self.physics.data.qpos.flat[2:15],
+                self.physics.data.qvel.flat[:14],
             ])
 
         if self._expose_body_coms is not None:
@@ -99,3 +121,24 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def viewer_setup(self):
         self.viewer.cam.distance = self.model.stat.extent * 0.5
+
+    def get_ori(self):
+        ori = [0, 1, 0, 0]
+        # take the quaternion
+        rot = self.physics.data.qpos[
+              self.__class__.ORI_IND:self.__class__.ORI_IND + 4]
+        # project onto x-y plane
+        ori = q_mult(q_mult(rot, ori), q_inv(rot))[1:3]
+        ori = math.atan2(ori[1], ori[0])
+        return ori
+
+    def set_xy(self, xy):
+        qpos = np.copy(self.physics.data.qpos)
+        qpos[0] = xy[0]
+        qpos[1] = xy[1]
+
+        qvel = self.physics.data.qvel
+        self.set_state(qpos, qvel)
+
+    def get_xy(self):
+        return self.physics.data.qpos[:2]

@@ -1,6 +1,6 @@
-stable-baselines==2.2.1
+stable-baselines==2.6.0
 ray==0.5.3
-numpy==1.14.0
+numpy==1.16.0
 tensorflow==1.10.0
 gym==0.10.9
 mpi4py

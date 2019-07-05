@@ -5,15 +5,14 @@ import errno
 
 DEFAULT_DDPG_HP = dict(
     gamma=0.99,
-    memory_policy=None,
-    nb_train_steps=50,
-    nb_rollout_steps=100,
-    action_noise=None,
-    normalize_observations=True,
+    nb_train_steps=1,
+    nb_rollout_steps=1,
+    nb_eval_episodes=50,
+    normalize_observations=False,
     tau=0.001,
-    batch_size=128,
+    batch_size=100,
     normalize_returns=False,
-    observation_range=(-5, 5),
+    observation_range=(-5., 5.),
     critic_l2_reg=0.,
     return_range=(-np.inf, np.inf),
     actor_lr=1e-4,
@@ -21,39 +20,38 @@ DEFAULT_DDPG_HP = dict(
     clip_norm=None,
     reward_scale=1.,
     render=False,
-    memory_limit=100,
-    verbose=0,
-    tensorboard_log=None,
-    _init_setup_model=True
+    render_eval=False,
+    buffer_size=200000,
+    random_exploration=0.0,
+    verbose=2,
+    _init_setup_model=True,
+    policy_kwargs=None
 )
 
 
-def get_hyperparameters(args, discrete):
+def get_hyperparameters(args):
     """Return the hyperparameters of a training algorithm from the parser."""
-    if discrete:
-        # hyperparameters for DQN
-        hp = {}
-    else:
-        # hyperparameters for DDPG
-        hp = DEFAULT_DDPG_HP.copy()
-        hp.update(
-            {"gamma": args.gamma,
-             "nb_train_steps": args.nb_train_steps,
-             "nb_rollout_steps": args.nb_rollout_steps,
-             # "normalize_observations": args.normalize_observations,
-             "tau": args.tau,
-             "batch_size": args.batch_size,
-             # "normalize_returns": args.normalize_returns,
-             "observation_range": (-5, 5),  # TODO: figure this out
-             "critic_l2_reg": args.critic_l2_reg,
-             "actor_lr": args.actor_lr,
-             "critic_lr": args.critic_lr,
-             "clip_norm": args.clip_norm,
-             "reward_scale": args.reward_scale,
-             "render": args.render,
-             "memory_limit": int(args.memory_limit),
-             "verbose": args.verbose}
-        )
+    hp = DEFAULT_DDPG_HP.copy()
+
+    hp.update({
+        "gamma": args.gamma,
+        "nb_train_steps": args.nb_train_steps,
+        "nb_rollout_steps": args.nb_rollout_steps,
+        "nb_eval_episodes": args.nb_eval_episodes,
+        # "normalize_observations": args.normalize_observations,
+        "tau": args.tau,
+        "batch_size": args.batch_size,
+        # "normalize_returns": args.normalize_returns,
+        "observation_range": (-5, 5),  # TODO: figure this out
+        "critic_l2_reg": args.critic_l2_reg,
+        "actor_lr": args.actor_lr,
+        "critic_lr": args.critic_lr,
+        "clip_norm": args.clip_norm,
+        "reward_scale": args.reward_scale,
+        "render": args.render,
+        "buffer_size": int(args.buffer_size),
+        "verbose": args.verbose
+    })
 
     return hp
 
@@ -93,37 +91,65 @@ def create_dqn_parser(parser):
 
 def create_ddpg_parser(parser):
     """Add the DDPG hyperparameters to the parser."""
-    parser.add_argument('--gamma', type=float, default=0.99,
+    parser.add_argument('--gamma',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['gamma'],
                         help='the discount rate')
-    parser.add_argument('--tau', type=float, default=0.001,
+    parser.add_argument('--tau',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['tau'],
                         help='the soft update coefficient (keep old values, '
                              'between 0 and 1)')
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['batch_size'],
                         help='the size of the batch for learning the policy')
-    parser.add_argument('--reward_scale', type=float, default=1,
+    parser.add_argument('--reward_scale',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['reward_scale'],
                         help='the value the reward should be scaled by')
-    parser.add_argument('--actor_lr', type=float, default=1e-4,
+    parser.add_argument('--actor_lr',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['actor_lr'],
                         help='the actor learning rate')
-    parser.add_argument('--critic_lr', type=float, default=1e-3,
+    parser.add_argument('--critic_lr',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['critic_lr'],
                         help='the critic learning rate')
-
-    parser.add_argument('--critic_l2_reg', type=float, default=0,
+    parser.add_argument('--critic_l2_reg',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['critic_l2_reg'],
                         help='l2 regularizer coefficient')
-    parser.add_argument('--clip_norm', type=float, default=None,
+    parser.add_argument('--clip_norm',
+                        type=float,
+                        default=DEFAULT_DDPG_HP['clip_norm'],
                         help='clip the gradients (disabled if None)')
-    parser.add_argument('--nb_train_steps', type=int, default=50,
+    parser.add_argument('--nb_train_steps',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['nb_train_steps'],
                         help='the number of training steps')
-    parser.add_argument('--nb_rollout_steps', type=int, default=100,
+    parser.add_argument('--nb_rollout_steps',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['nb_rollout_steps'],
                         help='the number of rollout steps')
-    parser.add_argument('--normalize_observations', action='store_true',
+    parser.add_argument('--nb_eval_episodes',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['nb_eval_episodes'],
+                        help='the number of evaluation episodes')
+    parser.add_argument('--normalize_observations',
+                        action='store_true',
                         help='should the observation be normalized')
-
-    parser.add_argument('--render', action='store_true',
+    parser.add_argument('--render',
+                        action='store_true',
                         help='enable rendering of the environment')
-    parser.add_argument('--verbose', type=int, default=2,
+    parser.add_argument('--verbose',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['verbose'],
                         help='the verbosity level: 0 none, 1 training '
                              'information, 2 tensorflow debug')
-    parser.add_argument('--memory_limit', type=int, default=1e5,
+    parser.add_argument('--buffer_size',
+                        type=int,
+                        default=DEFAULT_DDPG_HP['buffer_size'],
                         help='the max number of transitions to store')
 
     return parser

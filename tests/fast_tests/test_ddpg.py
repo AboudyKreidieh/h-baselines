@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.algs.ddpg import as_scalar, DDPG
+from hbaselines.hiro.algorithm import as_scalar, DDPG
 from hbaselines.utils.exp_replay import GenericMemory, RecurrentMemory
 from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
 from hbaselines.policies.ddpg import FullyConnectedPolicy, LSTMPolicy
