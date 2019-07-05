@@ -1,6 +1,39 @@
 import tensorflow as tf
 from stable_baselines import logger
 import numpy as np
+import os
+import multiprocessing
+
+
+def make_session(num_cpu=None, make_default=False, graph=None):
+    """Return a session that will use <num_cpu> CPU's only.
+
+    Parameters
+    ----------
+    num_cpu : int
+        number of CPUs to use for TensorFlow
+    make_default : bool
+        if this should return an InteractiveSession or a normal Session
+    graph : tf.Graph
+        the graph of the session
+
+    Returns
+    -------
+    tf.Session
+        a tensorflow session
+    """
+    if num_cpu is None:
+        num_cpu = int(os.getenv("RCALL_NUM_CPU", multiprocessing.cpu_count()))
+    tf_config = tf.ConfigProto(
+        allow_soft_placement=True,
+        inter_op_parallelism_threads=num_cpu,
+        intra_op_parallelism_threads=num_cpu)
+    # Prevent tensorflow from taking all the gpu memory
+    tf_config.gpu_options.allow_growth = True
+    if make_default:
+        return tf.InteractiveSession(config=tf_config, graph=graph)
+    else:
+        return tf.Session(config=tf_config, graph=graph)
 
 
 def get_trainable_vars(name):
@@ -208,11 +241,17 @@ def get_perturbed_actor_updates(actor,
 
 
 def var_shape(tensor):
-    """
-    get TensorFlow Tensor shape
+    """Get TensorFlow Tensor shape.
 
-    :param tensor: (TensorFlow Tensor) the input tensor
-    :return: ([int]) the shape
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    list of int
+        the shape
     """
     out = tensor.get_shape().as_list()
     assert all(isinstance(a, int) for a in out), \
@@ -221,33 +260,53 @@ def var_shape(tensor):
 
 
 def numel(tensor):
-    """
-    get TensorFlow Tensor's number of elements
+    """Get TensorFlow Tensor's number of elements.
 
-    :param tensor: (TensorFlow Tensor) the input tensor
-    :return: (int) the number of elements
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    int
+        the number of elements
     """
     return intprod(var_shape(tensor))
 
 
 def intprod(tensor):
-    """
-    calculates the product of all the elements in a list
+    """Calculate the product of all the elements in a list.
 
-    :param tensor: ([Number]) the list of elements
-    :return: (int) the product truncated
+    Parameters
+    ----------
+    tensor : array_like
+        the list of elements
+
+    Returns
+    -------
+    int
+        the product truncated
     """
     return int(np.prod(tensor))
 
 
 def flatgrad(loss, var_list, clip_norm=None):
-    """
-    calculates the gradient and flattens it
+    """Calculate the gradient and flatten it.
 
-    :param loss: (float) the loss value
-    :param var_list: ([TensorFlow Tensor]) the variables
-    :param clip_norm: (float) clip the gradients (disabled if None)
-    :return: ([TensorFlow Tensor]) flattened gradient
+    Parameters
+    ----------
+    loss : float
+        the loss value
+    var_list : list of tf.Tensor
+        the variables
+    clip_norm : float
+        clip the gradients (disabled if None)
+
+    Returns
+    -------
+    list of tf.Tensor
+        flattened gradient
     """
     grads = tf.gradients(loss, var_list)
     if clip_norm is not None:

@@ -3,13 +3,13 @@ import tensorflow.contrib as tc
 import numpy as np
 from functools import reduce
 from copy import deepcopy
+import logging
 
 import hbaselines.hiro.tf_util as tf_util
 from hbaselines.hiro.replay_buffer import ReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-from stable_baselines import logger
 
 
 class ActorCriticPolicy(object):
@@ -23,9 +23,11 @@ class ActorCriticPolicy(object):
         the observation space of the environment
     ac_space : gym.space.*
         the action space of the environment
+    co_space : gym.space.*
+        the context space of the environment
     """
 
-    def __init__(self, sess, ob_space, ac_space):
+    def __init__(self, sess, ob_space, ac_space, co_space):
         """Instantiate the base policy object.
 
         Parameters
@@ -36,10 +38,13 @@ class ActorCriticPolicy(object):
             the observation space of the environment
         ac_space : gym.space.*
             the action space of the environment
+        co_space : gym.space.*
+            the context space of the environment
         """
         self.sess = sess
         self.ob_space = ob_space
         self.ac_space = ac_space
+        self.co_space = co_space
 
     def initialize(self):
         """Initialize the policy.
@@ -63,17 +68,13 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_action(self, obs, state=None, mask=None, **kwargs):
+    def get_action(self, obs, **kwargs):
         """Call the actor methods to compute policy actions.
 
         Parameters
         ----------
         obs : array_like
             the observation
-        state : TODO
-            TODO
-        mask : TODO
-            TODO
 
         Returns
         -------
@@ -82,7 +83,7 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, with_actor=True, state=None, mask=None):
+    def value(self, obs, action=None, with_actor=True, **kwargs):
         """Call the critic methods to compute the value.
 
         Parameters
@@ -95,10 +96,6 @@ class ActorCriticPolicy(object):
             specifies whether to use the actor when computing the values. In
             this case, the actions are computed directly from the actor, and
             the input actions are not used.
-        state : TODO
-            TODO
-        mask : TODO
-            TODO
 
         Returns
         -------
@@ -107,26 +104,26 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def store_transition(self, obs0, action, reward, obs1, terminal1):
+    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """Store a transition in the replay buffer.
 
         Parameters
         ----------
-        obs0 : list of float or list of int
+        obs0 : array_like
             the last observation
-        action : list of float or np.ndarray
+        action : array_like
             the action
         reward : float
             the reward
-        obs1 : list fo float or list of int
+        obs1 : array_like
             the current observation
-        terminal1 : bool
+        done : float
             is the episode done
         """
         raise NotImplementedError
 
     def get_stats(self):
-        """
+        """Return the model statistics.
 
         This data wil be stored in the training csv file.
 
@@ -149,6 +146,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the observation space of the environment
     ac_space : gym.space.*
         the action space of the environment
+    co_space : gym.space.*
+        the context space of the environment
     buffer_size : int
         the max number of transitions to store
     batch_size : int
@@ -240,6 +239,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  sess,
                  ob_space,
                  ac_space,
+                 co_space,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -270,6 +270,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the observation space of the environment
         ac_space : gym.space.*
             the action space of the environment
+        co_space : gym.space.*
+            the context space of the environment
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -314,7 +316,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space)
+        super(FeedForwardPolicy, self).__init__(sess,
+                                                ob_space, ac_space, co_space)
 
         self.buffer_size = buffer_size
         self.batch_size = batch_size
@@ -347,6 +350,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 2: Create input variables.                                     #
         # =================================================================== #
 
+        # Compute the shape of the input observation space, which may include
+        # the contextual term.
+        if co_space is None:
+            ob_dim = ob_space.shape
+        else:
+            ob_dim = tuple(map(sum, zip(ob_space.shape, co_space.shape)))
+
         with tf.variable_scope("input", reuse=False):
             self.critic_target = tf.placeholder(
                 tf.float32,
@@ -366,11 +376,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 name='actions')
             self.obs_ph = tf.placeholder(
                 tf.float32,
-                shape=(None,) + ob_space.shape,
+                shape=(None,) + ob_dim,
                 name='observations')
             self.obs1_ph = tf.placeholder(
                 tf.float32,
-                shape=(None,) + ob_space.shape,
+                shape=(None,) + ob_dim,
                 name='observations')
 
         # logging of rewards to tensorboard
@@ -384,7 +394,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Observation normalization.
         if normalize_observations:
             with tf.variable_scope('obs_rms'):
-                self.obs_rms = RunningMeanStd(shape=ob_space.shape)
+                self.obs_rms = RunningMeanStd(shape=ob_dim)
         else:
             self.obs_rms = None
 
@@ -477,7 +487,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _setup_actor_optimizer(self, scope):
         """Create the actor loss, gradient, and optimizer."""
         if self.verbose >= 2:
-            logger.info('setting up actor optimizer')
+            logging.info('setting up actor optimizer')
 
         scope_name = 'model/pi/'
         if scope is not None:
@@ -489,8 +499,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                for shape in actor_shapes])
         if self.verbose >= 2:
-            logger.info('  actor shapes: {}'.format(actor_shapes))
-            logger.info('  actor params: {}'.format(actor_nb_params))
+            logging.info('  actor shapes: {}'.format(actor_shapes))
+            logging.info('  actor params: {}'.format(actor_nb_params))
 
         self.actor_grads = tf_util.flatgrad(
             self.actor_loss,
@@ -503,7 +513,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _setup_critic_optimizer(self, scope):
         """Create the critic loss, gradient, and optimizer."""
         if self.verbose >= 2:
-            logger.info('setting up critic optimizer')
+            logging.info('setting up critic optimizer')
 
         normalized_critic_target_tf = tf.clip_by_value(
             tf_util.normalize(self.critic_target, self.ret_rms),
@@ -527,8 +537,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             if self.verbose >= 2:
                 for var in critic_reg_vars:
-                    logger.info('  regularizing: {}'.format(var.name))
-                logger.info('  applying l2 regularization with {}'.format(
+                    logging.info('  regularizing: {}'.format(var.name))
+                logging.info('  applying l2 regularization with {}'.format(
                     self.critic_l2_reg))
 
             critic_reg = tc.layers.apply_regularization(
@@ -543,8 +553,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                 for shape in critic_shapes])
 
         if self.verbose >= 2:
-            logger.info('  critic shapes: {}'.format(critic_shapes))
-            logger.info('  critic params: {}'.format(critic_nb_params))
+            logging.info('  critic shapes: {}'.format(critic_shapes))
+            logging.info('  critic params: {}'.format(critic_nb_params))
 
         self.critic_grads = tf_util.flatgrad(
             self.critic_loss,
@@ -594,6 +604,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 name=scope,
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)))
+
+        # FIXME
+        # # scaling terms to the output from the actor
+        # action_means = tf.constant(
+        #     (self.ac_space.high + self.ac_space.low) / 2.,
+        #     dtype=tf.float32
+        # )
+        # action_magnitudes = tf.constant(
+        #     (self.ac_space.high - self.ac_space.low) / 2.,
+        #     dtype=tf.float32
+        # )
+        #
+        # return action_means + action_magnitudes * policy
 
         return policy
 
@@ -688,12 +711,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss, td_map
 
-    def get_action(self, obs, state=None, mask=None, **kwargs):
+    def get_action(self, obs, **kwargs):
         """See parent class."""
+        # Add the contextual observation, if applicable.
+        context_obs = kwargs.get("context_obs")
+        if context_obs is not None:
+            obs = np.concatenate((obs, context_obs), axis=1)
+
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
-    def value(self, obs, action=None, with_actor=True, state=None, mask=None):
+    def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
+        # Add the contextual observation, if applicable.
+        context_obs = kwargs.get("context_obs")
+        if context_obs is not None:
+            obs = np.concatenate((obs, context_obs), axis=1)
+
         if with_actor:
             return self.sess.run(
                 self.critic_with_actor_tf,
@@ -703,8 +736,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 self.critic_tf,
                 feed_dict={self.obs_ph: obs, self.action_ph: action})
 
-    def store_transition(self, obs0, action, reward, obs1, done):
+    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
+        # Add the contextual observation, if applicable.
+        if kwargs.get("context_obs0") is not None:
+            obs0 = np.concatenate((obs0, kwargs["context_obs0"]), axis=0)
+        if kwargs.get("context_obs1") is not None:
+            obs1 = np.concatenate((obs1, kwargs["context_obs1"]), axis=0)
+
         self.replay_buffer.add(obs0, action, reward, obs1, float(done))
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
@@ -825,6 +864,7 @@ class HIROPolicy(ActorCriticPolicy):
                  sess,
                  ob_space,
                  ac_space,
+                 co_space,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -852,6 +892,8 @@ class HIROPolicy(ActorCriticPolicy):
             the observation space of the environment
         ac_space : gym.space.*
             the action space of the environment
+        co_space : gym.space.*
+            the context space of the environment
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -894,7 +936,7 @@ class HIROPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space)
+        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -906,6 +948,7 @@ class HIROPolicy(ActorCriticPolicy):
                 sess=sess,
                 ob_space=ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
+                co_space=co_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -946,17 +989,13 @@ class HIROPolicy(ActorCriticPolicy):
         # Part 1. Setup the Worker                                            #
         # =================================================================== #
 
-        # Create the observation space for the worker.
-        worker_ob_space = deepcopy(ob_space)
-        # FIXME
-        worker_ob_space.shape = (worker_ob_space.shape[0] * 2, )
-
         # Create the Worker policy.
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=worker_ob_space,
+                ob_space=ob_space,
                 ac_space=ac_space,
+                co_space=ob_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -983,11 +1022,10 @@ class HIROPolicy(ActorCriticPolicy):
                 states=states,
                 goals=goals,
                 next_states=next_states,
-                state_indices=[0, 1],
                 relative_context=False,
                 diff=False,
                 offset=0.0
-            )
+            )[0]
         self.worker_reward = worker_reward
 
     def initialize(self):
@@ -1026,11 +1064,14 @@ class HIROPolicy(ActorCriticPolicy):
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
+                # Store a sample in the Manager policy.
                 self.manager.store_transition(
-                    obs0=list(self.prev_meta_obs),
-                    action=self.prev_meta_action,
+                    obs0=self.prev_meta_obs,
+                    context_obs0=kwargs.get("context_obs0"),
+                    action=self.prev_meta_action[0],
                     reward=self.meta_reward + reward,
                     obs1=obs1,
+                    context_obs1=kwargs.get("context_obs1"),
                     done=done
                 )
             else:
@@ -1049,10 +1090,12 @@ class HIROPolicy(ActorCriticPolicy):
 
         # Add the worker transition to the replay buffer.
         self.worker.store_transition(
-            obs0=list(obs0) + list(self.prev_meta_action),
+            obs0=obs0,
+            context_obs0=self.prev_meta_action,
             action=action,
             reward=worker_reward,
-            obs1=list(obs1) + list(self.meta_action),
+            obs1=obs1,
+            context_obs1=self.meta_action,
             done=done
         )
 

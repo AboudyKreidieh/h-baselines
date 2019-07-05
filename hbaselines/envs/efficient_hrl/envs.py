@@ -9,6 +9,7 @@ from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
+    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
     contextual reward is included to the generic rewards. If a certain goal is
@@ -89,12 +90,36 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     "When not using random contexts, every element in " \
                     "context_range, must be a single value."
 
+    # @property
+    # def observation_space(self):
+    #     shape = self._get_obs().shape[0]
+    #     if self.use_contexts:
+    #         shape += len(self.context_range)
+    #     return Box(low=-10 * np.ones(shape), high=10 * np.ones(shape))
+
     @property
-    def observation_space(self):
-        shape = self._get_obs().shape[0]
+    def context_space(self):
+        """Return the shape and bounds of the contextual term."""
+        # Check if the environment is using contexts, and if not, return a None
+        # value as the context space.
         if self.use_contexts:
-            shape += len(self.context_range)
-        return Box(low=-np.inf * np.ones(shape), high=np.inf * np.ones(shape))
+            # If the context space is random, use the min and max values of
+            # each context to specify the space range. Otherwise, the min and
+            # max values are both the deterministic context value.
+            if self.random_contexts:
+                context_low = []
+                context_high = []
+                for context_i in self.context_range:
+                    low, high = context_i
+                    context_low.append(low)
+                    context_high.append(high)
+                return Box(low=np.asarray(context_low),
+                           high=np.asarray(context_high))
+            else:
+                return Box(low=np.asarray(self.context_range),
+                           high=np.asarray(self.context_range))
+        else:
+            return None
 
     def step(self, action):
         self.step_number += 1
@@ -110,7 +135,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             rew += new_rew
 
             # Add the context to the observation.
-            obs = np.concatenate((obs, self.current_context), axis=0)
+            context_obs = self.current_context
 
             # Compute the done in terms of the distance to the current context.
             done = done or new_done != 1  # FIXME
@@ -118,13 +143,16 @@ class UniversalAntMazeEnv(AntMazeEnv):
             # Add success to the info dict.
             info["is_success"] = new_done != 1  # FIXME
 
+        else:
+            context_obs = None
+
         # Check if the time horizon has been met.
         done = done or self.step_number == self.horizon
 
         # Update the previous observation
         self.prev_obs = np.copy(obs)
 
-        return obs, rew, done, info
+        return (obs, context_obs), rew, done, info
 
     def reset(self):
         self.step_number = 0
@@ -142,14 +170,16 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     minval, maxval = range_i
                     self.current_context.append(random.uniform(minval, maxval))
 
-            # Add the context to the observation.
-            self.prev_obs = self.current_context + list(self.prev_obs)
+            # Convert to numpy array.
+            self.current_context = np.asarray(self.current_context)
 
-        # Convert to numpy array.
-        self.prev_obs = np.asarray(self.prev_obs)
-        self.current_context = np.asarray(self.current_context)
+            # # Add the context to the observation.
+            # self.prev_obs = self.current_context + list(self.prev_obs)
 
-        return self.prev_obs
+        # # Convert to numpy array.
+        # self.prev_obs = np.asarray(self.prev_obs)
+
+        return self.prev_obs, self.current_context
 
 
 class AntMaze(UniversalAntMazeEnv):

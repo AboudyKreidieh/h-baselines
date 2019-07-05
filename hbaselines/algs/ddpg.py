@@ -10,17 +10,16 @@ import time
 from collections import deque
 import csv
 import random
+import logging
 
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
+import hbaselines.hiro.tf_util as tf_util
 from hbaselines.utils.train import ensure_dir
-from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
-from stable_baselines import logger
-from stable_baselines.common import tf_util, SetVerbosity
 
 
 def as_scalar(scalar):
@@ -113,8 +112,6 @@ class DDPG(object):
         the policy object
     sess : tf.Session
         the current tensorflow session
-    params : list of str
-        the names of the trainable parameters
     summary : tf.Summary
         tensorboard summary object
     obs : array_like
@@ -262,14 +259,14 @@ class DDPG(object):
         self.random_exploration = random_exploration
         self.verbose = verbose
         self.policy_kwargs = policy_kwargs
-        self.action_space = env.action_space
-        self.observation_space = env.observation_space
+        self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
+        self.context_space = getattr(self.env, "context_space", None)
 
         # init
         self.graph = None
         self.policy_tf = None
         self.sess = None
-        self.params = None
         self.summary = None
         self.obs = None
         self.episode_step = None
@@ -338,48 +335,43 @@ class DDPG(object):
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
-        with SetVerbosity(self.verbose):
-            # determine whether the action space is continuous
-            assert isinstance(self.action_space, Box), \
-                "Error: DDPG cannot output a {} action space, only " \
-                "spaces.Box is supported.".format(self.action_space)
+        # determine whether the action space is continuous
+        assert isinstance(self.action_space, Box), \
+            "Error: DDPG cannot output a {} action space, only " \
+            "spaces.Box is supported.".format(self.action_space)
 
-            self.graph = tf.Graph()
-            with self.graph.as_default():
-                # Create the tensorflow session.
-                self.sess = tf_util.make_session(num_cpu=1, graph=self.graph)
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            # Create the tensorflow session.
+            self.sess = tf_util.make_session(num_cpu=1, graph=self.graph)
 
-                # Create the policy.
-                self.policy_tf = self.policy(
-                    self.sess,
-                    self.observation_space,
-                    self.action_space,
-                    return_range=self.return_range,
-                    buffer_size=self.buffer_size,
-                    batch_size=self.batch_size,
-                    actor_lr=self.actor_lr,
-                    critic_lr=self.critic_lr,
-                    clip_norm=self.clip_norm,
-                    critic_l2_reg=self.critic_l2_reg,
-                    verbose=self.verbose,
-                    tau=self.tau,
-                    gamma=self.gamma,
-                    normalize_observations=self.normalize_observations,
-                    normalize_returns=self.normalize_returns,
-                    observation_range=self.observation_range
-                )
+            # Create the policy.
+            self.policy_tf = self.policy(
+                self.sess,
+                self.observation_space,
+                self.action_space,
+                self.context_space,
+                return_range=self.return_range,
+                buffer_size=self.buffer_size,
+                batch_size=self.batch_size,
+                actor_lr=self.actor_lr,
+                critic_lr=self.critic_lr,
+                clip_norm=self.clip_norm,
+                critic_l2_reg=self.critic_l2_reg,
+                verbose=self.verbose,
+                tau=self.tau,
+                gamma=self.gamma,
+                normalize_observations=self.normalize_observations,
+                normalize_returns=self.normalize_returns,
+                observation_range=self.observation_range
+            )
 
-                self.params = \
-                    get_trainable_vars("model") + \
-                    get_trainable_vars('noise/') + \
-                    get_trainable_vars('noise_adapt/')
+            # Initialize the model parameters and optimizers.
+            with self.sess.as_default():
+                self.sess.run(tf.global_variables_initializer())
+                self.policy_tf.initialize()
 
-                # Initialize the model parameters and optimizers.
-                with self.sess.as_default():
-                    self.sess.run(tf.global_variables_initializer())
-                    self.policy_tf.initialize()
-
-                self.summary = tf.summary.merge_all()
+            self.summary = tf.summary.merge_all()
 
     def _policy(self, obs, apply_noise=True, compute_q=True):
         """Get the actions and critic output, from a given observation.
@@ -400,14 +392,27 @@ class DDPG(object):
         float
             the critic value
         """
+        # Separate the observations and contextual observations if the
+        # observation consists of a tuple of both.
+        if isinstance(obs, tuple):
+            obs, context = obs
+            context = np.array(context).reshape((-1,)+self.context_space.shape)
+        else:
+            context = None
+
+        del apply_noise  # FIXME
+
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         # TODO: add noise
-        action = self.policy_tf.get_action(obs, time=self.episode_step)
+        action = self.policy_tf.get_action(
+            obs, time=self.episode_step, context_obs=context)
+        # print(action)
         action = action.flatten()
-        action = np.clip(action, -1, 1)
+        action *= self.action_space.high  # FIXME: In policy
 
-        q_value = self.policy_tf.value(obs) if compute_q else None
+        q_value = self.policy_tf.value(obs, context_obs=context) \
+            if compute_q else None
 
         return action, q_value
 
@@ -427,8 +432,17 @@ class DDPG(object):
         terminal1 : bool
             is the episode done
         """
+        if isinstance(obs0, tuple):
+            obs0, context_obs0 = obs0
+            obs1, context_obs1 = obs1
+        else:
+            context_obs0 = None
+            context_obs1 = None
+
         reward *= self.reward_scale
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
+                                        context_obs0=context_obs0,
+                                        context_obs1=context_obs1,
                                         time=self.episode_step)
 
     def _initialize(self):
@@ -484,75 +498,68 @@ class DDPG(object):
         train_filepath = os.path.join(log_dir, "train.csv")
         eval_filepath = os.path.join(log_dir, "eval.csv")
 
-        with SetVerbosity(self.verbose):
-            # Setup the seed value.
-            random.seed(seed)
-            np.random.seed(seed)
-            tf.set_random_seed(seed)
+        # Setup the seed value.
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.set_random_seed(seed)
 
-            # we assume symmetric actions.  # FIXME
-            assert np.all(np.abs(self.env.action_space.low)
-                          == self.env.action_space.high)
-            if self.verbose >= 2:
-                logger.log('Using agent with the following configuration:')
-                logger.log(str(self.__dict__.items()))
+        if self.verbose >= 2:
+            logging.info('Using agent with the following configuration:')
+            logging.info(str(self.__dict__.items()))
 
-            # Initialize class variables.
-            steps_incr = 0
-            self.episode_reward = 0
-            self.episode_step = 0
-            self.episodes = 0
-            self.total_steps = 0
-            self.epoch = 0
-            self.episode_rewards_history = deque(maxlen=100)
+        # Initialize class variables.
+        steps_incr = 0
+        self.episode_reward = 0
+        self.episode_step = 0
+        self.episodes = 0
+        self.total_steps = 0
+        self.epoch = 0
+        self.episode_rewards_history = deque(maxlen=100)
 
-            with self.sess.as_default(), self.graph.as_default():
-                # Prepare everything.
-                self.obs = self.env.reset()
-                start_time = time.time()
+        with self.sess.as_default(), self.graph.as_default():
+            # Prepare everything.
+            self.obs = self.env.reset()
+            start_time = time.time()
 
-                while True:
-                    # Reset epoch-specific variables.
-                    self.epoch_episodes = 0
-                    self.epoch_actions = []
-                    self.epoch_qs = []
-                    self.epoch_actor_losses = []
-                    self.epoch_critic_losses = []
-                    self.epoch_episode_rewards = []
-                    self.epoch_episode_steps = []
+            while True:
+                # Reset epoch-specific variables.
+                self.epoch_episodes = 0
+                self.epoch_actions = []
+                self.epoch_qs = []
+                self.epoch_actor_losses = []
+                self.epoch_critic_losses = []
+                self.epoch_episode_rewards = []
+                self.epoch_episode_steps = []
 
-                    for _ in range(log_interval):
-                        # If the requirement number of time steps has been met,
-                        # terminate training.
-                        if self.total_steps > total_timesteps:
-                            return self
+                for _ in range(log_interval):
+                    # If the requirement number of time steps has been met,
+                    # terminate training.
+                    if self.total_steps > total_timesteps:
+                        return self
 
-                        # Perform rollouts.
-                        self._collect_samples()
+                    # Perform rollouts.
+                    self._collect_samples()
 
-                        # Train.
-                        self._train(writer)
+                    # Train.
+                    self._train(writer)
 
-                    # Log statistics.
-                    self._log_training(
-                        train_filepath,
+                # Log statistics.
+                self._log_training(train_filepath, start_time)
+
+                # Evaluate.
+                if self.eval_env is not None and \
+                        (self.total_steps - steps_incr) >= eval_interval:
+                    steps_incr += eval_interval
+                    eval_rewards, eval_successes = self._evaluate()
+                    self._log_eval(
+                        eval_filepath,
                         start_time,
+                        eval_rewards,
+                        eval_successes
                     )
 
-                    # Evaluate.
-                    if self.eval_env is not None and \
-                            (self.total_steps - steps_incr) >= eval_interval:
-                        steps_incr += eval_interval
-                        eval_rewards, eval_successes = self._evaluate()
-                        self._log_eval(
-                            eval_filepath,
-                            start_time,
-                            eval_rewards,
-                            eval_successes
-                        )
-
-                    # Update the epoch count.
-                    self.epoch += 1
+                # Update the epoch count.
+                self.epoch += 1
 
     # TODO: modify to match the way I want it
     def save(self, save_path):
@@ -590,16 +597,17 @@ class DDPG(object):
             # Randomly sample actions from a uniform distribution with a
             # probability self.random_exploration (used in HER + DDPG)
             if np.random.rand() < self.random_exploration:
-                rescaled_action = action = self.action_space.sample()
-            else:
-                rescaled_action = action * np.abs(self.action_space.low)
+                action = self.action_space.sample()
 
             # Execute next action.
-            new_obs, reward, done, info = self.env.step(rescaled_action)
+            new_obs, reward, done, info = self.env.step(action)
 
             # Visualize the current step.
             if rank == 0 and self.render:
                 self.env.render()
+
+            # Store a transition in the replay buffer.
+            self._store_transition(self.obs, action, reward, new_obs, done)
 
             # Book-keeping.
             self.total_steps += 1
@@ -609,9 +617,6 @@ class DDPG(object):
             self.episode_step += 1
             self.epoch_actions.append(action)
             self.epoch_qs.append(q_value)
-
-            # Store a transition in the replay buffer.
-            self._store_transition(self.obs, action, reward, new_obs, done)
 
             # Update the current observation.
             self.obs = new_obs
@@ -690,17 +695,16 @@ class DDPG(object):
                     apply_noise=False,
                     compute_q=False)
 
-                eval_obs, eval_r, eval_done, eval_info = self.eval_env.step(
-                    eval_action * np.abs(self.action_space.low))
+                obs, eval_r, done, info = self.eval_env.step(eval_action)
 
                 if self.render_eval:
                     self.eval_env.render()
 
                 eval_episode_reward += eval_r
 
-                if eval_done:
+                if done:
                     eval_episode_rewards.append(eval_episode_reward)
-                    maybe_is_success = eval_info.get('is_success')
+                    maybe_is_success = info.get('is_success')
                     if maybe_is_success is not None:
                         eval_episode_successes.append(float(maybe_is_success))
 
@@ -777,10 +781,12 @@ class DDPG(object):
                 w.writerow(combined_stats)
 
         # Print statistics.
+        logging.info("-" * 57)
         for key in sorted(combined_stats.keys()):
-            logger.record_tabular(key, combined_stats[key])
-        logger.dump_tabular()
-        logger.info('')
+            val = combined_stats[key]
+            logging.info("| {:<25} | {:<25} |".format(key, val))
+        logging.info("-" * 57)
+        logging.info('')
 
     def _log_eval(self,
                   file_path,
