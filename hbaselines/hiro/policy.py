@@ -7,7 +7,7 @@ import logging
 
 import hbaselines.hiro.tf_util as tf_util
 from hbaselines.hiro.replay_buffer import ReplayBuffer
-from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.common.reward_fns import negative_distance
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
 
@@ -197,19 +197,23 @@ class FeedForwardPolicy(ActorCriticPolicy):
     obs1_ph : tf.placeholder
         placeholder for the next step observations
     obs_rms : TODO
-        TODO
+        an object that computes the running mean and standard deviations for
+        the observations
     ret_rms : TODO
-        TODO
+        an object that computes the running mean and standard deviations for
+        the rewards
     actor_tf : tf.Variable
         the output from the actor network
     normalized_critic_tf : tf.Variable
-        TODO
+        normalized output from the critic
     normalized_critic_with_actor_tf : tf.Variable
-        TODO
+        normalized output from the critic with the action provided directly by
+        the actor policy
     critic_tf : tf.Variable
-        TODO
+        de-normalized output from the critic
     critic_with_actor_tf : tf.Variable
-        TODO
+        de-normalized output from the critic with the action provided directly
+        by the actor policy
     target_q : tf.Variable
         TODO
     target_init_updates : tf.Operation

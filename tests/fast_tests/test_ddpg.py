@@ -4,9 +4,8 @@ import numpy as np
 import tensorflow as tf
 
 from hbaselines.hiro.algorithm import as_scalar, DDPG
-from hbaselines.utils.exp_replay import GenericMemory, RecurrentMemory
-from hbaselines.utils.exp_replay import HierarchicalRecurrentMemory
-from hbaselines.policies.ddpg import FullyConnectedPolicy, LSTMPolicy
+from hbaselines.common.exp_replay import GenericMemory, RecurrentMemory
+from hbaselines.common.exp_replay import HierarchicalRecurrentMemory
 
 
 class TestAuxiliaryMethods(unittest.TestCase):

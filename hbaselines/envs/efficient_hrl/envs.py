@@ -2,7 +2,7 @@ import numpy as np
 import random
 from gym.spaces import Box
 
-from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.common.reward_fns import negative_distance
 from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 
 
@@ -90,13 +90,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     "When not using random contexts, every element in " \
                     "context_range, must be a single value."
 
-    # @property
-    # def observation_space(self):
-    #     shape = self._get_obs().shape[0]
-    #     if self.use_contexts:
-    #         shape += len(self.context_range)
-    #     return Box(low=-10 * np.ones(shape), high=10 * np.ones(shape))
-
     @property
     def context_space(self):
         """Return the shape and bounds of the contextual term."""
@@ -172,12 +165,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
             # Convert to numpy array.
             self.current_context = np.asarray(self.current_context)
-
-            # # Add the context to the observation.
-            # self.prev_obs = self.current_context + list(self.prev_obs)
-
-        # # Convert to numpy array.
-        # self.prev_obs = np.asarray(self.prev_obs)
 
         return self.prev_obs, self.current_context
 

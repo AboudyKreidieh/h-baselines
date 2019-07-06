@@ -18,7 +18,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 import hbaselines.hiro.tf_util as tf_util
-from hbaselines.utils.train import ensure_dir
+from hbaselines.common.train import ensure_dir
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 

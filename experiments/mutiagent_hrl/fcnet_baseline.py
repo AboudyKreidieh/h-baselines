@@ -8,10 +8,9 @@ import csv
 from time import strftime
 import ray
 
-from hbaselines.utils.train import ensure_dir
-from hbaselines.utils.train import create_parser, get_hyperparameters
-from hbaselines.hiro.algorithm import DDPG
-from hbaselines.hiro.policy import FeedForwardPolicy
+from hbaselines.common.train import ensure_dir
+from hbaselines.common.train import create_parser, get_hyperparameters
+from hbaselines.hiro import DDPG, FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
@@ -19,7 +18,7 @@ NUM_CPUS = 3
 
 @ray.remote
 def run_exp(env, hp, steps, dir_name, i):
-    # use DDPG  TODO: make evaluation an option
+    # TODO: make evaluation an option
     alg = DDPG(policy=FeedForwardPolicy, env=env, eval_env=env, **hp)
 
     # perform training

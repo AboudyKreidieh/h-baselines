@@ -2,7 +2,7 @@
 import unittest
 import numpy as np
 
-from hbaselines.utils.exp_replay import RecurrentMemory
+from hbaselines.common.exp_replay import RecurrentMemory
 
 
 class TestMemory(unittest.TestCase):
