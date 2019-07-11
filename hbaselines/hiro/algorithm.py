@@ -148,6 +148,8 @@ class DDPG(object):
         the cumulative return from the last 100 training episodes
     episode_reward : float
         the cumulative reward since the most reward began
+    saver : tf.train.Saver
+        tensorflow saver object
     """
 
     def __init__(self,
@@ -282,6 +284,9 @@ class DDPG(object):
         self.epoch = None
         self.episode_rewards_history = None
         self.episode_reward = None
+
+        # Create a saver object.
+        self.saver = tf.train.Saver()
 
         if _init_setup_model:
             self.setup_model()
@@ -476,11 +481,6 @@ class DDPG(object):
             when running multiple experiments simultaneously. If set to None,
             the train, evaluate, and tensorboard results are stored in log_dir
             immediately
-
-        Returns
-        -------
-        TODO
-            the trained model
         """
         if exp_num is not None:
             log_dir = os.path.join(log_dir, "trial_{}".format(exp_num))
@@ -534,7 +534,7 @@ class DDPG(object):
                     # If the requirement number of time steps has been met,
                     # terminate training.
                     if self.total_steps > total_timesteps:
-                        return self
+                        return
 
                     # Perform rollouts.
                     self._collect_samples()
@@ -557,26 +557,27 @@ class DDPG(object):
                         eval_successes
                     )
 
+                # Save a checkpoint of the model.
+                self.save(os.path.join(log_dir, str(self.total_steps)))
+
                 # Update the epoch count.
                 self.epoch += 1
 
-    # TODO: modify to match the way I want it
     def save(self, save_path):
-        """
+        """Save the parameters of a tensorflow model.
 
-        :param save_path:
-        :return:
+        save_path : str
+            Prefix of filenames created for the checkpoint
         """
-        pass
+        self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
-    # TODO: modify to match the way I want it
     def load(self, load_path):
-        """
+        """Load model parameters from a checkpoint.
 
-        :param load_path:
-        :return:
+        save_path : str
+            location of the checkpoint
         """
-        pass
+        self.saver.restore(self.sess, load_path)
 
     def _collect_samples(self):
         """Perform the sample collection operation.
