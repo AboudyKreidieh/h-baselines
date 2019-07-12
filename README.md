@@ -72,6 +72,11 @@ learning since the surge of deep neural networks as a viable tool in machine
 learning, this model attempts to adapt more modern machine learning techniques
 to the original model presented by [1].
 
+<strong><ins>Description</ins></strong>: In the Feudal Network, the Manager sets directional goals for the worker, accepts rewards from
+the environment but does not directly act on said environment. The Worker, that runs at a higher temporal resolution
+than the Manager, produces primitive actions on the environment and accepts rewards
+from the Manager for achieving its goals.
+
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 blank
