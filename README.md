@@ -74,7 +74,14 @@ to the original model presented by [1].
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
-blank
+<strong><ins>Description:</ins></strong> Hierarchical Reinforcement learning with
+Off-policy correction is designed for goal directed tasks, in which the agent
+tries to reach some goal. Both the high and low level agents are trained
+by TD3 using the following algorithm: (1) collect experiences consisting
+of environment state, reward, goal, and actions at time step t. (2)
+Train the lower level policy with experience transitions using goals
+as additional state observation and reward given by goal-conditioned
+function. (3) Train the high level policy on temporally extended. (4) Repeat
 
 ### HAC (Learning Multi-Level Hierarchies with Hindsight)
 
