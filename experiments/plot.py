@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 def get_results_labels(dir_path):
     """Retrieve the results and names for each training curve.
 
-    blank
-
     Parameters
     ----------
     dir_path : str

@@ -17,7 +17,8 @@ import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
-import hbaselines.hiro.tf_util as tf_util
+from flow.utils.registry import make_create_env
+from hbaselines.hiro.tf_util import make_session
 from hbaselines.common.train import ensure_dir
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
@@ -285,11 +286,12 @@ class DDPG(object):
         self.episode_rewards_history = None
         self.episode_reward = None
 
-        # Create a saver object.
-        self.saver = tf.train.Saver()
-
         if _init_setup_model:
-            self.setup_model()
+            # Create the model variables and operations.
+            trainable_vars = self.setup_model()
+
+            # Create a saver object.
+            self.saver = tf.train.Saver(trainable_vars)
 
     @staticmethod
     def _create_env(env, evaluate=False):
@@ -316,6 +318,7 @@ class DDPG(object):
                 env = AntMaze(use_contexts=True,
                               random_contexts=True,
                               context_range=[(-4, 20), (-4, 20)])
+
         elif env == "AntPush":
             if evaluate:
                 env = AntPush(use_contexts=True, context_range=[0, 19])
@@ -324,6 +327,7 @@ class DDPG(object):
                 # env = AntPush(use_contexts=True,
                 #               random_contexts=True,
                 #               context_range=[(-16, 16), (-4, 20)])
+
         elif env == "AntFall":
             if evaluate:
                 env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
@@ -333,8 +337,19 @@ class DDPG(object):
                 #               random_contexts=True,
                 #               context_range=[(-4, 12), (-4, 28), (0, 5)])
 
-        if env is not None:
-            env.reset()
+        elif env in ["figureeight0", "figureeight1", "figureeight2", "merge0",
+                     "merge1", "merge2", "bottleneck0", "bottleneck1",
+                     "bottleneck2", "grid0", "grid1"]:
+            # Import the benchmark and fetch its flow_params
+            benchmark = __import__("flow.benchmarks.{}".format(env),
+                                   fromlist=["flow_params"])
+            flow_params = benchmark.flow_params
+
+            # Get the env name and a creator for the environment.
+            create_env, env_name = make_create_env(flow_params, version=0)
+
+            # Create the environment.
+            env = create_env()
 
         return env
 
@@ -348,7 +363,7 @@ class DDPG(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            self.sess = tf_util.make_session(num_cpu=1, graph=self.graph)
+            self.sess = make_session(num_cpu=1, graph=self.graph)
 
             # Create the policy.
             self.policy_tf = self.policy(
@@ -377,6 +392,8 @@ class DDPG(object):
                 self.policy_tf.initialize()
 
             self.summary = tf.summary.merge_all()
+
+            return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
     def _policy(self, obs, apply_noise=True, compute_q=True):
         """Get the actions and critic output, from a given observation.
@@ -558,7 +575,7 @@ class DDPG(object):
                     )
 
                 # Save a checkpoint of the model.
-                self.save(os.path.join(log_dir, str(self.total_steps)))
+                self.save(os.path.join(log_dir, "itr"))
 
                 # Update the epoch count.
                 self.epoch += 1

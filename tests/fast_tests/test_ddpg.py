@@ -120,7 +120,7 @@ class TestDDPG(unittest.TestCase):
         non-recurrent, non-hierarchical case."""
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
-        policy_params['policy'] = FullyConnectedPolicy
+        # policy_params['policy'] = FullyConnectedPolicy
         policy_params['_init_setup_model'] = True
         alg = DDPG(**policy_params)
 
@@ -182,7 +182,7 @@ class TestDDPG(unittest.TestCase):
     def test_model_stats_recurrent(self):
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
-        policy_params['policy'] = LSTMPolicy
+        # policy_params['policy'] = LSTMPolicy
         policy_params['recurrent'] = True
         policy_params['_init_setup_model'] = True
         alg = DDPG(**policy_params)
@@ -246,7 +246,7 @@ class TestDDPG(unittest.TestCase):
         """Ensure that target q returns the right values."""
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
-        policy_params['policy'] = FullyConnectedPolicy
+        # policy_params['policy'] = FullyConnectedPolicy
         policy_params['gamma'] = 1
         policy_params['_init_setup_model'] = True
         alg = DDPG(**policy_params)

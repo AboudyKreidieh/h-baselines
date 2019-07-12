@@ -10,7 +10,7 @@ DEFAULT_DDPG_HP = dict(
     nb_eval_episodes=50,
     normalize_observations=False,
     tau=0.001,
-    batch_size=100,
+    batch_size=128,
     normalize_returns=False,
     observation_range=(-5., 5.),
     critic_l2_reg=0.,
@@ -21,7 +21,7 @@ DEFAULT_DDPG_HP = dict(
     reward_scale=1.,
     render=False,
     render_eval=False,
-    buffer_size=200000,
+    buffer_size=100000,
     random_exploration=0.0,
     verbose=2,
     _init_setup_model=True,
@@ -151,6 +151,9 @@ def create_ddpg_parser(parser):
                         type=int,
                         default=DEFAULT_DDPG_HP['buffer_size'],
                         help='the max number of transitions to store')
+    parser.add_argument('--evaluate',
+                        action='store_true',
+                        help='add an evaluation environment')
 
     return parser
 
