@@ -837,6 +837,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return stats
 
+# TODO start of HIRO policy
+
 
 class HIROPolicy(ActorCriticPolicy):
     """Hierarchical reinforcement learning with off-policy correction.
@@ -979,6 +981,25 @@ class HIROPolicy(ActorCriticPolicy):
         # previous observation by the Manager
         self.prev_meta_obs = None
 
+        """
+            Use this to store a list of observations
+            that stretch as long as the dilated
+            horizon chosen for the Manager.
+            
+            These observations correspond to the s(t)
+            in the HIRO paper.
+        """
+        self._meta_observations = None
+
+        """
+            Use this to store the list of environmental
+            actions that the worker takes.
+            
+            These actions correspond to the a(t)
+            in the HIRO paper.
+        """
+        self._worker_actions = []
+
         # action by the Manager at the previous time step
         self.prev_meta_action = None
 
@@ -1055,7 +1076,44 @@ class HIROPolicy(ActorCriticPolicy):
 
         # Return the worker action.
         worker_obs = np.concatenate((obs, self.meta_action), axis=1)
-        return self.worker.get_action(worker_obs)
+
+        # compute worker action
+        worker_action = self.worker.get_action(worker_obs)
+
+        # notify manager of new worker action to be saved
+        self._notify_manager(worker_action)
+
+        return worker_action
+
+    def _notify_manager(self, action, **kwargs):
+        """
+        Notify the Manager that the Worker produced a new action.
+        These actions are saved in the Manager for future off-
+        policy enhancements.
+
+        Parameters
+        ----------
+        action: Any
+            current action produced by Worker
+        """
+        if kwargs["time"] % self.meta_period == 0:
+            self._worker_actions.clear()
+        else:
+            self._worker_actions.append(action)
+
+    def _observation_memory(self, obs, **kwargs):
+        """
+        Notify the Manager that there is a new environmental
+        observation. These new observations are saved in the
+        Manager for future off-policy correction.
+
+        obs: Any
+            current environmental observation
+        """
+        if kwargs["time"] % self.meta_period == 0:
+            self._meta_observations.clear()
+        else:
+            self._meta_observations.append(obs)
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
         """See parent class."""
@@ -1109,3 +1167,28 @@ class HIROPolicy(ActorCriticPolicy):
     def get_stats(self):
         """See parent class."""
         return {}  # FIXME
+
+    def goal_xsition_model(self,
+                           obs_t,
+                           g_t,
+                           obs_tp1):
+        """
+        Fixed goal transition function defined by the following eqn:
+
+        h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
+
+        Parameters:
+        -----------
+        obs_t: Any
+            environmental observation at time t
+        g_t: Any
+            Worker specified goal at time t
+        obs_tp1: Any
+            environmental observation at time t
+
+        Returns
+        -------
+        g_tp1: Any
+            Worker specified goal at time t+1
+        """
+        return tf.subtract(tf.add(obs_t, g_t), obs_tp1)
