@@ -944,6 +944,8 @@ class HIROPolicy(ActorCriticPolicy):
         """
         super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
 
+        self.replay_buffer = ReplayBuffer(buffer_size)
+
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
@@ -1127,7 +1129,8 @@ class HIROPolicy(ActorCriticPolicy):
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
                 # Store a sample in the Manager policy.
-                self.manager.store_transition(
+                self.replay_buffer.new_add(
+                    goal_updated=kwargs["time"] % self.meta_period == 0,
                     obs0=self.prev_meta_obs,
                     context_obs0=kwargs.get("context_obs0"),
                     action=self.prev_meta_action[0],
@@ -1192,3 +1195,218 @@ class HIROPolicy(ActorCriticPolicy):
             Worker specified goal at time t+1
         """
         return tf.subtract(tf.add(obs_t, g_t), obs_tp1)
+
+    def off_policy_correction(self,
+                              data,
+                              horizon,
+                              c,
+                              state_reps,
+                              next_state_reprs,
+                              prev_meta_actions,
+                              low_states,
+                              low_actions,
+                              low_state_reprs,
+                              tf_spec,
+                              k=8):
+        """
+        Function in order to perform our Manager off-
+        policy correction of specified goals.
+
+        Defined by approximately solving the argmax of:
+
+        -0.5 * summation(||a_i - pi(s_i, g_i)|| ** 2 + constant)
+
+        over all values of time between (t, t+c-1)
+
+        Parameters
+        ----------
+        data: tuple
+            replay buffer data
+        horizon: int
+            Manager horizon
+        c: int
+            constant defined in equation
+        """
+        # current goal
+        goals = [tuple(data.index(3)).index(0)]
+
+        tmp = self._sample_best_meta_action(state_reps,
+                                            next_state_reprs,
+                                            prev_meta_actions,
+                                            low_states,
+                                            low_actions,
+                                            low_state_reprs,
+                                            tf_spec,
+                                            k)
+        # 8 candidate goals
+        for elem in tmp:
+            goals.append(elem)
+
+        # goal based on sampling from a distribution centered
+        # at (s_t+c - s_t)
+        goals.append(self.manager.get_action(
+            list(data.index(0)).index(-1)) - list(data.index(0)).index(0))
+
+        decision_list = []
+        tmp_var = 0
+        for goal in goals:
+            for time in range(horizon):
+                pass # todo continue off policy
+
+    def _sample_best_meta_action(self,
+                                 state_reps,
+                                 next_state_reprs,
+                                 prev_meta_actions,
+                                 low_states,
+                                 low_actions,
+                                 low_state_reprs,
+                                 tf_spec,
+                                 k=8):
+        """
+        Return meta-actions which approximately maximize low-level log-probs.
+
+        state_reps: Any
+            current Manager state observation
+        next_state_reprs: Any
+            next Manager state observation
+        prev_meta_actions: Any
+            previous meta Manager action
+        low_states: Any
+            current Worker state observation
+        low_actions: Any
+            current Worker environmental action
+        low_state_reprs: Any
+            BLANK
+        k: int
+            number of goals returned
+        """
+        sampled_actions = self._sample(state_reps,
+                                       next_state_reprs,
+                                       k,
+                                       prev_meta_actions,
+                                       tf_spec)
+
+        sampled_actions = tf.stop_gradient(sampled_actions)
+
+        sampled_log_probs = tf.reshape(self._log_probs(
+            tf.tile(low_states, [k, 1, 1]),
+            tf.tile(low_actions, [k, 1, 1]),
+            tf.tile(low_state_reprs, [k, 1, 1]),
+            [tf.reshape(sampled_actions, [-1, sampled_actions.shape[-1]])]),
+            [k, low_states.shape[0],
+             low_states.shape[1], -1])
+
+        fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
+        best_actions = tf.argmax(fitness, 0)
+        actions = tf.gather_nd(
+            sampled_actions,
+            tf.stack([best_actions,
+                      tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
+        return actions
+
+    # TODO fix me
+    def _log_probs(self,
+                   states,
+                   actions,
+                   state_reps,
+                   contexts=None):
+        """
+        Utility function that helps in calculating the
+        log probability of the next goal by the Manager.
+
+        states: Any
+            list of states
+        actions: Any
+            list of environmental actions
+        state_reps: Any
+            list of state representations
+        context: Any
+            BLANK
+
+        Returns
+        -------
+        next likely goal by the Manager defined by log prob
+
+        Helps
+        -----
+        * _sample_best_meta_action(self):
+        """
+        pass
+
+    def _sample(self,
+                states,
+                next_states,
+                num_samples,
+                orig_goals,
+                tf_spec,
+                sc=0.5):
+        """
+        Sample different goals from a random Gaussian distribution
+        centered at (s_t+c) - (s_t)
+
+        states: Any
+            current time step observation
+        next_states: Any
+            next time step observation
+        num_samples: Any
+            number of samples
+        orig_goals: Any
+            original goal specified by Manager
+        tf_spec: tf.TensorSpec
+            Metadata for describing the tf.Tensor objects accepted
+            or returned by some TensorFlow APIs.
+        sc: float
+            BLANK
+
+        Helps
+        -----
+        * _sample_best_meta_action(self):
+        """
+        goal_dim = orig_goals.shape[-1]
+        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2 * tf.ones([goal_dim])
+        loc = tf.cast(next_states - states, tf.float32)[:, :goal_dim]
+        scale = sc * tf.tile(tf.reshape(spec_range, [1, goal_dim]),
+                             [tf.shape(states)[0], 1])
+        dist = tf.distributions.Normal(loc, scale)
+        if num_samples == 1:
+            return dist.sample()
+        samples = tf.concat([dist.sample(num_samples - 2),
+                             tf.expand_dims(loc, 0),
+                             tf.expand_dims(orig_goals, 0)], 0)
+        return self._clip_to_spec(samples, tf_spec)
+
+    def _clip_to_spec(self, value, spec):
+        """
+        Clips value to a given bounded tensor spec.
+
+        Args:
+          value: (tensor) value to be clipped.
+          spec: (BoundedTensorSpec) spec containing min. and max. values for clipping.
+
+        Returns:
+          clipped_value: (tensor) `value` clipped to be compatible with `spec`.
+
+        Helps:
+          *_sample(self,
+                states,
+                next_states,
+                num_samples,
+                orig_goals,
+                tf_spec,
+                sc=0.5):
+        """
+        return self.clip_to_bounds(value,
+                                   spec.minimum,
+                                   spec.maximum)
+
+    def clip_to_bounds(self, value, minimum, maximum):
+        """Clips value to be between minimum and maximum.
+        Args:
+          value: (tensor) value to be clipped.
+          minimum: (numpy float array) minimum value to clip to.
+          maximum: (numpy float array) maximum value to clip to.
+        Returns:
+          clipped_value: (tensor) `value` clipped to between `minimum` and `maximum`.
+        """
+        value = tf.minimum(value, maximum)
+        return tf.maximum(value, minimum)

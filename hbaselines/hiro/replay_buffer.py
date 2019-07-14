@@ -88,6 +88,7 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def new_add(self,
+                goal_updated,
                 obs_t,
                 goal_t,
                 action_t,
@@ -167,7 +168,7 @@ class ReplayBuffer(object):
             goals.append(np.array(goals_t, copy=False))
             actions.append(np.array(actions_t, copy=False))
             rewards.append(np.array(rewards_t, copy=False))
-            obses_tp1.append(np.array(obs_tp1, copy=False))
+            # obses_tp1.append(np.array(obs_tp1, copy=False))
             done.append(d)
             h_t.append(np.array(h, copy=False))
 
