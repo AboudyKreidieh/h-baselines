@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow.contrib as tc
+# import tensorflow.contrib as tc
 import numpy as np
 from functools import reduce
 from copy import deepcopy
@@ -425,38 +425,49 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=False):
             self.actor_tf = self._make_actor(normalized_obs0)
-            self.normalized_critic_tf = self._make_critic(
-                normalized_obs0,
-                self.action_ph)
-            self.normalized_critic_with_actor_tf = self._make_critic(
-                normalized_obs0, self.actor_tf, reuse=True)
+            self.normalized_critic_tf = [
+                self._make_critic(normalized_obs0, self.action_ph,
+                                  scope="qf_{}".format(i))
+                for i in range(2)
+            ]
+            self.normalized_critic_with_actor_tf = [
+                self._make_critic(normalized_obs0, self.actor_tf, reuse=True,
+                                  scope="qf_{}".format(i))
+                for i in range(2)
+            ]
 
         with tf.variable_scope("target", reuse=False):
             actor_target = self._make_actor(normalized_obs1)
-            critic_target = self._make_critic(normalized_obs1, actor_target)
+            critic_target = [
+                self._make_critic(normalized_obs1, actor_target,
+                                  scope="qf_{}".format(i))
+                for i in range(2)
+            ]
 
         with tf.variable_scope("loss", reuse=False):
-            self.critic_tf = denormalize(
-                tf.clip_by_value(
-                    self.normalized_critic_tf,
-                    return_range[0],
-                    return_range[1]),
-                self.ret_rms)
+            self.critic_tf = [
+                denormalize(tf.clip_by_value(
+                    critic, return_range[0], return_range[1]), self.ret_rms)
+                for critic in self.normalized_critic_tf
+            ]
 
-            self.critic_with_actor_tf = denormalize(
-                tf.clip_by_value(
-                    self.normalized_critic_with_actor_tf,
-                    return_range[0],
-                    return_range[1]),
-                self.ret_rms)
+            self.critic_with_actor_tf = [
+                denormalize(tf.clip_by_value(
+                    critic, return_range[0], return_range[1]), self.ret_rms)
+                for critic in self.normalized_critic_with_actor_tf
+            ]
 
-            q_obs1 = denormalize(critic_target, self.ret_rms)
+            q_obs1 = tf.reduce_min(  # TODO; check
+                [denormalize(critic_target[0], self.ret_rms),
+                 denormalize(critic_target[1], self.ret_rms)],
+                axis=0
+            )
+            print(q_obs1)
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
             tf.summary.scalar('critic_target',
                               tf.reduce_mean(self.critic_target))
 
-        # TODO: do I need indent?
         # Create the target update operations.
         model_scope = 'model/'
         target_scope = 'target/'
@@ -499,7 +510,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
-        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
         actor_shapes = [var.get_shape().as_list()
                         for var in get_trainable_vars(scope_name)]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
@@ -526,50 +537,59 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.return_range[0],
             self.return_range[1])
 
-        self.critic_loss = tf.reduce_mean(tf.square(
-            self.normalized_critic_tf - normalized_critic_target_tf))
+        self.critic_loss = sum(
+            tf.reduce_mean(tf.square(
+                self.normalized_critic_tf[i] - normalized_critic_target_tf))
+            for i in range(2)
+        )
 
-        scope_name = 'model/qf/'
-        if scope is not None:
-            scope_name = scope + '/' + scope_name
+        # if self.critic_l2_reg > 0.:
+        #     critic_reg_vars = [
+        #         var for var in get_trainable_vars(scope_name)
+        #         if 'bias' not in var.name
+        #         and 'qf_output' not in var.name
+        #         and 'b' not in var.name
+        #     ]
+        #
+        #     if self.verbose >= 2:
+        #         for var in critic_reg_vars:
+        #             logging.info('  regularizing: {}'.format(var.name))
+        #         logging.info('  applying l2 regularization with {}'.format(
+        #             self.critic_l2_reg))
+        #
+        #     critic_reg = tc.layers.apply_regularization(
+        #         tc.layers.l2_regularizer(self.critic_l2_reg),
+        #         weights_list=critic_reg_vars
+        #     )
+        #     self.critic_loss += critic_reg
 
-        if self.critic_l2_reg > 0.:
-            critic_reg_vars = [
-                var for var in get_trainable_vars(scope_name)
-                if 'bias' not in var.name
-                and 'qf_output' not in var.name
-                and 'b' not in var.name
-            ]
+        self.critic_grads = []
+        self.critic_optimizer = []
+
+        for i in range(2):
+            scope_name = 'model/qf_{}/'.format(i)
+            if scope is not None:
+                scope_name = scope + '/' + scope_name
+
+            critic_shapes = [var.get_shape().as_list()
+                             for var in get_trainable_vars(scope_name)]
+            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                    for shape in critic_shapes])
 
             if self.verbose >= 2:
-                for var in critic_reg_vars:
-                    logging.info('  regularizing: {}'.format(var.name))
-                logging.info('  applying l2 regularization with {}'.format(
-                    self.critic_l2_reg))
+                logging.info('  critic shapes: {}'.format(critic_shapes))
+                logging.info('  critic params: {}'.format(critic_nb_params))
 
-            critic_reg = tc.layers.apply_regularization(
-                tc.layers.l2_regularizer(self.critic_l2_reg),
-                weights_list=critic_reg_vars
+            self.critic_grads.append(
+                flatgrad(self.critic_loss,
+                         get_trainable_vars(scope_name),
+                         clip_norm=self.clip_norm)
             )
-            self.critic_loss += critic_reg
 
-        critic_shapes = [var.get_shape().as_list()
-                         for var in get_trainable_vars(scope_name)]
-        critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                for shape in critic_shapes])
-
-        if self.verbose >= 2:
-            logging.info('  critic shapes: {}'.format(critic_shapes))
-            logging.info('  critic params: {}'.format(critic_nb_params))
-
-        self.critic_grads = flatgrad(
-            self.critic_loss,
-            get_trainable_vars(scope_name),
-            clip_norm=self.clip_norm)
-
-        self.critic_optimizer = MpiAdam(
-            var_list=get_trainable_vars(scope_name),
-            beta1=0.9, beta2=0.999, epsilon=1e-08)
+            self.critic_optimizer.append(
+                MpiAdam(var_list=get_trainable_vars(scope_name),
+                        beta1=0.9, beta2=0.999, epsilon=1e-08)
+            )
 
     def _make_actor(self, obs=None, reuse=False, scope="pi"):
         """Create an actor tensor.
@@ -695,8 +715,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         })
 
         # Get all gradients and perform a synced update.
-        ops = [self.actor_grads, self.actor_loss, self.critic_grads,
-               self.critic_loss]
+        ops = [self.actor_grads, self.actor_loss, self.critic_grads[0],
+               self.critic_grads[1], self.critic_loss]
         td_map = {
             self.obs_ph: obs0,
             self.action_ph: actions,
@@ -704,13 +724,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.critic_target: target_q,
         }
 
-        actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+        actor_grads, actor_loss, grads_0, grads_1, critic_loss = self.sess.run(
             ops, td_map)
 
-        self.actor_optimizer.update(
-            actor_grads, learning_rate=self.actor_lr)
-        self.critic_optimizer.update(
-            critic_grads, learning_rate=self.critic_lr)
+        self.actor_optimizer.update(actor_grads, learning_rate=self.actor_lr)
+        self.critic_optimizer[0].update(grads_0, learning_rate=self.critic_lr)
+        self.critic_optimizer[1].update(grads_1, learning_rate=self.critic_lr)
 
         # Run target soft update operation.
         self.sess.run(self.target_soft_updates)
@@ -761,7 +780,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         initializes the target parameters to match the model parameters.
         """
         self.actor_optimizer.sync()
-        self.critic_optimizer.sync()
+        for i in range(2):
+            self.critic_optimizer[i].sync()
         self.sess.run(self.target_init_updates)
 
     def _setup_stats(self):
@@ -778,15 +798,25 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     tf.reduce_mean(self.obs_rms.std)]
             names += ['obs_rms_mean', 'obs_rms_std']
 
-        ops += [tf.reduce_mean(self.critic_tf)]
-        names += ['reference_Q_mean']
-        ops += [reduce_std(self.critic_tf)]
-        names += ['reference_Q_std']
+        ops += [tf.reduce_mean(self.critic_tf[0])]
+        names += ['reference_Q1_mean']
+        ops += [reduce_std(self.critic_tf[0])]
+        names += ['reference_Q1_std']
 
-        ops += [tf.reduce_mean(self.critic_with_actor_tf)]
-        names += ['reference_actor_Q_mean']
-        ops += [reduce_std(self.critic_with_actor_tf)]
-        names += ['reference_actor_Q_std']
+        ops += [tf.reduce_mean(self.critic_tf[1])]
+        names += ['reference_Q2_mean']
+        ops += [reduce_std(self.critic_tf[1])]
+        names += ['reference_Q2_std']
+
+        ops += [tf.reduce_mean(self.critic_with_actor_tf[0])]
+        names += ['reference_actor_Q1_mean']
+        ops += [reduce_std(self.critic_with_actor_tf[0])]
+        names += ['reference_actor_Q1_std']
+
+        ops += [tf.reduce_mean(self.critic_with_actor_tf[1])]
+        names += ['reference_actor_Q2_mean']
+        ops += [reduce_std(self.critic_with_actor_tf[1])]
+        names += ['reference_actor_Q2_std']
 
         ops += [tf.reduce_mean(self.actor_tf)]
         names += ['reference_action_mean']
