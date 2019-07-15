@@ -88,14 +88,13 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def new_add(self,
-                goal_updated,
                 obs_t,
                 goal_t,
                 action_t,
                 reward_t,
-                obs_tp1,
-                done,
-                h_t):
+                done_,
+                h_t,
+                goal_updated):
         """
         Add a new transition to the buffer
 
@@ -109,20 +108,20 @@ class ReplayBuffer(object):
             the goal
         reward_t: float
             the reward of the transition
-        obs_tp1: Any
-            the current observation
-        done: float
+        done_: float
             is the episode done
         h_t: array_like
             the next goal
+        goal_updated: int boolean
+            is the goal updated or no
         """
         data = (obs_t,
                 goal_t,
                 action_t,
                 reward_t,
-                obs_tp1,
-                done,
-                h_t)
+                done_,
+                h_t,
+                goal_updated)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -131,18 +130,20 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
+        obses_t, goals, actions, rewards, dones, hs, g_up = [], [], [], [], [], [], []
         for i in idxes:
             data = self._storage[i]
-            obs_t, action, reward, obs_tp1, done = data
+            obs_t, goals_t, action, reward, done, h, g = data
             obses_t.append(np.array(obs_t, copy=False))
+            goals.append(np.array(goals_t, copy=False))
             actions.append(np.array(action, copy=False))
             rewards.append(reward)
-            obses_tp1.append(np.array(obs_tp1, copy=False))
             dones.append(done)
+            hs.append(np.array(h, copy=False))
+            g_up.append(np.array(g, copy=False))
 
-        return np.array(obses_t), np.array(actions), np.array(rewards), \
-            np.array(obses_tp1), np.array(dones)
+        return np.array(obses_t), np.array(goals), np.array(actions), np.array(rewards), \
+            np.array(dones), np.array(hs), np.array(g_up)
 
     def _new_sample_encoder(self, idxes):
         """
@@ -201,3 +202,29 @@ class ReplayBuffer(object):
         indices = [random.randint(0, len(self._storage) - 1)
                    for _ in range(batch_size)]
         return self._encode_sample(indices)
+
+    def replace(self, d, goal_updated):
+        """
+        Call this function to replace the old goal
+        with the new one when off-policy correction
+        takes place.
+
+        Prerequisite
+        ------------
+        pass the data
+        tuple in the form of a list to allow
+        it to be mutable.
+
+        Postrequisite
+        -------------
+        convert list of data back to tuple
+
+        Parameters
+        ----------
+        d: list
+            experience tuple as a list
+        goal_updated: Any
+            new updated goal
+        """
+        assert type(d) is list
+        d[3] = goal_updated

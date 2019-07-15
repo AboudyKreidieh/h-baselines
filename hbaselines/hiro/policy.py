@@ -991,7 +991,7 @@ class HIROPolicy(ActorCriticPolicy):
             These observations correspond to the s(t)
             in the HIRO paper.
         """
-        self._meta_observations = None
+        self._observations = []
 
         """
             Use this to store the list of environmental
@@ -1007,10 +1007,12 @@ class HIROPolicy(ActorCriticPolicy):
 
         # current action by the Manager
         self.meta_action = None
+        self.goals = []
 
         # current meta reward, counting as the cumulative environment reward
         # during the meta period
         self.meta_reward = None
+        self.rewards = []
 
         # =================================================================== #
         # Part 1. Setup the Worker                                            #
@@ -1070,14 +1072,18 @@ class HIROPolicy(ActorCriticPolicy):
 
         return 0, 0, {}  # FIXME
 
-    def get_action(self, obs, state=None, mask=None, **kwargs):
+    def get_action(self, obs, state=None, mask=None, meta_act=None,**kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
             self.meta_action = self.manager.get_action(obs)
+            self.goals.append(self.meta_action)
 
         # Return the worker action.
-        worker_obs = np.concatenate((obs, self.meta_action), axis=1)
+        if meta_act is None:
+            worker_obs = np.concatenate((obs, self.meta_action), axis=1)
+        else:
+            worker_obs = np.concatenate((obs, meta_act), axis=1)
 
         # compute worker action
         worker_action = self.worker.get_action(worker_obs)
@@ -1113,9 +1119,9 @@ class HIROPolicy(ActorCriticPolicy):
             current environmental observation
         """
         if kwargs["time"] % self.meta_period == 0:
-            self._meta_observations.clear()
+            self._observations.clear()
         else:
-            self._meta_observations.append(obs)
+            self._observations.append(obs)
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
         """See parent class."""
@@ -1130,14 +1136,13 @@ class HIROPolicy(ActorCriticPolicy):
             if kwargs["time"] != 0:
                 # Store a sample in the Manager policy.
                 self.replay_buffer.new_add(
+                    obs_t=self._observations,
+                    goal_t=self.goals,
+                    action_t=self._worker_actions,
+                    reward_t=self.meta_reward,
+                    done_=done,
+                    h_t=self.goal_xsition_model(obs0, action, obs1),
                     goal_updated=kwargs["time"] % self.meta_period == 0,
-                    obs0=self.prev_meta_obs,
-                    context_obs0=kwargs.get("context_obs0"),
-                    action=self.prev_meta_action[0],
-                    reward=self.meta_reward + reward,
-                    obs1=obs1,
-                    context_obs1=kwargs.get("context_obs1"),
-                    done=done
                 )
             else:
                 # This hasn't been assigned yet, so assign it here.
@@ -1149,6 +1154,7 @@ class HIROPolicy(ActorCriticPolicy):
         else:
             # Increment the meta reward with the most recent reward.
             self.meta_reward += reward
+            self.rewards.append(self.meta_reward)
 
         # Compute the worker reward.
         worker_reward = self.worker_reward(obs0, self.meta_action, obs1)
@@ -1245,13 +1251,57 @@ class HIROPolicy(ActorCriticPolicy):
         # goal based on sampling from a distribution centered
         # at (s_t+c - s_t)
         goals.append(self.manager.get_action(
-            list(data.index(0)).index(-1)) - list(data.index(0)).index(0))
+            list(data.index(0)).index(-1)) - list(data.index(0)).index(0))  # got my goals
+
+        tmp_actions = list(data.index(1))
+        actions = []
+        for a in tmp_actions:
+            actions.append(a)  # got my actions
+
+        tmp_states = list(data.index(0))
+        states = []
+        for s in tmp_states:
+            states.append(s)  # got my states
 
         decision_list = []
         tmp_var = 0
-        for goal in goals:
-            for time in range(horizon):
-                pass # todo continue off policy
+        index = 0
+
+        for time in range(horizon):
+            tmp_var -= 0.5 * (
+                    self.euclidean_distance(actions.index(time),
+                                            self.worker.get_action(
+                                                obs=states.index(time),
+                                                meta_act=goals.index(time))) ** 2) + c
+            decision_list.append(dict([(index, tmp_var)]))
+            index, tmp_var = index+1, 0
+
+        # now find the argmax
+        decision = max(decision_list)
+
+        return decision  # todo fix this to be a replacement in replay buffer
+
+    def euclidean_distance(self, a, b):
+        """
+        Computes pairwise distances between each elements of A and each elements of B.
+        Args:
+          a,    [m,d] matrix
+          b,    [n,d] matrix
+        Returns:
+          d,    [m,n] matrix of pairwise distances
+        """
+        with tf.variable_scope('pairwise_dist'):
+            # squared norms of each row in A and B
+            na = tf.reduce_sum(tf.square(a), 1)
+            nb = tf.reduce_sum(tf.square(b), 1)
+
+            # na as a row and nb as a column vectors
+            na = tf.reshape(na, [-1, 1])
+            nb = tf.reshape(nb, [1, -1])
+
+            # return pairwise euclidean difference matrix
+            d = tf.sqrt(tf.maximum(na - 2 * tf.matmul(a, b, False, True) + nb, 0.0))
+        return d
 
     def _sample_best_meta_action(self,
                                  state_reps,
