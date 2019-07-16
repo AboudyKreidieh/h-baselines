@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="39013497-7164-45cb-8eba-2af29f730050" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/hbaselines/hiro/policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/policy.py" afterDir="false" />
-    </list>
+    <list default="true" id="39013497-7164-45cb-8eba-2af29f730050" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -167,12 +164,12 @@
       <updated>1562896015468</updated>
       <workItem from="1562896017014" duration="22722000" />
       <workItem from="1563158821958" duration="6068000" />
-      <workItem from="1563209067634" duration="12783000" />
+      <workItem from="1563209067634" duration="13334000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="49869000" />
+    <option name="totallyTimeSpent" value="50420000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
