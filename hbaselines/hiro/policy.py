@@ -1122,7 +1122,7 @@ class HIROPolicy(ActorCriticPolicy):
             )[0]
         self.worker_reward = worker_reward
 
-        manager_tf = self.manager.get_actor_lr()
+        manager_tf = self.manager.get_actor_tf()
         worker_obs_ph = self.worker.get_obs_ph()
 
         obs = tf.concat((worker_obs_ph, manager_tf), axis=1)
