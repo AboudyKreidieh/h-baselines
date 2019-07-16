@@ -115,37 +115,38 @@ class UniversalAntMazeEnv(AntMazeEnv):
             return None
 
     def step(self, action):
-        self.step_number += 1
+        # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
-        if self.use_contexts:
-            # Add the contextual reward.
-            new_rew, new_done = self.contextual_reward(
-                states=self.prev_obs,
-                next_states=obs,
-                goals=self.current_context,
-            )
-            rew += new_rew
-
-            # Add the context to the observation.
-            context_obs = self.current_context
-
-            # Compute the done in terms of the distance to the current context.
-            done = done or new_done != 1  # FIXME
-
-            # Add success to the info dict.
-            info["is_success"] = new_done != 1  # FIXME
-
-        else:
-            context_obs = None
+        # if self.use_contexts:
+        #     # Add the contextual reward.
+        #     new_rew, new_done = self.contextual_reward(
+        #         states=self.prev_obs,
+        #         next_states=obs,
+        #         goals=self.current_context,
+        #     )
+        #     rew += new_rew
+        #
+        #     # Add the context to the observation.
+        #     context_obs = self.current_context
+        #
+        #     # Compute the done in terms of the distance to the current context.
+        #     done = done or new_done != 1  # FIXME
+        #
+        #     # Add success to the info dict.
+        #     info["is_success"] = new_done != 1  # FIXME
+        #
+        # else:
+        #     context_obs = None
 
         # Check if the time horizon has been met.
+        self.step_number += 1
         done = done or self.step_number == self.horizon
 
-        # Update the previous observation
-        self.prev_obs = np.copy(obs)
+        # # Update the previous observation
+        # self.prev_obs = np.copy(obs)
 
-        return (obs, context_obs), rew, done, info
+        return obs, rew, done, info
 
     def reset(self):
         self.step_number = 0
@@ -166,7 +167,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             # Convert to numpy array.
             self.current_context = np.asarray(self.current_context)
 
-        return self.prev_obs, self.current_context
+        return self.prev_obs  # , self.current_context
 
 
 class AntMaze(UniversalAntMazeEnv):
@@ -212,7 +213,8 @@ class AntMaze(UniversalAntMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 diff=False,
-                offset=0.0
+                offset=0.0,
+                reward_scales=0.1
             )
 
         super(AntMaze, self).__init__(
@@ -268,7 +270,8 @@ class AntPush(UniversalAntMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 diff=False,
-                offset=0.0
+                offset=0.0,
+                reward_scales=0.1
             )
 
         super(AntPush, self).__init__(
@@ -326,7 +329,8 @@ class AntFall(UniversalAntMazeEnv):
                 state_indices=[0, 1, 2],
                 relative_context=False,
                 diff=False,
-                offset=0.0
+                offset=0.0,
+                reward_scales=0.1
             )
 
         super(AntFall, self).__init__(

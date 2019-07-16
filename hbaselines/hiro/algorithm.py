@@ -19,6 +19,7 @@ from mpi4py import MPI
 
 from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
+from hbaselines.hiro.policy import FeedForwardPolicy
 from hbaselines.common.train import ensure_dir
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
@@ -351,6 +352,9 @@ class DDPG(object):
             # Create the environment.
             env = create_env()
 
+        if env is not None:
+            env.reset()
+
         return env
 
     def setup_model(self):
@@ -371,6 +375,7 @@ class DDPG(object):
                 self.observation_space,
                 self.action_space,
                 self.context_space,
+                self.env,
                 return_range=self.return_range,
                 buffer_size=self.buffer_size,
                 batch_size=self.batch_size,
@@ -414,17 +419,10 @@ class DDPG(object):
         float
             the critic value
         """
-        # Separate the observations and contextual observations if the
-        # observation consists of a tuple of both.
-        if isinstance(obs, tuple):
-            obs, context = obs
-            context = np.array(context).reshape((-1,)+self.context_space.shape)
-        else:
-            context = None
-
         del apply_noise  # FIXME
 
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+        context = [getattr(self.env, "current_context", None)]
 
         # TODO: add noise
         action = self.policy_tf.get_action(
@@ -453,17 +451,18 @@ class DDPG(object):
         terminal1 : bool
             is the episode done
         """
-        if isinstance(obs0, tuple):
-            obs0, context_obs0 = obs0
-            obs1, context_obs1 = obs1
+        if hasattr(self.env, "current_context"):
+            context = self.env.current_context
+            # Add the contextual reward to the environment reward.
+            if isinstance(self.policy_tf, FeedForwardPolicy):
+                reward += self.env.contextual_reward(obs0, context, obs1)[0]
         else:
-            context_obs0 = None
-            context_obs1 = None
+            context = None
 
         reward *= self.reward_scale
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
-                                        context_obs0=context_obs0,
-                                        context_obs1=context_obs1,
+                                        context_obs0=context,
+                                        context_obs1=context,
                                         time=self.episode_step)
 
     def _initialize(self):
@@ -625,6 +624,15 @@ class DDPG(object):
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
+
+            # FIXME: hack
+            if (self.episode_step % 10 == 0 and self.episode_step > 0) or done:
+                # Add the contextual reward, if needed.
+                reward += self.env.contextual_reward(
+                    states=self.obs,
+                    goals=self.env.current_context,
+                    next_states=new_obs
+                )[0]
 
             # Book-keeping.
             self.total_steps += 1

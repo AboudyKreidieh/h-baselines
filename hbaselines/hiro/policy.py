@@ -29,7 +29,7 @@ class ActorCriticPolicy(object):
         the context space of the environment
     """
 
-    def __init__(self, sess, ob_space, ac_space, co_space):
+    def __init__(self, sess, ob_space, ac_space, co_space, env):
         """Instantiate the base policy object.
 
         Parameters
@@ -47,6 +47,7 @@ class ActorCriticPolicy(object):
         self.ob_space = ob_space
         self.ac_space = ac_space
         self.co_space = co_space
+        self.env = env  # FIXME: hack
 
     def initialize(self):
         """Initialize the policy.
@@ -246,6 +247,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
+                 env,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -322,8 +324,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(FeedForwardPolicy, self).__init__(sess,
-                                                ob_space, ac_space, co_space)
+        super(FeedForwardPolicy, self).__init__(
+            sess, ob_space, ac_space, co_space, env)
 
         self.buffer_size = buffer_size
         self.batch_size = batch_size
@@ -462,7 +464,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  denormalize(critic_target[1], self.ret_rms)],
                 axis=0
             )
-            print(q_obs1)
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
             tf.summary.scalar('critic_target',
@@ -765,9 +766,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         if kwargs.get("context_obs0") is not None:
-            obs0 = np.concatenate((obs0, kwargs["context_obs0"]), axis=0)
+            obs0 = np.concatenate(
+                (obs0, kwargs["context_obs0"].flatten()), axis=0)
         if kwargs.get("context_obs1") is not None:
-            obs1 = np.concatenate((obs1, kwargs["context_obs1"]), axis=0)
+            obs1 = np.concatenate(
+                (obs1, kwargs["context_obs1"].flatten()), axis=0)
 
         self.replay_buffer.add(obs0, action, reward, obs1, float(done))
         if self.normalize_observations:
@@ -901,6 +904,7 @@ class HIROPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
+                 env,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -972,7 +976,7 @@ class HIROPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
+        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space, env)
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -985,6 +989,7 @@ class HIROPolicy(ActorCriticPolicy):
                 ob_space=ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
+                env=env,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1032,6 +1037,7 @@ class HIROPolicy(ActorCriticPolicy):
                 ob_space=ob_space,
                 ac_space=ac_space,
                 co_space=ob_space,
+                env=env,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1083,13 +1089,12 @@ class HIROPolicy(ActorCriticPolicy):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
-            self.meta_action = self.manager.get_action(obs)
+            self.meta_action = self.manager.get_action(obs, **kwargs)
 
         # Return the worker action.
-        worker_obs = np.concatenate((obs, self.meta_action), axis=1)
-        return self.worker.get_action(worker_obs)
+        return self.worker.get_action(obs, context_obs=self.meta_action)
 
-    def value(self, obs, action=None, with_actor=True, state=None, mask=None):
+    def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
         return 0  # FIXME
 
@@ -1100,6 +1105,14 @@ class HIROPolicy(ActorCriticPolicy):
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
+                # Add the contextual reward, if needed.
+                if self.co_space is not None:
+                    reward += self.env.contextual_reward(
+                        states=self.prev_meta_obs,
+                        goals=kwargs.get("context_obs0"),
+                        next_states=obs1
+                    )[0]
+
                 # Store a sample in the Manager policy.
                 self.manager.store_transition(
                     obs0=self.prev_meta_obs,
