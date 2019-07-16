@@ -692,6 +692,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.terminals1: terminals1
         })
 
+        # TODO this is the belly of the gradient beast
+        # TODO ---------------------------------------
         # Get all gradients and perform a synced update.
         ops = [self.actor_grads, self.actor_loss, self.critic_grads,
                self.critic_loss]
@@ -701,6 +703,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.rew_ph: rewards,
             self.critic_target: target_q,
         }
+        # TODO ---------------------------------------
 
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
             ops, td_map)
@@ -718,7 +721,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def get_action(self, obs, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
+        context_obs = kwargs.get("context_obs")  # goals specified by Manager
         if context_obs is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
@@ -1072,7 +1075,7 @@ class HIROPolicy(ActorCriticPolicy):
 
         return 0, 0, {}  # FIXME
 
-    def get_action(self, obs, state=None, mask=None, meta_act=None,**kwargs):
+    def get_action(self, obs, state=None, mask=None, meta_act=None, **kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
@@ -1357,19 +1360,17 @@ class HIROPolicy(ActorCriticPolicy):
     # TODO fix me
     def _log_probs(self,
                    states,
-                   actions,
-                   state_reps,
-                   contexts=None):
+                   actions,  # use this as a target value for error
+                   tf_spec,  # use this to define max and min
+                   goals):
         """
         Utility function that helps in calculating the
         log probability of the next goal by the Manager.
 
         states: Any
-            list of states
-        actions: Any
-            list of environmental actions
+            list of states corresponding to that of Manager
         state_reps: Any
-            list of state representations
+            list of state representations corresponding to s(t)
         context: Any
             BLANK
 
@@ -1381,7 +1382,30 @@ class HIROPolicy(ActorCriticPolicy):
         -----
         * _sample_best_meta_action(self):
         """
-        pass
+        batch_dims = [tf.shape(states)[0], tf.shape(states)[1]]
+
+        contexts = []
+        for index in range(len(states)-1):
+            contexts.append(self.goal_xsition_model(states[index],
+                                                    goals[index],
+                                                    states[index+1]))
+
+        flat_contexts = [tf.reshape(tf.cast(context, states.dtype),
+                                    [batch_dims[0] * batch_dims[1], context.shape[-1]])
+                         for context in contexts]
+
+        flat_pred_actions = self.worker.get_action(flat_contexts)
+
+        pred_actions = tf.reshape(flat_pred_actions,
+                                  batch_dims + [flat_pred_actions.shape[-1]])
+
+        error = tf.square(actions - pred_actions)
+
+        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2
+
+        normalized_error = error / tf.constant(spec_range) ** 2
+
+        return -normalized_error
 
     def _sample(self,
                 states,

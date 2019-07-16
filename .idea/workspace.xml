@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="39013497-7164-45cb-8eba-2af29f730050" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/apple.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/apple.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/hbaselines/hiro/policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/policy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -24,11 +22,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="269">
-              <caret line="1141" column="46" lean-forward="true" selection-start-line="1141" selection-start-column="46" selection-end-line="1141" selection-end-column="46" />
+            <state relative-caret-position="307">
+              <caret line="1397" lean-forward="true" selection-start-line="1397" selection-end-line="1397" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -36,11 +34,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="486">
-              <caret line="140" column="30" lean-forward="true" selection-start-line="140" selection-start-column="30" selection-end-line="140" selection-end-column="30" />
+            <state relative-caret-position="341">
+              <caret line="137" column="55" selection-start-line="137" selection-start-column="55" selection-end-line="137" selection-end-column="55" />
             </state>
           </provider>
         </entry>
@@ -60,18 +58,24 @@
       <find>manager</find>
       <find>self.manager</find>
       <find>feedfor</find>
-      <find>update</find>
       <find>sample</find>
       <find>HIRO</find>
       <find>sample_</find>
       <find>off</find>
-      <find>get_action</find>
       <find>off_</find>
       <find>self.repl</find>
       <find>replay_buffer</find>
       <find>new_add</find>
       <find>meta_action</find>
       <find>meta_reward</find>
+      <find>log</find>
+      <find>update</find>
+      <find>def update</find>
+      <find>goal_x</find>
+      <find>log_probs</find>
+      <find>get_action</find>
+      <find>belly</find>
+      <find>log_</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -91,8 +95,8 @@
         <option value="$PROJECT_DIR$/hbaselines/FuN/tests/test_policies/test_feudal_policy.py" />
         <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/hbaselines/hiro/algorithm.py" />
-        <option value="$PROJECT_DIR$/hbaselines/hiro/policy.py" />
         <option value="$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py" />
+        <option value="$PROJECT_DIR$/hbaselines/hiro/policy.py" />
       </list>
     </option>
   </component>
@@ -161,12 +165,13 @@
       <option name="presentableId" value="Default" />
       <updated>1562896015468</updated>
       <workItem from="1562896017014" duration="22722000" />
-      <workItem from="1563158821958" duration="5069000" />
+      <workItem from="1563158821958" duration="6068000" />
+      <workItem from="1563209067634" duration="6195000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="36087000" />
+    <option name="totallyTimeSpent" value="43281000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -181,7 +186,7 @@
     <frame x="0" y="23" width="1440" height="877" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2532189" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25679544" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -288,20 +293,20 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
+    <entry file="file://$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="269">
-          <caret line="1141" column="46" lean-forward="true" selection-start-line="1141" selection-start-column="46" selection-end-line="1141" selection-end-column="46" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="341">
+          <caret line="137" column="55" selection-start-line="137" selection-start-column="55" selection-end-line="137" selection-end-column="55" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py">
+    <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="486">
-          <caret line="140" column="30" lean-forward="true" selection-start-line="140" selection-start-column="30" selection-end-line="140" selection-end-column="30" />
+        <state relative-caret-position="307">
+          <caret line="1397" lean-forward="true" selection-start-line="1397" selection-end-line="1397" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
