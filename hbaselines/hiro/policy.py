@@ -569,7 +569,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             var_list=tf_util.get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def _make_actor(self, obs=None, reuse=False, scope="pi"):
+    def _make_actor(self,
+                    obs=None,
+                    reuse=False,
+                    scope="pi"):
         """Create an actor tensor.
 
         Parameters
@@ -586,13 +589,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
-        
-        if scope == "Worker":
-            if obs is None:
-                obs = np.concatenate((self.obs_ph, self.actor_tf), axis=1)
-            else:
-                obs = np.concatenate((obs, self.actor_tf), axis=1)
-
         if obs is None:
             obs = self.obs_ph
 
@@ -1125,6 +1121,13 @@ class HIROPolicy(ActorCriticPolicy):
                 offset=0.0
             )[0]
         self.worker_reward = worker_reward
+
+        manager_tf = self.manager.get_actor_lr()
+        worker_obs_ph = self.worker.get_obs_ph()
+
+        obs = np.concatenate((worker_obs_ph, manager_tf), axis=1)
+
+        self.worker._make_actor(obs=obs)
 
     def initialize(self):
         """See parent class.
