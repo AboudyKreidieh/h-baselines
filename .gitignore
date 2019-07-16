@@ -5,3 +5,5 @@ __pycache__
 *zip
 run_tests.sh
 debug
+debug.log
+.idea/
