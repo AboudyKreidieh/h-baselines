@@ -586,6 +586,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
+        
+        if scope == "Worker":
+            if obs is None:
+                obs = np.concatenate((self.obs_ph, self.actor_tf), axis=1)
+            else:
+                obs = np.concatenate((obs, self.actor_tf), axis=1)
+
         if obs is None:
             obs = self.obs_ph
 
@@ -840,6 +847,58 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return stats
 
+    def get_target_q(self):
+        return self.target_q
+
+    def get_obs1_ph(self):
+        return self.obs1_ph
+
+    def get_rew_ph(self):
+        return self.rew_ph
+
+    def get_terminals1(self):
+        return self.terminals1
+
+    def get_actor_grads(self):
+        return self.actor_grads
+
+    def get_actor_loss(self):
+        return self.actor_loss
+
+    def get_critic_grads(self):
+        return self.critic_grads
+
+    def get_critic_loss(self):
+        return self.critic_loss
+
+    def get_obs_ph(self):
+        return self.obs_ph
+
+    def get_action_ph(self):
+        return self.action_ph
+
+    def get_critic_target(self):
+        return self.critic_target
+
+    def get_actor_optimizer(self):
+        return self.actor_optimizer
+
+    def get_actor_lr(self):
+        return self.actor_lr
+
+    def get_critic_optimizer(self):
+        return self.critic_optimizer
+
+    def get_critic_lr(self):
+        return self.critic_lr
+
+    def get_target_soft_updates(self):
+        return self.target_soft_updates
+
+    def get_actor_tf(self):
+        return self.actor_tf
+
+
 # TODO start of HIRO policy
 
 
@@ -1017,6 +1076,13 @@ class HIROPolicy(ActorCriticPolicy):
         self.meta_reward = None
         self.rewards = []
 
+        """
+            The following is redundant but necessary if the
+            changes to the update function are to be in the
+            HIRO policy and not the FeedForward.            
+        """
+        self.batch_size = batch_size
+
         # =================================================================== #
         # Part 1. Setup the Worker                                            #
         # =================================================================== #
@@ -1068,12 +1134,55 @@ class HIROPolicy(ActorCriticPolicy):
         self.manager.initialize()
         self.worker.initialize()
 
+    # TODO changes to update
     def update(self):
         """See parent class."""
-        self.manager.update()
-        self.worker.update()
+        # -------------------
 
-        return 0, 0, {}  # FIXME
+        # -------------------
+
+        if not self.replay_buffer.can_sample(self.batch_size):
+            return 0, 0, {}
+
+        # Get a batch
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
+            batch_size=self.batch_size)
+
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        target_q = self.sess.run(self.manager.get_target_q(), feed_dict={
+            self.manager.get_obs1_ph(): obs1,
+            self.manager.get_rew_ph(): rewards,
+            self.manager.get_terminals1(): terminals1
+        })
+
+        # TODO this is the belly of the gradient beast
+        # TODO ---------------------------------------
+        # Get all gradients and perform a synced update.
+        ops = [self.worker.get_actor_grads(), self.worker.get_actor_loss(), self.manager.get_critic_grads(),
+               self.manager.get_critic_loss()]
+        td_map = {
+            self.worker.get_obs_ph(): obs0,
+            self.worker.get_action_ph(): actions,
+            self.manager.get_rew_ph(): rewards,
+            self.manager.get_critic_target(): target_q,
+        }
+        # TODO ---------------------------------------
+
+        actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+            ops, td_map)
+
+        self.worker.get_actor_optimizer().update(
+            actor_grads, learning_rate=self.worker.get_actor_lr())
+        self.manager.get_critic_optimizer().update(
+            critic_grads, learning_rate=self.manager.get_critic_lr())
+
+        # Run target soft update operation.
+        self.sess.run(self.manager.get_target_soft_updates())
+
+        return critic_loss, actor_loss, td_map
 
     def get_action(self, obs, state=None, mask=None, meta_act=None, **kwargs):
         """See parent class."""

@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="39013497-7164-45cb-8eba-2af29f730050" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/hbaselines/hiro/policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/policy.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -25,8 +24,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="307">
-              <caret line="1397" lean-forward="true" selection-start-line="1397" selection-end-line="1397" />
+            <state relative-caret-position="236">
+              <caret line="583" column="15" lean-forward="true" selection-start-line="583" selection-start-column="15" selection-end-line="583" selection-end-column="15" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -47,12 +46,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>hiro</find>
-      <find>.update()</find>
-      <find>store</find>
-      <find>action</find>
-      <find>get_ac</find>
-      <find>best-sam</find>
       <find>high</find>
       <find>store_transition</find>
       <find>manager</find>
@@ -69,13 +62,20 @@
       <find>meta_action</find>
       <find>meta_reward</find>
       <find>log</find>
-      <find>update</find>
       <find>def update</find>
       <find>goal_x</find>
       <find>log_probs</find>
-      <find>get_action</find>
-      <find>belly</find>
       <find>log_</find>
+      <find>belly</find>
+      <find>self.target_q</find>
+      <find>actor_tf</find>
+      <find>obs0</find>
+      <find>ph</find>
+      <find>obs_ph</find>
+      <find>context</find>
+      <find>get_action</find>
+      <find>get_actio</find>
+      <find>update</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -166,12 +166,12 @@
       <updated>1562896015468</updated>
       <workItem from="1562896017014" duration="22722000" />
       <workItem from="1563158821958" duration="6068000" />
-      <workItem from="1563209067634" duration="6195000" />
+      <workItem from="1563209067634" duration="10438000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="43281000" />
+    <option name="totallyTimeSpent" value="47524000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -302,8 +302,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="307">
-          <caret line="1397" lean-forward="true" selection-start-line="1397" selection-end-line="1397" />
+        <state relative-caret-position="236">
+          <caret line="583" column="15" lean-forward="true" selection-start-line="583" selection-start-column="15" selection-end-line="583" selection-end-column="15" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
