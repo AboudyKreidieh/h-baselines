@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="39013497-7164-45cb-8eba-2af29f730050" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/hbaselines/hiro/policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/policy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -25,8 +25,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="259">
-              <caret line="1118" column="39" lean-forward="true" selection-start-line="1118" selection-start-column="39" selection-end-line="1118" selection-end-column="39" />
+            <state relative-caret-position="300">
+              <caret line="1150" column="59" selection-start-line="1150" selection-start-column="59" selection-end-line="1150" selection-end-column="59" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -37,8 +37,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="341">
-              <caret line="137" column="55" selection-start-line="137" selection-start-column="55" selection-end-line="137" selection-end-column="55" />
+            <state relative-caret-position="353">
+              <caret line="170" column="59" selection-start-line="170" selection-start-column="59" selection-end-line="170" selection-end-column="59" />
             </state>
           </provider>
         </entry>
@@ -167,12 +167,12 @@
       <updated>1562896015468</updated>
       <workItem from="1562896017014" duration="22722000" />
       <workItem from="1563158821958" duration="6068000" />
-      <workItem from="1563209067634" duration="11214000" />
+      <workItem from="1563209067634" duration="11561000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="48300000" />
+    <option name="totallyTimeSpent" value="48647000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -296,15 +296,15 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/hbaselines/hiro/replay_buffer.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="341">
-          <caret line="137" column="55" selection-start-line="137" selection-start-column="55" selection-end-line="137" selection-end-column="55" />
+        <state relative-caret-position="353">
+          <caret line="170" column="59" selection-start-line="170" selection-start-column="59" selection-end-line="170" selection-end-column="59" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/hbaselines/hiro/policy.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="259">
-          <caret line="1118" column="39" lean-forward="true" selection-start-line="1118" selection-start-column="39" selection-end-line="1118" selection-end-column="39" />
+        <state relative-caret-position="300">
+          <caret line="1150" column="59" selection-start-line="1150" selection-start-column="59" selection-end-line="1150" selection-end-column="59" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>

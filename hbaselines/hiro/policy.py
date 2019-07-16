@@ -1125,7 +1125,7 @@ class HIROPolicy(ActorCriticPolicy):
         manager_tf = self.manager.get_actor_lr()
         worker_obs_ph = self.worker.get_obs_ph()
 
-        obs = np.concatenate((worker_obs_ph, manager_tf), axis=1)
+        obs = tf.concat((worker_obs_ph, manager_tf), axis=1)
 
         self.worker._make_actor(obs=obs)
 
@@ -1148,6 +1148,7 @@ class HIROPolicy(ActorCriticPolicy):
             return 0, 0, {}
 
         # Get a batch
+        # FIXME use the new sample encoder in replay buffer
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
 
