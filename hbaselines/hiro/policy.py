@@ -1121,10 +1121,13 @@ class HIROPolicy(ActorCriticPolicy):
             return 0, 0, {}
 
         # Get a batch.
-        worker_obs0, worker_actions, worker_rewards, worker_obs1, \
-            worker_done1 = self.worker.replay_buffer.sample(self.batch_size)
-        manager_obs0, manager_actions, manager_rewards, manager_obs1, \
-            manager_done1 = self.manager.replay_buffer.sample(self.batch_size)
+        worker_obs0, _, worker_actions, \
+            worker_rewards, worker_done1, \
+            _, _, worker_obs1 = self.worker.replay_buffer.sample(batch_size=self.batch_size)
+
+        manager_obs0, _, manager_actions, \
+            manager_rewards, manager_done1, \
+            _, _, manager_obs1 = self.manager.replay_buffer.sample(batch_size=self.batch_size)
 
         # Update the Manager policy.
         self.manager.update_from_batch(
