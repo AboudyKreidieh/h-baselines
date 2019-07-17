@@ -263,7 +263,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
-                 scope=None):
+                 scope=None,
+                 use_fingerprint=False,
+                 fingerprint_dim=fingerprint_dim):
         """Instantiate the feed-forward neural network policy.
 
         TODO: describe the scope and the summary.
@@ -316,6 +318,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the activation function to use in the neural network
         scope : str
             an upper-level scope term. Used by policies that call this one.
+        use_fingerprint : bool 
+            if fingerprints are used or not 
 
         Raises
         ------
@@ -342,7 +346,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
-
+        self.use_fingerprint = use_fingerprint
+        self.fingerprint_dim = (1,)
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -356,12 +361,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 2: Create input variables.                                     #
         # =================================================================== #
 
+
         # Compute the shape of the input observation space, which may include
         # the contextual term.
         if co_space is None:
-            ob_dim = ob_space.shape
+            ob_dim = ob_dim
         else:
-            ob_dim = tuple(map(sum, zip(ob_space.shape, co_space.shape)))
+            ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
         with tf.variable_scope("input", reuse=False):
             self.critic_target = tf.placeholder(
@@ -682,7 +688,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size)
+            batch_size=self.batch_size,global_time=self.total_steps)
 
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
@@ -887,7 +893,8 @@ class HIROPolicy(ActorCriticPolicy):
                  layer_norm=False,
                  reuse=False,
                  layers=None,
-                 act_fun=tf.nn.relu):
+                 act_fun=tf.nn.relu,
+                 fingerprint_dim = fingerprint_dim):
         """Instantiate the HIRO policy.
 
         Parameters
@@ -936,12 +943,14 @@ class HIROPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
-
+        fingerprint_dim: int 
+            dimension of the fingerprint added 
         Raises
         ------
         AssertionError
             if the layers is not a list of at least size 1
         """
+        self.fingerprint_dim = fingerprint_dim
         super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
 
         # =================================================================== #
@@ -952,7 +961,7 @@ class HIROPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=ob_space,
+                ob_space=ob_space+self.fingerprint_dim,  
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -991,15 +1000,16 @@ class HIROPolicy(ActorCriticPolicy):
         # during the meta period
         self.meta_reward = None
 
+        
         # =================================================================== #
-        # Part 1. Setup the Worker                                            #
+        # Part 2. Setup the Worker                                            #
         # =================================================================== #
 
         # Create the Worker policy.
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=ob_space,
+                ob_space=ob_space+self.fingerprint_dim,  
                 ac_space=ac_space,
                 co_space=ob_space,
                 buffer_size=buffer_size,
@@ -1022,10 +1032,17 @@ class HIROPolicy(ActorCriticPolicy):
                 scope="Worker"
             )
 
+        # remove the last element to compute the reward 
+        if self.use_fingerprint:
+            state_indices = np.arange(0, self.ob_dim - 1)
+        else:
+            state_indices = None
+
         # reward function for the worker
         def worker_reward(states, goals, next_states):
             return negative_distance(
                 states=states,
+                state_indices=state_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=False,

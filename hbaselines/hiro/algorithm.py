@@ -20,7 +20,7 @@ from mpi4py import MPI
 from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
 from hbaselines.common.train import ensure_dir
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+#from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 
 def as_scalar(scalar):
@@ -179,7 +179,9 @@ class DDPG(object):
                  random_exploration=0.0,
                  verbose=0,
                  _init_setup_model=True,
-                 policy_kwargs=None):
+                 policy_kwargs=None,
+                 use_fingerprint=False,
+                 fingerprint_dim = fingerprint_dim):
         """Instantiate the algorithm object.
 
         Parameters
@@ -265,6 +267,8 @@ class DDPG(object):
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
+        self.use_fingerprint = use_fingerprint
+        self.fingerprint_dim = (1,)
 
         # init
         self.graph = None
@@ -383,7 +387,8 @@ class DDPG(object):
                 gamma=self.gamma,
                 normalize_observations=self.normalize_observations,
                 normalize_returns=self.normalize_returns,
-                observation_range=self.observation_range
+                observation_range=self.observation_range,
+                use_fingerprint=self.use_fingerprint
             )
 
             # Initialize the model parameters and optimizers.
@@ -428,11 +433,11 @@ class DDPG(object):
 
         # TODO: add noise
         action = self.policy_tf.get_action(
-            obs, time=self.episode_step, context_obs=context)
+            obs, time=self.episode_step, context_obs=context, global_time=self.total_steps)
         action = action.flatten()
         action *= self.action_space.high  # FIXME: In policy
 
-        q_value = self.policy_tf.value(obs, context_obs=context) \
+        q_value = self.policy_tf.value(obs, context_obs=context, global_time=self.total_steps) \
             if compute_q else None
 
         return action, q_value
@@ -464,7 +469,8 @@ class DDPG(object):
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
                                         context_obs0=context_obs0,
                                         context_obs1=context_obs1,
-                                        time=self.episode_step)
+                                        time=self.episode_step,
+                                        global_time=self.total_steps)
 
     def _initialize(self):
         """Initialize the model parameters and optimizers."""
@@ -535,6 +541,11 @@ class DDPG(object):
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
             self.obs = self.env.reset()
+            if self.use_fingerprint:
+                e0 = [self.total_steps-1]
+                e1 = [self.total_steps]
+                obs0 = np.concatenate((obs0, e0), axis=0)
+                obs1 = np.concatenate((obs1, e1), axis=0)
             start_time = time.time()
 
             while True:
@@ -619,6 +630,13 @@ class DDPG(object):
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
 
+            # Add fingerprint element, if neeeded.
+            if self.use_fingerprint:
+                e0 = [self.total_steps-1]
+                e1 = [self.total_steps]
+                obs0 = np.concatenate((obs0, e0), axis=0)
+                obs1 = np.concatenate((obs1, e1), axis=0)
+
             # Visualize the current step.
             if rank == 0 and self.render:
                 self.env.render()
@@ -650,6 +668,13 @@ class DDPG(object):
 
                 # Reset the environment.
                 self.obs = self.env.reset()
+
+                # Add fingerprint element, if neeeded.
+                if self.use_fingerprint:
+                    e0 = [self.total_steps-1]
+                    e1 = [self.total_steps]
+                    obs0 = np.concatenate((obs0, e0), axis=0)
+                    obs1 = np.concatenate((obs1, e1), axis=0)
 
     def _train(self, writer):
         """Perform the training operation.
