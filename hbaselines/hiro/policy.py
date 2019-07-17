@@ -29,7 +29,7 @@ class ActorCriticPolicy(object):
         the context space of the environment
     """
 
-    def __init__(self, sess, ob_space, ac_space, co_space, env):
+    def __init__(self, sess, ob_space, ac_space, co_space):
         """Instantiate the base policy object.
 
         Parameters
@@ -47,7 +47,6 @@ class ActorCriticPolicy(object):
         self.ob_space = ob_space
         self.ac_space = ac_space
         self.co_space = co_space
-        self.env = env  # FIXME: hack
 
     def initialize(self):
         """Initialize the policy.
@@ -248,7 +247,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 env,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -323,8 +321,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(FeedForwardPolicy, self).__init__(
-            sess, ob_space, ac_space, co_space, env)
+        super(FeedForwardPolicy, self).__init__(sess,
+                                                ob_space, ac_space, co_space)
 
         self.buffer_size = buffer_size
         self.batch_size = batch_size
@@ -953,7 +951,6 @@ class HIROPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 env,
                  buffer_size,
                  batch_size,
                  actor_lr,
@@ -1048,7 +1045,7 @@ class HIROPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space, env)
+        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
         self.relative_goals = relative_goals
@@ -1068,7 +1065,6 @@ class HIROPolicy(ActorCriticPolicy):
                 ob_space=ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
-                env=env,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1117,7 +1113,6 @@ class HIROPolicy(ActorCriticPolicy):
                 ob_space=ob_space,
                 ac_space=ac_space,
                 co_space=ob_space,
-                env=env,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1214,14 +1209,6 @@ class HIROPolicy(ActorCriticPolicy):
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
-                # Add the contextual reward, if needed.
-                if self.co_space is not None:
-                    reward += self.env.contextual_reward(
-                        states=self.prev_meta_obs,
-                        goals=kwargs.get("context_obs0"),
-                        next_states=obs1
-                    )[0]
-
                 # Store a sample in the Manager policy.
                 self.manager.store_transition(
                     obs0=self.prev_meta_obs,
