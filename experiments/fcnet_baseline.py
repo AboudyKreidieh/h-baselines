@@ -17,15 +17,15 @@ NUM_CPUS = 3
 
 
 @ray.remote
-def run_exp(env, hp, steps, dir_name, i):
-    # TODO: make evaluation an option
-    alg = DDPG(policy=FeedForwardPolicy, env=env, eval_env=env, **hp)
+def run_exp(env, hp, steps, dir_name, evaluate, i):
+    eval_env = env if evaluate else None
+    alg = DDPG(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=10000,
+        log_interval=1000,
         seed=None,
         exp_num=i
     )
@@ -57,7 +57,7 @@ def main():
         w.writerow(hp)
 
     ray.init(num_cpus=NUM_CPUS)
-    ray.get([run_exp.remote(env, hp, args.steps, dir_name, i)
+    ray.get([run_exp.remote(env, hp, args.steps, dir_name, args.evaluate, i)
              for i in range(args.n_training)])
     # [run_exp(env, hp, args.steps, dir_name, i)
     #  for i in range(args.n_training)]

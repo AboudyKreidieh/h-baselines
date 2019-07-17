@@ -5,7 +5,9 @@ from functools import reduce
 from copy import deepcopy
 import logging
 
-import hbaselines.hiro.tf_util as tf_util
+from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
+from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
+from hbaselines.hiro.tf_util import reduce_std
 from hbaselines.hiro.replay_buffer import ReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
 from stable_baselines.common.mpi_adam import MpiAdam
@@ -185,7 +187,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.placeholder
-        TODO
+        a placeholder for the current-step estimate of the target Q values
     terminals1 : tf.placeholder
         placeholder for the next step terminals
     rew_ph : tf.placeholder
@@ -196,10 +198,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.placeholder
         placeholder for the next step observations
-    obs_rms : TODO
+    obs_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the observations
-    ret_rms : TODO
+    ret_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the rewards
     actor_tf : tf.Variable
@@ -215,7 +217,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         de-normalized output from the critic with the action provided directly
         by the actor policy
     target_q : tf.Variable
-        TODO
+        the Q-value as estimated by the current reward and next step estimate
+        by the target Q-value
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -263,8 +266,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun=tf.nn.relu,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
-
-        TODO: describe the scope and the summary.
 
         Parameters
         ----------
@@ -403,10 +404,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.obs_rms = None
 
         normalized_obs0 = tf.clip_by_value(
-            tf_util.normalize(self.obs_ph, self.obs_rms),
+            normalize(self.obs_ph, self.obs_rms),
             observation_range[0], observation_range[1])
         normalized_obs1 = tf.clip_by_value(
-            tf_util.normalize(self.obs1_ph, self.obs_rms),
+            normalize(self.obs1_ph, self.obs_rms),
             observation_range[0], observation_range[1])
 
         # Return normalization.
@@ -434,36 +435,35 @@ class FeedForwardPolicy(ActorCriticPolicy):
             critic_target = self._make_critic(normalized_obs1, actor_target)
 
         with tf.variable_scope("loss", reuse=False):
-            self.critic_tf = tf_util.denormalize(
+            self.critic_tf = denormalize(
                 tf.clip_by_value(
                     self.normalized_critic_tf,
                     return_range[0],
                     return_range[1]),
                 self.ret_rms)
 
-            self.critic_with_actor_tf = tf_util.denormalize(
+            self.critic_with_actor_tf = denormalize(
                 tf.clip_by_value(
                     self.normalized_critic_with_actor_tf,
                     return_range[0],
                     return_range[1]),
                 self.ret_rms)
 
-            q_obs1 = tf_util.denormalize(critic_target, self.ret_rms)
+            q_obs1 = denormalize(critic_target, self.ret_rms)
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
             tf.summary.scalar('critic_target',
                               tf.reduce_mean(self.critic_target))
 
-        # TODO: do I need indent?
         # Create the target update operations.
         model_scope = 'model/'
         target_scope = 'target/'
         if scope is not None:
             model_scope = scope + '/' + model_scope
             target_scope = scope + '/' + target_scope
-        init_updates, soft_updates = tf_util.get_target_updates(
-            tf_util.get_trainable_vars(model_scope),
-            tf_util.get_trainable_vars(target_scope),
+        init_updates, soft_updates = get_target_updates(
+            get_trainable_vars(model_scope),
+            get_trainable_vars(target_scope),
             tau, verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
@@ -499,19 +499,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
         actor_shapes = [var.get_shape().as_list()
-                        for var in tf_util.get_trainable_vars(scope_name)]
+                        for var in get_trainable_vars(scope_name)]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                for shape in actor_shapes])
         if self.verbose >= 2:
             logging.info('  actor shapes: {}'.format(actor_shapes))
             logging.info('  actor params: {}'.format(actor_nb_params))
 
-        self.actor_grads = tf_util.flatgrad(
+        self.actor_grads = flatgrad(
             self.actor_loss,
-            tf_util.get_trainable_vars(scope_name),
+            get_trainable_vars(scope_name),
             clip_norm=self.clip_norm)
         self.actor_optimizer = MpiAdam(
-            var_list=tf_util.get_trainable_vars(scope_name),
+            var_list=get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def _setup_critic_optimizer(self, scope):
@@ -520,7 +520,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             logging.info('setting up critic optimizer')
 
         normalized_critic_target_tf = tf.clip_by_value(
-            tf_util.normalize(self.critic_target, self.ret_rms),
+            normalize(self.critic_target, self.ret_rms),
             self.return_range[0],
             self.return_range[1])
 
@@ -533,7 +533,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         if self.critic_l2_reg > 0.:
             critic_reg_vars = [
-                var for var in tf_util.get_trainable_vars(scope_name)
+                var for var in get_trainable_vars(scope_name)
                 if 'bias' not in var.name
                 and 'qf_output' not in var.name
                 and 'b' not in var.name
@@ -552,7 +552,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.critic_loss += critic_reg
 
         critic_shapes = [var.get_shape().as_list()
-                         for var in tf_util.get_trainable_vars(scope_name)]
+                         for var in get_trainable_vars(scope_name)]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                 for shape in critic_shapes])
 
@@ -560,13 +560,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
             logging.info('  critic shapes: {}'.format(critic_shapes))
             logging.info('  critic params: {}'.format(critic_nb_params))
 
-        self.critic_grads = tf_util.flatgrad(
+        self.critic_grads = flatgrad(
             self.critic_loss,
-            tf_util.get_trainable_vars(scope_name),
+            get_trainable_vars(scope_name),
             clip_norm=self.clip_norm)
 
         self.critic_optimizer = MpiAdam(
-            var_list=tf_util.get_trainable_vars(scope_name),
+            var_list=get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def _make_actor(self, obs=None, reuse=False, scope="pi"):
@@ -778,17 +778,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         ops += [tf.reduce_mean(self.critic_tf)]
         names += ['reference_Q_mean']
-        ops += [tf_util.reduce_std(self.critic_tf)]
+        ops += [reduce_std(self.critic_tf)]
         names += ['reference_Q_std']
 
         ops += [tf.reduce_mean(self.critic_with_actor_tf)]
         names += ['reference_actor_Q_mean']
-        ops += [tf_util.reduce_std(self.critic_with_actor_tf)]
+        ops += [reduce_std(self.critic_with_actor_tf)]
         names += ['reference_actor_Q_std']
 
         ops += [tf.reduce_mean(self.actor_tf)]
         names += ['reference_action_mean']
-        ops += [tf_util.reduce_std(self.actor_tf)]
+        ops += [reduce_std(self.actor_tf)]
         names += ['reference_action_std']
 
         return ops, names
@@ -849,6 +849,20 @@ class HIROPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    relative_goals : bool
+        specifies whether the goal issued by the Manager is meant to be a
+        relative or absolute goal, i.e. specific state or change in state
+    off_policy_corrections : bool
+        whether to use off-policy corrections during the update procedure. See:
+        https://arxiv.org/abs/1805.08296.
+    use_fingerprints : bool
+        specifies whether to add a time-dependent fingerprint to the
+        observations
+    centralized_value_functions : bool
+        specifies whether to use centralized value functions for the Manager
+        and Worker critic functions
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
@@ -885,7 +899,13 @@ class HIROPolicy(ActorCriticPolicy):
                  layer_norm=False,
                  reuse=False,
                  layers=None,
-                 act_fun=tf.nn.relu):
+                 act_fun=tf.nn.relu,
+                 meta_period=10,
+                 relative_goals=False,
+                 off_policy_corrections=False,
+                 use_fingerprints=False,
+                 centralized_value_functions=False,
+                 connected_gradients=False):
         """Instantiate the HIRO policy.
 
         Parameters
@@ -934,6 +954,23 @@ class HIROPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        meta_period : int, optional
+            manger action period. Defaults to 10.
+        relative_goals : bool, optional
+            specifies whether the goal issued by the Manager is meant to be a
+            relative or absolute goal, i.e. specific state or change in state
+        off_policy_corrections : bool, optional
+            whether to use off-policy corrections during the update procedure.
+            See: https://arxiv.org/abs/1805.08296. Defaults to False.
+        use_fingerprints : bool, optional
+            specifies whether to add a time-dependent fingerprint to the
+            observations
+        centralized_value_functions : bool, optional
+            specifies whether to use centralized value functions for the
+            Manager and Worker critic functions
+        connected_gradients : bool, optional
+            whether to connect the graph between the manager and worker.
+            Defaults to False.
 
         Raises
         ------
@@ -941,6 +978,13 @@ class HIROPolicy(ActorCriticPolicy):
             if the layers is not a list of at least size 1
         """
         super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
+
+        self.meta_period = meta_period
+        self.relative_goals = relative_goals
+        self.off_policy_corrections = off_policy_corrections
+        self.use_fingerprints = use_fingerprints
+        self.centralized_value_functions = centralized_value_functions
+        self.connected_gradients = connected_gradients
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -972,9 +1016,6 @@ class HIROPolicy(ActorCriticPolicy):
                 act_fun=act_fun,
                 scope="Manager"
             )
-
-        # manger action period
-        self.meta_period = 10  # FIXME
 
         # previous observation by the Manager
         self.prev_meta_obs = None
