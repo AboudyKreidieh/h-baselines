@@ -188,7 +188,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.placeholder
-        TODO
+        a placeholder for the current-step estimate of the target Q values
     terminals1 : tf.placeholder
         placeholder for the next step terminals
     rew_ph : tf.placeholder
@@ -199,10 +199,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.placeholder
         placeholder for the next step observations
-    obs_rms : TODO
+    obs_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the observations
-    ret_rms : TODO
+    ret_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the rewards
     actor_tf : tf.Variable
@@ -218,7 +218,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         de-normalized output from the critic with the action provided directly
         by the actor policy
     target_q : tf.Variable
-        TODO
+        the Q-value as estimated by the current reward and next step estimate
+        by the target Q-value
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -267,8 +268,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun=tf.nn.relu,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
-
-        TODO: describe the scope and the summary.
 
         Parameters
         ----------
@@ -884,6 +883,20 @@ class HIROPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    relative_goals : bool
+        specifies whether the goal issued by the Manager is meant to be a
+        relative or absolute goal, i.e. specific state or change in state
+    off_policy_corrections : bool
+        whether to use off-policy corrections during the update procedure. See:
+        https://arxiv.org/abs/1805.08296.
+    use_fingerprints : bool
+        specifies whether to add a time-dependent fingerprint to the
+        observations
+    centralized_value_functions : bool
+        specifies whether to use centralized value functions for the Manager
+        and Worker critic functions
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
@@ -921,7 +934,13 @@ class HIROPolicy(ActorCriticPolicy):
                  layer_norm=False,
                  reuse=False,
                  layers=None,
-                 act_fun=tf.nn.relu):
+                 act_fun=tf.nn.relu,
+                 meta_period=10,
+                 relative_goals=False,
+                 off_policy_corrections=False,
+                 use_fingerprints=False,
+                 centralized_value_functions=False,
+                 connected_gradients=False):
         """Instantiate the HIRO policy.
 
         Parameters
@@ -970,6 +989,23 @@ class HIROPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        meta_period : int, optional
+            manger action period. Defaults to 10.
+        relative_goals : bool, optional
+            specifies whether the goal issued by the Manager is meant to be a
+            relative or absolute goal, i.e. specific state or change in state
+        off_policy_corrections : bool, optional
+            whether to use off-policy corrections during the update procedure.
+            See: https://arxiv.org/abs/1805.08296. Defaults to False.
+        use_fingerprints : bool, optional
+            specifies whether to add a time-dependent fingerprint to the
+            observations
+        centralized_value_functions : bool, optional
+            specifies whether to use centralized value functions for the
+            Manager and Worker critic functions
+        connected_gradients : bool, optional
+            whether to connect the graph between the manager and worker.
+            Defaults to False.
 
         Raises
         ------
@@ -977,6 +1013,13 @@ class HIROPolicy(ActorCriticPolicy):
             if the layers is not a list of at least size 1
         """
         super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space, env)
+
+        self.meta_period = meta_period
+        self.relative_goals = relative_goals
+        self.off_policy_corrections = off_policy_corrections
+        self.use_fingerprints = use_fingerprints
+        self.centralized_value_functions = centralized_value_functions
+        self.connected_gradients = connected_gradients
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -1009,9 +1052,6 @@ class HIROPolicy(ActorCriticPolicy):
                 act_fun=act_fun,
                 scope="Manager"
             )
-
-        # manger action period
-        self.meta_period = 10  # FIXME
 
         # previous observation by the Manager
         self.prev_meta_obs = None
