@@ -1,5 +1,5 @@
 import tensorflow as tf
-# import tensorflow.contrib as tc
+import tensorflow.contrib as tc
 import numpy as np
 from functools import reduce
 from copy import deepcopy
@@ -458,7 +458,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for critic in self.normalized_critic_with_actor_tf
             ]
 
-            q_obs1 = tf.reduce_min(  # TODO; check
+            q_obs1 = tf.reduce_min(
                 [denormalize(critic_target[0], self.ret_rms),
                  denormalize(critic_target[1], self.ret_rms)],
                 axis=0
@@ -543,25 +543,31 @@ class FeedForwardPolicy(ActorCriticPolicy):
             for i in range(2)
         )
 
-        # if self.critic_l2_reg > 0.:
-        #     critic_reg_vars = [
-        #         var for var in get_trainable_vars(scope_name)
-        #         if 'bias' not in var.name
-        #         and 'qf_output' not in var.name
-        #         and 'b' not in var.name
-        #     ]
-        #
-        #     if self.verbose >= 2:
-        #         for var in critic_reg_vars:
-        #             logging.info('  regularizing: {}'.format(var.name))
-        #         logging.info('  applying l2 regularization with {}'.format(
-        #             self.critic_l2_reg))
-        #
-        #     critic_reg = tc.layers.apply_regularization(
-        #         tc.layers.l2_regularizer(self.critic_l2_reg),
-        #         weights_list=critic_reg_vars
-        #     )
-        #     self.critic_loss += critic_reg
+        if self.critic_l2_reg > 0.:
+            critic_reg_vars = []
+            for i in range(2):
+                scope_name = 'model/qf_{}/'.format(i)
+                if scope is not None:
+                    scope_name = scope + '/' + scope_name
+
+                critic_reg_vars += [
+                    var for var in get_trainable_vars(scope_name)
+                    if 'bias' not in var.name
+                    and 'qf_output' not in var.name
+                    and 'b' not in var.name
+                ]
+
+            if self.verbose >= 2:
+                for var in critic_reg_vars:
+                    logging.info('  regularizing: {}'.format(var.name))
+                logging.info('  applying l2 regularization with {}'.format(
+                    self.critic_l2_reg))
+
+            critic_reg = tc.layers.apply_regularization(
+                tc.layers.l2_regularizer(self.critic_l2_reg),
+                weights_list=critic_reg_vars
+            )
+            self.critic_loss += critic_reg
 
         self.critic_grads = []
         self.critic_optimizer = []
