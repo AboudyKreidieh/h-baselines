@@ -130,20 +130,18 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        obses_t, goals, actions, rewards, dones, hs, g_up = [], [], [], [], [], [], []
+        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
         for i in idxes:
             data = self._storage[i]
-            obs_t, goals_t, action, reward, done, h, g = data
+            obs_t, action, reward, obs_tp1, done = data
             obses_t.append(np.array(obs_t, copy=False))
-            goals.append(np.array(goals_t, copy=False))
             actions.append(np.array(action, copy=False))
             rewards.append(reward)
+            obses_tp1.append(np.array(obs_tp1, copy=False))
             dones.append(done)
-            hs.append(np.array(h, copy=False))
-            g_up.append(np.array(g, copy=False))
 
-        return np.array(obses_t), np.array(goals), np.array(actions), np.array(rewards), \
-            np.array(dones), np.array(hs), np.array(g_up)
+        return np.array(obses_t), np.array(actions), np.array(rewards), \
+            np.array(obses_tp1), np.array(dones)
 
     def _new_sample_encoder(self, idxes):
         """
@@ -218,6 +216,11 @@ class ReplayBuffer(object):
         -------------
         convert list of data back to tuple
 
+        * Note: function assumes that there exists no
+                duplication of an experience tuple in
+                the replay buffer. Other wise it will
+                update the first occurrence tuple.
+
         Parameters
         ----------
         d: list
@@ -226,4 +229,16 @@ class ReplayBuffer(object):
             new updated goal
         """
         assert type(d) is list
-        d[3] = goal_updated
+
+        # find the location of the experience
+        location_of_experience = self._storage.index(tuple(d))
+
+        # update the experience
+        """
+            First index is following old add method.
+            New index should be == 3
+        """
+        d[1][0] = goal_updated
+
+        # update it in the replay buffer
+        self._storage[location_of_experience] = tuple(d)
