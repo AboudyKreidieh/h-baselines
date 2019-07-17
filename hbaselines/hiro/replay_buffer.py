@@ -63,40 +63,27 @@ class ReplayBuffer(object):
         """
         return len(self) == self.buffer_size
 
-    def add(self,
-            obs_t,
-            goal_t,
-            action_t,
-            reward_t,
-            done_,
-            h_t,
-            goal_updated):
-        """
-        Add a new transition to the buffer
+    def add(self, obs_t, goal_t, action_t, reward_t, done_, h_t, goal_updated):
+        """Add a new transition to the buffer.
+
         Parameters
         ----------
-        obs_t: Any
+        obs_t : array_like
             the last observation
-        action_t: array_like
+        action_t : array_like
             the action
-        goal_t: array_like
+        goal_t : array_like
             the goal
-        reward_t: float
+        reward_t : float
             the reward of the transition
-        done_: float
+        done_ : float or bool
             is the episode done
-        h_t: array_like
+        h_t : array_like
             the next goal
-        goal_updated: int boolean
+        goal_updated : int or bool
             is the goal updated or no
         """
-        data = (obs_t,
-                goal_t,
-                action_t,
-                reward_t,
-                done_,
-                h_t,
-                goal_updated)
+        data = (obs_t, goal_t, action_t, reward_t, done_, h_t, goal_updated)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -105,23 +92,27 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        """
-        Returns a sample from the replay buffer based on indices
+        """Return a sample from the replay buffer based on indices.
+
         Parameters
         ----------
-        idxes: list
+        idxes : list of int
             list of random indices
+
         Returns
         -------
-        sample from replay buffer
-        (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
+        sample from replay buffer (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
         """
         obses_t, goals, actions, rewards = [], [], [], []
         done, h_t, g_up, obs_tp1 = [], [], [], []
 
         for i in idxes:
+            # never use the last element, as it has no next state
+            if i == (self._next_idx - 1) % self._maxsize:
+                i = (i - 1) % self._maxsize
+
             data = self._storage[i]
-            obstp1 = self._storage[i+1][0]
+            obstp1 = self._storage[(i+1) % self._maxsize][0]
             obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
             obses_t.append(np.array(obs_t, copy=False))
             goals.append(np.array(goals_t, copy=False))
