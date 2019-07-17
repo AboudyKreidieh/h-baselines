@@ -682,6 +682,32 @@ class FeedForwardPolicy(ActorCriticPolicy):
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
 
+        self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
+
+    def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+        """Perform gradient update step given a batch of data.
+        Parameters
+        ----------
+        obs0 : np.ndarray
+            batch of observations
+        actions : numpy float
+            batch of actions executed given obs_batch
+        rewards : numpy float
+            rewards received as results of executing act_batch
+        obs1 : np.ndarray
+            next set of observations seen after executing act_batch
+        terminals1 : numpy bool
+            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
+            an episode and 0 otherwise.
+        Returns
+        -------
+        float
+            critic loss
+        float
+            actor loss
+        dict
+            feed_dict map for the summary (to be run in the algorithm)
+        """
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
@@ -872,6 +898,8 @@ class HIROPolicy(ActorCriticPolicy):
     meta_reward : float
         current meta reward, counting as the cumulative environment reward
         during the meta period
+    batch_size : int
+        SGD batch size
     worker : hbaselines.hiro.policy.FeedForwardPolicy
         the worker policy
     worker_reward : function
@@ -1030,8 +1058,12 @@ class HIROPolicy(ActorCriticPolicy):
         # during the meta period
         self.meta_reward = None
 
+        # The following is redundant but necessary if the changes to the update
+        # function are to be in the HIRO policy and not the FeedForward.
+        self.batch_size = batch_size
+
         # =================================================================== #
-        # Part 1. Setup the Worker                                            #
+        # Part 2. Setup the Worker                                            #
         # =================================================================== #
 
         # Create the Worker policy.
@@ -1083,8 +1115,34 @@ class HIROPolicy(ActorCriticPolicy):
 
     def update(self):
         """See parent class."""
-        self.manager.update()
-        self.worker.update()
+        # Not enough samples in the replay buffer.
+        if not self.manager.replay_buffer.can_sample(self.batch_size) or \
+                not self.worker.replay_buffer.can_sample(self.batch_size):
+            return 0, 0, {}
+
+        # Get a batch.
+        worker_obs0, worker_actions, worker_rewards, worker_obs1, \
+            worker_done1 = self.worker.replay_buffer.sample(self.batch_size)
+        manager_obs0, manager_actions, manager_rewards, manager_obs1, \
+            manager_done1 = self.manager.replay_buffer.sample(self.batch_size)
+
+        # Update the Manager policy.
+        self.manager.update_from_batch(
+            obs0=manager_obs0,
+            actions=manager_actions,
+            rewards=manager_rewards,
+            obs1=manager_obs1,
+            terminals1=manager_done1
+        )
+
+        # Update the Worker policy.
+        self.worker.update_from_batch(
+            obs0=worker_obs0,
+            actions=worker_actions,
+            rewards=worker_rewards,
+            obs1=worker_obs1,
+            terminals1=worker_done1
+        )
 
         return 0, 0, {}  # FIXME
 
