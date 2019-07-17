@@ -686,6 +686,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Perform gradient update step given a batch of data.
+
         Parameters
         ----------
         obs0 : np.ndarray
@@ -699,6 +700,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
+
         Returns
         -------
         float
@@ -745,7 +747,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
@@ -754,7 +756,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         if with_actor:
