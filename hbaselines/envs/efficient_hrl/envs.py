@@ -118,26 +118,17 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
-        # if self.use_contexts:
-        #     # Add the contextual reward.
-        #     new_rew, new_done = self.contextual_reward(
-        #         states=self.prev_obs,
-        #         next_states=obs,
-        #         goals=self.current_context,
-        #     )
-        #     rew += new_rew
-        #
-        #     # Add the context to the observation.
-        #     context_obs = self.current_context
-        #
-        #     # Compute the done in terms of the distance to the current context.
-        #     done = done or new_done != 1  # FIXME
-        #
-        #     # Add success to the info dict.
-        #     info["is_success"] = new_done != 1  # FIXME
-        #
-        # else:
-        #     context_obs = None
+        if self.use_contexts:
+            # Add success to the info dict.
+            new_rew, new_done = self.contextual_reward(
+                states=self.prev_obs,
+                next_states=obs,
+                goals=self.current_context,
+            )
+            info["is_success"] = new_done != 1  # FIXME
+
+            # Compute the done in terms of the distance to the current context.
+            # done = done or new_done != 1  # FIXME
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -150,7 +141,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
     def reset(self):
         self.step_number = 0
-        self.prev_obs = super(UniversalAntMazeEnv, self).reset()
+        obs = super(UniversalAntMazeEnv, self).reset()
 
         if self.use_contexts:
             if not self.random_contexts:
@@ -167,7 +158,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             # Convert to numpy array.
             self.current_context = np.asarray(self.current_context)
 
-        return self.prev_obs  # , self.current_context
+        return obs
 
 
 class AntMaze(UniversalAntMazeEnv):

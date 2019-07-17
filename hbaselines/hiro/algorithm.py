@@ -19,7 +19,7 @@ from mpi4py import MPI
 
 from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy
+from hbaselines.hiro.policy import FeedForwardPolicy, HIROPolicy
 from hbaselines.common.train import ensure_dir
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
@@ -451,15 +451,12 @@ class DDPG(object):
         terminal1 : bool
             is the episode done
         """
-        if hasattr(self.env, "current_context"):
-            context = self.env.current_context
-            # Add the contextual reward to the environment reward.
-            if isinstance(self.policy_tf, FeedForwardPolicy):
-                reward += self.env.contextual_reward(obs0, context, obs1)[0]
-        else:
-            context = None
+        # Get the contextual term.
+        context = getattr(self.env, "current_context", None)
 
+        # Scale the rewards by the provided term.
         reward *= self.reward_scale
+
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
                                         context_obs0=context,
                                         context_obs1=context,
@@ -618,21 +615,27 @@ class DDPG(object):
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
 
+            if hasattr(self.env, "current_context"):
+                # Get the contextual term.
+                context = getattr(self.env, "current_context")
+
+                # Add the contextual reward to the environment reward.
+                if isinstance(self.policy_tf, FeedForwardPolicy):
+                    reward += getattr(self.env, "contextual_reward")(
+                        self.obs, context, new_obs)[0]
+                elif isinstance(self.policy_tf, HIROPolicy) \
+                        and (
+                        self.episode_step % self.policy_tf.meta_period == 0
+                        or done):
+                    reward += getattr(self.env, "contextual_reward")(
+                        self.policy_tf.prev_meta_obs, context, new_obs)[0]
+
             # Visualize the current step.
             if rank == 0 and self.render:
                 self.env.render()
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
-
-            # FIXME: hack
-            if (self.episode_step % 10 == 0 and self.episode_step > 0) or done:
-                # Add the contextual reward, if needed.
-                reward += self.env.contextual_reward(
-                    states=self.obs,
-                    goals=self.env.current_context,
-                    next_states=new_obs
-                )[0]
 
             # Book-keeping.
             self.total_steps += 1

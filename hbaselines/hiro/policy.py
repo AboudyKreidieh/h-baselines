@@ -714,6 +714,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Perform gradient update step given a batch of data.
+
         Parameters
         ----------
         obs0 : np.ndarray
@@ -727,6 +728,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
+
         Returns
         -------
         float
@@ -772,7 +774,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
@@ -781,7 +783,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         if with_actor:
@@ -1164,10 +1166,13 @@ class HIROPolicy(ActorCriticPolicy):
             return 0, 0, {}
 
         # Get a batch.
-        worker_obs0, worker_actions, worker_rewards, worker_obs1, \
-            worker_done1 = self.worker.replay_buffer.sample(self.batch_size)
-        manager_obs0, manager_actions, manager_rewards, manager_obs1, \
-            manager_done1 = self.manager.replay_buffer.sample(self.batch_size)
+        worker_obs0, _, worker_actions, worker_rewards, worker_done1, \
+            _, _, worker_obs1 = self.worker.replay_buffer.sample(
+                batch_size=self.batch_size)
+
+        manager_obs0, _, manager_actions, manager_rewards, manager_done1, \
+            _, _, manager_obs1 = self.manager.replay_buffer.sample(
+                batch_size=self.batch_size)
 
         # Update the Manager policy.
         self.manager.update_from_batch(
