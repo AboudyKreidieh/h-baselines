@@ -375,7 +375,6 @@ class DDPG(object):
                 self.observation_space,
                 self.action_space,
                 self.context_space,
-                self.env,
                 return_range=self.return_range,
                 buffer_size=self.buffer_size,
                 batch_size=self.batch_size,
