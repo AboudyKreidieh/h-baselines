@@ -187,7 +187,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.placeholder
-        TODO
+        a placeholder for the current-step estimate of the target Q values
     terminals1 : tf.placeholder
         placeholder for the next step terminals
     rew_ph : tf.placeholder
@@ -198,10 +198,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.placeholder
         placeholder for the next step observations
-    obs_rms : TODO
+    obs_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the observations
-    ret_rms : TODO
+    ret_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the rewards
     actor_tf : tf.Variable
@@ -217,7 +217,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         de-normalized output from the critic with the action provided directly
         by the actor policy
     target_q : tf.Variable
-        TODO
+        the Q-value as estimated by the current reward and next step estimate
+        by the target Q-value
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -265,8 +266,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun=tf.nn.relu,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
-
-        TODO: describe the scope and the summary.
 
         Parameters
         ----------
