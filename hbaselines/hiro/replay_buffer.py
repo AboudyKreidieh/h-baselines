@@ -158,21 +158,22 @@ class ReplayBuffer(object):
         (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
         """
         obses_t, goals, actions, rewards = [], [], [], []
-        obses_tp1, done, h_t = [], [], []
+        done, h_t, g_up = [], [], []
 
         for i in idxes:
             data = self._storage[i]
-            obs_t, goals_t, actions_t, rewards_t, obs_tp1, d, h = data
+            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
             obses_t.append(np.array(obs_t, copy=False))
             goals.append(np.array(goals_t, copy=False))
             actions.append(np.array(actions_t, copy=False))
             rewards.append(np.array(rewards_t, copy=False))
             done.append(d)
             h_t.append(np.array(h, copy=False))
+            g_up.append(np.array(g_uptd, copy=False))
 
         return np.array(obses_t), np.array(goals), np.array(actions), \
-            np.array(rewards), np.array(obses_tp1), np.array(done), \
-            np.array(h_t)
+            np.array(rewards), np.array(done), \
+            np.array(h_t), np.array(g_up)
 
     def sample(self, batch_size, **_kwargs):
         """Sample a batch of experiences.
@@ -198,47 +199,53 @@ class ReplayBuffer(object):
         """
         indices = [random.randint(0, len(self._storage) - 1)
                    for _ in range(batch_size)]
-        return self._encode_sample(indices)
 
-    def replace(self, d, goal_updated):
-        """
-        Call this function to replace the old goal
-        with the new one when off-policy correction
-        takes place.
+        # old sample function (legacy support)
+        if _kwargs['decision'] == 0:
+            return self._encode_sample(indices)
 
-        Prerequisite
-        ------------
-        pass the data
-        tuple in the form of a list to allow
-        it to be mutable.
+        # new sample function
+        return self._new_sample_encoder(indices)
 
-        Postrequisite
-        -------------
-        convert list of data back to tuple
-
-        * Note: function assumes that there exists no
-                duplication of an experience tuple in
-                the replay buffer. Other wise it will
-                update the first occurrence tuple.
-
-        Parameters
-        ----------
-        d: list
-            experience tuple as a list
-        goal_updated: Any
-            new updated goal
-        """
-        assert type(d) is list
-
-        # find the location of the experience
-        location_of_experience = self._storage.index(tuple(d))
-
-        # update the experience
-        """
-            First index is following old add method.
-            New index should be == 3
-        """
-        d[1][0] = goal_updated
-
-        # update it in the replay buffer
-        self._storage[location_of_experience] = tuple(d)
+    # def replace(self, d, goal_updated):
+    #     """
+    #     Call this function to replace the old goal
+    #     with the new one when off-policy correction
+    #     takes place.
+    #
+    #     Prerequisite
+    #     ------------
+    #     pass the data
+    #     tuple in the form of a list to allow
+    #     it to be mutable.
+    #
+    #     Postrequisite
+    #     -------------
+    #     convert list of data back to tuple
+    #
+    #     * Note: function assumes that there exists no
+    #             duplication of an experience tuple in
+    #             the replay buffer. Other wise it will
+    #             update the first occurrence tuple.
+    #
+    #     Parameters
+    #     ----------
+    #     d: list
+    #         experience tuple as a list
+    #     goal_updated: Any
+    #         new updated goal
+    #     """
+    #     assert type(d) is list
+    #
+    #     # find the location of the experience
+    #     location_of_experience = self._storage.index(tuple(d))
+    #
+    #     # update the experience
+    #     """
+    #         First index is following old add method.
+    #         New index should be == 3
+    #     """
+    #     d[1][0] = goal_updated
+    #
+    #     # update it in the replay buffer
+    #     self._storage[location_of_experience] = tuple(d)

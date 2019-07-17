@@ -166,7 +166,7 @@ class TestBuffer(unittest.TestCase):
                                    tuples[3],
                                    tuples[4])
 
-        tmp_sample = [_ for _ in self.replay_buffer.sample(1)]
+        tmp_sample = [_ for _ in self.replay_buffer.sample(1, decision=0)]
 
         for index in range(5):
             sampled_data.append(tmp_sample[index][0])
@@ -174,49 +174,80 @@ class TestBuffer(unittest.TestCase):
         # Because we are sampling randomly, don't know what we get
         assert tuple(sampled_data) in list_of_experiences
 
-    def test_replace(self):
+    # def test_replace(self):
+    #     """
+    #     Test if a goal in a replay experience is being updated.
+    #
+    #     Parameters
+    #     ----------
+    #     replay_buffer: Object
+    #         ReplayBuffer
+    #     obs_t : Any
+    #         the last observation
+    #     action : array_like
+    #         the action
+    #     reward : float
+    #         the reward of the transition
+    #     obs_tp1 : Any
+    #         the current observation
+    #     done : float
+    #         is the episode done
+    #     """
+    #     self.replay_buffer.add(self.obs_t,
+    #                            self.action,
+    #                            self.reward,
+    #                            self.obs_tp1,
+    #                            self.done)
+    #
+    #     sampled_experience = [_ for _ in self.replay_buffer.sample(1)]
+    #
+    #     self.replay_buffer.replace(sampled_experience, 10)
+    #
+    #     new_sampled_experience = [_ for _ in self.replay_buffer.sample(1)]
+    #
+    #     assert new_sampled_experience[1][0][0] == 10
+
+    """
+        Up until this point we have been testing using the old
+        add function in the replay buffer; consider the above as
+        a benchmark if you will. The below tests are going to use
+        the new add and sampling functions in the replay buffer.
+    """
+
+    def test_new_add(self):
         """
-        Test if a goal in a replay experience is being updated.
-
-        Parameters
-        ----------
-        replay_buffer: Object
-            ReplayBuffer
-        obs_t : Any
-            the last observation
-        action : array_like
-            the action
-        reward : float
-            the reward of the transition
-        obs_tp1 : Any
-            the current observation
-        done : float
-            is the episode done
+        Test the new add function by inserting then sampling.
+        Also as a by product testing the new sample encoder.
         """
-        self.replay_buffer.add(self.obs_t,
-                               self.action,
-                               self.reward,
-                               self.obs_tp1,
-                               self.done)
+        sampled_data = []
+        list_of_experiences = [(self.obs_t,
+                                5,
+                                self.action,
+                                self.reward,
+                                self.done,
+                                10,
+                                1)]
 
-        sampled_experience = [_ for _ in self.replay_buffer.sample(1)]
+        # add the values to the buffer
+        self.replay_buffer.new_add(self.obs_t,
+                                   5,
+                                   self.action,
+                                   self.reward,
+                                   self.done,
+                                   10,
+                                   1)
+        # sample it
+        tmp_sample = [_ for _ in self.replay_buffer.sample(1, decision=1)]
 
-        self.replay_buffer.replace(sampled_experience, 10)
+        for index in range(7):
+            sampled_data.append(tmp_sample[index][0])
 
-        new_sampled_experience = [_ for _ in self.replay_buffer.sample(1)]
-
-        assert new_sampled_experience[1][0][0] == 10
+        # Because we are sampling randomly, don't know what we get
+        assert tuple(sampled_data) in list_of_experiences
 
     def tearDown(self):
         self.replay_buffer = ReplayBuffer(2)
 
-
-"""
-    Up until this point we have been testing using the old
-    add function in the replay buffer; consider the above as
-    a benchmark if you will. The below tests are going to use
-    the new add and sampling functions in the replay buffer.
-"""
 
 if __name__ == '__main__':
     unittest.main()
