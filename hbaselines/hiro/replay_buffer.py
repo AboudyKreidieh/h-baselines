@@ -63,23 +63,40 @@ class ReplayBuffer(object):
         """
         return len(self) == self.buffer_size
 
-    def add(self, obs_t, action, reward, obs_tp1, done):
-        """Add a new transition to the buffer
-
+    def add(self,
+            obs_t,
+            goal_t,
+            action_t,
+            reward_t,
+            done_,
+            h_t,
+            goal_updated):
+        """
+        Add a new transition to the buffer
         Parameters
         ----------
-        obs_t : Any
+        obs_t: Any
             the last observation
-        action : array_like
+        action_t: array_like
             the action
-        reward : float
+        goal_t: array_like
+            the goal
+        reward_t: float
             the reward of the transition
-        obs_tp1 : Any
-            the current observation
-        done : float
+        done_: float
             is the episode done
+        h_t: array_like
+            the next goal
+        goal_updated: int boolean
+            is the goal updated or no
         """
-        data = (obs_t, action, reward, obs_tp1, done)
+        data = (obs_t,
+                goal_t,
+                action_t,
+                reward_t,
+                done_,
+                h_t,
+                goal_updated)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -88,18 +105,36 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
+        """
+        Returns a sample from the replay buffer based on indices
+        Parameters
+        ----------
+        idxes: list
+            list of random indices
+        Returns
+        -------
+        sample from replay buffer
+        (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
+        """
+        obses_t, goals, actions, rewards = [], [], [], []
+        done, h_t, g_up, obs_tp1 = [], [], [], []
+
         for i in idxes:
             data = self._storage[i]
-            obs_t, action, reward, obs_tp1, done = data
+            obstp1 = self._storage[i+1][0]
+            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
             obses_t.append(np.array(obs_t, copy=False))
-            actions.append(np.array(action, copy=False))
-            rewards.append(reward)
-            obses_tp1.append(np.array(obs_tp1, copy=False))
-            dones.append(done)
+            goals.append(np.array(goals_t, copy=False))
+            actions.append(np.array(actions_t, copy=False))
+            rewards.append(np.array(rewards_t, copy=False))
+            done.append(d)
+            h_t.append(np.array(h, copy=False))
+            g_up.append(np.array(g_uptd, copy=False))
+            obs_tp1.append(np.array(obstp1, copy=False))
 
-        return np.array(obses_t), np.array(actions), np.array(rewards), \
-            np.array(obses_tp1), np.array(dones)
+        return np.array(obses_t), np.array(goals), np.array(actions), \
+            np.array(rewards), np.array(done), \
+            np.array(h_t), np.array(g_up), np.array(obs_tp1)
 
     def sample(self, batch_size, **_kwargs):
         """Sample a batch of experiences.
