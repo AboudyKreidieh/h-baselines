@@ -868,6 +868,58 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return stats
 
+    # TODO: delete all?
+    def get_target_q(self):
+        return self.target_q
+
+    def get_obs1_ph(self):
+        return self.obs1_ph
+
+    def get_rew_ph(self):
+        return self.rew_ph
+
+    def get_terminals1(self):
+        return self.terminals1
+
+    def get_actor_grads(self):
+        return self.actor_grads
+
+    def get_actor_loss(self):
+        return self.actor_loss
+
+    def get_critic_grads(self):
+        return self.critic_grads
+
+    def get_critic_loss(self):
+        return self.critic_loss
+
+    def get_obs_ph(self):
+        return self.obs_ph
+
+    def get_action_ph(self):
+        return self.action_ph
+
+    def get_critic_target(self):
+        return self.critic_target
+
+    def get_actor_optimizer(self):
+        return self.actor_optimizer
+
+    def get_actor_lr(self):
+        return self.actor_lr
+
+    def get_critic_optimizer(self):
+        return self.critic_optimizer
+
+    def get_critic_lr(self):
+        return self.critic_lr
+
+    def get_target_soft_updates(self):
+        return self.target_soft_updates
+
+    def get_actor_tf(self):
+        return self.actor_tf
+
 
 class HIROPolicy(ActorCriticPolicy):
     """Hierarchical reinforcement learning with off-policy correction.
@@ -1129,6 +1181,12 @@ class HIROPolicy(ActorCriticPolicy):
             )[0]
         self.worker_reward = worker_reward
 
+        if self.connected_gradients:
+            manager_tf = self.manager.get_actor_tf()
+            worker_obs_ph = self.worker.get_obs_ph()
+            obs = tf.concat((worker_obs_ph, manager_tf), axis=1)
+            self.worker.actor_tf = self.worker._make_actor(obs=obs)
+
     def initialize(self):
         """See parent class.
 
@@ -1170,6 +1228,45 @@ class HIROPolicy(ActorCriticPolicy):
             obs1=worker_obs1,
             terminals1=worker_done1
         )
+
+        if self.connected_gradients:
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = manager_rewards.reshape(-1, 1)
+            terminals1 = manager_done1.reshape(-1, 1)
+
+            target_q = self.sess.run(self.manager.get_target_q(), feed_dict={
+                self.manager.get_obs1_ph(): manager_obs1,
+                self.manager.get_rew_ph(): rewards,
+                self.manager.get_terminals1(): terminals1
+            })
+
+            # TODO this is the belly of the gradient beast
+            # TODO ---------------------------------------
+            # Get all gradients and perform a synced update.
+            ops = [self.worker.get_actor_grads(),
+                   self.worker.get_actor_loss(),
+                   self.manager.get_critic_grads(),
+                   self.manager.get_critic_loss()]
+            td_map = {
+                self.worker.get_obs_ph(): worker_obs0,
+                self.worker.get_action_ph(): worker_actions,
+                self.manager.get_rew_ph(): rewards,
+                self.manager.get_critic_target(): target_q,
+            }
+            # TODO ---------------------------------------
+
+            actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
+                ops, td_map)
+
+            self.worker.get_actor_optimizer().update(
+                actor_grads, learning_rate=self.worker.get_actor_lr())
+            self.manager.get_critic_optimizer().update(
+                critic_grads, learning_rate=self.manager.get_critic_lr())
+
+            # Run target soft update operation.
+            self.sess.run(self.manager.get_target_soft_updates())
+
+            return critic_loss, actor_loss, td_map
 
         if self.off_policy_corrections:
             # Replace the goals with the most likely goals.
