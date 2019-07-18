@@ -1,6 +1,6 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+# from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
 
 
 class TestFeedForwardPolicy(unittest.TestCase):
