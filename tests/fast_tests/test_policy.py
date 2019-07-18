@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
-from hbaselines.hiro.tf_util import get_trainable_vars
+from hbaselines.hiro.tf_util import get_trainable_vars, get_globals_vars
 from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
 # from hbaselines.hiro.policy import GoalDirectedPolicy
 
@@ -104,10 +104,12 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertListEqual(policy.layers, [300, 300])
         self.assertEqual(policy.activ, self.policy_params['act_fun'])
 
-        # Check that all variables have been created in the tensorflow graph.
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['model/pi/fc0/bias:0', 'model/pi/fc0/kernel:0',
+            ['model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
              'model/pi/fc1/bias:0',
              'model/pi/fc1/kernel:0',
              'model/pi/pi/bias:0',
@@ -131,6 +133,40 @@ class TestFeedForwardPolicy(unittest.TestCase):
              'target/qf/qf_output/bias:0',
              'target/qf/qf_output/kernel:0']
         )
+
+        # Check that all the input placeholders were properly created.
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.critic_target.shape),
+            (None, 1))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.terminals1.shape),
+            (None, 1))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.rew_ph.shape),
+            (None, 1))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.action_ph.shape),
+            (None, self.policy_params['ac_space'].shape[0]))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.obs_ph.shape),
+            (None, self.policy_params['ob_space'].shape[0] +
+             self.policy_params['co_space'].shape[0]))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.obs1_ph.shape),
+            (None, self.policy_params['ob_space'].shape[0] +
+             self.policy_params['co_space'].shape[0]))
+
+    def test_normalization(self):
+        """Test the normalizers for the observations and reward."""
+        pass
+
+    def test_optimization(self):
+        """Test the losses and gradient update steps."""
+        pass
+
+    def test_update_target(self):
+        """Test the soft and init target updates."""
+        pass
 
 
 class TestGoalDirectedPolicy(unittest.TestCase):
