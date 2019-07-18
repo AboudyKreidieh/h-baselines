@@ -1,3 +1,4 @@
+"""TensorFlow utility methods."""
 import tensorflow as tf
 from stable_baselines import logger
 import numpy as np
@@ -37,7 +38,7 @@ def make_session(num_cpu=None, make_default=False, graph=None):
 
 
 def get_trainable_vars(name):
-    """Returns the trainable variable.
+    """Return the trainable variables.
 
     Parameters
     ----------

@@ -1,3 +1,4 @@
+"""A script that supports plotting training results."""
 import argparse
 import os
 import numpy as np

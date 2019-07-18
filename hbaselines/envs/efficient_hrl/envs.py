@@ -1,3 +1,4 @@
+"""Contextual representation of AntMaze, AntPush, and AntFall."""
 import numpy as np
 import random
 from gym.spaces import Box
@@ -115,6 +116,28 @@ class UniversalAntMazeEnv(AntMazeEnv):
             return None
 
     def step(self, action):
+        """Advance the environment by one simulation step.
+
+        If the environment is using the contextual setting, an "is_success"
+        term is added to the info_dict to specify whether the objective has
+        been met.
+
+        Parameters
+        ----------
+        action : array_like
+            actions to be performed by the agent
+
+        Returns
+        -------
+        array_like
+            next observation
+        float
+            environmental reward
+        bool
+            done mask
+        dict
+            extra information dictionary
+        """
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
@@ -140,6 +163,16 @@ class UniversalAntMazeEnv(AntMazeEnv):
         return obs, rew, done, info
 
     def reset(self):
+        """Reset the environment.
+
+        If the environment is using the contextual setting, a new context is
+        issued.
+
+        Returns
+        -------
+        array_like
+            initial observation
+        """
         self.step_number = 0
         obs = super(UniversalAntMazeEnv, self).reset()
 

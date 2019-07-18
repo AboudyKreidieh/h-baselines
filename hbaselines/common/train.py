@@ -1,9 +1,10 @@
+"""Utility methods when performing training."""
 import argparse
 import numpy as np
 import os
 import errno
 
-DEFAULT_DDPG_HP = dict(
+DEFAULT_TD3_HP = dict(
     gamma=0.99,
     nb_train_steps=1,
     nb_rollout_steps=1,
@@ -31,7 +32,7 @@ DEFAULT_DDPG_HP = dict(
 
 def get_hyperparameters(args):
     """Return the hyperparameters of a training algorithm from the parser."""
-    hp = DEFAULT_DDPG_HP.copy()
+    hp = DEFAULT_TD3_HP.copy()
 
     hp.update({
         "gamma": args.gamma,
@@ -57,6 +58,13 @@ def get_hyperparameters(args):
 
 
 def create_parser(description, example_usage):
+    """Parse training options user can specify in command line.
+
+    Returns
+    -------
+    argparse.Namespace
+        the output parser object
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=description, epilog=example_usage)
@@ -78,63 +86,57 @@ def create_parser(description, example_usage):
         help='Total number of timesteps used during training.')
 
     # algorithm-specific hyperparameters
-    parser = create_ddpg_parser(parser)
-    parser = create_dqn_parser(parser)
+    parser = create_td3_parser(parser)
 
     return parser
 
 
-def create_dqn_parser(parser):
-    """Add the DQN hyperparameters to the parser."""
-    return parser
-
-
-def create_ddpg_parser(parser):
-    """Add the DDPG hyperparameters to the parser."""
+def create_td3_parser(parser):
+    """Add the TD3 hyperparameters to the parser."""
     parser.add_argument('--gamma',
                         type=float,
-                        default=DEFAULT_DDPG_HP['gamma'],
+                        default=DEFAULT_TD3_HP['gamma'],
                         help='the discount rate')
     parser.add_argument('--tau',
                         type=float,
-                        default=DEFAULT_DDPG_HP['tau'],
+                        default=DEFAULT_TD3_HP['tau'],
                         help='the soft update coefficient (keep old values, '
                              'between 0 and 1)')
     parser.add_argument('--batch_size',
                         type=int,
-                        default=DEFAULT_DDPG_HP['batch_size'],
+                        default=DEFAULT_TD3_HP['batch_size'],
                         help='the size of the batch for learning the policy')
     parser.add_argument('--reward_scale',
                         type=float,
-                        default=DEFAULT_DDPG_HP['reward_scale'],
+                        default=DEFAULT_TD3_HP['reward_scale'],
                         help='the value the reward should be scaled by')
     parser.add_argument('--actor_lr',
                         type=float,
-                        default=DEFAULT_DDPG_HP['actor_lr'],
+                        default=DEFAULT_TD3_HP['actor_lr'],
                         help='the actor learning rate')
     parser.add_argument('--critic_lr',
                         type=float,
-                        default=DEFAULT_DDPG_HP['critic_lr'],
+                        default=DEFAULT_TD3_HP['critic_lr'],
                         help='the critic learning rate')
     parser.add_argument('--critic_l2_reg',
                         type=float,
-                        default=DEFAULT_DDPG_HP['critic_l2_reg'],
+                        default=DEFAULT_TD3_HP['critic_l2_reg'],
                         help='l2 regularizer coefficient')
     parser.add_argument('--clip_norm',
                         type=float,
-                        default=DEFAULT_DDPG_HP['clip_norm'],
+                        default=DEFAULT_TD3_HP['clip_norm'],
                         help='clip the gradients (disabled if None)')
     parser.add_argument('--nb_train_steps',
                         type=int,
-                        default=DEFAULT_DDPG_HP['nb_train_steps'],
+                        default=DEFAULT_TD3_HP['nb_train_steps'],
                         help='the number of training steps')
     parser.add_argument('--nb_rollout_steps',
                         type=int,
-                        default=DEFAULT_DDPG_HP['nb_rollout_steps'],
+                        default=DEFAULT_TD3_HP['nb_rollout_steps'],
                         help='the number of rollout steps')
     parser.add_argument('--nb_eval_episodes',
                         type=int,
-                        default=DEFAULT_DDPG_HP['nb_eval_episodes'],
+                        default=DEFAULT_TD3_HP['nb_eval_episodes'],
                         help='the number of evaluation episodes')
     parser.add_argument('--normalize_observations',
                         action='store_true',
@@ -144,12 +146,12 @@ def create_ddpg_parser(parser):
                         help='enable rendering of the environment')
     parser.add_argument('--verbose',
                         type=int,
-                        default=DEFAULT_DDPG_HP['verbose'],
+                        default=DEFAULT_TD3_HP['verbose'],
                         help='the verbosity level: 0 none, 1 training '
                              'information, 2 tensorflow debug')
     parser.add_argument('--buffer_size',
                         type=int,
-                        default=DEFAULT_DDPG_HP['buffer_size'],
+                        default=DEFAULT_TD3_HP['buffer_size'],
                         help='the max number of transitions to store')
     parser.add_argument('--evaluate',
                         action='store_true',

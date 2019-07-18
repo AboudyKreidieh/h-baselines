@@ -1,18 +1,20 @@
-"""A runner script for fcnet models.
+"""A runner script for goal-directed hierarchical models.
 
-This run script used to test the performance of TD3 with fully connected
-network models on various environments.
+This run script used to test the performance of DDPG and DQN with the  neural
+network model "HIRO" on various environments.
+
+See: TODO: add paper
 """
 import os
-import csv
 from time import strftime
+import csv
 import ray
 
 from hbaselines.common.train import ensure_dir
 from hbaselines.common.train import create_parser, get_hyperparameters
-from hbaselines.hiro import TD3, FeedForwardPolicy
+from hbaselines.hiro import TD3, GoalDirectedPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
+EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --gamma 0.995'
 NUM_CPUS = 3
 
 
@@ -36,13 +38,13 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
         an increment term, used for logging purposes
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
+    alg = TD3(policy=GoalDirectedPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=1000,
+        log_interval=10000,
         seed=None,
         exp_num=i
     )
@@ -53,8 +55,8 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
 def main():
     """Execute multiple training operations."""
     parser = create_parser(
-        description='Test the performance of TD3 with fully connected network '
-                    'models on various environments.',
+        description='Test the performance of TD3 with goal-directed '
+                    'hierarchical models on various environments.',
         example_usage=EXAMPLE_USAGE)
     args = parser.parse_args()
 
@@ -62,7 +64,8 @@ def main():
     env = args.env_name
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}/{}'.format(env, strftime("%Y-%m-%d-%H:%M:%S"))
+    dir_name = 'data/goal-directed/{}/{}'.format(
+        env, strftime("%Y-%m-%d-%H:%M:%S"))
     ensure_dir(dir_name)
 
     # get the hyperparameters
@@ -77,8 +80,6 @@ def main():
     ray.init(num_cpus=NUM_CPUS)
     ray.get([run_exp.remote(env, hp, args.steps, dir_name, args.evaluate, i)
              for i in range(args.n_training)])
-    # [run_exp(env, hp, args.steps, dir_name, i)
-    #  for i in range(args.n_training)]
     ray.shutdown()
 
 

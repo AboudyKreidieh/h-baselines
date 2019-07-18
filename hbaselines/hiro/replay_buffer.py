@@ -23,6 +23,7 @@ class ReplayBuffer(object):
         self._next_idx = 0
 
     def __len__(self):
+        """Return the number of elements stored."""
         return len(self._storage)
 
     @property
@@ -35,7 +36,7 @@ class ReplayBuffer(object):
 
     @property
     def buffer_size(self):
-        """float: Max capacity of the buffer"""
+        """Return the (float) max capacity of the buffer."""
         return self._maxsize
 
     def can_sample(self, n_samples):

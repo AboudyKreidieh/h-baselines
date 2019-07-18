@@ -1,6 +1,6 @@
-"""Deep Deterministic Policy Gradient (DDPG) algorithm.
+"""Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
-See: https://arxiv.org/pdf/1509.02971.pdf
+See: https://arxiv.org/pdf/1802.09477.pdf
 
 A large portion of this code is adapted from the following repository:
 https://github.com/hill-a/stable-baselines
@@ -19,7 +19,7 @@ from mpi4py import MPI
 
 from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy, HIROPolicy
+from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
@@ -48,10 +48,10 @@ def as_scalar(scalar):
         raise ValueError('expected scalar, got %s' % scalar)
 
 
-class DDPG(object):
-    """Deep Deterministic Policy Gradient (DDPG) model.
+class TD3(object):
+    """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
-    See: https://arxiv.org/pdf/1509.02971.pdf
+    See: https://arxiv.org/pdf/1802.09477.pdf
 
     Attributes
     ----------
@@ -361,7 +361,7 @@ class DDPG(object):
         """Create the graph, session, policy, and summary objects."""
         # determine whether the action space is continuous
         assert isinstance(self.action_space, Box), \
-            "Error: DDPG cannot output a {} action space, only " \
+            "Error: TD3 cannot output a {} action space, only " \
             "spaces.Box is supported.".format(self.action_space)
 
         self.graph = tf.Graph()
@@ -622,7 +622,7 @@ class DDPG(object):
                 if isinstance(self.policy_tf, FeedForwardPolicy):
                     reward += getattr(self.env, "contextual_reward")(
                         self.obs, context, new_obs)[0]
-                elif isinstance(self.policy_tf, HIROPolicy) \
+                elif isinstance(self.policy_tf, GoalDirectedPolicy) \
                         and (
                         self.episode_step % self.policy_tf.meta_period == 0
                         or done):

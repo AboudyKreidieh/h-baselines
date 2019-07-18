@@ -3,9 +3,8 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.hiro.algorithm import as_scalar, DDPG
-from hbaselines.common.exp_replay import GenericMemory, RecurrentMemory
-from hbaselines.common.exp_replay import HierarchicalRecurrentMemory
+from hbaselines.hiro.algorithm import as_scalar, TD3
+from hbaselines.hiro.replay_buffer import ReplayBuffer
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -28,8 +27,8 @@ class TestAuxiliaryMethods(unittest.TestCase):
         pass
 
 
-class TestDDPG(unittest.TestCase):
-    """Test the components of the DDPG algorithm."""
+class TestTD3(unittest.TestCase):
+    """Test the components of the TD3 algorithm."""
 
     def setUp(self):
         self.env = 'MountainCarContinuous-v0'
@@ -68,14 +67,14 @@ class TestDDPG(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
         policy_params['_init_setup_model'] = False
-        alg = DDPG(**policy_params)
+
+        alg = TD3(**policy_params)
         self.assertEqual(alg.gamma, policy_params['gamma'])
         self.assertEqual(alg.tau, policy_params['tau'])
         self.assertEqual(alg.normalize_observations,
                          policy_params['normalize_observations'])
         self.assertEqual(alg.normalize_returns,
                          policy_params['normalize_returns'])
-        self.assertEqual(alg.action_noise, policy_params['action_noise'])
         self.assertEqual(alg.return_range, policy_params['return_range'])
         self.assertEqual(alg.observation_range,
                          policy_params['observation_range'])
@@ -90,39 +89,15 @@ class TestDDPG(unittest.TestCase):
         self.assertEqual(alg.nb_rollout_steps,
                          policy_params['nb_rollout_steps'])
         self.assertEqual(alg.memory_limit, policy_params['memory_limit'])
-        self.assertEqual(alg.tensorboard_log, policy_params['tensorboard_log'])
-        self.assertEqual(alg.memory_policy, GenericMemory)
-        self.assertEqual(alg.recurrent, False)
-        self.assertEqual(alg.hierarchical, False)
 
-        # Part 2. Recurrent Policies
-        policy_params = self.init_parameters.copy()
-        policy_params['env'] = self.env
-        policy_params['recurrent'] = True
-        policy_params['_init_setup_model'] = False
-        policy = DDPG(**policy_params)
-        self.assertEqual(policy.memory_policy, RecurrentMemory)
-        self.assertEqual(policy.recurrent, True)
-        self.assertEqual(policy.hierarchical, False)
-
-        # Part 3. Hierarchical Policies
-        policy_params = self.init_parameters.copy()
-        policy_params['env'] = self.env
-        policy_params['hierarchical'] = True
-        policy_params['_init_setup_model'] = False
-        policy = DDPG(**policy_params)
-        self.assertEqual(policy.memory_policy, HierarchicalRecurrentMemory)
-        self.assertEqual(policy.recurrent, False)
-        self.assertEqual(policy.hierarchical, True)
-
-    def test_setup_model_stats_generic(self):
+    def test_setup_model_feedforward(self):
         """Ensure that the correct policies were generated in the
         non-recurrent, non-hierarchical case."""
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
         # policy_params['policy'] = FullyConnectedPolicy
         policy_params['_init_setup_model'] = True
-        alg = DDPG(**policy_params)
+        alg = TD3(**policy_params)
 
         # Check the primary policy.
         with alg.graph.as_default():
@@ -179,14 +154,14 @@ class TestDDPG(unittest.TestCase):
         ]
         self.assertCountEqual(alg.stats_names, expected_stats)
 
-    def test_model_stats_recurrent(self):
+    def test_setup_model_goal_directed(self):
         policy_params = self.init_parameters.copy()
         policy_params['env'] = self.env
         # policy_params['policy'] = LSTMPolicy
         policy_params['recurrent'] = True
         policy_params['_init_setup_model'] = True
-        alg = DDPG(**policy_params)
-        self.assertEqual(alg.memory_policy, RecurrentMemory)
+        alg = TD3(**policy_params)
+        self.assertEqual(alg.memory_policy, ReplayBuffer)
         self.assertEqual(alg.recurrent, True)
         self.assertEqual(alg.hierarchical, False)
 
@@ -233,40 +208,6 @@ class TestDDPG(unittest.TestCase):
                     t2 = next(tv_i for tv_i in tv
                               if tv_i.name == 'target/{}'.format(name))
                     self.assertEqual(t1.shape, t2.shape)
-
-        # Check the stats.
-        expected_stats = [
-            'reference_Q_mean', 'reference_Q_std', 'reference_actor_Q_mean',
-            'reference_actor_Q_std', 'reference_action_mean',
-            'reference_action_std'
-        ]
-        self.assertCountEqual(alg.stats_names, expected_stats)
-
-    def test_target_q(self):
-        """Ensure that target q returns the right values."""
-        policy_params = self.init_parameters.copy()
-        policy_params['env'] = self.env
-        # policy_params['policy'] = FullyConnectedPolicy
-        policy_params['gamma'] = 1
-        policy_params['_init_setup_model'] = True
-        alg = DDPG(**policy_params)
-
-        rewards = np.array([[0], [1], [2], [3], [4], [5]])
-        terminal = np.array([[0], [1], [0], [1], [0], [1]])
-        q_obs1 = np.array([[0], [1], [2], [4], [4], [4]])
-
-        expected_res = np.array([[0], [1], [4], [3], [8], [5]])
-        actual_res = alg.sess.run(alg.target_q,
-                                  feed_dict={alg.rewards: rewards,
-                                             alg.terminals1: terminal,
-                                             alg.q_obs1: q_obs1})
-        self.assertTrue((expected_res == actual_res).all())
-
-    def test_normalize_observations(self):
-        pass
-
-    def test_action_noise(self):
-        pass
 
 
 if __name__ == '__main__':
