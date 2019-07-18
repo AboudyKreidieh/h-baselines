@@ -5,7 +5,7 @@ import tensorflow as tf
 from gym.spaces import Box
 from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
-from hbaselines.hiro.policy import GoalDirectedPolicy
+# from hbaselines.hiro.policy import GoalDirectedPolicy
 
 
 class TestActorCriticPolicy(unittest.TestCase):
