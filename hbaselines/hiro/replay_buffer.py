@@ -132,9 +132,9 @@ class ReplayBuffer(object):
             g_up.append(np.array(g_uptd, copy=False))
             obs_tp1.append(np.array(obstp1, copy=False))
 
-        return np.array(obses_t), np.array(goals), np.array(actions), \
-            np.array(rewards), np.array(done), \
-            np.array(h_t), np.array(g_up), np.array(obs_tp1)
+            return np.array(obses_t), np.array(goals), np.array(actions), \
+                np.array(rewards), np.array(done), \
+                np.array(h_t), np.array(g_up), np.array(obs_tp1)
 
     def sample(self, batch_size, **_kwargs):
         """Sample a batch of experiences.

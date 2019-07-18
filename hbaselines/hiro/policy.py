@@ -679,7 +679,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return 0, 0, {}
 
         # Get a batch
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
+        obs0, actions, _, \
+            rewards, terminals1, \
+            _, _, obs1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
 
         self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
@@ -833,8 +835,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # Get a sample and keep that fixed for all further computations.
             # This allows us to estimate the change in value for the same set
             # of inputs.
-            obs0, actions, rewards, obs1, terminals1 = \
-                self.replay_buffer.sample(batch_size=self.batch_size)
+            obs0, actions, _, \
+                rewards, terminals1, \
+                _, _, obs1 = self.replay_buffer.sample(
+                    batch_size=self.batch_size)
+
             self.stats_sample = {
                 'obs0': obs0,
                 'actions': actions,
@@ -1066,23 +1071,19 @@ class HIROPolicy(ActorCriticPolicy):
         # function are to be in the HIRO policy and not the FeedForward.
         self.batch_size = batch_size
 
-        """
-            Use this to store a list of observations
-            that stretch as long as the dilated
-            horizon chosen for the Manager.
-
-            These observations correspond to the s(t)
-            in the HIRO paper.
-        """
+        # Use this to store a list of observations
+        # that stretch as long as the dilated
+        # horizon chosen for the Manager.
+        #
+        # These observations correspond to the s(t)
+        # in the HIRO paper.
         self._observations = []
 
-        """
-            Use this to store the list of environmental
-            actions that the worker takes.
-
-            These actions correspond to the a(t)
-            in the HIRO paper.
-        """
+        # Use this to store the list of environmental
+        # actions that the worker takes.
+        #
+        # These actions correspond to the a(t)
+        # in the HIRO paper.
         self._worker_actions = []
 
         # =================================================================== #
@@ -1168,6 +1169,37 @@ class HIROPolicy(ActorCriticPolicy):
             rewards=worker_rewards,
             obs1=worker_obs1,
             terminals1=worker_done1
+        )
+
+        if self.off_policy_corrections:
+            # Replace the goals with the most likely goals.
+            goals = self._sample_best_meta_action(
+                state_reps=None,  # FIXME
+                next_state_reprs=None,  # FIXME
+                prev_meta_actions=None,  # FIXME
+                low_states=None,  # FIXME
+                low_actions=None,  # FIXME
+                low_state_reprs=None,  # FIXME
+                tf_spec=None,  # FIXME
+                k=8
+            )
+
+            # Update the Manager policy.
+        self.manager.update_from_batch(
+            obs0=None,  # FIXME
+            actions=None,  # FIXME
+            rewards=None,  # FIXME
+            obs1=None,  # FIXME
+            terminals1=None  # FIXME
+        )
+
+        # Update the Worker policy.
+        self.worker.update_from_batch(
+            obs0=None,  # FIXME
+            actions=None,  # FIXME
+            rewards=None,  # FIXME
+            obs1=None,  # FIXME
+            terminals1=None  # FIXME
         )
 
         return 0, 0, {}  # FIXME
