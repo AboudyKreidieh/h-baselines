@@ -24,12 +24,14 @@ install:
   - pip install flake8 .
   - pip install coveralls
   - pip install nose2
+  - pip install pydocstyle
 
   # third-party tools
   - ./scripts/install_thirdparty.sh
 
 before_script:
   - flake8 --show-source
+  - pydocstyle . --convention=numpy
 
 script:
   - python setup.py install

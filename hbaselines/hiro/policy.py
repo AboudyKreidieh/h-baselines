@@ -1060,7 +1060,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward = None
 
         # The following is redundant but necessary if the changes to the update
-        # function are to be in the HIRO policy and not the FeedForward.
+        # function are to be in the GoalDirected policy and not FeedForward.
         self.batch_size = batch_size
 
         # =================================================================== #

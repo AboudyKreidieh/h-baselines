@@ -3,9 +3,9 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
-from hbaselines.hiro.tf_util import get_trainable_vars, get_globals_vars
+from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
-# from hbaselines.hiro.policy import GoalDirectedPolicy
+from hbaselines.hiro.policy import GoalDirectedPolicy
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -156,6 +156,9 @@ class TestFeedForwardPolicy(unittest.TestCase):
             (None, self.policy_params['ob_space'].shape[0] +
              self.policy_params['co_space'].shape[0]))
 
+        # Clear the graph.
+        tf.reset_default_graph()
+
     def test_normalization(self):
         """Test the normalizers for the observations and reward."""
         pass
@@ -166,6 +169,10 @@ class TestFeedForwardPolicy(unittest.TestCase):
 
     def test_update_target(self):
         """Test the soft and init target updates."""
+        pass
+
+    def test_store_transition(self):
+        """Test the `store_transition` method."""
         pass
 
 
@@ -209,12 +216,116 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
+        policy = GoalDirectedPolicy(**self.policy_params)
+
+        # Check that the abstract class has all the required attributes.
+        self.assertEqual(policy.meta_period,
+                         self.policy_params['meta_period'])
+        self.assertEqual(policy.relative_goals,
+                         self.policy_params['relative_goals'])
+        self.assertEqual(policy.off_policy_corrections,
+                         self.policy_params['off_policy_corrections'])
+        self.assertEqual(policy.use_fingerprints,
+                         self.policy_params['use_fingerprints'])
+        self.assertEqual(policy.centralized_value_functions,
+                         self.policy_params['centralized_value_functions'])
+        self.assertEqual(policy.connected_gradients,
+                         self.policy_params['connected_gradients'])
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['Manager/model/pi/fc0/bias:0',
+             'Manager/model/pi/fc0/kernel:0',
+             'Manager/model/pi/fc1/bias:0',
+             'Manager/model/pi/fc1/kernel:0',
+             'Manager/model/pi/pi/bias:0',
+             'Manager/model/pi/pi/kernel:0',
+             'Manager/model/qf/fc0/bias:0',
+             'Manager/model/qf/fc0/kernel:0',
+             'Manager/model/qf/fc1/bias:0',
+             'Manager/model/qf/fc1/kernel:0',
+             'Manager/model/qf/qf_output/bias:0',
+             'Manager/model/qf/qf_output/kernel:0',
+             'Manager/target/pi/fc0/bias:0',
+             'Manager/target/pi/fc0/kernel:0',
+             'Manager/target/pi/fc1/bias:0',
+             'Manager/target/pi/fc1/kernel:0',
+             'Manager/target/pi/pi/bias:0',
+             'Manager/target/pi/pi/kernel:0',
+             'Manager/target/qf/fc0/bias:0',
+             'Manager/target/qf/fc0/kernel:0',
+             'Manager/target/qf/fc1/bias:0',
+             'Manager/target/qf/fc1/kernel:0',
+             'Manager/target/qf/qf_output/bias:0',
+             'Manager/target/qf/qf_output/kernel:0',
+             'Worker/model/pi/fc0/bias:0',
+             'Worker/model/pi/fc0/kernel:0',
+             'Worker/model/pi/fc1/bias:0',
+             'Worker/model/pi/fc1/kernel:0',
+             'Worker/model/pi/pi/bias:0',
+             'Worker/model/pi/pi/kernel:0',
+             'Worker/model/qf/fc0/bias:0',
+             'Worker/model/qf/fc0/kernel:0',
+             'Worker/model/qf/fc1/bias:0',
+             'Worker/model/qf/fc1/kernel:0',
+             'Worker/model/qf/qf_output/bias:0',
+             'Worker/model/qf/qf_output/kernel:0',
+             'Worker/target/pi/fc0/bias:0',
+             'Worker/target/pi/fc0/kernel:0',
+             'Worker/target/pi/fc1/bias:0',
+             'Worker/target/pi/fc1/kernel:0',
+             'Worker/target/pi/pi/bias:0',
+             'Worker/target/pi/pi/kernel:0',
+             'Worker/target/qf/fc0/bias:0',
+             'Worker/target/qf/fc0/kernel:0',
+             'Worker/target/qf/fc1/bias:0',
+             'Worker/target/qf/fc1/kernel:0',
+             'Worker/target/qf/qf_output/bias:0',
+             'Worker/target/qf/qf_output/kernel:0']
+        )
+
+        # Test the worker_reward function.
+        self.assertAlmostEqual(
+            policy.worker_reward(
+                states=np.array([1, 2, 3]),
+                goals=np.array([3, 2, 1]),
+                next_states=np.array([0, 0, 0])
+            ),
+            -3.7416573867873044
+        )
+
+        # Clear the graph.
+        tf.reset_default_graph()
+
+    def test_store_transition(self):
+        """Test the `store_transition` method."""
         pass
-        # policy = GoalDirectedPolicy(**self.policy_params)
 
     def test_meta_period(self):
         """Verify that the rate of the Manager is dictated by meta_period."""
-        pass
+        # Test for a meta period of 5.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 5
+        policy = GoalDirectedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+        # Clear the graph.
+        tf.reset_default_graph()
+
+        # Test for a meta period of 10.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 10
+        policy = GoalDirectedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+        # Clear the graph.
+        tf.reset_default_graph()
 
     def test_relative_goals(self):
         """Validate the functionality of relative goals.
