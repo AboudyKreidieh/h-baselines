@@ -12,10 +12,6 @@ install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - export TEST_FLAG="True"
 
-  # Create the h-baselines conda environment.
-  - conda env create -f environment.yml
-  - source activate flow
-
   # dependencies for mpi4py
   - sudo apt-get install libopenmpi-dev
   - sudo apt-get install openmpi-bin
@@ -25,6 +21,10 @@ install:
   - pip install coveralls
   - pip install nose2
   - pip install pydocstyle
+
+  # Create the h-baselines conda environment.
+  - conda env create -f environment.yml
+  - source activate h-baselines
 
   # third-party tools
   - ./scripts/install_thirdparty.sh
