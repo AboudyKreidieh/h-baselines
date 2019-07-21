@@ -26,8 +26,8 @@ install:
   - conda env create -f environment.yml
   - source activate h-baselines
 
-  # third-party tools
-  - ./scripts/install_thirdparty.sh
+#  # third-party tools
+#  - ./scripts/install_thirdparty.sh
 
 before_script:
   - flake8 --show-source
