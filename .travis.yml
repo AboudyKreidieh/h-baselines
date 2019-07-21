@@ -16,15 +16,15 @@ install:
   - sudo apt-get install libopenmpi-dev
   - sudo apt-get install openmpi-bin
 
+  # Create the h-baselines conda environment.
+  - conda env create -f environment.yml
+  - source activate h-baselines
+
   # other packages to install
   - pip install flake8
   - pip install coveralls
   - pip install nose2
   - pip install pydocstyle
-
-  # Create the h-baselines conda environment.
-  - conda env create -f environment.yml
-  - source activate h-baselines
 
 #  # third-party tools
 #  - ./scripts/install_thirdparty.sh
