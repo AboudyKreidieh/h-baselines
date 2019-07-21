@@ -21,7 +21,11 @@ from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
 from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+try:
+    from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+except (ImportError, ModuleNotFoundError):
+    # for testing purposes
+    AntMaze, AntFall, AntPush = object, object, object
 
 
 def as_scalar(scalar):
