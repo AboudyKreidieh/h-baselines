@@ -446,15 +446,11 @@ class TD3(object):
 
         # TODO: add noise
         action = self.policy_tf.get_action(
-            obs,
-            time=self.episode_step,
-            context_obs=context,
-            global_time=self.total_steps)
+            obs, time=self.episode_step, context_obs=context)
         action = action.flatten()
         action *= self.action_space.high  # FIXME: In policy
 
-        q_value = self.policy_tf.value(
-            obs, context_obs=context, global_time=self.total_steps) \
+        q_value = self.policy_tf.value(obs, context_obs=context) \
             if compute_q else None
 
         return action, q_value
@@ -484,8 +480,7 @@ class TD3(object):
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
                                         context_obs0=context,
                                         context_obs1=context,
-                                        time=self.episode_step,
-                                        global_time=self.total_steps)
+                                        time=self.episode_step)
 
     def _initialize(self):
         """Initialize the model parameters and optimizers."""
