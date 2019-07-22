@@ -1,3 +1,4 @@
+"""TensorFlow utility methods."""
 import tensorflow as tf
 from stable_baselines import logger
 import numpy as np
@@ -36,8 +37,8 @@ def make_session(num_cpu=None, make_default=False, graph=None):
         return tf.Session(config=tf_config, graph=graph)
 
 
-def get_trainable_vars(name):
-    """Returns the trainable variable.
+def get_trainable_vars(name=None):
+    """Return the trainable variables.
 
     Parameters
     ----------
@@ -52,7 +53,7 @@ def get_trainable_vars(name):
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
 
-def get_globals_vars(name):
+def get_globals_vars(name=None):
     """Return the global variables.
 
     Parameters
@@ -189,55 +190,6 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     assert len(soft_updates) == len(_vars)
 
     return tf.group(*init_updates), tf.group(*soft_updates)
-
-
-def get_perturbed_actor_updates(actor,
-                                perturbed_actor,
-                                param_noise_stddev,
-                                verbose=0):
-    """Get the actor update, with noise.
-
-    Parameters
-    ----------
-    actor : str
-        the actor
-    perturbed_actor : str
-        the perturbed actor
-    param_noise_stddev : float
-        the std of the parameter noise
-    verbose : int
-        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-
-    Returns
-    -------
-    tf.Operation
-        the update function
-    """
-    assert len(get_globals_vars(actor)) == \
-        len(get_globals_vars(perturbed_actor))
-    assert \
-        len([var for var in get_trainable_vars(actor)
-             if 'LayerNorm' not in var.name]) == \
-        len([var for var in get_trainable_vars(perturbed_actor)
-             if 'LayerNorm' not in var.name])
-
-    updates = []
-    for var, perturbed_var in zip(get_globals_vars(actor),
-                                  get_globals_vars(perturbed_actor)):
-        if var in [var for var in get_trainable_vars(actor)
-                   if 'LayerNorm' not in var.name]:
-            if verbose >= 2:
-                logger.info('  {} <- {} + noise'.format(
-                    perturbed_var.name, var.name))
-            updates.append(
-                tf.assign(perturbed_var, var + tf.random_normal(
-                    tf.shape(var), mean=0., stddev=param_noise_stddev)))
-        else:
-            if verbose >= 2:
-                logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
-            updates.append(tf.assign(perturbed_var, var))
-    assert len(updates) == len(get_globals_vars(actor))
-    return tf.group(*updates)
 
 
 def var_shape(tensor):

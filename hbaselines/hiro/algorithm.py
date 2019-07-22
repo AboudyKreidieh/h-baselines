@@ -1,6 +1,6 @@
-"""Deep Deterministic Policy Gradient (DDPG) algorithm.
+"""Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
-See: https://arxiv.org/pdf/1509.02971.pdf
+See: https://arxiv.org/pdf/1802.09477.pdf
 
 A large portion of this code is adapted from the following repository:
 https://github.com/hill-a/stable-baselines
@@ -12,15 +12,22 @@ import csv
 import random
 import logging
 
+import gym
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
-from flow.utils.registry import make_create_env
 from hbaselines.hiro.tf_util import make_session
+from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+try:
+    from flow.utils.registry import make_create_env
+    from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+except (ImportError, ModuleNotFoundError):
+    # for testing purposes
+    make_create_env = object
+    AntMaze, AntFall, AntPush = object, object, object
 
 
 def as_scalar(scalar):
@@ -47,10 +54,10 @@ def as_scalar(scalar):
         raise ValueError('expected scalar, got %s' % scalar)
 
 
-class DDPG(object):
-    """Deep Deterministic Policy Gradient (DDPG) model.
+class TD3(object):
+    """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
-    See: https://arxiv.org/pdf/1509.02971.pdf
+    See: https://arxiv.org/pdf/1802.09477.pdf
 
     Attributes
     ----------
@@ -101,8 +108,6 @@ class DDPG(object):
         (to be used in HER+DDPG)
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    policy_kwargs : dict
-        additional policy parameters
     action_space : gym.spaces.*
         the action space of the training environment
     observation_space : gym.spaces.*
@@ -178,8 +183,7 @@ class DDPG(object):
                  buffer_size=50000,
                  random_exploration=0.0,
                  verbose=0,
-                 _init_setup_model=True,
-                 policy_kwargs=None):
+                 _init_setup_model=True):
         """Instantiate the algorithm object.
 
         Parameters
@@ -234,8 +238,6 @@ class DDPG(object):
             debug
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
-        policy_kwargs : dict
-            additional policy parameters
         """
         self.policy = policy
         self.env = self._create_env(env, evaluate=False)
@@ -261,7 +263,6 @@ class DDPG(object):
         self.buffer_size = buffer_size
         self.random_exploration = random_exploration
         self.verbose = verbose
-        self.policy_kwargs = policy_kwargs
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
@@ -351,13 +352,21 @@ class DDPG(object):
             # Create the environment.
             env = create_env()
 
+        elif isinstance(env, str):
+            # This is assuming the environment is registered with OpenAI gym.
+            env = gym.make(env)
+
+        # Reset the environment.
+        if env is not None:
+            env.reset()
+
         return env
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
         # determine whether the action space is continuous
         assert isinstance(self.action_space, Box), \
-            "Error: DDPG cannot output a {} action space, only " \
+            "Error: TD3 cannot output a {} action space, only " \
             "spaces.Box is supported.".format(self.action_space)
 
         self.graph = tf.Graph()
@@ -414,17 +423,10 @@ class DDPG(object):
         float
             the critic value
         """
-        # Separate the observations and contextual observations if the
-        # observation consists of a tuple of both.
-        if isinstance(obs, tuple):
-            obs, context = obs
-            context = np.array(context).reshape((-1,)+self.context_space.shape)
-        else:
-            context = None
-
         del apply_noise  # FIXME
 
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+        context = [getattr(self.env, "current_context", None)]
 
         # TODO: add noise
         action = self.policy_tf.get_action(
@@ -453,17 +455,15 @@ class DDPG(object):
         terminal1 : bool
             is the episode done
         """
-        if isinstance(obs0, tuple):
-            obs0, context_obs0 = obs0
-            obs1, context_obs1 = obs1
-        else:
-            context_obs0 = None
-            context_obs1 = None
+        # Get the contextual term.
+        context = getattr(self.env, "current_context", None)
 
+        # Scale the rewards by the provided term.
         reward *= self.reward_scale
+
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
-                                        context_obs0=context_obs0,
-                                        context_obs1=context_obs1,
+                                        context_obs0=context,
+                                        context_obs1=context,
                                         time=self.episode_step)
 
     def _initialize(self):
@@ -550,7 +550,7 @@ class DDPG(object):
                 for _ in range(log_interval):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps > total_timesteps:
+                    if self.total_steps >= total_timesteps:
                         return
 
                     # Perform rollouts.
@@ -618,6 +618,21 @@ class DDPG(object):
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
+
+            if hasattr(self.env, "current_context"):
+                # Get the contextual term.
+                context = getattr(self.env, "current_context")
+
+                # Add the contextual reward to the environment reward.
+                if isinstance(self.policy_tf, FeedForwardPolicy):
+                    reward += getattr(self.env, "contextual_reward")(
+                        self.obs, context, new_obs)[0]
+                elif isinstance(self.policy_tf, GoalDirectedPolicy) \
+                        and (
+                        self.episode_step % self.policy_tf.meta_period == 0
+                        or done):
+                    reward += getattr(self.env, "contextual_reward")(
+                        self.policy_tf.prev_meta_obs, context, new_obs)[0]
 
             # Visualize the current step.
             if rank == 0 and self.render:
