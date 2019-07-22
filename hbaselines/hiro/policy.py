@@ -343,7 +343,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
-        self.fingerprint_dim = (1,)
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
