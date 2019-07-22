@@ -39,7 +39,7 @@ def get_hyperparameters(args):
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
-        # "normalize_observations": args.normalize_observations,
+        "normalize_observations": args.normalize_observations,
         "tau": args.tau,
         "batch_size": args.batch_size,
         # "normalize_returns": args.normalize_returns,
@@ -57,7 +57,7 @@ def get_hyperparameters(args):
     return hp
 
 
-def create_parser(description, example_usage):
+def parse_options(description, example_usage, args):
     """Parse training options user can specify in command line.
 
     Returns
@@ -88,7 +88,9 @@ def create_parser(description, example_usage):
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
 
-    return parser
+    flags, _ = parser.parse_known_args(args)
+
+    return flags
 
 
 def create_td3_parser(parser):
