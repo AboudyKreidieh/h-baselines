@@ -57,7 +57,7 @@ def get_hyperparameters(args):
     return hp
 
 
-def create_parser(description, example_usage):
+def parse_options(description, example_usage, args):
     """Parse training options user can specify in command line.
 
     Returns
@@ -88,7 +88,9 @@ def create_parser(description, example_usage):
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
 
-    return parser
+    flags, _ = parser.parse_known_args(args)
+
+    return flags
 
 
 def create_td3_parser(parser):

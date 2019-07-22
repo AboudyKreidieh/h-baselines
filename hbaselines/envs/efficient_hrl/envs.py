@@ -174,7 +174,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             initial observation
         """
         self.step_number = 0
-        obs = super(UniversalAntMazeEnv, self).reset()
+        self.prev_obs = super(UniversalAntMazeEnv, self).reset()
 
         if self.use_contexts:
             if not self.random_contexts:
@@ -191,7 +191,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             # Convert to numpy array.
             self.current_context = np.asarray(self.current_context)
 
-        return obs
+        return self.prev_obs
 
 
 class AntMaze(UniversalAntMazeEnv):

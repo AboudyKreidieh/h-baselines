@@ -7,9 +7,10 @@ import os
 import csv
 from time import strftime
 import ray
+import sys
 
 from hbaselines.common.train import ensure_dir
-from hbaselines.common.train import create_parser, get_hyperparameters
+from hbaselines.common.train import parse_options, get_hyperparameters
 from hbaselines.hiro import TD3, FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
@@ -50,13 +51,14 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
     return None
 
 
-def main():
+def main(args):
     """Execute multiple training operations."""
-    parser = create_parser(
+    args = parse_options(
         description='Test the performance of TD3 with fully connected network '
                     'models on various environments.',
-        example_usage=EXAMPLE_USAGE)
-    args = parser.parse_args()
+        example_usage=EXAMPLE_USAGE,
+        args=args
+    )
 
     # if the environment is in Flow or h-baselines, register it
     env = args.env_name
@@ -83,5 +85,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
     os._exit(1)
