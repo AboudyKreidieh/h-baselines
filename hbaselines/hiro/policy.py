@@ -5,6 +5,7 @@ import numpy as np
 from functools import reduce
 from copy import deepcopy
 import logging
+from gym.spaces import Box
 
 from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
@@ -360,12 +361,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 2: Create input variables.                                     #
         # =================================================================== #
 
-
         # Compute the shape of the input observation space, which may include
         # the contextual term.
-        if co_space is None:
-            ob_dim = ob_dim
-        else:
+        ob_dim = ob_space.shape
+        if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
         with tf.variable_scope("input", reuse=False):
@@ -1019,6 +1018,22 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.use_fingerprints = use_fingerprints
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
+        self.fingerprint_dim = (1,)
+        self.fingerprint_range = ([0], [5])
+
+        # Compute the observation space for the Manager and Worker.
+        #
+        # If the fingerprint terms are being appended onto the observations,
+        # this should be the original observation space plus the fingerprint
+        # spaces at the end of the observation.
+        if self.use_fingerprints:
+            ob_low = ob_space.low
+            ob_high = ob_space.high
+            ob_low.extend(self.fingerprint_range[0])
+            ob_high.extend(self.fingerprint_range[1])
+            manager_worker_ob_space = Box(low=ob_low, high=ob_high)
+        else:
+            manager_worker_ob_space = ob_space
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -1028,7 +1043,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=ob_space + self.fingerprint_dim,  # FIXME
+                ob_space=manager_worker_ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -1076,7 +1091,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=ob_space+self.fingerprint_dim,  
+                ob_space=manager_worker_ob_space,
                 ac_space=ac_space,
                 co_space=ob_space,
                 buffer_size=buffer_size,
@@ -1100,8 +1115,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
 
         # remove the last element to compute the reward 
-        if self.use_fingerprint:
-            state_indices = np.arange(0, self.ob_dim - 1)
+        if self.use_fingerprints:
+            state_indices = list(np.arange(
+                0, self.ob_space.shape[0] - self.fingerprint_dim[0]))
         else:
             state_indices = None
 
