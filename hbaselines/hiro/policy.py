@@ -1,3 +1,4 @@
+"""TD3-compatible policies."""
 import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
@@ -819,7 +820,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.sess.run(self.target_init_updates)
 
     def _setup_stats(self):
-        """Setup the running means and std of the model inputs and outputs."""
+        """Create the running means and std of the model inputs and outputs."""
         ops = []
         names = []
 
@@ -904,10 +905,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return stats
 
 
-class HIROPolicy(ActorCriticPolicy):
-    """Hierarchical reinforcement learning with off-policy correction.
+class GoalDirectedPolicy(ActorCriticPolicy):
+    """Goal-directed hierarchical reinforcement learning model.
 
-    See: https://arxiv.org/pdf/1805.08296.pdf
+    TODO: Description
+
+    See: http://papers.nips.cc/paper/714-feudal-reinforcement-learning.pdf
 
     Attributes
     ----------
@@ -974,7 +977,7 @@ class HIROPolicy(ActorCriticPolicy):
                  use_fingerprints=False,
                  centralized_value_functions=False,
                  connected_gradients=False):
-        """Instantiate the HIRO policy.
+        """Instantiate the goal-directed hierarchical policy.
 
         Parameters
         ----------
@@ -1039,13 +1042,9 @@ class HIROPolicy(ActorCriticPolicy):
         connected_gradients : bool, optional
             whether to connect the graph between the manager and worker.
             Defaults to False.
-
-        Raises
-        ------
-        AssertionError
-            if the layers is not a list of at least size 1
         """
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
+        super(GoalDirectedPolicy, self).__init__(sess,
+                                                 ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
         self.relative_goals = relative_goals
@@ -1099,7 +1098,7 @@ class HIROPolicy(ActorCriticPolicy):
         self.meta_reward = None
 
         # The following is redundant but necessary if the changes to the update
-        # function are to be in the HIRO policy and not the FeedForward.
+        # function are to be in the GoalDirected policy and not FeedForward.
         self.batch_size = batch_size
 
         # =================================================================== #

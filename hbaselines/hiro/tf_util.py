@@ -1,3 +1,4 @@
+"""TensorFlow utility methods."""
 import tensorflow as tf
 from stable_baselines import logger
 import numpy as np
@@ -36,8 +37,8 @@ def make_session(num_cpu=None, make_default=False, graph=None):
         return tf.Session(config=tf_config, graph=graph)
 
 
-def get_trainable_vars(name):
-    """Returns the trainable variable.
+def get_trainable_vars(name=None):
+    """Return the trainable variables.
 
     Parameters
     ----------
@@ -52,7 +53,7 @@ def get_trainable_vars(name):
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
 
-def get_globals_vars(name):
+def get_globals_vars(name=None):
     """Return the global variables.
 
     Parameters
