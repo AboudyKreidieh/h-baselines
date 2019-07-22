@@ -266,8 +266,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
-                 scope=None,
-                 use_fingerprint=False):
+                 scope=None):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -318,8 +317,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the activation function to use in the neural network
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        use_fingerprint : bool 
-            if fingerprints are used or not 
 
         Raises
         ------
@@ -346,7 +343,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
-        self.use_fingerprint = use_fingerprint
         self.fingerprint_dim = (1,)
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
@@ -898,6 +894,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
