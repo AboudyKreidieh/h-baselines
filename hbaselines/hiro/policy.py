@@ -1258,24 +1258,13 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Compute the worker reward.
         worker_reward = self.worker_reward(obs0, self.meta_action, obs1)
 
-        # # Add the worker transition to the replay buffer.
-        # self.worker.store_transition(
-        #     obs0=obs0,
-        #     context_obs0=self.prev_meta_action,
-        #     action=action,
-        #     reward=worker_reward,
-        #     obs1=obs1,
-        #     context_obs1=self.meta_action,
-        #     done=done
-        # )
+        # Add the worker reward to the replay buffer. TODO
+        del worker_reward
 
         # Update the prev meta action to match that of the current time step.
         self.prev_meta_action = deepcopy(self.meta_action)
 
-    def goal_xsition_model(self,
-                           obs_t,
-                           g_t,
-                           obs_tp1):
+    def goal_xsition_model(self, obs_t, g_t, obs_tp1):
         """
         Fixed goal transition function defined by the following eqn:
         h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
@@ -1340,8 +1329,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         best_actions = tf.argmax(fitness, 0)
         actions = tf.gather_nd(
             sampled_actions,
-            tf.stack([best_actions,
-                      tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
+            tf.stack([
+                best_actions,
+                tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
         return actions
 
     def _log_probs(self,
@@ -1373,9 +1363,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                                                     goals[index],
                                                     states[index+1]))
 
-        flat_contexts = [tf.reshape(tf.cast(context, states.dtype),
-                                    [batch_dims[0] * batch_dims[1], context.shape[-1]])
-                         for context in contexts]
+        flat_contexts = [
+            tf.reshape(tf.cast(context, states.dtype),
+                       [batch_dims[0] * batch_dims[1], context.shape[-1]])
+            for context in contexts
+        ]
 
         flat_pred_actions = self.worker.get_action(flat_contexts)
 
@@ -1390,13 +1382,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         return -normalized_error
 
-    def _sample(self,
-                states,
-                next_states,
-                num_samples,
-                orig_goals,
-                tf_spec,
-                sc=0.5):
+    def _sample(self, states, next_states, num_samples, orig_goals, tf_spec, sc=0.5):
         """
         Sample different goals from a random Gaussian distribution
         centered at (s_t+c) - (s_t)
@@ -1447,9 +1433,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tf_spec,
                 sc=0.5):
         """
-        return self.clip_to_bounds(value,
-                                   spec.minimum,
-                                   spec.maximum)
+        return self.clip_to_bounds(value, spec.minimum, spec.maximum)
 
     def clip_to_bounds(self, value, minimum, maximum):
         """Clips value to be between minimum and maximum.
