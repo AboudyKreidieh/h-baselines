@@ -344,8 +344,21 @@ class TestGoalDirectedPolicy(unittest.TestCase):
     def test_fingerprints(self):
         """Validate the functionality of the fingerprints.
 
-        This feature should TODO: describe content
+        This feature should add a fingerprint dimension to the manager and
+        worker observation spaces, but NOT the context space of the worker or
+        the action space of the manager. The worker reward function should also
+        be ignoring the fingerprint elements  during its computation. The
+        fingerprint elements are passed by the algorithm, and tested under
+        test_algorithm.py
         """
+        # Create the policy.  # TODO
+        pass
+
+        # Test the observation spaces of the manager and worker, as well as the
+        # context space of the worker and action space of the manager.  # TODO
+        pass
+
+        # Test worker_reward method within the policy.  # TODO
         pass
 
     def test_centralized_value_functions(self):
