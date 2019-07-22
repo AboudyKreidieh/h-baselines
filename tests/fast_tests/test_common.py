@@ -1,6 +1,7 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
-from hbaselines.common.train import parse_options, DEFAULT_TD3_HP
+from hbaselines.common.train import parse_options, get_hyperparameters
+from hbaselines.common.train import DEFAULT_TD3_HP
 
 
 class TestTrain(unittest.TestCase):
@@ -53,23 +54,24 @@ class TestTrain(unittest.TestCase):
             "--buffer_size", "15",
             "--evaluate",
         ])
+        hp = get_hyperparameters(args)
         self.assertEqual(args.n_training, 1)
         self.assertEqual(args.steps, 2)
-        self.assertEqual(args.gamma, 3)
-        self.assertEqual(args.tau, 4)
-        self.assertEqual(args.batch_size, 5)
-        self.assertEqual(args.reward_scale, 6)
-        self.assertEqual(args.actor_lr, 7)
-        self.assertEqual(args.critic_lr, 8)
-        self.assertEqual(args.critic_l2_reg, 9)
-        self.assertEqual(args.clip_norm, 10)
-        self.assertEqual(args.nb_train_steps, 11)
-        self.assertEqual(args.nb_rollout_steps, 12)
-        self.assertEqual(args.nb_eval_episodes, 13)
-        self.assertEqual(args.normalize_observations, True)
-        self.assertEqual(args.render, True)
-        self.assertEqual(args.verbose, 14)
-        self.assertEqual(args.buffer_size, 15)
+        self.assertEqual(hp["gamma"], 3)
+        self.assertEqual(hp["tau"], 4)
+        self.assertEqual(hp["batch_size"], 5)
+        self.assertEqual(hp["reward_scale"], 6)
+        self.assertEqual(hp["actor_lr"], 7)
+        self.assertEqual(hp["critic_lr"], 8)
+        self.assertEqual(hp["critic_l2_reg"], 9)
+        self.assertEqual(hp["clip_norm"], 10)
+        self.assertEqual(hp["nb_train_steps"], 11)
+        self.assertEqual(hp["nb_rollout_steps"], 12)
+        self.assertEqual(hp["nb_eval_episodes"], 13)
+        self.assertEqual(hp["normalize_observations"], True)
+        self.assertEqual(hp["render"], True)
+        self.assertEqual(hp["verbose"], 14)
+        self.assertEqual(hp["buffer_size"], 15)
         self.assertEqual(args.evaluate, True)
 
 

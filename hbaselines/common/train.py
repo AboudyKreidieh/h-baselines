@@ -39,7 +39,7 @@ def get_hyperparameters(args):
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
-        # "normalize_observations": args.normalize_observations,
+        "normalize_observations": args.normalize_observations,
         "tau": args.tau,
         "batch_size": args.batch_size,
         # "normalize_returns": args.normalize_returns,
