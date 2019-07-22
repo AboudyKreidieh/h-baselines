@@ -1115,7 +1115,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 scope="Worker"
             )
 
-        # remove the last element to compute the reward 
+        # remove the last element to compute the reward
         if self.use_fingerprints:
             state_indices = list(np.arange(
                 0, self.ob_space.shape[0] - self.fingerprint_dim[0]))
