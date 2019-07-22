@@ -2,8 +2,9 @@
 import unittest
 import numpy as np
 
-from hbaselines.hiro.algorithm import as_scalar  # , TD3
-# from hbaselines.hiro.replay_buffer import ReplayBuffer
+from hbaselines.hiro.algorithm import as_scalar, TD3
+from hbaselines.hiro.tf_util import get_trainable_vars
+from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -31,17 +32,17 @@ class TestTD3(unittest.TestCase):
 
         self.init_parameters = {
             'policy': None,
-            'env': None,
+            'env': 'MountainCarContinuous-v0',
             'gamma': 0.99,
-            'memory_policy': None,
+            'eval_env': None,
             'nb_train_steps': 50,
             'nb_rollout_steps': 100,
-            'action_noise': None,
+            'nb_eval_episodes': 50,
             'normalize_observations': False,
             'tau': 0.001,
             'batch_size': 128,
             'normalize_returns': False,
-            'observation_range': (-5, 5),
+            'observation_range': (-5., 5.),
             'critic_l2_reg': 0.,
             'return_range': (-np.inf, np.inf),
             'actor_lr': 1e-4,
@@ -49,27 +50,158 @@ class TestTD3(unittest.TestCase):
             'clip_norm': None,
             'reward_scale': 1.,
             'render': False,
-            'memory_limit': 100,
+            'render_eval': False,
+            'memory_limit': None,
+            'buffer_size': 50000,
+            'random_exploration': 0.0,
             'verbose': 0,
-            'tensorboard_log': None,
             '_init_setup_model': True
         }
 
     def test_init(self):
         """Ensure that the parameters at init are as expected."""
-        # Part 1. Fully Connected Network
+        # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['env'] = self.env
         policy_params['_init_setup_model'] = False
+        alg = TD3(**policy_params)
 
-        # alg = TD3(**policy_params)
-        pass
+        # Test the attribute values.
+        self.assertEqual(alg.gamma, self.init_parameters['gamma'])
+        self.assertEqual(alg.nb_train_steps,
+                         self.init_parameters['nb_train_steps'])
+        self.assertEqual(alg.nb_rollout_steps,
+                         self.init_parameters['nb_rollout_steps'])
+        self.assertEqual(alg.nb_eval_episodes,
+                         self.init_parameters['nb_eval_episodes'])
+        self.assertEqual(alg.normalize_observations,
+                         self.init_parameters['normalize_observations'])
+        self.assertEqual(alg.tau, self.init_parameters['tau'])
+        self.assertEqual(alg.batch_size, self.init_parameters['batch_size'])
+        self.assertEqual(alg.normalize_returns,
+                         self.init_parameters['normalize_returns'])
+        self.assertEqual(alg.observation_range,
+                         self.init_parameters['observation_range'])
+        self.assertEqual(alg.critic_l2_reg,
+                         self.init_parameters['critic_l2_reg'])
+        self.assertEqual(alg.return_range,
+                         self.init_parameters['return_range'])
+        self.assertEqual(alg.actor_lr, self.init_parameters['actor_lr'])
+        self.assertEqual(alg.critic_lr, self.init_parameters['critic_lr'])
+        self.assertEqual(alg.clip_norm, self.init_parameters['clip_norm'])
+        self.assertEqual(alg.reward_scale,
+                         self.init_parameters['reward_scale'])
+        self.assertEqual(alg.render, self.init_parameters['render'])
+        self.assertEqual(alg.render_eval, self.init_parameters['render_eval'])
+        self.assertEqual(alg.memory_limit,
+                         self.init_parameters['memory_limit'])
+        self.assertEqual(alg.buffer_size, self.init_parameters['buffer_size'])
+        self.assertEqual(alg.random_exploration,
+                         self.init_parameters['random_exploration'])
+        self.assertEqual(alg.verbose, self.init_parameters['verbose'])
 
     def test_setup_model_feedforward(self):
-        pass
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = TD3(**policy_params)
+
+        with alg.graph.as_default():
+            expected_vars = sorted([var.name for var in get_trainable_vars()])
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            expected_vars,
+            ['model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/pi/bias:0',
+             'model/pi/pi/kernel:0',
+             'model/qf/fc0/bias:0',
+             'model/qf/fc0/kernel:0',
+             'model/qf/fc1/bias:0',
+             'model/qf/fc1/kernel:0',
+             'model/qf/qf_output/bias:0',
+             'model/qf/qf_output/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/pi/bias:0',
+             'target/pi/pi/kernel:0',
+             'target/qf/fc0/bias:0',
+             'target/qf/fc0/kernel:0',
+             'target/qf/fc1/bias:0',
+             'target/qf/fc1/kernel:0',
+             'target/qf/qf_output/bias:0',
+             'target/qf/qf_output/kernel:0']
+        )
 
     def test_setup_model_goal_directed(self):
-        pass
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['_init_setup_model'] = True
+        alg = TD3(**policy_params)
+
+        with alg.graph.as_default():
+            expected_vars = sorted([var.name for var in get_trainable_vars()])
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            expected_vars,
+            ['Manager/model/pi/fc0/bias:0',
+             'Manager/model/pi/fc0/kernel:0',
+             'Manager/model/pi/fc1/bias:0',
+             'Manager/model/pi/fc1/kernel:0',
+             'Manager/model/pi/pi/bias:0',
+             'Manager/model/pi/pi/kernel:0',
+             'Manager/model/qf/fc0/bias:0',
+             'Manager/model/qf/fc0/kernel:0',
+             'Manager/model/qf/fc1/bias:0',
+             'Manager/model/qf/fc1/kernel:0',
+             'Manager/model/qf/qf_output/bias:0',
+             'Manager/model/qf/qf_output/kernel:0',
+             'Manager/target/pi/fc0/bias:0',
+             'Manager/target/pi/fc0/kernel:0',
+             'Manager/target/pi/fc1/bias:0',
+             'Manager/target/pi/fc1/kernel:0',
+             'Manager/target/pi/pi/bias:0',
+             'Manager/target/pi/pi/kernel:0',
+             'Manager/target/qf/fc0/bias:0',
+             'Manager/target/qf/fc0/kernel:0',
+             'Manager/target/qf/fc1/bias:0',
+             'Manager/target/qf/fc1/kernel:0',
+             'Manager/target/qf/qf_output/bias:0',
+             'Manager/target/qf/qf_output/kernel:0',
+             'Worker/model/pi/fc0/bias:0',
+             'Worker/model/pi/fc0/kernel:0',
+             'Worker/model/pi/fc1/bias:0',
+             'Worker/model/pi/fc1/kernel:0',
+             'Worker/model/pi/pi/bias:0',
+             'Worker/model/pi/pi/kernel:0',
+             'Worker/model/qf/fc0/bias:0',
+             'Worker/model/qf/fc0/kernel:0',
+             'Worker/model/qf/fc1/bias:0',
+             'Worker/model/qf/fc1/kernel:0',
+             'Worker/model/qf/qf_output/bias:0',
+             'Worker/model/qf/qf_output/kernel:0',
+             'Worker/target/pi/fc0/bias:0',
+             'Worker/target/pi/fc0/kernel:0',
+             'Worker/target/pi/fc1/bias:0',
+             'Worker/target/pi/fc1/kernel:0',
+             'Worker/target/pi/pi/bias:0',
+             'Worker/target/pi/pi/kernel:0',
+             'Worker/target/qf/fc0/bias:0',
+             'Worker/target/qf/fc0/kernel:0',
+             'Worker/target/qf/fc1/bias:0',
+             'Worker/target/qf/fc1/kernel:0',
+             'Worker/target/qf/qf_output/bias:0',
+             'Worker/target/qf/qf_output/kernel:0']
+        )
 
 
 if __name__ == '__main__':
