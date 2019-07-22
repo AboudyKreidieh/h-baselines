@@ -332,13 +332,18 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
         This should affect the worker reward function as well as TODO.
         """
+        # Test the goal_xsition_model method.  FIXME
         pass
 
     def test_off_policy_corrections(self):
-        """Validate the functionality of the off-policy corrections.
+        """Validate the functionality of the off-policy corrections."""
+        # Test the _sample method.  FIXME
+        pass
 
-        TODO: describe content
-        """
+        # Test the _log_probs method.  FIXME
+        pass
+
+        # Test the _sample_best_meta_action method.  FIXME
         pass
 
     def test_fingerprints(self):

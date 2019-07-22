@@ -1067,23 +1067,13 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # function are to be in the GoalDirected policy and not FeedForward.
         self.batch_size = batch_size
 
-        """
-            Use this to store a list of observations
-            that stretch as long as the dilated
-            horizon chosen for the Manager.
-
-            These observations correspond to the s(t)
-            in the HIRO paper.
-        """
+        # Use this to store a list of observations that stretch as long as the
+        # dilated horizon chosen for the Manager. These observations correspond
+        # to the s(t) in the HIRO paper.
         self._observations = []
 
-        """
-            Use this to store the list of environmental
-            actions that the worker takes.
-
-            These actions correspond to the a(t)
-            in the HIRO paper.
-        """
+        # Use this to store the list of environmental actions that the worker
+        # takes. These actions correspond to the a(t) in the HIRO paper.
         self._worker_actions = []
 
         # =================================================================== #
@@ -1195,13 +1185,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         return worker_action
 
     def _notify_manager(self, action, **kwargs):
-        """
-        Notify the Manager that the Worker produced a new action.
-        These actions are saved in the Manager for future off-
-        policy enhancements.
+        """Notify the Manager that the Worker produced a new action.
+
+        These actions are saved in the Manager for future off-policy
+        enhancements.
+
         Parameters
         ----------
-        action: Any
+        action : array_like
             current action produced by Worker
         """
         if kwargs["time"] % self.meta_period == 0:
@@ -1210,11 +1201,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._worker_actions.append(action)
 
     def _observation_memory(self, obs, **kwargs):
-        """
-        Notify the Manager that there is a new environmental
-        observation. These new observations are saved in the
-        Manager for future off-policy correction.
-        obs: Any
+        """Notify the Manager that there is a new environmental observation.
+
+        These new observations are saved in the Manager for future off-policy
+        corrections.
+
+        Parameters
+        ----------
+        obs : array_like
             current environmental observation
         """
         if kwargs["time"] % self.meta_period == 0:
@@ -1264,24 +1258,29 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Update the prev meta action to match that of the current time step.
         self.prev_meta_action = deepcopy(self.meta_action)
 
-    def goal_xsition_model(self, obs_t, g_t, obs_tp1):
-        """
-        Fixed goal transition function defined by the following eqn:
-        h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
-        Parameters:
-        -----------
-        obs_t: Any
+    @staticmethod
+    def goal_xsition_model(obs_t, g_t, obs_tp1):
+        """Return fixed goal transition.
+
+        The goal transition is defined by the following eqn:
+
+            h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
+
+        Parameters
+        ----------
+        obs_t : array_like
             environmental observation at time t
-        g_t: Any
+        g_t : array_like
             Worker specified goal at time t
-        obs_tp1: Any
-            environmental observation at time t
+        obs_tp1 : array_like
+            environmental observation at time t+1
+
         Returns
         -------
-        g_tp1: Any
+        array_like
             Worker specified goal at time t+1
         """
-        return tf.subtract(tf.add(obs_t, g_t), obs_tp1)
+        return obs_t + g_t - obs_tp1
 
     def _sample_best_meta_action(self,
                                  state_reps,
@@ -1290,40 +1289,42 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                                  low_states,
                                  low_actions,
                                  low_state_reprs,
-                                 tf_spec,
                                  k=8):
-        """
-        Return meta-actions which approximately maximize low-level log-probs.
-        state_reps: Any
-            current Manager state observation
-        next_state_reprs: Any
-            next Manager state observation
-        prev_meta_actions: Any
-            previous meta Manager action
-        low_states: Any
-            current Worker state observation
-        low_actions: Any
-            current Worker environmental action
-        low_state_reprs: Any
-            BLANK
-        k: int
-            number of goals returned
-        """
-        sampled_actions = self._sample(state_reps,
-                                       next_state_reprs,
-                                       k,
-                                       prev_meta_actions,
-                                       tf_spec)
+        """Return meta-actions that approximately maximize low-level log-probs.
 
-        sampled_actions = tf.stop_gradient(sampled_actions)
+        Parameters
+        ----------
+        state_reps : array_like
+            current Manager state observation
+        next_state_reprs : array_like
+            next Manager state observation
+        prev_meta_actions : array_like
+            previous meta Manager action
+        low_states : array_like
+            current Worker state observation
+        low_actions : array_like
+            current Worker environmental action
+        low_state_reprs : array_like
+            current Worker state observation
+        k : int, optional
+            number of goals returned, excluding the initial goal and the mean
+            value
+
+        Returns
+        -------
+        array_like
+            most likely meta-actions
+        """
+        # Collect several samples of potentially optimal goals.
+        sampled_actions = self._sample(
+            state_reps, next_state_reprs, k, prev_meta_actions)
 
         sampled_log_probs = tf.reshape(self._log_probs(
             tf.tile(low_states, [k, 1, 1]),
             tf.tile(low_actions, [k, 1, 1]),
             tf.tile(low_state_reprs, [k, 1, 1]),
             [tf.reshape(sampled_actions, [-1, sampled_actions.shape[-1]])]),
-            [k, low_states.shape[0],
-             low_states.shape[1], -1])
+            [k, low_states.shape[0], low_states.shape[1], -1])
 
         fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
         best_actions = tf.argmax(fitness, 0)
@@ -1334,34 +1335,33 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
         return actions
 
-    def _log_probs(self,
-                   states,
-                   actions,  # use this as a target value for error
-                   tf_spec,  # use this to define max and min
-                   goals):
-        """
-        Utility function that helps in calculating the
-        log probability of the next goal by the Manager.
-        states: Any
+    def _log_probs(self, states, actions, goals):
+        """Calculating the log probability of the next goal by the Manager.
+
+        Parameters
+        ----------
+        states : array_like
             list of states corresponding to that of Manager
-        state_reps: Any
-            list of state representations corresponding to s(t)
-        context: Any
-            BLANK
+        actions : array_like
+            TODO
+        goals : array_like
+            TODO
+
         Returns
         -------
-        next likely goal by the Manager defined by log prob
+        array_like
+            error associated with every state/action/goal pair
+
         Helps
         -----
         * _sample_best_meta_action(self):
         """
-        batch_dims = [tf.shape(states)[0], tf.shape(states)[1]]
+        batch_dims = [states.shape[0], states.shape[1]]
 
         contexts = []
         for index in range(len(states)-1):
-            contexts.append(self.goal_xsition_model(states[index],
-                                                    goals[index],
-                                                    states[index+1]))
+            contexts.append(self.goal_xsition_model(
+                states[index], goals[index], states[index+1]))
 
         flat_contexts = [
             tf.reshape(tf.cast(context, states.dtype),
@@ -1374,78 +1374,68 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         pred_actions = tf.reshape(flat_pred_actions,
                                   batch_dims + [flat_pred_actions.shape[-1]])
 
-        error = tf.square(actions - pred_actions)
+        error = np.square(actions - pred_actions)
 
-        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2
-
-        normalized_error = error / tf.constant(spec_range) ** 2
+        # Normalize the error based on the range of applicable goals.
+        goal_space = self.manager.ac_space
+        spec_range = (goal_space.high - goal_space.low) / 2
+        normalized_error = error / np.square(spec_range)
 
         return -normalized_error
 
-    def _sample(self, states, next_states, num_samples, orig_goals, tf_spec, sc=0.5):
-        """
-        Sample different goals from a random Gaussian distribution
-        centered at (s_t+c) - (s_t)
-        states: Any
+    def _sample(self, states, next_states, num_samples, orig_goals, sc=0.5):
+        """Sample different goals.
+
+        These goals are acquired from a random Gaussian distribution centered
+        at s_{t+c} - s_t.
+
+        Parameters
+        ----------
+        states : array_like
             current time step observation
-        next_states: Any
+        next_states : array_like
             next time step observation
-        num_samples: Any
+        num_samples : int
             number of samples
-        orig_goals: Any
+        orig_goals : array_like
             original goal specified by Manager
-        tf_spec: tf.TensorSpec
-            Metadata for describing the tf.Tensor objects accepted
-            or returned by some TensorFlow APIs.
-        sc: float
-            BLANK
+        sc : float
+            scaling factor for the normal distribution.
+
+        Returns
+        -------
+        array_like
+            list of sampled goals
+
         Helps
         -----
-        * _sample_best_meta_action(self):
+        * _sample_best_meta_action(self)
         """
         goal_dim = orig_goals.shape[-1]
-        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2 * tf.ones([goal_dim])
-        loc = tf.cast(next_states - states, tf.float32)[:, :goal_dim]
+        goal_space = self.manager.ac_space
+        spec_range = (goal_space.high - goal_space.low) / 2
+
+        # Compute the mean and std for the Gaussian distribution to sample from
+        loc = (next_states - states)[:, :goal_dim]
         scale = sc * tf.tile(tf.reshape(spec_range, [1, goal_dim]),
                              [tf.shape(states)[0], 1])
+
+        # Sample the requested number of goals from the Gaussian distribution.
+        # FIXME: remove tf
         dist = tf.distributions.Normal(loc, scale)
-        if num_samples == 1:
-            return dist.sample()
-        samples = tf.concat([dist.sample(num_samples - 2),
-                             tf.expand_dims(loc, 0),
-                             tf.expand_dims(orig_goals, 0)], 0)
-        return self._clip_to_spec(samples, tf_spec)
+        samples = dist.sample(num_samples - 2)
 
-    def _clip_to_spec(self, value, spec):
-        """
-        Clips value to a given bounded tensor spec.
-        Args:
-          value: (tensor) value to be clipped.
-          spec: (BoundedTensorSpec) spec containing min. and max. values for clipping.
-        Returns:
-          clipped_value: (tensor) `value` clipped to be compatible with `spec`.
-        Helps:
-          *_sample(self,
-                states,
-                next_states,
-                num_samples,
-                orig_goals,
-                tf_spec,
-                sc=0.5):
-        """
-        return self.clip_to_bounds(value, spec.minimum, spec.maximum)
+        # Add the original goal and the average of the original and final state
+        # to the sampled goals. FIXME: remove tf
+        samples = tf.concat(
+            [samples, tf.expand_dims(loc, 0), tf.expand_dims(orig_goals, 0)],
+            axis=0
+        )
 
-    def clip_to_bounds(self, value, minimum, maximum):
-        """Clips value to be between minimum and maximum.
-        Args:
-          value: (tensor) value to be clipped.
-          minimum: (numpy float array) minimum value to clip to.
-          maximum: (numpy float array) maximum value to clip to.
-        Returns:
-          clipped_value: (tensor) `value` clipped to between `minimum` and `maximum`.
-        """
-        value = tf.minimum(value, maximum)
-        return tf.maximum(value, minimum)
+        # Clip the values based on the Manager action space range.
+        minimum = self.manager.ac_space.low
+        maximum = self.manager.ac_space.high
+        return np.minimum(np.maximum(samples, minimum), maximum)
 
     def get_stats(self):
         """See parent class."""
