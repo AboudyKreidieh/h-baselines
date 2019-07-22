@@ -550,7 +550,7 @@ class TD3(object):
                 for _ in range(log_interval):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps > total_timesteps:
+                    if self.total_steps >= total_timesteps:
                         return
 
                     # Perform rollouts.

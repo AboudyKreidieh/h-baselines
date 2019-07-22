@@ -1,6 +1,8 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
 import numpy as np
+import random
+import shutil
 
 from hbaselines.hiro.algorithm import as_scalar, TD3
 from hbaselines.hiro.tf_util import get_trainable_vars
@@ -202,6 +204,37 @@ class TestTD3(unittest.TestCase):
              'Worker/target/qf/qf_output/bias:0',
              'Worker/target/qf/qf_output/kernel:0']
         )
+
+    def test_learn_init(self):
+        """Test the non-loop components of the `learn` method."""
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['_init_setup_model'] = True
+        alg = TD3(**policy_params)
+
+        # Run the learn operation for zero timesteps.
+        alg.learn(0, log_dir='results')
+        self.assertEqual(alg.episode_reward, 0)
+        self.assertEqual(alg.episode_step, 0)
+        self.assertEqual(alg.episodes, 0)
+        self.assertEqual(alg.total_steps, 0)
+        self.assertEqual(alg.epoch, 0)
+        self.assertEqual(len(alg.episode_rewards_history), 0)
+        self.assertEqual(alg.epoch_episodes, 0)
+        self.assertEqual(len(alg.epoch_actions), 0)
+        self.assertEqual(len(alg.epoch_qs), 0)
+        self.assertEqual(len(alg.epoch_actor_losses), 0)
+        self.assertEqual(len(alg.epoch_critic_losses), 0)
+        self.assertEqual(len(alg.epoch_episode_rewards), 0)
+        self.assertEqual(len(alg.epoch_episode_steps), 0)
+        shutil.rmtree('results')
+
+        # Test the seeds.
+        alg.learn(0, log_dir='results', seed=1)
+        self.assertEqual(np.random.sample(), 0.417022004702574)
+        self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
+        shutil.rmtree('results')
 
 
 if __name__ == '__main__':
