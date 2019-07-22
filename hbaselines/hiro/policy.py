@@ -1,3 +1,4 @@
+"""TD3-compatible policies."""
 import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
@@ -187,7 +188,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.placeholder
-        TODO
+        a placeholder for the current-step estimate of the target Q values
     terminals1 : tf.placeholder
         placeholder for the next step terminals
     rew_ph : tf.placeholder
@@ -198,10 +199,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.placeholder
         placeholder for the next step observations
-    obs_rms : TODO
+    obs_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the observations
-    ret_rms : TODO
+    ret_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
         the rewards
     actor_tf : tf.Variable
@@ -217,7 +218,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         de-normalized output from the critic with the action provided directly
         by the actor policy
     target_q : tf.Variable
-        TODO
+        the Q-value as estimated by the current reward and next step estimate
+        by the target Q-value
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -264,11 +266,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers=None,
                  act_fun=tf.nn.relu,
                  scope=None,
-                 use_fingerprint=False,
-                 fingerprint_dim=fingerprint_dim):
+                 use_fingerprint=False):
         """Instantiate the feed-forward neural network policy.
-
-        TODO: describe the scope and the summary.
 
         Parameters
         ----------
@@ -462,7 +461,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.summary.scalar('critic_target',
                               tf.reduce_mean(self.critic_target))
 
-        # TODO: do I need indent?
         # Create the target update operations.
         model_scope = 'model/'
         target_scope = 'target/'
@@ -688,8 +686,36 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size,global_time=self.total_steps)
+            batch_size=self.batch_size)
 
+        self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
+
+    def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+        """Perform gradient update step given a batch of data.
+
+        Parameters
+        ----------
+        obs0 : np.ndarray
+            batch of observations
+        actions : numpy float
+            batch of actions executed given obs_batch
+        rewards : numpy float
+            rewards received as results of executing act_batch
+        obs1 : np.ndarray
+            next set of observations seen after executing act_batch
+        terminals1 : numpy bool
+            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
+            an episode and 0 otherwise.
+
+        Returns
+        -------
+        float
+            critic loss
+        float
+            actor loss
+        dict
+            feed_dict map for the summary (to be run in the algorithm)
+        """
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
@@ -727,7 +753,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
@@ -736,7 +762,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         if with_actor:
@@ -771,7 +797,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.sess.run(self.target_init_updates)
 
     def _setup_stats(self):
-        """Setup the running means and std of the model inputs and outputs."""
+        """Create the running means and std of the model inputs and outputs."""
         ops = []
         names = []
 
@@ -846,10 +872,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return stats
 
 
-class HIROPolicy(ActorCriticPolicy):
-    """Hierarchical reinforcement learning with off-policy correction.
+class GoalDirectedPolicy(ActorCriticPolicy):
+    """Goal-directed hierarchical reinforcement learning model.
 
-    See: https://arxiv.org/pdf/1805.08296.pdf
+    TODO: Description
+
+    See: http://papers.nips.cc/paper/714-feudal-reinforcement-learning.pdf
 
     Attributes
     ----------
@@ -857,6 +885,20 @@ class HIROPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    relative_goals : bool
+        specifies whether the goal issued by the Manager is meant to be a
+        relative or absolute goal, i.e. specific state or change in state
+    off_policy_corrections : bool
+        whether to use off-policy corrections during the update procedure. See:
+        https://arxiv.org/abs/1805.08296.
+    use_fingerprints : bool
+        specifies whether to add a time-dependent fingerprint to the
+        observations
+    centralized_value_functions : bool
+        specifies whether to use centralized value functions for the Manager
+        and Worker critic functions
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
@@ -866,6 +908,8 @@ class HIROPolicy(ActorCriticPolicy):
     meta_reward : float
         current meta reward, counting as the cumulative environment reward
         during the meta period
+    batch_size : int
+        SGD batch size
     worker : hbaselines.hiro.policy.FeedForwardPolicy
         the worker policy
     worker_reward : function
@@ -894,8 +938,13 @@ class HIROPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
-                 fingerprint_dim = fingerprint_dim):
-        """Instantiate the HIRO policy.
+                 meta_period=10,
+                 relative_goals=False,
+                 off_policy_corrections=False,
+                 use_fingerprints=False,
+                 centralized_value_functions=False,
+                 connected_gradients=False):
+        """Instantiate the goal-directed hierarchical policy.
 
         Parameters
         ----------
@@ -943,15 +992,33 @@ class HIROPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
-        fingerprint_dim: int 
-            dimension of the fingerprint added 
-        Raises
-        ------
-        AssertionError
-            if the layers is not a list of at least size 1
+        meta_period : int, optional
+            manger action period. Defaults to 10.
+        relative_goals : bool, optional
+            specifies whether the goal issued by the Manager is meant to be a
+            relative or absolute goal, i.e. specific state or change in state
+        off_policy_corrections : bool, optional
+            whether to use off-policy corrections during the update procedure.
+            See: https://arxiv.org/abs/1805.08296. Defaults to False.
+        use_fingerprints : bool, optional
+            specifies whether to add a time-dependent fingerprint to the
+            observations
+        centralized_value_functions : bool, optional
+            specifies whether to use centralized value functions for the
+            Manager and Worker critic functions
+        connected_gradients : bool, optional
+            whether to connect the graph between the manager and worker.
+            Defaults to False.
         """
-        self.fingerprint_dim = fingerprint_dim
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
+        super(GoalDirectedPolicy, self).__init__(sess,
+                                                 ob_space, ac_space, co_space)
+
+        self.meta_period = meta_period
+        self.relative_goals = relative_goals
+        self.off_policy_corrections = off_policy_corrections
+        self.use_fingerprints = use_fingerprints
+        self.centralized_value_functions = centralized_value_functions
+        self.connected_gradients = connected_gradients
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -961,7 +1028,7 @@ class HIROPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=ob_space+self.fingerprint_dim,  
+                ob_space=ob_space + self.fingerprint_dim,  # FIXME
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -984,9 +1051,6 @@ class HIROPolicy(ActorCriticPolicy):
                 scope="Manager"
             )
 
-        # manger action period
-        self.meta_period = 10  # FIXME
-
         # previous observation by the Manager
         self.prev_meta_obs = None
 
@@ -1000,7 +1064,10 @@ class HIROPolicy(ActorCriticPolicy):
         # during the meta period
         self.meta_reward = None
 
-        
+        # The following is redundant but necessary if the changes to the update
+        # function are to be in the GoalDirected policy and not FeedForward.
+        self.batch_size = batch_size
+
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
         # =================================================================== #
@@ -1061,8 +1128,37 @@ class HIROPolicy(ActorCriticPolicy):
 
     def update(self):
         """See parent class."""
-        self.manager.update()
-        self.worker.update()
+        # Not enough samples in the replay buffer.
+        if not self.manager.replay_buffer.can_sample(self.batch_size) or \
+                not self.worker.replay_buffer.can_sample(self.batch_size):
+            return 0, 0, {}
+
+        # Get a batch.
+        worker_obs0, _, worker_actions, worker_rewards, worker_done1, \
+            _, _, worker_obs1 = self.worker.replay_buffer.sample(
+                batch_size=self.batch_size)
+
+        manager_obs0, _, manager_actions, manager_rewards, manager_done1, \
+            _, _, manager_obs1 = self.manager.replay_buffer.sample(
+                batch_size=self.batch_size)
+
+        # Update the Manager policy.
+        self.manager.update_from_batch(
+            obs0=manager_obs0,
+            actions=manager_actions,
+            rewards=manager_rewards,
+            obs1=manager_obs1,
+            terminals1=manager_done1
+        )
+
+        # Update the Worker policy.
+        self.worker.update_from_batch(
+            obs0=worker_obs0,
+            actions=worker_actions,
+            rewards=worker_rewards,
+            obs1=worker_obs1,
+            terminals1=worker_done1
+        )
 
         return 0, 0, {}  # FIXME
 
