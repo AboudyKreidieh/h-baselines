@@ -1027,11 +1027,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # this should be the original observation space plus the fingerprint
         # spaces at the end of the observation.
         if self.use_fingerprints:
-            ob_low = ob_space.low
-            ob_high = ob_space.high
-            ob_low.extend(self.fingerprint_range[0])
-            ob_high.extend(self.fingerprint_range[1])
-            manager_worker_ob_space = Box(low=ob_low, high=ob_high)
+            low = np.concatenate((ob_space.low, self.fingerprint_range[0]))
+            high = np.concatenate((ob_space.high, self.fingerprint_range[1]))
+            manager_worker_ob_space = Box(low=low, high=high)
         else:
             manager_worker_ob_space = ob_space
 
@@ -1117,7 +1115,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # remove the last element to compute the reward
         if self.use_fingerprints:
             state_indices = list(np.arange(
-                0, self.ob_space.shape[0] - self.fingerprint_dim[0]))
+                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
         else:
             state_indices = None
 

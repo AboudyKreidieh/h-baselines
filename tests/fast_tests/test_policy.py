@@ -214,6 +214,9 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         self.policy_params['sess'].close()
         del self.policy_params
 
+        # Clear the graph.
+        tf.reset_default_graph()
+
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
         policy = GoalDirectedPolicy(**self.policy_params)
@@ -351,15 +354,25 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         fingerprint elements are passed by the algorithm, and tested under
         test_algorithm.py
         """
-        # Create the policy.  # TODO
-        pass
+        # Create the policy.
+        policy_params = self.policy_params.copy()
+        policy_params['use_fingerprints'] = True
+        policy = GoalDirectedPolicy(**policy_params)
 
         # Test the observation spaces of the manager and worker, as well as the
-        # context space of the worker and action space of the manager.  # TODO
-        pass
+        # context space of the worker and action space of the manager.
+        self.assertTupleEqual(policy.manager.ob_space.shape, (3,))
+        self.assertTupleEqual(policy.manager.ac_space.shape, (2,))
+        self.assertTupleEqual(policy.worker.ob_space.shape, (3,))
+        self.assertTupleEqual(policy.worker.co_space.shape, (2,))
 
-        # Test worker_reward method within the policy.  # TODO
-        pass
+        # Test worker_reward method within the policy.
+        self.assertAlmostEqual(
+            policy.worker_reward(states=np.array([1, 2, 3]),
+                                 goals=np.array([0, 0]),
+                                 next_states=np.array([1, 2, 3])),
+            -np.sqrt(1**2 + 2**2)
+        )
 
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function.

@@ -249,7 +249,16 @@ class TestTD3(unittest.TestCase):
         # Create the algorithm.  # TODO
         pass
 
-        # Validate that observations include the fingerprints elements.  # TODO
+        # Validate that observations include the fingerprints elements upon
+        # initializing the `learn` procedure.  # TODO
+        pass
+
+        # Validate that observations include the fingerprints elements during
+        # a step in collect_samples.  # TODO
+        pass
+
+        # Validate that observations include the fingerprints elements during
+        # a reset in collect_samples.  # TODO
         pass
 
 

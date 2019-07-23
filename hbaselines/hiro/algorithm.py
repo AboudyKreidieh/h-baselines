@@ -553,7 +553,7 @@ class TD3(object):
             self.obs = self.env.reset()
             # Add the fingerprint term, if needed.
             if self.use_fingerprints:
-                fp = [self.total_steps]
+                fp = [self.total_steps / total_timesteps * 5]
                 self.obs = np.concatenate((self.obs, fp), axis=0)
             start_time = time.time()
 
@@ -574,7 +574,7 @@ class TD3(object):
                         return
 
                     # Perform rollouts.
-                    self._collect_samples()
+                    self._collect_samples(total_timesteps)
 
                     # Train.
                     self._train(writer)
@@ -616,12 +616,18 @@ class TD3(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self):
+    def _collect_samples(self, total_timesteps):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
         before training is executed. The data from the rollouts is stored in
         the policy's replay buffer(s).
+
+        Parameters
+        ----------
+        total_timesteps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
@@ -641,7 +647,7 @@ class TD3(object):
 
             # Add the fingerprint term, if needed.
             if self.use_fingerprints:
-                fp = [self.total_steps]
+                fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
             if hasattr(self.env, "current_context"):
@@ -693,7 +699,7 @@ class TD3(object):
 
                 # Add the fingerprint term, if needed.
                 if self.use_fingerprints:
-                    fp = [self.total_steps]
+                    fp = [self.total_steps / total_timesteps * 5]
                     self.obs = np.concatenate((self.obs, fp), axis=0)
 
     def _train(self, writer):
