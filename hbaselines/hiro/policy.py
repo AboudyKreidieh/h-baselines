@@ -1040,8 +1040,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         self.replay_buffer = HierReplayBuffer(buffer_size)
 
-        self.replay_buffer = ReplayBuffer(buffer_size)
-
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
@@ -1169,18 +1167,28 @@ class GoalDirectedPolicy(ActorCriticPolicy):
     def update(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.manager.replay_buffer.can_sample(self.batch_size) or \
-                not self.worker.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample(self.batch_size):
             return 0, 0, {}
 
-        # Get a batch.
+        # Get a batch.  FIXME
         worker_obs0, _, worker_actions, worker_rewards, worker_done1, \
             _, _, worker_obs1 = self.worker.replay_buffer.sample(
                 batch_size=self.batch_size)
-
         manager_obs0, _, manager_actions, manager_rewards, manager_done1, \
             _, _, manager_obs1 = self.manager.replay_buffer.sample(
                 batch_size=self.batch_size)
+
+        if self.off_policy_corrections:
+            # Replace the goals with the most likely goals.
+            manager_actions = self._sample_best_meta_action(
+                state_reps=None,  # FIXME
+                next_state_reprs=None,  # FIXME
+                prev_meta_actions=None,  # FIXME
+                low_states=None,  # FIXME
+                low_actions=None,  # FIXME
+                low_state_reprs=None,  # FIXME
+                k=8
+            )
 
         # Update the Manager policy.
         self.manager.update_from_batch(
@@ -1198,36 +1206,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             rewards=worker_rewards,
             obs1=worker_obs1,
             terminals1=worker_done1
-        )
-
-        if self.off_policy_corrections:
-            # Replace the goals with the most likely goals.
-            goals = self._sample_best_meta_action(
-                state_reps=None,  # FIXME
-                next_state_reprs=None,  # FIXME
-                prev_meta_actions=None,  # FIXME
-                low_states=None,  # FIXME
-                low_actions=None,  # FIXME
-                low_state_reprs=None,  # FIXME
-                k=8
-            )
-
-            # Update the Manager policy.
-        self.manager.update_from_batch(
-            obs0=None,  # FIXME
-            actions=None,  # FIXME
-            rewards=None,  # FIXME
-            obs1=None,  # FIXME
-            terminals1=None  # FIXME
-        )
-
-        # Update the Worker policy.
-        self.worker.update_from_batch(
-            obs0=None,  # FIXME
-            actions=None,  # FIXME
-            rewards=None,  # FIXME
-            obs1=None,  # FIXME
-            terminals1=None  # FIXME
         )
 
         return 0, 0, {}  # FIXME
