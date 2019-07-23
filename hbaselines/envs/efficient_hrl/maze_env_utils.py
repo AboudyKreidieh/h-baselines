@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Utility methods for the Ant environments.
 
-"""Adapted from rllab maze_env_utils.py."""
+Adapted from rllab maze_env_utils.py.
+"""
 import math
 
 
 class Move(object):
+    """Movable attributes."""
+
     X = 11
     Y = 12
     Z = 13
@@ -29,28 +33,98 @@ class Move(object):
 
 
 def can_move_x(movable):
-    return movable in [Move.X, Move.XY, Move.XZ, Move.XYZ,
-                       Move.SpinXY]
+    """TODO.
+
+    Parameters
+    ----------
+    movable : int
+        TODO
+
+    Returns
+    -------
+    bool
+        TODO
+    """
+    return movable in [Move.X, Move.XY, Move.XZ, Move.XYZ, Move.SpinXY]
 
 
 def can_move_y(movable):
-    return movable in [Move.Y, Move.XY, Move.YZ, Move.XYZ,
-                       Move.SpinXY]
+    """TODO.
+
+    Parameters
+    ----------
+    movable : int
+        TODO
+
+    Returns
+    -------
+    bool
+        TODO
+    """
+    return movable in [Move.Y, Move.XY, Move.YZ, Move.XYZ, Move.SpinXY]
 
 
 def can_move_z(movable):
+    """TODO.
+
+    Parameters
+    ----------
+    movable : int
+        TODO
+
+    Returns
+    -------
+    bool
+        TODO
+    """
     return movable in [Move.Z, Move.XZ, Move.YZ, Move.XYZ]
 
 
 def can_spin(movable):
+    """TODO.
+
+    Parameters
+    ----------
+    movable : int
+        TODO
+
+    Returns
+    -------
+    bool
+        TODO
+    """
     return movable in [Move.SpinXY]
 
 
 def can_move(movable):
+    """TODO.
+
+    Parameters
+    ----------
+    movable : int
+        TODO
+
+    Returns
+    -------
+    bool
+        TODO
+    """
     return can_move_x(movable) or can_move_y(movable) or can_move_z(movable)
 
 
 def construct_maze(maze_id='Maze'):
+    """Construct the structure of the maze.
+
+    Parameters
+    ----------
+    maze_id : str
+        type of environment. This dictates the structure the maze will adopt.
+
+    Returns
+    -------
+    list of Any
+        TODO
+    """
     if maze_id == 'Maze':
         structure = [
             [1, 1, 1, 1, 1],
@@ -100,12 +174,26 @@ def construct_maze(maze_id='Maze'):
 
 
 def line_intersect(pt1, pt2, ptA, ptB):
-    """
+    """Return the intersection of Line(pt1,pt2) and Line(ptA,ptB).
+
     Taken from https://www.cs.hmc.edu/ACM/lectures/intersections.html
 
-    this returns the intersection of Line(pt1,pt2) and Line(ptA,ptB)
-    """
+    Parameters
+    ----------
+    pt1 : TODO
+        TODO
+    pt2 : TODO
+        TODO
+    ptA : TODO
+        TODO
+    ptB : TODO
+        TODO
 
+    Returns
+    -------
+    TODO
+        TODO
+    """
     DET_TOLERANCE = 0.00000001
 
     # the first line is pt1 + r*(pt2-pt1)
@@ -142,10 +230,23 @@ def line_intersect(pt1, pt2, ptA, ptB):
 
 
 def ray_segment_intersect(ray, segment):
-    """
+    """Check ray intersection with segment.
+
     Check if the ray originated from (x, y) with direction theta intersects the
     line segment (x1, y1) -- (x2, y2), and return the intersection point if
     there is one
+
+    Parameters
+    ----------
+    ray : TODO
+        TODO
+    segment : TODO
+        TODO
+
+    Returns
+    -------
+    TODO
+        TODO
     """
     (x, y), theta = ray
     # (x1, y1), (x2, y2) = segment
@@ -159,6 +260,20 @@ def ray_segment_intersect(ray, segment):
 
 
 def point_distance(p1, p2):
+    """Return the distance between two points.
+
+    Parameters
+    ----------
+    p1 : (float, float)
+        (x,y) values of point 1
+    p2 : (float, float)
+        (x,y) values of point 2
+
+    Returns
+    -------
+    float
+        the distance between the two points
+    """
     x1, y1 = p1
     x2, y2 = p2
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5

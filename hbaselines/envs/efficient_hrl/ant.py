@@ -14,7 +14,6 @@
 # ==============================================================================
 
 """Wrapper for creating the ant environment in gym_mujoco."""
-
 import math
 import numpy as np
 import mujoco_py
@@ -23,10 +22,12 @@ from gym.envs.mujoco import mujoco_env
 
 
 def q_inv(a):
+    """Return the inverse of a quaternion."""
     return [a[0], -a[1], -a[2], -a[3]]
 
 
-def q_mult(a, b):  # multiply two quaternion
+def q_mult(a, b):
+    """Multiply two quaternion."""
     w = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
     i = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
     j = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]
@@ -35,11 +36,26 @@ def q_mult(a, b):  # multiply two quaternion
 
 
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+    """Gym representation of the Ant MuJoCo environment."""
+
     FILE = "ant.xml"
     ORI_IND = 3
 
     def __init__(self, file_path=None, expose_all_qpos=True,
                  expose_body_coms=None, expose_body_comvels=None):
+        """Instantiate the Ant environment.
+
+        Parameters
+        ----------
+        file_path : str, optional
+            TODO
+        expose_all_qpos : bool, optional
+            TODO
+        expose_body_coms : TODO, optional
+            TODO
+        expose_body_comvels : TODO, optional
+            TODO
+        """
         self._expose_all_qpos = expose_all_qpos
         self._expose_body_coms = expose_body_coms
         self._expose_body_comvels = expose_body_comvels
@@ -51,6 +67,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     @property
     def physics(self):
+        """Return the MuJoCo physics model."""
         # check mujoco version is greater than version 1.50 to call correct
         # physics model containing PyMjData object for getting and setting
         # position/velocity check https://github.com/openai/mujoco-py/issues/80
@@ -61,9 +78,11 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             return self.model
 
     def _step(self, a):
+        """Advance the simulation by one step."""
         return self.step(a)
 
     def step(self, a):
+        """Advance the simulation by one step."""
         xposbefore = self.get_body_com("torso")[0]
         self.do_simulation(a, self.frame_skip)
         xposafter = self.get_body_com("torso")[0]
@@ -79,6 +98,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             reward_survive=survive_reward)
 
     def _get_obs(self):
+        """Return the Ant observations."""
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
@@ -109,6 +129,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return obs
 
     def reset_model(self):
+        """Reset the state of the agent to a particle original pos/vel."""
         qpos = self.init_qpos + self.np_random.uniform(
             size=self.model.nq, low=-.1, high=.1)
         qvel = self.init_qvel + self.np_random.randn(self.model.nv) * .1
@@ -120,9 +141,11 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
+        """Create the viewer."""
         self.viewer.cam.distance = self.model.stat.extent * 0.5
 
     def get_ori(self):
+        """Return the orientation of the agent."""
         ori = [0, 1, 0, 0]
         # take the quaternion
         rot = self.physics.data.qpos[
@@ -133,6 +156,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return ori
 
     def set_xy(self, xy):
+        """Set the x,y position of the agent."""
         qpos = np.copy(self.physics.data.qpos)
         qpos[0] = xy[0]
         qpos[1] = xy[1]
@@ -141,4 +165,5 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
 
     def get_xy(self):
+        """Return the x,y position of the agent."""
         return self.physics.data.qpos[:2]

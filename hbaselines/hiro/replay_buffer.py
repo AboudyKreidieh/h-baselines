@@ -23,6 +23,7 @@ class ReplayBuffer(object):
         self._next_idx = 0
 
     def __len__(self):
+        """Return the number of elements stored."""
         return len(self._storage)
 
     @property
@@ -35,7 +36,7 @@ class ReplayBuffer(object):
 
     @property
     def buffer_size(self):
-        """float: Max capacity of the buffer"""
+        """Return the (float) max capacity of the buffer."""
         return self._maxsize
 
     def can_sample(self, n_samples):
@@ -63,40 +64,23 @@ class ReplayBuffer(object):
         """
         return len(self) == self.buffer_size
 
-    def add(self,
-            obs_t,
-            goal_t,
-            action_t,
-            reward_t,
-            done_,
-            h_t,
-            goal_updated):
-        """
-        Add a new transition to the buffer
+    def add(self, obs_t, action, reward, obs_tp1, done):
+        """Add a new transition to the buffer.
+
         Parameters
         ----------
-        obs_t: Any
+        obs_t : Any
             the last observation
-        action_t: array_like
+        action : array_like
             the action
-        goal_t: array_like
-            the goal
-        reward_t: float
+        reward : float
             the reward of the transition
-        done_: float
+        obs_tp1 : Any
+            the current observation
+        done : float
             is the episode done
-        h_t: array_like
-            the next goal
-        goal_updated: int boolean
-            is the goal updated or no
         """
-        data = (obs_t,
-                goal_t,
-                action_t,
-                reward_t,
-                done_,
-                h_t,
-                goal_updated)
+        data = (obs_t, action, reward, obs_tp1, done)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -105,36 +89,18 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        """
-        Returns a sample from the replay buffer based on indices
-        Parameters
-        ----------
-        idxes: list
-            list of random indices
-        Returns
-        -------
-        sample from replay buffer
-        (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
-        """
-        obses_t, goals, actions, rewards = [], [], [], []
-        done, h_t, g_up, obs_tp1 = [], [], [], []
-
+        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
         for i in idxes:
             data = self._storage[i]
-            obstp1 = self._storage[i+1][0]
-            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
+            obs_t, action, reward, obs_tp1, done = data
             obses_t.append(np.array(obs_t, copy=False))
-            goals.append(np.array(goals_t, copy=False))
-            actions.append(np.array(actions_t, copy=False))
-            rewards.append(np.array(rewards_t, copy=False))
-            done.append(d)
-            h_t.append(np.array(h, copy=False))
-            g_up.append(np.array(g_uptd, copy=False))
-            obs_tp1.append(np.array(obstp1, copy=False))
+            actions.append(np.array(action, copy=False))
+            rewards.append(reward)
+            obses_tp1.append(np.array(obs_tp1, copy=False))
+            dones.append(done)
 
-            return np.array(obses_t), np.array(goals), np.array(actions), \
-                np.array(rewards), np.array(done), \
-                np.array(h_t), np.array(g_up), np.array(obs_tp1)
+        return np.array(obses_t), np.array(actions), np.array(rewards), \
+            np.array(obses_tp1), np.array(dones)
 
     def sample(self, batch_size, **_kwargs):
         """Sample a batch of experiences.
@@ -161,3 +127,67 @@ class ReplayBuffer(object):
         indices = [random.randint(0, len(self._storage) - 1)
                    for _ in range(batch_size)]
         return self._encode_sample(indices)
+
+
+class HierReplayBuffer(ReplayBuffer):
+    """Hierarchical variant of ReplayBuffer."""
+
+    def add(self, obs_t, goal_t, action_t, reward_t, done, **kwargs):
+        """Add a new transition to the buffer.
+
+        Parameters
+        ----------
+        obs_t : array_like
+            the last observation
+        action_t : array_like
+            the action
+        goal_t : array_like
+            the goal
+        reward_t : list of float
+            the worker reward at every time step
+        done : list of float or list of bool
+            is the episode done
+        """
+        data = (obs_t, goal_t, action_t, reward_t, done)
+
+        if self._next_idx >= len(self._storage):
+            self._storage.append(data)
+        else:
+            self._storage[self._next_idx] = data
+        self._next_idx = (self._next_idx + 1) % self._maxsize
+
+    def _encode_sample(self, idxes):
+        """Return a sample from the replay buffer based on indices.
+
+        Parameters
+        ----------
+        idxes : list of int
+            list of random indices
+
+        Returns
+        -------
+        sample from replay buffer (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
+        """
+        obses_t, goals, actions, rewards = [], [], [], []
+        done, h_t, g_up, obs_tp1 = [], [], [], []
+
+        for i in idxes:
+            # never use the last element, as it has no next state
+            if i == (self._next_idx - 1) % self._maxsize:
+                i = (i - 1) % self._maxsize
+
+            data = self._storage[i]
+            obstp1 = self._storage[(i+1) % self._maxsize][0]
+            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
+            obses_t.append(np.array(obs_t, copy=False))
+            goals.append(np.array(goals_t, copy=False))
+            actions.append(np.array(actions_t, copy=False))
+            rewards.append(np.array(rewards_t, copy=False))
+            done.append(d)
+            h_t.append(np.array(h, copy=False))
+            g_up.append(np.array(g_uptd, copy=False))
+            obs_tp1.append(np.array(obstp1, copy=False))
+
+        return np.array(obses_t), np.array(goals), np.array(actions), \
+            np.array(rewards), np.array(done), \
+            np.array(h_t), np.array(g_up), np.array(obs_tp1)

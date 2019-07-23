@@ -1,14 +1,16 @@
+"""TD3-compatible policies."""
 import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
 from functools import reduce
 from copy import deepcopy
 import logging
+from gym.spaces import Box
 
 from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
 from hbaselines.hiro.tf_util import reduce_std
-from hbaselines.hiro.replay_buffer import ReplayBuffer
+from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
@@ -341,7 +343,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
-
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -357,10 +358,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
-        if co_space is None:
-            ob_dim = ob_space.shape
-        else:
-            ob_dim = tuple(map(sum, zip(ob_space.shape, co_space.shape)))
+        ob_dim = ob_space.shape
+        if co_space is not None:
+            ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
         with tf.variable_scope("input", reuse=False):
             self.critic_target = tf.placeholder(
@@ -688,6 +688,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Perform gradient update step given a batch of data.
+
         Parameters
         ----------
         obs0 : np.ndarray
@@ -701,6 +702,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
+
         Returns
         -------
         float
@@ -747,7 +749,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         return self.sess.run(self.actor_tf, {self.obs_ph: obs})
@@ -756,7 +758,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
-        if context_obs is not None:
+        if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
         if with_actor:
@@ -791,7 +793,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.sess.run(self.target_init_updates)
 
     def _setup_stats(self):
-        """Setup the running means and std of the model inputs and outputs."""
+        """Create the running means and std of the model inputs and outputs."""
         ops = []
         names = []
 
@@ -869,10 +871,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return stats
 
 
-class HIROPolicy(ActorCriticPolicy):
-    """Hierarchical reinforcement learning with off-policy correction.
+class GoalDirectedPolicy(ActorCriticPolicy):
+    """Goal-directed hierarchical reinforcement learning model.
 
-    See: https://arxiv.org/pdf/1805.08296.pdf
+    TODO: Description
+
+    See: http://papers.nips.cc/paper/714-feudal-reinforcement-learning.pdf
 
     Attributes
     ----------
@@ -894,6 +898,11 @@ class HIROPolicy(ActorCriticPolicy):
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
@@ -939,7 +948,7 @@ class HIROPolicy(ActorCriticPolicy):
                  use_fingerprints=False,
                  centralized_value_functions=False,
                  connected_gradients=False):
-        """Instantiate the HIRO policy.
+        """Instantiate the goal-directed hierarchical policy.
 
         Parameters
         ----------
@@ -1004,13 +1013,9 @@ class HIROPolicy(ActorCriticPolicy):
         connected_gradients : bool, optional
             whether to connect the graph between the manager and worker.
             Defaults to False.
-
-        Raises
-        ------
-        AssertionError
-            if the layers is not a list of at least size 1
         """
-        super(HIROPolicy, self).__init__(sess, ob_space, ac_space, co_space)
+        super(GoalDirectedPolicy, self).__init__(sess,
+                                                 ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
         self.relative_goals = relative_goals
@@ -1018,6 +1023,22 @@ class HIROPolicy(ActorCriticPolicy):
         self.use_fingerprints = use_fingerprints
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
+        self.fingerprint_dim = (1,)
+        self.fingerprint_range = ([0], [5])
+
+        # Compute the observation space for the Manager and Worker.
+        #
+        # If the fingerprint terms are being appended onto the observations,
+        # this should be the original observation space plus the fingerprint
+        # spaces at the end of the observation.
+        if self.use_fingerprints:
+            low = np.concatenate((ob_space.low, self.fingerprint_range[0]))
+            high = np.concatenate((ob_space.high, self.fingerprint_range[1]))
+            manager_worker_ob_space = Box(low=low, high=high)
+        else:
+            manager_worker_ob_space = ob_space
+
+        self.replay_buffer = HierReplayBuffer(buffer_size)
 
         self.replay_buffer = ReplayBuffer(buffer_size)
 
@@ -1029,7 +1050,7 @@ class HIROPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=ob_space,
+                ob_space=manager_worker_ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -1068,23 +1089,23 @@ class HIROPolicy(ActorCriticPolicy):
         self.rewards = []
 
         # The following is redundant but necessary if the changes to the update
-        # function are to be in the HIRO policy and not the FeedForward.
+        # function are to be in the GoalDirected policy and not FeedForward.
         self.batch_size = batch_size
 
-        # Use this to store a list of observations
-        # that stretch as long as the dilated
-        # horizon chosen for the Manager.
-        #
-        # These observations correspond to the s(t)
-        # in the HIRO paper.
+        # Use this to store a list of observations that stretch as long as the
+        # dilated horizon chosen for the Manager. These observations correspond
+        # to the s(t) in the HIRO paper.
         self._observations = []
 
-        # Use this to store the list of environmental
-        # actions that the worker takes.
-        #
-        # These actions correspond to the a(t)
-        # in the HIRO paper.
+        # Use this to store the list of environmental actions that the worker
+        # takes. These actions correspond to the a(t) in the HIRO paper.
         self._worker_actions = []
+
+        # rewards provided by the policy to the worker
+        self._worker_rewards = []
+
+        # done masks at every time step for the worker
+        self._dones = []
 
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
@@ -1094,7 +1115,7 @@ class HIROPolicy(ActorCriticPolicy):
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=ob_space,
+                ob_space=manager_worker_ob_space,
                 ac_space=ac_space,
                 co_space=ob_space,
                 buffer_size=buffer_size,
@@ -1117,10 +1138,18 @@ class HIROPolicy(ActorCriticPolicy):
                 scope="Worker"
             )
 
+        # remove the last element to compute the reward
+        if self.use_fingerprints:
+            state_indices = list(np.arange(
+                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        else:
+            state_indices = None
+
         # reward function for the worker
         def worker_reward(states, goals, next_states):
             return negative_distance(
                 states=states,
+                state_indices=state_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=False,
@@ -1145,13 +1174,13 @@ class HIROPolicy(ActorCriticPolicy):
             return 0, 0, {}
 
         # Get a batch.
-        worker_obs0, _, worker_actions, \
-            worker_rewards, worker_done1, \
-            _, _, worker_obs1 = self.worker.replay_buffer.sample(batch_size=self.batch_size)
+        worker_obs0, _, worker_actions, worker_rewards, worker_done1, \
+            _, _, worker_obs1 = self.worker.replay_buffer.sample(
+                batch_size=self.batch_size)
 
-        manager_obs0, _, manager_actions, \
-            manager_rewards, manager_done1, \
-            _, _, manager_obs1 = self.manager.replay_buffer.sample(batch_size=self.batch_size)
+        manager_obs0, _, manager_actions, manager_rewards, manager_done1, \
+            _, _, manager_obs1 = self.manager.replay_buffer.sample(
+                batch_size=self.batch_size)
 
         # Update the Manager policy.
         self.manager.update_from_batch(
@@ -1180,7 +1209,6 @@ class HIROPolicy(ActorCriticPolicy):
                 low_states=None,  # FIXME
                 low_actions=None,  # FIXME
                 low_state_reprs=None,  # FIXME
-                tf_spec=None,  # FIXME
                 k=8
             )
 
@@ -1212,40 +1240,20 @@ class HIROPolicy(ActorCriticPolicy):
             self.goals.append(self.meta_action)
 
         # Return the worker action.
-        if meta_act is None:
-            worker_obs = np.concatenate((obs, self.meta_action), axis=1)
-        else:
-            worker_obs = np.concatenate((obs, meta_act), axis=1)
-
-        # compute worker action
+        worker_obs = np.concatenate((obs, self.meta_action), axis=1)
         worker_action = self.worker.get_action(worker_obs)
-
-        # notify manager of new worker action to be saved
-        self._notify_manager(worker_action)
 
         return worker_action
 
-    def _notify_manager(self, action, **kwargs):
-        """
-        Notify the Manager that the Worker produced a new action.
-        These actions are saved in the Manager for future off-
-        policy enhancements.
+    def _observation_memory(self, obs, **kwargs):
+        """Notify the Manager that there is a new environmental observation.
+
+        These new observations are saved in the Manager for future off-policy
+        corrections.
+
         Parameters
         ----------
-        action: Any
-            current action produced by Worker
-        """
-        if kwargs["time"] % self.meta_period == 0:
-            self._worker_actions.clear()
-        else:
-            self._worker_actions.append(action)
-
-    def _observation_memory(self, obs, **kwargs):
-        """
-        Notify the Manager that there is a new environmental
-        observation. These new observations are saved in the
-        Manager for future off-policy correction.
-        obs: Any
+        obs : array_like
             current environmental observation
         """
         if kwargs["time"] % self.meta_period == 0:
@@ -1259,71 +1267,78 @@ class HIROPolicy(ActorCriticPolicy):
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
-        # Add a sample to the meta transition, if required.
+        # Compute the worker reward and append it to the list of rewards.
+        self._worker_rewards.append(
+            self.worker_reward(obs0, self.meta_action, obs1)
+        )
+
+        # Add the environmental observations and done masks, and the worker
+        # actions to their respective lists.
+        self._worker_actions.append(action)
+        self._observations.append(obs0)
+        self._dones.append(done)
+
+        # Increment the meta reward with the most recent reward.
+        self.meta_reward += reward
+        self.rewards.append(self.meta_reward)
+
+        # Add a sample to the replay buffer.
         if kwargs["time"] % self.meta_period == 0 or done:
+            # Add the last observation if about to reset.
+            if done:
+                self._observations.append(obs1)
+
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
                 # Store a sample in the Manager policy.
                 self.replay_buffer.add(
                     obs_t=self._observations,
-                    goal_t=self.goals,
+                    goal_t=self.prev_meta_action,
                     action_t=self._worker_actions,
-                    reward_t=self.meta_reward,
-                    done_=done,
-                    h_t=self.goal_xsition_model(obs0, action, obs1),
-                    goal_updated=kwargs["time"] % self.meta_period == 0,
+                    reward_t=self._worker_rewards,
+                    done=self._dones,
+                    meta_obs_t=self.prev_meta_obs,
+                    meta_reward_t=self.meta_reward,
                 )
-            else:
-                # This hasn't been assigned yet, so assign it here.
-                self.prev_meta_action = deepcopy(self.meta_action)
 
-            # Reset the meta reward and previous meta observation.
-            self.meta_reward = 0
-            self.prev_meta_obs = np.copy(obs0)
-        else:
-            # Increment the meta reward with the most recent reward.
-            self.meta_reward += reward
-            self.rewards.append(self.meta_reward)
+                # Reset the meta reward and previous meta observation.
+                self.meta_reward = 0
+                self.prev_meta_obs = np.copy(obs0)
 
-        # Compute the worker reward.
-        worker_reward = self.worker_reward(obs0, self.meta_action, obs1)
-
-        # # Add the worker transition to the replay buffer.
-        # self.worker.store_transition(
-        #     obs0=obs0,
-        #     context_obs0=self.prev_meta_action,
-        #     action=action,
-        #     reward=worker_reward,
-        #     obs1=obs1,
-        #     context_obs1=self.meta_action,
-        #     done=done
-        # )
+                # Clear the worker rewards and actions, and the environmental
+                # observation.
+                self._observations.clear()
+                self._worker_actions.clear()
+                self._worker_rewards.clear()
+                self._dones.clear()
 
         # Update the prev meta action to match that of the current time step.
         self.prev_meta_action = deepcopy(self.meta_action)
 
-    def goal_xsition_model(self,
-                           obs_t,
-                           g_t,
-                           obs_tp1):
-        """
-        Fixed goal transition function defined by the following eqn:
-        h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
-        Parameters:
-        -----------
-        obs_t: Any
+    @staticmethod
+    def goal_xsition_model(obs_t, g_t, obs_tp1):
+        """Return a fixed goal transition.
+
+        The goal transition is defined by the following eqn:
+
+            h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
+
+        Parameters
+        ----------
+        obs_t : array_like
             environmental observation at time t
-        g_t: Any
+        g_t : array_like
             Worker specified goal at time t
-        obs_tp1: Any
-            environmental observation at time t
+        obs_tp1 : array_like
+            environmental observation at time t+1
+
         Returns
         -------
-        g_tp1: Any
+        array_like
             Worker specified goal at time t+1
         """
-        return tf.subtract(tf.add(obs_t, g_t), obs_tp1)
+        return obs_t + g_t - obs_tp1
 
     def _sample_best_meta_action(self,
                                  state_reps,
@@ -1332,167 +1347,151 @@ class HIROPolicy(ActorCriticPolicy):
                                  low_states,
                                  low_actions,
                                  low_state_reprs,
-                                 tf_spec,
                                  k=8):
-        """
-        Return meta-actions which approximately maximize low-level log-probs.
-        state_reps: Any
-            current Manager state observation
-        next_state_reprs: Any
-            next Manager state observation
-        prev_meta_actions: Any
-            previous meta Manager action
-        low_states: Any
-            current Worker state observation
-        low_actions: Any
-            current Worker environmental action
-        low_state_reprs: Any
-            BLANK
-        k: int
-            number of goals returned
-        """
-        sampled_actions = self._sample(state_reps,
-                                       next_state_reprs,
-                                       k,
-                                       prev_meta_actions,
-                                       tf_spec)
+        """Return meta-actions that approximately maximize low-level log-probs.
 
-        sampled_actions = tf.stop_gradient(sampled_actions)
+        Parameters
+        ----------
+        state_reps : array_like
+            current Manager state observation
+        next_state_reprs : array_like
+            next Manager state observation
+        prev_meta_actions : array_like
+            previous meta Manager action
+        low_states : array_like
+            current Worker state observation
+        low_actions : array_like
+            current Worker environmental action
+        low_state_reprs : array_like
+            current Worker state observation
+        k : int, optional
+            number of goals returned, excluding the initial goal and the mean
+            value
+
+        Returns
+        -------
+        array_like
+            most likely meta-actions
+        """
+        # Collect several samples of potentially optimal goals.
+        sampled_actions = self._sample(
+            state_reps, next_state_reprs, k, prev_meta_actions)
 
         sampled_log_probs = tf.reshape(self._log_probs(
             tf.tile(low_states, [k, 1, 1]),
             tf.tile(low_actions, [k, 1, 1]),
             tf.tile(low_state_reprs, [k, 1, 1]),
             [tf.reshape(sampled_actions, [-1, sampled_actions.shape[-1]])]),
-            [k, low_states.shape[0],
-             low_states.shape[1], -1])
+            [k, low_states.shape[0], low_states.shape[1], -1])
 
         fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
         best_actions = tf.argmax(fitness, 0)
         actions = tf.gather_nd(
             sampled_actions,
-            tf.stack([best_actions,
-                      tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
+            tf.stack([
+                best_actions,
+                tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
         return actions
 
-    def _log_probs(self,
-                   states,
-                   actions,  # use this as a target value for error
-                   tf_spec,  # use this to define max and min
-                   goals):
-        """
-        Utility function that helps in calculating the
-        log probability of the next goal by the Manager.
-        states: Any
+    def _log_probs(self, manager_obs, worker_obs, actions, goals):
+        """Calculate the log probability of the next goal by the Manager.
+
+        Parameters
+        ----------
+        manager_obs : array_like
             list of states corresponding to that of Manager
-        state_reps: Any
-            list of state representations corresponding to s(t)
-        context: Any
-            BLANK
+        worker_obs : array_like
+            list of states corresponding to that of Worker
+        actions : array_like
+            list of low-level actions
+        goals : array_like
+            list of meta-actions
+
         Returns
         -------
-        next likely goal by the Manager defined by log prob
+        array_like
+            error associated with every state/action/goal pair
+
         Helps
         -----
         * _sample_best_meta_action(self):
         """
-        batch_dims = [tf.shape(states)[0], tf.shape(states)[1]]
+        # Compute absolute goals, if needed.
+        if self.relative_goals:
+            goals = self.goal_xsition_model(manager_obs, goals, worker_obs)
 
-        contexts = []
-        for index in range(len(states)-1):
-            contexts.append(self.goal_xsition_model(states[index],
-                                                    goals[index],
-                                                    states[index+1]))
+        # Action a policy would perform given a specific observation / goal.
+        pred_actions = self.worker.get_action(worker_obs, context_obs=goals)
 
-        flat_contexts = [tf.reshape(tf.cast(context, states.dtype),
-                                    [batch_dims[0] * batch_dims[1], context.shape[-1]])
-                         for context in contexts]
+        # Normalize the error based on the range of applicable goals.
+        goal_space = self.manager.ac_space
+        spec_range = goal_space.high - goal_space.low
+        scale = np.tile(np.square(spec_range), (manager_obs.shape[0], 1))
 
-        flat_pred_actions = self.worker.get_action(flat_contexts)
-
-        pred_actions = tf.reshape(flat_pred_actions,
-                                  batch_dims + [flat_pred_actions.shape[-1]])
-
-        error = tf.square(actions - pred_actions)
-
-        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2
-
-        normalized_error = error / tf.constant(spec_range) ** 2
+        # Compute error as the distance between expected and actual actions.
+        normalized_error = np.mean(
+            np.square(np.divide(actions - pred_actions, scale)), axis=1)
 
         return -normalized_error
 
-    def _sample(self,
-                states,
-                next_states,
-                num_samples,
-                orig_goals,
-                tf_spec,
-                sc=0.5):
-        """
-        Sample different goals from a random Gaussian distribution
-        centered at (s_t+c) - (s_t)
-        states: Any
-            current time step observation
-        next_states: Any
-            next time step observation
-        num_samples: Any
+    def _sample(self, states, next_states, num_samples, orig_goals, sc=0.5):
+        """Sample different goals.
+
+        These goals are acquired from a random Gaussian distribution centered
+        at s_{t+c} - s_t.
+
+        Parameters
+        ----------
+        states : array_like
+            (batch_size, obs_dim) matrix of current time step observation
+        next_states : array_like
+            (batch_size, obs_dim) matrix of next time step observation
+        num_samples : int
             number of samples
-        orig_goals: Any
-            original goal specified by Manager
-        tf_spec: tf.TensorSpec
-            Metadata for describing the tf.Tensor objects accepted
-            or returned by some TensorFlow APIs.
-        sc: float
-            BLANK
+        orig_goals : array_like
+            (batch_size, goal_dim) matrix of original goal specified by Manager
+        sc : float
+            scaling factor for the normal distribution.
+
+        Returns
+        -------
+        array_like
+            (batch_size, goal_dim, num_samples) matrix of sampled goals
+
         Helps
         -----
-        * _sample_best_meta_action(self):
+        * _sample_best_meta_action(self)
         """
-        goal_dim = orig_goals.shape[-1]
-        spec_range = (tf_spec.maximum - tf_spec.minimum) / 2 * tf.ones([goal_dim])
-        loc = tf.cast(next_states - states, tf.float32)[:, :goal_dim]
-        scale = sc * tf.tile(tf.reshape(spec_range, [1, goal_dim]),
-                             [tf.shape(states)[0], 1])
-        dist = tf.distributions.Normal(loc, scale)
-        if num_samples == 1:
-            return dist.sample()
-        samples = tf.concat([dist.sample(num_samples - 2),
-                             tf.expand_dims(loc, 0),
-                             tf.expand_dims(orig_goals, 0)], 0)
-        return self._clip_to_spec(samples, tf_spec)
+        batch_size, goal_dim = orig_goals.shape
+        goal_space = self.manager.ac_space
+        spec_range = (goal_space.high - goal_space.low) / 2
 
-    def _clip_to_spec(self, value, spec):
-        """
-        Clips value to a given bounded tensor spec.
-        Args:
-          value: (tensor) value to be clipped.
-          spec: (BoundedTensorSpec) spec containing min. and max. values for clipping.
-        Returns:
-          clipped_value: (tensor) `value` clipped to be compatible with `spec`.
-        Helps:
-          *_sample(self,
-                states,
-                next_states,
-                num_samples,
-                orig_goals,
-                tf_spec,
-                sc=0.5):
-        """
-        return self.clip_to_bounds(value,
-                                   spec.minimum,
-                                   spec.maximum)
+        # Compute the mean and std for the Gaussian distribution to sample from
+        loc = np.tile((next_states - states)[:, :goal_dim].flatten(),
+                      (num_samples-2, 1))
+        scale = np.tile(sc * spec_range, (num_samples-2, batch_size))
 
-    def clip_to_bounds(self, value, minimum, maximum):
-        """Clips value to be between minimum and maximum.
-        Args:
-          value: (tensor) value to be clipped.
-          minimum: (numpy float array) minimum value to clip to.
-          maximum: (numpy float array) maximum value to clip to.
-        Returns:
-          clipped_value: (tensor) `value` clipped to between `minimum` and `maximum`.
-        """
-        value = tf.minimum(value, maximum)
-        return tf.maximum(value, minimum)
+        # Sample the requested number of goals from the Gaussian distribution.
+        samples = loc + np.random.normal(
+            size=(num_samples - 2, goal_dim * batch_size)) * scale
+
+        # Add the original goal and the average of the original and final state
+        # to the sampled goals.
+        samples = np.vstack(
+            [samples,
+             (next_states - states)[:, :goal_dim].flatten(),
+             orig_goals.flatten()],
+        )
+
+        # Clip the values based on the Manager action space range.
+        minimum = np.tile(goal_space.low, (num_samples, batch_size))
+        maximum = np.tile(goal_space.high, (num_samples, batch_size))
+        samples = np.minimum(np.maximum(samples, minimum), maximum)
+
+        # Reshape to (batch_size, goal_dim, num_samples).
+        samples = samples.T.reshape((batch_size, goal_dim, num_samples))
+
+        return samples
 
     def get_stats(self):
         """See parent class."""
