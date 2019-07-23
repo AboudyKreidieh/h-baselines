@@ -1335,13 +1335,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
         return actions
 
-    def _log_probs(self, states, actions, goals):
+    def _log_probs(self, manager_obs, worker_obs, actions, goals):
         """Calculating the log probability of the next goal by the Manager.
 
         Parameters
         ----------
-        states : array_like
+        manager_obs : array_like
             list of states corresponding to that of Manager
+        worker_obs : array_like
+            list of states corresponding to that of Worker
         actions : array_like
             TODO
         goals : array_like
@@ -1356,30 +1358,21 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         -----
         * _sample_best_meta_action(self):
         """
-        batch_dims = [states.shape[0], states.shape[1]]
+        # Compute absolute goals, if needed.
+        if self.relative_goals:
+            goals = self.goal_xsition_model(manager_obs, goals, worker_obs)
 
-        contexts = []
-        for index in range(len(states)-1):
-            contexts.append(self.goal_xsition_model(
-                states[index], goals[index], states[index+1]))
-
-        flat_contexts = [
-            tf.reshape(tf.cast(context, states.dtype),
-                       [batch_dims[0] * batch_dims[1], context.shape[-1]])
-            for context in contexts
-        ]
-
-        flat_pred_actions = self.worker.get_action(flat_contexts)
-
-        pred_actions = tf.reshape(flat_pred_actions,
-                                  batch_dims + [flat_pred_actions.shape[-1]])
-
-        error = np.square(actions - pred_actions)
+        # Action a policy would perform given a specific observation / goal.
+        pred_actions = self.worker.get_action(worker_obs, context_obs=goals)
 
         # Normalize the error based on the range of applicable goals.
         goal_space = self.manager.ac_space
-        spec_range = (goal_space.high - goal_space.low) / 2
-        normalized_error = error / np.square(spec_range)
+        spec_range = goal_space.high - goal_space.low
+        scale = np.tile(np.square(spec_range), (manager_obs.shape[0], 1))
+
+        # Compute error as the distance between expected and actual actions.
+        normalized_error = np.mean(
+            np.square(np.divide(actions - pred_actions, scale)), axis=1)
 
         return -normalized_error
 
@@ -1392,50 +1385,55 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         states : array_like
-            current time step observation
+            (batch_size, obs_dim) matrix of current time step observation
         next_states : array_like
-            next time step observation
+            (batch_size, obs_dim) matrix of next time step observation
         num_samples : int
             number of samples
         orig_goals : array_like
-            original goal specified by Manager
+            (batch_size, goal_dim) matrix of original goal specified by Manager
         sc : float
             scaling factor for the normal distribution.
 
         Returns
         -------
         array_like
-            list of sampled goals
+            (batch_size, goal_dim, num_samples) matrix of sampled goals
 
         Helps
         -----
         * _sample_best_meta_action(self)
         """
-        goal_dim = orig_goals.shape[-1]
+        batch_size, goal_dim = orig_goals.shape
         goal_space = self.manager.ac_space
         spec_range = (goal_space.high - goal_space.low) / 2
 
         # Compute the mean and std for the Gaussian distribution to sample from
-        loc = (next_states - states)[:, :goal_dim]
-        scale = sc * tf.tile(tf.reshape(spec_range, [1, goal_dim]),
-                             [tf.shape(states)[0], 1])
+        loc = np.tile((next_states - states)[:, :goal_dim].flatten(),
+                      (num_samples-2, 1))
+        scale = np.tile(sc * spec_range, (num_samples-2, batch_size))
 
         # Sample the requested number of goals from the Gaussian distribution.
-        # FIXME: remove tf
-        dist = tf.distributions.Normal(loc, scale)
-        samples = dist.sample(num_samples - 2)
+        samples = loc + np.random.normal(
+            size=(num_samples - 2, goal_dim * batch_size)) * scale
 
         # Add the original goal and the average of the original and final state
-        # to the sampled goals. FIXME: remove tf
-        samples = tf.concat(
-            [samples, tf.expand_dims(loc, 0), tf.expand_dims(orig_goals, 0)],
-            axis=0
+        # to the sampled goals.
+        samples = np.vstack(
+            [samples,
+             (next_states - states)[:, :goal_dim].flatten(),
+             orig_goals.flatten()],
         )
 
         # Clip the values based on the Manager action space range.
-        minimum = self.manager.ac_space.low
-        maximum = self.manager.ac_space.high
-        return np.minimum(np.maximum(samples, minimum), maximum)
+        minimum = np.tile(goal_space.low, (num_samples, batch_size))
+        maximum = np.tile(goal_space.high, (num_samples, batch_size))
+        samples = np.minimum(np.maximum(samples, minimum), maximum)
+
+        # Reshape to (batch_size, goal_dim, num_samples).
+        samples = samples.T.reshape((batch_size, goal_dim, num_samples))
+
+        return samples
 
     def get_stats(self):
         """See parent class."""
