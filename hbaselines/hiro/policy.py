@@ -425,8 +425,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.variable_scope("model", reuse=False):
             self.actor_tf = self._make_actor(normalized_obs0)
             self.normalized_critic_tf = self._make_critic(
-                normalized_obs0,
-                self.action_ph)
+                normalized_obs0, self.action_ph)
             self.normalized_critic_with_actor_tf = self._make_critic(
                 normalized_obs0, self.actor_tf, reuse=True)
 
@@ -569,12 +568,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             var_list=get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def _make_actor(self, obs=None, reuse=False, scope="pi"):
+    def _make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
 
         Parameters
         ----------
-        obs : tf.placeholder or None
+        obs : tf.placeholder
             the input observation placeholder
         reuse : bool
             whether or not to reuse parameters
@@ -586,9 +585,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
-        if obs is None:
-            obs = self.obs_ph
-
         with tf.variable_scope(scope, reuse=reuse):
             # flatten the input placeholder
             pi_h = tf.layers.flatten(obs)
@@ -624,14 +620,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return policy
 
-    def _make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
+    def _make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
 
         Parameters
         ----------
-        obs : tf.placeholder or None
+        obs : tf.placeholder
             the input observation placeholder
-        action : tf.placeholder or None
+        action : tf.placeholder
             the input action placeholder
         reuse : bool
             whether or not to reuse parameters
@@ -643,11 +639,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the critic
         """
-        if obs is None:
-            obs = self.obs_ph
-        if action is None:
-            action = self.action_ph
-
         with tf.variable_scope(scope, reuse=reuse):
             # flatten the input placeholder
             qf_h = tf.layers.flatten(obs)
@@ -1205,22 +1196,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         worker_action = self.worker.get_action(worker_obs)
 
         return worker_action
-
-    def _observation_memory(self, obs, **kwargs):
-        """Notify the Manager that there is a new environmental observation.
-
-        These new observations are saved in the Manager for future off-policy
-        corrections.
-
-        Parameters
-        ----------
-        obs : array_like
-            current environmental observation
-        """
-        if kwargs["time"] % self.meta_period == 0:
-            self._observations.clear()
-        else:
-            self._observations.append(obs)
 
     def value(self, obs, action=None, with_actor=True, state=None, mask=None):
         """See parent class."""
