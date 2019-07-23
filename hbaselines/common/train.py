@@ -26,7 +26,6 @@ DEFAULT_TD3_HP = dict(
     random_exploration=0.0,
     verbose=2,
     _init_setup_model=True,
-    policy_kwargs=None
 )
 
 
@@ -77,6 +76,9 @@ def parse_options(description, example_usage, args):
              'Flow, or be available within the hbaselines/envs folder.')
 
     # optional input parameters
+    parser.add_argument(
+        '--n_cpus', type=int, default=1,
+        help='Number CPUs to distribute experiments over. Defaults to 1.')
     parser.add_argument(
         '--n_training', type=int, default=1,
         help='Number of training operations to perform. Each training '
