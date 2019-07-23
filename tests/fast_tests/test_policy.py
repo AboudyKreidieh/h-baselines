@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 import tensorflow as tf
+import random
 from gym.spaces import Box
 from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
@@ -327,22 +328,93 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         # FIXME: add test
         del policy
 
-        # Clear the graph.
-        tf.reset_default_graph()
-
     def test_relative_goals(self):
         """Validate the functionality of relative goals.
 
-        This should affect the worker reward function as well as TODO.
+        This should affect the worker reward function as well as transformation
+        from relative goals to absolute goals.
         """
-        pass
+        policy_params = self.policy_params.copy()
+        policy_params["relative_goals"] = True
+        policy = GoalDirectedPolicy(**policy_params)
+
+        # Test the goal_xsition_model method.
+        states = np.array([1, 2, 3])
+        goals = np.array([4, 5, 6])
+        next_states = np.array([7, 8, 9])
+        new_goal = policy.goal_xsition_model(states, goals, next_states)
+        np.testing.assert_array_almost_equal(new_goal, np.array([-2, -1, 0]))
+
+        # Test the updated reward function. FIXME
 
     def test_off_policy_corrections(self):
-        """Validate the functionality of the off-policy corrections.
+        """Validate the functionality of the off-policy corrections."""
+        # Set a random variable seed.
+        np.random.seed(1)
+        random.seed(1)
+        tf.set_random_seed(1)
 
-        TODO: describe content
-        """
-        pass
+        policy_params = self.policy_params.copy()
+        policy_params["relative_goals"] = True
+        policy_params["off_policy_corrections"] = True
+        policy = GoalDirectedPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.global_variables_initializer())
+
+        # Test the _sample method.
+        states = np.array(
+            [[1, 2],
+             [3, 4],
+             [5, 6],
+             [7, 8],
+             [9, 10],
+             [11, 12],
+             [13, 14],
+             [15, 16],
+             [17, 18],
+             [19, 20]]
+        )
+        next_states = -states
+        num_samples = 10
+        orig_goals = np.array(
+            [[1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1]]
+        )
+        samples = policy._sample(states, next_states, num_samples, orig_goals)
+
+        # Check that the shape is correct.
+        self.assertTupleEqual(
+            samples.shape, (states.shape[0], states.shape[1], num_samples))
+
+        # Check the last few elements are the deterministic components that
+        # they are expected to be.
+        np.testing.assert_array_almost_equal(
+            samples[:, :, -2:].reshape(states.shape[0] * states.shape[1], 2).T,
+            np.vstack(
+                [np.array([-2] * states.shape[0] * states.shape[1]),
+                 orig_goals.flatten()]
+            )
+        )
+
+        # Test the _log_probs method.
+        manager_obs = np.array([[1, 2], [3, -1], [0, 0]])
+        worker_obs = np.array([[1, 1], [2, 2], [3, 3]])
+        actions = np.array([[1], [-1], [0]])
+        goals = np.array([[0, 0], [-1, -1], [-2, -2]])
+        error = policy._log_probs(manager_obs, worker_obs, actions, goals)
+        np.testing.assert_array_almost_equal(
+            error, [-3.912313e-03, -3.885057e-03, -7.010017e-07])
+
+        # Test the _sample_best_meta_action method.  FIXME
 
     def test_fingerprints(self):
         """Validate the functionality of the fingerprints.
