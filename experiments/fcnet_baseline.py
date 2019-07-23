@@ -13,8 +13,7 @@ from hbaselines.common.train import ensure_dir
 from hbaselines.common.train import parse_options, get_hyperparameters
 from hbaselines.hiro import TD3, FeedForwardPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --gamma 0.995'
-NUM_CPUS = 3
+EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
 @ray.remote
@@ -76,11 +75,9 @@ def main(args):
         w.writeheader()
         w.writerow(hp)
 
-    ray.init(num_cpus=NUM_CPUS)
+    ray.init(num_cpus=args.n_cpus)
     ray.get([run_exp.remote(env, hp, args.steps, dir_name, args.evaluate, i)
              for i in range(args.n_training)])
-    # [run_exp(env, hp, args.steps, dir_name, i)
-    #  for i in range(args.n_training)]
     ray.shutdown()
 
 
