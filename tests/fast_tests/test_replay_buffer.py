@@ -1,5 +1,5 @@
 import unittest
-import  numpy as np
+import numpy as np
 
 from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
 
