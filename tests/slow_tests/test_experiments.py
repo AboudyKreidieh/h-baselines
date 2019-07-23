@@ -1,5 +1,7 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
+import os
+import shutil
 
 from experiments.fcnet_baseline import main as fcnet_baselines
 
@@ -15,13 +17,11 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         )
 
         # Check that the folders were generated.
-
-        # Check that the hyperparameter files contained the correct values.
+        self.assertTrue(os.path.isdir(
+            os.path.join(os.getcwd(), "data/fcnet/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
-
-        # os._exit(1)
-        return
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     # def test_hiro_baseline(self):
     #     # Run the script; verify it executes without failure.
@@ -31,8 +31,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     #     )
     #
     #     # Check that the folders were generated.
-    #
-    #     # Check that the hyperparameter files contained the correct values.
     #
     #     # Clear anything that was generated.
 
