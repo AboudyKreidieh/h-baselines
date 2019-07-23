@@ -1355,7 +1355,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         return actions
 
     def _log_probs(self, manager_obs, worker_obs, actions, goals):
-        """Calculating the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the Manager.
 
         Parameters
         ----------
