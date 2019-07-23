@@ -9,7 +9,7 @@ import logging
 from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
 from hbaselines.hiro.tf_util import reduce_std
-from hbaselines.hiro.replay_buffer import ReplayBuffer
+from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
@@ -1015,7 +1015,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
 
-        self.replay_buffer = ReplayBuffer(buffer_size)
+        self.replay_buffer = HierReplayBuffer(buffer_size)
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -1075,6 +1075,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Use this to store the list of environmental actions that the worker
         # takes. These actions correspond to the a(t) in the HIRO paper.
         self._worker_actions = []
+
+        # rewards provided by the policy to the worker
+        self._worker_rewards = []
+
+        # done masks at every time step for the worker
+        self._dones = []
 
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
@@ -1163,7 +1169,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         return 0, 0, {}  # FIXME
 
-    def get_action(self, obs, state=None, mask=None, meta_act=None, **kwargs):
+    def get_action(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
@@ -1171,34 +1177,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self.goals.append(self.meta_action)
 
         # Return the worker action.
-        if meta_act is None:
-            worker_obs = np.concatenate((obs, self.meta_action), axis=1)
-        else:
-            worker_obs = np.concatenate((obs, meta_act), axis=1)
-
-        # compute worker action
+        worker_obs = np.concatenate((obs, self.meta_action), axis=1)
         worker_action = self.worker.get_action(worker_obs)
 
-        # notify manager of new worker action to be saved
-        self._notify_manager(worker_action)
-
         return worker_action
-
-    def _notify_manager(self, action, **kwargs):
-        """Notify the Manager that the Worker produced a new action.
-
-        These actions are saved in the Manager for future off-policy
-        enhancements.
-
-        Parameters
-        ----------
-        action : array_like
-            current action produced by Worker
-        """
-        if kwargs["time"] % self.meta_period == 0:
-            self._worker_actions.clear()
-        else:
-            self._worker_actions.append(action)
 
     def _observation_memory(self, obs, **kwargs):
         """Notify the Manager that there is a new environmental observation.
@@ -1222,45 +1204,58 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
-        # Add a sample to the meta transition, if required.
+        # Compute the worker reward and append it to the list of rewards.
+        self._worker_rewards.append(
+            self.worker_reward(obs0, self.meta_action, obs1)
+        )
+
+        # Add the environmental observations and done masks, and the worker
+        # actions to their respective lists.
+        self._worker_actions.append(action)
+        self._observations.append(obs0)
+        self._dones.append(done)
+
+        # Increment the meta reward with the most recent reward.
+        self.meta_reward += reward
+        self.rewards.append(self.meta_reward)
+
+        # Add a sample to the replay buffer.
         if kwargs["time"] % self.meta_period == 0 or done:
+            # Add the last observation if about to reset.
+            if done:
+                self._observations.append(obs1)
+
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
             if kwargs["time"] != 0:
                 # Store a sample in the Manager policy.
                 self.replay_buffer.add(
                     obs_t=self._observations,
-                    goal_t=self.goals,
+                    goal_t=self.prev_meta_action,
                     action_t=self._worker_actions,
-                    reward_t=self.meta_reward,
-                    done_=done,
-                    h_t=self.goal_xsition_model(obs0, action, obs1),
-                    goal_updated=kwargs["time"] % self.meta_period == 0,
+                    reward_t=self._worker_rewards,
+                    done=self._dones,
+                    meta_obs_t=self.prev_meta_obs,
+                    meta_reward_t=self.meta_reward,
                 )
-            else:
-                # This hasn't been assigned yet, so assign it here.
-                self.prev_meta_action = deepcopy(self.meta_action)
 
-            # Reset the meta reward and previous meta observation.
-            self.meta_reward = 0
-            self.prev_meta_obs = np.copy(obs0)
-        else:
-            # Increment the meta reward with the most recent reward.
-            self.meta_reward += reward
-            self.rewards.append(self.meta_reward)
+                # Reset the meta reward and previous meta observation.
+                self.meta_reward = 0
+                self.prev_meta_obs = np.copy(obs0)
 
-        # Compute the worker reward.
-        worker_reward = self.worker_reward(obs0, self.meta_action, obs1)
-
-        # Add the worker reward to the replay buffer. TODO
-        del worker_reward
+                # Clear the worker rewards and actions, and the environmental
+                # observation.
+                self._observations.clear()
+                self._worker_actions.clear()
+                self._worker_rewards.clear()
+                self._dones.clear()
 
         # Update the prev meta action to match that of the current time step.
         self.prev_meta_action = deepcopy(self.meta_action)
 
     @staticmethod
     def goal_xsition_model(obs_t, g_t, obs_tp1):
-        """Return fixed goal transition.
+        """Return a fixed goal transition.
 
         The goal transition is defined by the following eqn:
 
@@ -1345,9 +1340,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         worker_obs : array_like
             list of states corresponding to that of Worker
         actions : array_like
-            TODO
+            list of low-level actions
         goals : array_like
-            TODO
+            list of meta-actions
 
         Returns
         -------
