@@ -1201,12 +1201,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         return 0, 0, {}  # FIXME
 
-    def get_action(self, obs, state=None, mask=None, meta_act=None, **kwargs):
+    def get_action(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
             self.meta_action = self.manager.get_action(obs)
-            self.goals.append(self.meta_action)
 
         # Return the worker action.
         worker_obs = np.concatenate((obs, self.meta_action), axis=1)
