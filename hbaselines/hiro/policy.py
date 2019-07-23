@@ -673,7 +673,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
 
-        self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
+        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
 
     def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Perform gradient update step given a batch of data.
