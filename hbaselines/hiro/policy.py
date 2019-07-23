@@ -5,6 +5,7 @@ import numpy as np
 from functools import reduce
 from copy import deepcopy
 import logging
+from gym.spaces import Box
 
 from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
@@ -342,7 +343,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
-
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -358,10 +358,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
-        if co_space is None:
-            ob_dim = ob_space.shape
-        else:
-            ob_dim = tuple(map(sum, zip(ob_space.shape, co_space.shape)))
+        ob_dim = ob_space.shape
+        if co_space is not None:
+            ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
         with tf.variable_scope("input", reuse=False):
             self.critic_target = tf.placeholder(
@@ -894,6 +893,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
     prev_meta_obs : array_like
         previous observation by the Manager
     prev_meta_action : array_like
@@ -1014,6 +1018,20 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.use_fingerprints = use_fingerprints
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
+        self.fingerprint_dim = (1,)
+        self.fingerprint_range = ([0], [5])
+
+        # Compute the observation space for the Manager and Worker.
+        #
+        # If the fingerprint terms are being appended onto the observations,
+        # this should be the original observation space plus the fingerprint
+        # spaces at the end of the observation.
+        if self.use_fingerprints:
+            low = np.concatenate((ob_space.low, self.fingerprint_range[0]))
+            high = np.concatenate((ob_space.high, self.fingerprint_range[1]))
+            manager_worker_ob_space = Box(low=low, high=high)
+        else:
+            manager_worker_ob_space = ob_space
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
@@ -1023,7 +1041,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=ob_space,
+                ob_space=manager_worker_ob_space,
                 ac_space=ob_space,  # outputs actions for each observations
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -1071,7 +1089,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=ob_space,
+                ob_space=manager_worker_ob_space,
                 ac_space=ac_space,
                 co_space=ob_space,
                 buffer_size=buffer_size,
@@ -1094,10 +1112,18 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 scope="Worker"
             )
 
+        # remove the last element to compute the reward
+        if self.use_fingerprints:
+            state_indices = list(np.arange(
+                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        else:
+            state_indices = None
+
         # reward function for the worker
         def worker_reward(states, goals, next_states):
             return negative_distance(
                 states=states,
+                state_indices=state_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=False,
