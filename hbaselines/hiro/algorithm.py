@@ -112,6 +112,9 @@ class TD3(object):
         the action space of the training environment
     observation_space : gym.spaces.*
         the observation space of the training environment
+    use_fingerprints : bool, optional
+        specifies whether to add a time-dependent fingerprint to the
+        observations. Only applies to GoalDirectedPolicy
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -183,6 +186,7 @@ class TD3(object):
                  buffer_size=50000,
                  random_exploration=0.0,
                  verbose=0,
+                 use_fingerprints=False,
                  _init_setup_model=True):
         """Instantiate the algorithm object.
 
@@ -236,6 +240,9 @@ class TD3(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        use_fingerprints : bool, optional
+            specifies whether to add a time-dependent fingerprint to the
+            observations. Only applies to GoalDirectedPolicy
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
@@ -266,6 +273,7 @@ class TD3(object):
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
+        self.use_fingerprints = use_fingerprints
 
         # init
         self.graph = None
@@ -374,6 +382,13 @@ class TD3(object):
             # Create the tensorflow session.
             self.sess = make_session(num_cpu=1, graph=self.graph)
 
+            # Collect specific parameters only if using GoalDirectedPolicy.
+            additional_params = {}
+            if self.policy == GoalDirectedPolicy:
+                additional_params.update({
+                    "use_fingerprints": self.use_fingerprints,
+                })
+
             # Create the policy.
             self.policy_tf = self.policy(
                 self.sess,
@@ -392,7 +407,8 @@ class TD3(object):
                 gamma=self.gamma,
                 normalize_observations=self.normalize_observations,
                 normalize_returns=self.normalize_returns,
-                observation_range=self.observation_range
+                observation_range=self.observation_range,
+                **additional_params
             )
 
             # Initialize the model parameters and optimizers.
@@ -535,6 +551,10 @@ class TD3(object):
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
             self.obs = self.env.reset()
+            # Add the fingerprint term, if needed.
+            if self.use_fingerprints:
+                fp = [self.total_steps / total_timesteps * 5]
+                self.obs = np.concatenate((self.obs, fp), axis=0)
             start_time = time.time()
 
             while True:
@@ -554,7 +574,7 @@ class TD3(object):
                         return
 
                     # Perform rollouts.
-                    self._collect_samples()
+                    self._collect_samples(total_timesteps)
 
                     # Train.
                     self._train(writer)
@@ -596,12 +616,18 @@ class TD3(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self):
+    def _collect_samples(self, total_timesteps):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
         before training is executed. The data from the rollouts is stored in
         the policy's replay buffer(s).
+
+        Parameters
+        ----------
+        total_timesteps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
@@ -618,6 +644,11 @@ class TD3(object):
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
+
+            # Add the fingerprint term, if needed.
+            if self.use_fingerprints:
+                fp = [self.total_steps / total_timesteps * 5]
+                new_obs = np.concatenate((new_obs, fp), axis=0)
 
             if hasattr(self.env, "current_context"):
                 # Get the contextual term.
@@ -665,6 +696,11 @@ class TD3(object):
 
                 # Reset the environment.
                 self.obs = self.env.reset()
+
+                # Add the fingerprint term, if needed.
+                if self.use_fingerprints:
+                    fp = [self.total_steps / total_timesteps * 5]
+                    self.obs = np.concatenate((self.obs, fp), axis=0)
 
     def _train(self, writer):
         """Perform the training operation.

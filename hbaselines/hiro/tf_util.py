@@ -192,55 +192,6 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     return tf.group(*init_updates), tf.group(*soft_updates)
 
 
-def get_perturbed_actor_updates(actor,
-                                perturbed_actor,
-                                param_noise_stddev,
-                                verbose=0):
-    """Get the actor update, with noise.
-
-    Parameters
-    ----------
-    actor : str
-        the actor
-    perturbed_actor : str
-        the perturbed actor
-    param_noise_stddev : float
-        the std of the parameter noise
-    verbose : int
-        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-
-    Returns
-    -------
-    tf.Operation
-        the update function
-    """
-    assert len(get_globals_vars(actor)) == \
-        len(get_globals_vars(perturbed_actor))
-    assert \
-        len([var for var in get_trainable_vars(actor)
-             if 'LayerNorm' not in var.name]) == \
-        len([var for var in get_trainable_vars(perturbed_actor)
-             if 'LayerNorm' not in var.name])
-
-    updates = []
-    for var, perturbed_var in zip(get_globals_vars(actor),
-                                  get_globals_vars(perturbed_actor)):
-        if var in [var for var in get_trainable_vars(actor)
-                   if 'LayerNorm' not in var.name]:
-            if verbose >= 2:
-                logger.info('  {} <- {} + noise'.format(
-                    perturbed_var.name, var.name))
-            updates.append(
-                tf.assign(perturbed_var, var + tf.random_normal(
-                    tf.shape(var), mean=0., stddev=param_noise_stddev)))
-        else:
-            if verbose >= 2:
-                logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
-            updates.append(tf.assign(perturbed_var, var))
-    assert len(updates) == len(get_globals_vars(actor))
-    return tf.group(*updates)
-
-
 def var_shape(tensor):
     """Get TensorFlow Tensor shape.
 

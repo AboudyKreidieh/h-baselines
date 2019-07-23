@@ -236,6 +236,31 @@ class TestTD3(unittest.TestCase):
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
+    def test_fingerprints(self):
+        """Validate the functionality of the fingerprints.
+
+        When the fingerprint functionality is turned on, the observation within
+        the algorithm (stored under self.obs) should always include the
+        fingerprint element.
+
+        Policy-specific features of the fingerprint implementation are tested
+        under test_policy.py
+        """
+        # Create the algorithm.  # TODO
+        pass
+
+        # Validate that observations include the fingerprints elements upon
+        # initializing the `learn` procedure.  # TODO
+        pass
+
+        # Validate that observations include the fingerprints elements during
+        # a step in collect_samples.  # TODO
+        pass
+
+        # Validate that observations include the fingerprints elements during
+        # a reset in collect_samples.  # TODO
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()
