@@ -1322,12 +1322,13 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
         best_actions = tf.argmax(fitness, 0)
-        actions = tf.gather_nd(
+        best_goals = tf.gather_nd(
             sampled_actions,
             tf.stack([
                 best_actions,
                 tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
-        return actions
+
+        return best_goals
 
     def _log_probs(self, manager_obs, worker_obs, actions, goals):
         """Calculate the log probability of the next goal by the Manager.
@@ -1335,18 +1336,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         manager_obs : array_like
-            list of states corresponding to that of Manager
+            (batch_size, m_obs_dim) matrix of manager observations
         worker_obs : array_like
-            list of states corresponding to that of Worker
+            (batch_size, w_obs_dim, meta_period) matrix of worker observations
         actions : array_like
-            list of low-level actions
+            (batch_size, ac_dim, meta_period-1) list of low-level actions
         goals : array_like
-            list of meta-actions
+            (batch_size, goal_dim, num_samples) matrix of sampled goals
 
         Returns
         -------
         array_like
-            error associated with every state/action/goal pair
+            (batch_size, num_samples) error associated with every state /
+            action / goal pair
 
         Helps
         -----
@@ -1400,12 +1402,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         """
         batch_size, goal_dim = orig_goals.shape
         goal_space = self.manager.ac_space
-        spec_range = (goal_space.high - goal_space.low) / 2
+        spec_range = goal_space.high - goal_space.low
 
         # Compute the mean and std for the Gaussian distribution to sample from
         loc = np.tile((next_states - states)[:, :goal_dim].flatten(),
                       (num_samples-2, 1))
-        scale = np.tile(sc * spec_range, (num_samples-2, batch_size))
+        scale = np.tile(sc * spec_range / 2, (num_samples-2, batch_size))
 
         # Sample the requested number of goals from the Gaussian distribution.
         samples = loc + np.random.normal(
