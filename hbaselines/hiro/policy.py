@@ -1081,8 +1081,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         self.replay_buffer = HierReplayBuffer(buffer_size)
 
-        self.replay_buffer = ReplayBuffer(buffer_size)
-
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
@@ -1122,7 +1120,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # current action by the Manager
         self.meta_action = None
-        self.goals = []
 
         # current meta reward, counting as the cumulative environment reward
         # during the meta period
@@ -1324,7 +1321,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
             self.meta_action = self.manager.get_action(obs)
-            self.goals.append(self.meta_action)
 
         # Return the worker action.
         worker_obs = np.concatenate((obs, self.meta_action), axis=1)
