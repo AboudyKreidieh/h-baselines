@@ -1,19 +1,21 @@
-"""A runner script for fcnet models.
+"""A runner script for goal-directed hierarchical models.
 
-This run script used to test the performance of TD3 with fully connected
-network models on various environments.
+This run script used to test the performance of DDPG and DQN with the  neural
+network model "HIRO" on various environments.
+
+See: TODO: add paper
 """
 import os
-import csv
 from time import strftime
+import csv
 import ray
 import sys
 
 from hbaselines.common.train import ensure_dir
 from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro import TD3, FeedForwardPolicy
+from hbaselines.hiro import TD3, GoalDirectedPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
 @ray.remote
@@ -36,13 +38,13 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
         an increment term, used for logging purposes
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
+    alg = TD3(policy=GoalDirectedPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=1000,
+        log_interval=10000,
         seed=None,
         exp_num=i
     )
@@ -53,8 +55,8 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
 def main(args):
     """Execute multiple training operations."""
     args = parse_options(
-        description='Test the performance of TD3 with fully connected network '
-                    'models on various environments.',
+        description='Test the performance of TD3 with goal-directed '
+                    'hierarchical models on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=args
     )
@@ -63,7 +65,8 @@ def main(args):
     env = args.env_name
 
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/fcnet/{}/{}'.format(env, strftime("%Y-%m-%d-%H:%M:%S"))
+    dir_name = 'data/goal-directed/{}/{}'.format(
+        env, strftime("%Y-%m-%d-%H:%M:%S"))
     ensure_dir(dir_name)
 
     # get the hyperparameters

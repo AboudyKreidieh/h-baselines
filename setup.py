@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # flake8: noqa
+"""Setup script for the h-baselines repository."""
 from os.path import dirname, realpath
 from setuptools import find_packages, setup
 from hbaselines.version import __version__
