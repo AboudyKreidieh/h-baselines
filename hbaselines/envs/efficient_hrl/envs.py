@@ -157,9 +157,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
         self.step_number += 1
         done = done or self.step_number == self.horizon
 
-        # Update the previous observation
-        self.prev_obs = np.copy(obs)
-
         return obs, rew, done, info
 
     def reset(self):
