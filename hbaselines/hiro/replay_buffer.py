@@ -138,22 +138,34 @@ class HierReplayBuffer(ReplayBuffer):
         Parameters
         ----------
         obs_t : array_like
-            the last observation
+            list of all worker observations for a given meta period
         action_t : array_like
-            the action
+            list of all worker actions for a given meta period
         goal_t : array_like
-            the goal
+            the meta action
         reward_t : list of float
-            the worker reward at every time step
+            list of all worker rewards for a given meta period
         done : list of float or list of bool
-            is the episode done
-        """
-        data = (obs_t, goal_t, action_t, reward_t, done)
+            list of done masks
+        kwargs : Any
+            additional parameters, including:
 
+            * meta_obs_t: a tuple of the manager observation and next
+              observation
+            * meta_reward_t: the reward of the manager
+        """
+        # Store the manager samples, then the worker samples.
+        data = (kwargs["meta_obs_t"], goal_t, kwargs["meta_reward_t"],
+                obs_t, action_t, reward_t, done)
+
+        # Add the element to the list. If the list is already the max size of
+        # the replay buffer, then replace the oldest sample with this one.
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
         else:
             self._storage[self._next_idx] = data
+
+        # Increment the index of the oldest element.
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
@@ -166,28 +178,72 @@ class HierReplayBuffer(ReplayBuffer):
 
         Returns
         -------
-        sample from replay buffer (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
+        list of (numpy.ndarray, numpy.ndarray)
+            the previous and next manager observations for each meta period
+        list of numpy.ndarray
+            the meta action (goal) for each meta period
+        list of float  FIXME: maybe numpy.ndarray
+            the meta reward for each meta period
+        list of list of numpy.ndarray  FIXME: maybe list of numpy.ndarray
+            all observations for the worker for each meta period
+        list of list of numpy.ndarray  FIXME: maybe list of numpy.ndarray
+            all actions for the worker for each meta period
+        list of list of float  FIXME: maybe list of numpy.ndarray
+            all rewards for the worker for each meta period
+        list of list of float  FIXME: maybe list of numpy.ndarray
+            all done masks for the worker for each meta period. The last done
+            mask corresponds to the done mask of the manager
         """
-        obses_t, goals, actions, rewards = [], [], [], []
-        done, h_t, g_up, obs_tp1 = [], [], [], []
+        meta_obs0_all = []
+        meta_obs1_all = []
+        meta_act_all = []
+        meta_rew_all = []
+        meta_done_all = []
+        worker_obs0_all = []
+        worker_obs1_all = []
+        worker_act_all = []
+        worker_rew_all = []
+        worker_done_all = []
 
         for i in idxes:
-            # never use the last element, as it has no next state
-            if i == (self._next_idx - 1) % self._maxsize:
-                i = (i - 1) % self._maxsize
+            # Extract the elements of the sample.
+            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+                worker_rewards, worker_dones = self._storage[i]
 
-            data = self._storage[i]
-            obstp1 = self._storage[(i+1) % self._maxsize][0]
-            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
-            obses_t.append(np.array(obs_t, copy=False))
-            goals.append(np.array(goals_t, copy=False))
-            actions.append(np.array(actions_t, copy=False))
-            rewards.append(np.array(rewards_t, copy=False))
-            done.append(d)
-            h_t.append(np.array(h, copy=False))
-            g_up.append(np.array(g_uptd, copy=False))
-            obs_tp1.append(np.array(obstp1, copy=False))
+            # Separate the current and next step meta observations.
+            meta_obs0, meta_obs1 = meta_obs
 
-        return np.array(obses_t), np.array(goals), np.array(actions), \
-            np.array(rewards), np.array(done), \
-            np.array(h_t), np.array(g_up), np.array(obs_tp1)
+            # The meta done value corresponds to the last done value.
+            meta_done = worker_dones[-1]
+
+            # Sample one obs0/obs1/action/reward from the list of per-meta-
+            # period variables.
+            indx_val = random.randint(0, len(worker_obses)-2)
+            worker_obs0 = worker_obses[indx_val]
+            worker_obs1 = worker_obses[indx_val + 1]
+            worker_action = worker_actions[indx_val]
+            worker_reward = worker_rewards[indx_val]
+            worker_done = worker_dones[indx_val]
+
+            # Add the new sample to the list of returned samples.
+            meta_obs0_all.append(np.array(meta_obs0, copy=False))
+            meta_obs1_all.append(np.array(meta_obs1, copy=False))
+            meta_act_all.append(np.array(meta_action, copy=False))
+            meta_rew_all.append(np.array(meta_reward, copy=False))
+            meta_done_all.append(np.array(meta_done, copy=False))
+            worker_obs0_all.append(np.array(worker_obs0, copy=False))
+            worker_obs1_all.append(np.array(worker_obs1, copy=False))
+            worker_act_all.append(np.array(worker_action, copy=False))
+            worker_rew_all.append(np.array(worker_reward, copy=False))
+            worker_done_all.append(np.array(worker_done, copy=False))
+
+        return np.array(meta_obs0_all), \
+            np.array(meta_obs1_all), \
+            np.array(meta_act_all), \
+            np.array(meta_rew_all), \
+            np.array(meta_done_all), \
+            np.array(worker_obs0_all), \
+            np.array(worker_obs1_all), \
+            np.array(worker_act_all), \
+            np.array(worker_rew_all), \
+            np.array(worker_done_all)

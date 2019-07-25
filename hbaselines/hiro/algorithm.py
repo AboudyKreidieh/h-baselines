@@ -661,7 +661,7 @@ class TD3(object):
                 elif isinstance(self.policy_tf, GoalDirectedPolicy) \
                         and (
                         self.episode_step % self.policy_tf.meta_period == 0
-                        or done):
+                        or done) and self.episode_step > 0:
                     reward += getattr(self.env, "contextual_reward")(
                         self.policy_tf.prev_meta_obs, context, new_obs)[0]
 
