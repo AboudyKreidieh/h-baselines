@@ -112,9 +112,26 @@ class TD3(object):
         the action space of the training environment
     observation_space : gym.spaces.*
         the observation space of the training environment
-    use_fingerprints : bool, optional
+    meta_period : int
+        manger action period. Only applies to GoalDirectedPolicy
+    relative_goals : bool
+        specifies whether the goal issued by the Manager is meant to be a
+        relative or absolute goal, i.e. specific state or change in state.
+        Only applies to GoalDirectedPolicy
+    off_policy_corrections : bool
+        whether to use off-policy corrections during the update procedure.
+        See: https://arxiv.org/abs/1805.08296. Only applies to
+        GoalDirectedPolicy
+    use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations. Only applies to GoalDirectedPolicy
+    centralized_value_functions : bool
+        specifies whether to use centralized value functions for the
+        Manager and Worker critic functions. Only applies to
+        GoalDirectedPolicy
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker.
+        Defaults to False. Only applies to GoalDirectedPolicy
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -186,7 +203,12 @@ class TD3(object):
                  buffer_size=50000,
                  random_exploration=0.0,
                  verbose=0,
+                 meta_period=10,
+                 relative_goals=False,
+                 off_policy_corrections=False,
                  use_fingerprints=False,
+                 centralized_value_functions=False,
+                 connected_gradients=False,
                  _init_setup_model=True):
         """Instantiate the algorithm object.
 
@@ -240,9 +262,26 @@ class TD3(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        meta_period : int, optional
+            manger action period. Only applies to GoalDirectedPolicy
+        relative_goals : bool, optional
+            specifies whether the goal issued by the Manager is meant to be a
+            relative or absolute goal, i.e. specific state or change in state.
+            Only applies to GoalDirectedPolicy
+        off_policy_corrections : bool, optional
+            whether to use off-policy corrections during the update procedure.
+            See: https://arxiv.org/abs/1805.08296. Only applies to
+            GoalDirectedPolicy
         use_fingerprints : bool, optional
             specifies whether to add a time-dependent fingerprint to the
             observations. Only applies to GoalDirectedPolicy
+        centralized_value_functions : bool, optional
+            specifies whether to use centralized value functions for the
+            Manager and Worker critic functions. Only applies to
+            GoalDirectedPolicy
+        connected_gradients : bool, optional
+            whether to connect the graph between the manager and worker. Only
+            applies to GoalDirectedPolicy
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
@@ -273,7 +312,12 @@ class TD3(object):
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
+        self.meta_period = meta_period
+        self.relative_goals = relative_goals
+        self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
+        self.centralized_value_functions = centralized_value_functions
+        self.connected_gradients = connected_gradients
 
         # init
         self.graph = None
@@ -386,7 +430,13 @@ class TD3(object):
             additional_params = {}
             if self.policy == GoalDirectedPolicy:
                 additional_params.update({
+                    "meta_period": self.meta_period,
+                    "relative_goals": self.relative_goals,
+                    "off_policy_corrections": self.off_policy_corrections,
                     "use_fingerprints": self.use_fingerprints,
+                    "centralized_value_functions":
+                        self.centralized_value_functions,
+                    "connected_gradients": self.connected_gradients,
                 })
 
             # Create the policy.

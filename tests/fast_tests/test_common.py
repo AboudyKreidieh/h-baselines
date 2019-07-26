@@ -31,6 +31,12 @@ class TestTrain(unittest.TestCase):
         self.assertEqual(args.verbose, 2)
         self.assertEqual(args.buffer_size, DEFAULT_TD3_HP["buffer_size"])
         self.assertEqual(args.evaluate, False)
+        self.assertEqual(args.meta_period, DEFAULT_TD3_HP["meta_period"])
+        self.assertEqual(args.relative_goals, False)
+        self.assertEqual(args.off_policy_corrections, False)
+        self.assertEqual(args.use_fingerprints, False)
+        self.assertEqual(args.centralized_value_functions, False)
+        self.assertEqual(args.connected_gradients, False)
 
         # Test custom cases.
         args = parse_options("", "", args=[
@@ -53,6 +59,12 @@ class TestTrain(unittest.TestCase):
             "--verbose", "14",
             "--buffer_size", "15",
             "--evaluate",
+            "--meta_period", "16",
+            "--relative_goals",
+            "--off_policy_corrections",
+            "--use_fingerprints",
+            "--centralized_value_functions",
+            "--connected_gradients",
         ])
         hp = get_hyperparameters(args)
         self.assertEqual(args.n_training, 1)
@@ -73,6 +85,12 @@ class TestTrain(unittest.TestCase):
         self.assertEqual(hp["verbose"], 14)
         self.assertEqual(hp["buffer_size"], 15)
         self.assertEqual(args.evaluate, True)
+        self.assertEqual(hp["meta_period"], 16)
+        self.assertEqual(hp["relative_goals"], True)
+        self.assertEqual(hp["off_policy_corrections"], True)
+        self.assertEqual(hp["use_fingerprints"], True)
+        self.assertEqual(hp["centralized_value_functions"], True)
+        self.assertEqual(hp["connected_gradients"], True)
 
 
 class TestStats(unittest.TestCase):
