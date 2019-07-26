@@ -374,14 +374,14 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         policy_params["relative_goals"] = True
         policy = GoalDirectedPolicy(**policy_params)
 
-        # Test the goal_xsition_model method.
+        # Test the updated reward function.
         states = np.array([1, 2, 3])
         goals = np.array([4, 5, 6])
         next_states = np.array([7, 8, 9])
-        new_goal = policy.goal_xsition_model(states, goals, next_states)
-        np.testing.assert_array_almost_equal(new_goal, np.array([-2, -1, 0]))
-
-        # Test the updated reward function. FIXME
+        self.assertAlmostEqual(
+            policy.worker_reward(states, goals, next_states),
+            -2.2360679775221506
+        )
 
     def test_off_policy_corrections(self):
         """Validate the functionality of the off-policy corrections."""
@@ -448,7 +448,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.920673e-03, -3.930309e-03, -2.485119e-10])
+            error, [-3.904881e-03, -3.909843e-03, -2.007475e-10])
 
         # Test the _sample_best_meta_action method.  FIXME
 

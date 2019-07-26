@@ -3,9 +3,9 @@ import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
 from functools import reduce
-from copy import deepcopy
 import logging
 from gym.spaces import Box
+import random
 
 from hbaselines.hiro.tf_util import normalize, denormalize, flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
@@ -643,7 +643,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         #     dtype=tf.float32
         # )
         #
-        # return action_means + action_magnitudes * policy
+        # return tf.add(action_means, tf.multiply(action_magnitudes * policy)
 
         return policy
 
@@ -930,8 +930,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         used
     prev_meta_obs : array_like
         previous observation by the Manager
-    prev_meta_action : array_like
-        action by the Manager at the previous time step
     meta_action : array_like
         current action by the Manager
     meta_reward : float
@@ -1099,16 +1097,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # previous observation by the Manager
         self.prev_meta_obs = None
 
-        # action by the Manager at the previous time step
-        self.prev_meta_action = None
-
         # current action by the Manager
         self.meta_action = None
 
         # current meta reward, counting as the cumulative environment reward
         # during the meta period
         self.meta_reward = None
-        self.rewards = []
 
         # The following is redundant but necessary if the changes to the update
         # function are to be in the GoalDirected policy and not FeedForward.
@@ -1174,7 +1168,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 state_indices=state_indices,
                 goals=goals,
                 next_states=next_states,
-                relative_context=False,
+                relative_context=relative_goals,
                 diff=False,
                 offset=0.0
             )[0]
@@ -1187,42 +1181,147 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         """
         self.manager.initialize()
         self.worker.initialize()
+        self.meta_reward = 0
 
     def update(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.manager.replay_buffer.can_sample(self.batch_size) or \
-                not self.worker.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample(self.batch_size):
             return 0, 0, {}
 
         # Get a batch.
-        worker_obs0, _, worker_actions, worker_rewards, worker_done1, \
-            _, _, worker_obs1 = self.worker.replay_buffer.sample(
-                batch_size=self.batch_size)
+        samples = self.replay_buffer.sample(batch_size=self.batch_size)
 
-        manager_obs0, _, manager_actions, manager_rewards, manager_done1, \
-            _, _, manager_obs1 = self.manager.replay_buffer.sample(
-                batch_size=self.batch_size)
+        # Collect the relevant components of each sample.
+        meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
+            worker_obs1, worker_act, worker_rew, worker_done = \
+            self._process_samples(samples)
 
         # Update the Manager policy.
         self.manager.update_from_batch(
-            obs0=manager_obs0,
-            actions=manager_actions,
-            rewards=manager_rewards,
-            obs1=manager_obs1,
-            terminals1=manager_done1
+            obs0=meta_obs0,
+            actions=meta_act,
+            rewards=meta_rew,
+            obs1=meta_obs1,
+            terminals1=meta_done
         )
 
         # Update the Worker policy.
         self.worker.update_from_batch(
             obs0=worker_obs0,
-            actions=worker_actions,
-            rewards=worker_rewards,
+            actions=worker_act,
+            rewards=worker_rew,
             obs1=worker_obs1,
-            terminals1=worker_done1
+            terminals1=worker_done
         )
 
         return 0, 0, {}  # FIXME
+
+    @staticmethod
+    def _process_samples(samples):
+        """Convert the samples into a form that is usable for an update.
+
+        Parameters
+        ----------
+        samples : list of tuple
+            each element of the tuples consists of:
+
+            * list of (numpy.ndarray, numpy.ndarray): the previous and next
+              manager observations for each meta period
+            * list of numpy.ndarray: the meta action (goal) for each meta
+              period
+            * list of float: the meta reward for each meta period
+              FIXME: maybe numpy.ndarray
+            * list of list of numpy.ndarray: all observations for the worker
+              for each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of numpy.ndarray: all actions for the worker for
+              each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all rewards for the worker for each meta
+              period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all done masks for the worker for each
+              meta period. The last done mask corresponds to the done mask of
+              the manager
+              FIXME: maybe list of numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+            (batch_size, meta_obs) matrix of meta observations
+        numpy.ndarray
+            (batch_size, meta_obs) matrix of next meta-period meta observations
+        numpy.ndarray
+            (batch_size, meta_ac) matrix of meta actions
+        numpy.ndarray
+            (batch_size,) vector of meta rewards
+        numpy.ndarray
+            (batch_size,) vector of meta done masks
+        numpy.ndarray
+            (batch_size, worker_obs) matrix of worker observations
+        numpy.ndarray
+            (batch_size, worker_obs) matrix of next step worker observations
+        numpy.ndarray
+            (batch_size, worker_ac) matrix of worker actions
+        numpy.ndarray
+            (batch_size,) vector of worker rewards
+        numpy.ndarray
+            (batch_size,) vector of worker done masks
+        """
+        meta_obs0_all = []
+        meta_obs1_all = []
+        meta_act_all = []
+        meta_rew_all = []
+        meta_done_all = []
+        worker_obs0_all = []
+        worker_obs1_all = []
+        worker_act_all = []
+        worker_rew_all = []
+        worker_done_all = []
+
+        for sample in samples:
+            # Extract the elements of the sample.
+            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+                worker_rewards, worker_dones = sample
+
+            # Separate the current and next step meta observations.
+            meta_obs0, meta_obs1 = meta_obs
+
+            # The meta done value corresponds to the last done value.
+            meta_done = worker_dones[-1]
+
+            # Sample one obs0/obs1/action/reward from the list of per-meta-
+            # period variables.
+            indx_val = random.randint(0, len(worker_obses)-2)
+            worker_obs0 = worker_obses[indx_val]
+            worker_obs1 = worker_obses[indx_val + 1]
+            worker_action = worker_actions[indx_val]
+            worker_reward = worker_rewards[indx_val]
+            worker_done = worker_dones[indx_val]
+
+            # Add the new sample to the list of returned samples.
+            meta_obs0_all.append(np.array(meta_obs0, copy=False))
+            meta_obs1_all.append(np.array(meta_obs1, copy=False))
+            meta_act_all.append(np.array(meta_action, copy=False))
+            meta_rew_all.append(np.array(meta_reward, copy=False))
+            meta_done_all.append(np.array(meta_done, copy=False))
+            worker_obs0_all.append(np.array(worker_obs0, copy=False))
+            worker_obs1_all.append(np.array(worker_obs1, copy=False))
+            worker_act_all.append(np.array(worker_action, copy=False))
+            worker_rew_all.append(np.array(worker_reward, copy=False))
+            worker_done_all.append(np.array(worker_done, copy=False))
+
+        return np.array(meta_obs0_all), \
+            np.array(meta_obs1_all), \
+            np.array(meta_act_all), \
+            np.array(meta_rew_all), \
+            np.array(meta_done_all), \
+            np.array(worker_obs0_all), \
+            np.array(worker_obs1_all), \
+            np.array(worker_act_all), \
+            np.array(worker_rew_all), \
+            np.array(worker_done_all)
 
     def get_action(self, obs, state=None, mask=None, **kwargs):
         """See parent class."""
@@ -1241,24 +1340,40 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
-            self.worker_reward(obs0, self.meta_action, obs1)
+            self.worker_reward(obs0, self.meta_action.flatten(), obs1)
         )
 
         # Add the environmental observations and done masks, and the worker
         # actions to their respective lists.
         self._worker_actions.append(action)
-        self._observations.append(obs0)
+        self._observations.append(
+            np.concatenate((obs0, self.meta_action.flatten()), axis=0))
         self._dones.append(done)
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
-        self.rewards.append(self.meta_reward)
+
+        # Modify the previous meta observation whenever the action has changed.
+        if kwargs["time"] % self.meta_period == 0:
+            if kwargs.get("context_obs0") is not None:
+                self.prev_meta_obs = np.concatenate(
+                    (obs0, kwargs["context_obs0"].flatten()), axis=0)
+            else:
+                self.prev_meta_obs = np.copy(obs0)
 
         # Add a sample to the replay buffer.
-        if kwargs["time"] % self.meta_period == 0 or done:
+        if (kwargs["time"] + 1) % self.meta_period == 0 or done:
             # Add the last observation if about to reset.
             if done:
-                self._observations.append(obs1)
+                self._observations.append(
+                    np.concatenate((obs1, self.meta_action.flatten()), axis=0))
+
+            # Add the contextual observation, if applicable.
+            if kwargs.get("context_obs1") is not None:
+                meta_obs1 = np.concatenate(
+                    (obs1, kwargs["context_obs1"].flatten()), axis=0)
+            else:
+                meta_obs1 = np.copy(obs1)
 
             # If this is the first time step, do not add the transition to the
             # meta replay buffer (it is not complete yet).
@@ -1266,51 +1381,23 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 # Store a sample in the Manager policy.
                 self.replay_buffer.add(
                     obs_t=self._observations,
-                    goal_t=self.prev_meta_action,
+                    goal_t=self.meta_action.flatten(),
                     action_t=self._worker_actions,
                     reward_t=self._worker_rewards,
                     done=self._dones,
-                    meta_obs_t=self.prev_meta_obs,
+                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
                     meta_reward_t=self.meta_reward,
                 )
 
-                # Reset the meta reward and previous meta observation.
+                # Reset the meta reward.
                 self.meta_reward = 0
-                self.prev_meta_obs = np.copy(obs0)
 
                 # Clear the worker rewards and actions, and the environmental
                 # observation.
-                self._observations.clear()
-                self._worker_actions.clear()
-                self._worker_rewards.clear()
-                self._dones.clear()
-
-        # Update the prev meta action to match that of the current time step.
-        self.prev_meta_action = deepcopy(self.meta_action)
-
-    @staticmethod
-    def goal_xsition_model(obs_t, g_t, obs_tp1):
-        """Return a fixed goal transition.
-
-        The goal transition is defined by the following eqn:
-
-            h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
-
-        Parameters
-        ----------
-        obs_t : array_like
-            environmental observation at time t
-        g_t : array_like
-            Worker specified goal at time t
-        obs_tp1 : array_like
-            environmental observation at time t+1
-
-        Returns
-        -------
-        array_like
-            Worker specified goal at time t+1
-        """
-        return obs_t + g_t - obs_tp1
+                self._observations = []
+                self._worker_actions = []
+                self._worker_rewards = []
+                self._dones = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
@@ -1390,10 +1477,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         -----
         * _sample_best_meta_action(self):
         """
-        # Compute absolute goals, if needed.
-        if self.relative_goals:
-            goals = self.goal_xsition_model(manager_obs, goals, worker_obs)
-
         # Action a policy would perform given a specific observation / goal.
         pred_actions = self.worker.get_action(worker_obs, context_obs=goals)
 
