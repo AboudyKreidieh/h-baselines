@@ -178,72 +178,30 @@ class HierReplayBuffer(ReplayBuffer):
 
         Returns
         -------
-        list of (numpy.ndarray, numpy.ndarray)
-            the previous and next manager observations for each meta period
-        list of numpy.ndarray
-            the meta action (goal) for each meta period
-        list of float  FIXME: maybe numpy.ndarray
-            the meta reward for each meta period
-        list of list of numpy.ndarray  FIXME: maybe list of numpy.ndarray
-            all observations for the worker for each meta period
-        list of list of numpy.ndarray  FIXME: maybe list of numpy.ndarray
-            all actions for the worker for each meta period
-        list of list of float  FIXME: maybe list of numpy.ndarray
-            all rewards for the worker for each meta period
-        list of list of float  FIXME: maybe list of numpy.ndarray
-            all done masks for the worker for each meta period. The last done
-            mask corresponds to the done mask of the manager
+        list of tuple
+            each element of the tuples consists of:
+
+            * list of (numpy.ndarray, numpy.ndarray): the previous and next
+              manager observations for each meta period
+            * list of numpy.ndarray: the meta action (goal) for each meta
+              period
+            * list of float: the meta reward for each meta period
+              FIXME: maybe numpy.ndarray
+            * list of list of numpy.ndarray: all observations for the worker
+              for each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of numpy.ndarray: all actions for the worker for
+              each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all rewards for the worker for each meta
+              period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all done masks for the worker for each
+              meta period. The last done mask corresponds to the done mask of
+              the manager
+              FIXME: maybe list of numpy.ndarray
         """
-        meta_obs0_all = []
-        meta_obs1_all = []
-        meta_act_all = []
-        meta_rew_all = []
-        meta_done_all = []
-        worker_obs0_all = []
-        worker_obs1_all = []
-        worker_act_all = []
-        worker_rew_all = []
-        worker_done_all = []
-
+        ret = []
         for i in idxes:
-            # Extract the elements of the sample.
-            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                worker_rewards, worker_dones = self._storage[i]
-
-            # Separate the current and next step meta observations.
-            meta_obs0, meta_obs1 = meta_obs
-
-            # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
-
-            # Sample one obs0/obs1/action/reward from the list of per-meta-
-            # period variables.
-            indx_val = random.randint(0, len(worker_obses)-2)
-            worker_obs0 = worker_obses[indx_val]
-            worker_obs1 = worker_obses[indx_val + 1]
-            worker_action = worker_actions[indx_val]
-            worker_reward = worker_rewards[indx_val]
-            worker_done = worker_dones[indx_val]
-
-            # Add the new sample to the list of returned samples.
-            meta_obs0_all.append(np.array(meta_obs0, copy=False))
-            meta_obs1_all.append(np.array(meta_obs1, copy=False))
-            meta_act_all.append(np.array(meta_action, copy=False))
-            meta_rew_all.append(np.array(meta_reward, copy=False))
-            meta_done_all.append(np.array(meta_done, copy=False))
-            worker_obs0_all.append(np.array(worker_obs0, copy=False))
-            worker_obs1_all.append(np.array(worker_obs1, copy=False))
-            worker_act_all.append(np.array(worker_action, copy=False))
-            worker_rew_all.append(np.array(worker_reward, copy=False))
-            worker_done_all.append(np.array(worker_done, copy=False))
-
-        return np.array(meta_obs0_all), \
-            np.array(meta_obs1_all), \
-            np.array(meta_act_all), \
-            np.array(meta_rew_all), \
-            np.array(meta_done_all), \
-            np.array(worker_obs0_all), \
-            np.array(worker_obs1_all), \
-            np.array(worker_act_all), \
-            np.array(worker_rew_all), \
-            np.array(worker_done_all)
+            ret.append(self._storage[i])
+        return ret
