@@ -83,7 +83,7 @@ if __name__ == '__main__':
     )
 
     # start the ray instance with the requested number of CPUs
-    ray.init(num_cpus=1)
+    ray.init(num_cpus=args.n_cpus)
 
     # execute the training procedure
     main(args, 'data/goal-directed')
