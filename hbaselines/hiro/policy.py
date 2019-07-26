@@ -1168,7 +1168,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 state_indices=state_indices,
                 goals=goals,
                 next_states=next_states,
-                relative_context=False,
+                relative_context=relative_goals,
                 diff=False,
                 offset=0.0
             )[0]
