@@ -1399,30 +1399,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self._worker_rewards = []
                 self._dones = []
 
-    @staticmethod
-    def goal_xsition_model(obs_t, g_t, obs_tp1):
-        """Return a fixed goal transition.
-
-        The goal transition is defined by the following eqn:
-
-            h(s_t, g_t, s_t+1) = s_t + g_t - s_t+1
-
-        Parameters
-        ----------
-        obs_t : array_like
-            environmental observation at time t
-        g_t : array_like
-            Worker specified goal at time t
-        obs_tp1 : array_like
-            environmental observation at time t+1
-
-        Returns
-        -------
-        array_like
-            Worker specified goal at time t+1
-        """
-        return obs_t + g_t - obs_tp1
-
     def _sample_best_meta_action(self,
                                  state_reps,
                                  next_state_reprs,
@@ -1501,10 +1477,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         -----
         * _sample_best_meta_action(self):
         """
-        # Compute absolute goals, if needed.
-        if self.relative_goals:
-            goals = self.goal_xsition_model(manager_obs, goals, worker_obs)
-
         # Action a policy would perform given a specific observation / goal.
         pred_actions = self.worker.get_action(worker_obs, context_obs=goals)
 
