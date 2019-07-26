@@ -25,6 +25,7 @@ DEFAULT_TD3_HP = dict(
     buffer_size=100000,
     random_exploration=0.0,
     verbose=2,
+    meta_period=10,
     _init_setup_model=True,
 )
 
@@ -50,7 +51,13 @@ def get_hyperparameters(args):
         "reward_scale": args.reward_scale,
         "render": args.render,
         "buffer_size": int(args.buffer_size),
-        "verbose": args.verbose
+        "verbose": args.verbose,
+        "meta_period": args.meta_period,
+        "relative_goals": args.relative_goals,
+        "off_policy_corrections": args.off_policy_corrections,
+        "use_fingerprints": args.use_fingerprints,
+        "centralized_value_functions": args.centralized_value_functions,
+        "connected_gradients": args.connected_gradients,
     })
 
     return hp
@@ -89,6 +96,7 @@ def parse_options(description, example_usage, args):
 
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
+    parser = create_goal_directed_parser(parser)
 
     flags, _ = parser.parse_known_args(args)
 
@@ -160,6 +168,43 @@ def create_td3_parser(parser):
     parser.add_argument('--evaluate',
                         action='store_true',
                         help='add an evaluation environment')
+
+    return parser
+
+
+def create_goal_directed_parser(parser):
+    """Add the TD3 goal-directed policy hyperparameters to the parser."""
+    parser.add_argument("--meta_period",
+                        type=int,
+                        default=DEFAULT_TD3_HP["meta_period"],
+                        help="manger action period. Only applies to "
+                             "GoalDirectedPolicy")
+    parser.add_argument("--relative_goals",
+                        action="store_true",
+                        help="specifies whether the goal issued by the Manager"
+                             " is meant to be a relative or absolute goal, "
+                             "i.e. specific state or change in state. Only "
+                             "applies to GoalDirectedPolicy")
+    parser.add_argument("--off_policy_corrections",
+                        action="store_true",
+                        help="whether to use off-policy corrections during the"
+                             " update procedure. See: "
+                             "https://arxiv.org/abs/1805.08296. Only applies "
+                             "to  GoalDirectedPolicy")
+    parser.add_argument("--use_fingerprints",
+                        action="store_true",
+                        help="specifies whether to add a time-dependent "
+                             "fingerprint to the observations. Only applies "
+                             "to GoalDirectedPolicy")
+    parser.add_argument("--centralized_value_functions",
+                        action="store_true",
+                        help="specifies whether to use centralized value "
+                             "functions for the Manager and Worker critic "
+                             "functions. Only applies to  GoalDirectedPolicy")
+    parser.add_argument("--connected_gradients",
+                        action="store_true",
+                        help="whether to connect the graph between the manager"
+                             " and worker. Only applies to GoalDirectedPolicy")
 
     return parser
 
