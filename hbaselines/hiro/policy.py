@@ -2,6 +2,7 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
+from numpy.random import normal
 from functools import reduce
 import logging
 from gym.spaces import Box
@@ -72,13 +73,16 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_action(self, obs, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """Call the actor methods to compute policy actions.
 
         Parameters
         ----------
         obs : array_like
             the observation
+        apply_noise : bool, optional
+            whether to add Gaussian noise to the output of the actor. Defaults
+            to False
 
         Returns
         -------
@@ -178,8 +182,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         enable layer normalisation
     normalize_observations : bool
         should the observation be normalized
-    observation_range : (float, float)
-        the bounding values for the observation
     normalize_returns : bool
         should the critic output be normalized
     return_range : (float, float)
@@ -259,9 +261,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  normalize_observations,
-                 observation_range,
                  normalize_returns,
                  return_range,
+                 noise=1/30,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -300,8 +302,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             discount factor
         normalize_observations : bool
             should the observation be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         normalize_returns : bool
             should the critic output be normalized
         return_range : (float, float)
@@ -337,9 +337,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [300, 300]
         self.tau = tau
         self.gamma = gamma
+        self.noise = noise
         self.layer_norm = layer_norm
         self.normalize_observations = normalize_observations
-        self.observation_range = observation_range
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
@@ -403,12 +403,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.obs_rms = None
 
-        normalized_obs0 = tf.clip_by_value(
-            normalize(self.obs_ph, self.obs_rms),
-            observation_range[0], observation_range[1])
-        normalized_obs1 = tf.clip_by_value(
-            normalize(self.obs1_ph, self.obs_rms),
-            observation_range[0], observation_range[1])
+        # FIXME
+        # normalized_obs0 = tf.clip_by_value(
+        #     normalize(self.obs_ph, self.obs_rms),
+        #     self.ob_space.low, self.ob_space.high)
+        # normalized_obs1 = tf.clip_by_value(
+        #     normalize(self.obs1_ph, self.obs_rms),
+        #     self.ob_space.low, self.ob_space.high)
+
+        normalized_obs0 = self.obs_ph
+        normalized_obs1 = self.obs1_ph
 
         # Return normalization.
         if normalize_returns:
@@ -625,25 +629,40 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 pi_h = self.activ(pi_h)
 
             # create the output layer
-            policy = tf.nn.tanh(tf.layers.dense(
-                pi_h,
-                self.ac_space.shape[0],
-                name=scope,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)))
+            if any(np.isinf(self.ac_space.high)) \
+                    or any(np.isinf(self.ac_space.low)):
+                # no nonlinearity to the output if the action space is not
+                # bounded
+                policy = tf.layers.dense(
+                    pi_h,
+                    self.ac_space.shape[0],
+                    name=scope,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3))
+            else:
+                # tanh nonlinearity with an added offset and scale is the
+                # action space is bounded
+                policy = tf.nn.tanh(tf.layers.dense(
+                    pi_h,
+                    self.ac_space.shape[0],
+                    name=scope,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3)))
 
-        # FIXME
-        # # scaling terms to the output from the actor
-        # action_means = tf.constant(
-        #     (self.ac_space.high + self.ac_space.low) / 2.,
-        #     dtype=tf.float32
-        # )
-        # action_magnitudes = tf.constant(
-        #     (self.ac_space.high - self.ac_space.low) / 2.,
-        #     dtype=tf.float32
-        # )
-        #
-        # return tf.add(action_means, tf.multiply(action_magnitudes * policy)
+                # scaling terms to the output from the actor
+                action_means = tf.expand_dims(
+                    tf.constant((self.ac_space.high + self.ac_space.low) / 2.,
+                                dtype=tf.float32),
+                    0
+                )
+                action_magnitudes = tf.expand_dims(
+                    tf.constant((self.ac_space.high - self.ac_space.low) / 2.,
+                                dtype=tf.float32),
+                    0
+                )
+
+                policy = tf.add(action_means,
+                                tf.multiply(action_magnitudes, policy))
 
         return policy
 
@@ -760,14 +779,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss, td_map
 
-    def get_action(self, obs, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
         if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
-        return self.sess.run(self.actor_tf, {self.obs_ph: obs})
+        action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
+        if apply_noise:
+            action += normal(loc=0, scale=self.noise, size=action.shape)
+        action = np.clip(action, self.ac_space.low, self.ac_space.high)
+
+        return action
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
@@ -958,7 +982,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  normalize_observations,
-                 observation_range,
                  normalize_returns,
                  return_range,
                  layer_norm=False,
@@ -1004,8 +1027,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             discount factor
         normalize_observations : bool
             should the observation be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         normalize_returns : bool
             should the critic output be normalized
         return_range : (float, float)
@@ -1061,18 +1082,26 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         else:
             manager_worker_ob_space = ob_space
 
-        self.replay_buffer = HierReplayBuffer(buffer_size)
+        self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
+
+        # FIXME: only for ant
+        manager_ac_space = Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3])
+        )
 
         # Create the Manager policy.
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
                 ob_space=manager_worker_ob_space,
-                ac_space=ob_space,  # outputs actions for each observations
+                ac_space=manager_ac_space,
                 co_space=co_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
@@ -1084,14 +1113,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 normalize_observations=normalize_observations,
-                observation_range=observation_range,
                 normalize_returns=normalize_returns,
                 return_range=return_range,
                 layer_norm=layer_norm,
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
-                scope="Manager"
+                scope="Manager",
+                noise=0.5,  # FIXME
             )
 
         # previous observation by the Manager
@@ -1133,7 +1162,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 sess,
                 ob_space=manager_worker_ob_space,
                 ac_space=ac_space,
-                co_space=ob_space,
+                co_space=manager_ac_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1144,22 +1173,23 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 normalize_observations=normalize_observations,
-                observation_range=observation_range,
                 normalize_returns=normalize_returns,
                 return_range=return_range,
                 layer_norm=layer_norm,
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
-                scope="Worker"
+                scope="Worker",
+                noise=1/30,  # TODO: magic number
             )
 
-        # remove the last element to compute the reward
-        if self.use_fingerprints:
-            state_indices = list(np.arange(
-                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
-        else:
-            state_indices = None
+        # remove the last element to compute the reward FIXME
+        # if self.use_fingerprints:
+        #     state_indices = list(np.arange(
+        #         0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        # else:
+        #     state_indices = None
+        state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
@@ -1169,9 +1199,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
-                diff=False,
                 offset=0.0
-            )[0]
+            )
         self.worker_reward = worker_reward
 
     def initialize(self):
@@ -1323,14 +1352,16 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             np.array(worker_rew_all), \
             np.array(worker_done_all)
 
-    def get_action(self, obs, state=None, mask=None, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
-            self.meta_action = self.manager.get_action(obs, **kwargs)
+            self.meta_action = self.manager.get_action(
+                obs, apply_noise, **kwargs)
 
         # Return the worker action.
-        return self.worker.get_action(obs, context_obs=self.meta_action)
+        return self.worker.get_action(
+            obs, apply_noise, context_obs=self.meta_action)
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
