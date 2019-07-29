@@ -178,6 +178,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         target update rate
     gamma : float
         discount factor
+    noise : float
+        scaling term to the range of the action space, that is subsequently
+        used as the standard deviation of Gaussian noise added to the action if
+        `apply_noise` is set to True in `get_action`
     layer_norm : bool
         enable layer normalisation
     normalize_observations : bool
@@ -306,6 +310,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             should the critic output be normalized
         return_range : (float, float)
             the bounding values for the critic output
+        noise : float, optional
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`. Defaults to
+            0.05, i.e. 5% of action range.
         layer_norm : bool
             enable layer normalisation
         reuse : bool
@@ -1012,6 +1021,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  normalize_observations,
                  normalize_returns,
                  return_range,
+                 noise=0.05,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -1059,6 +1069,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             should the critic output be normalized
         return_range : (float, float)
             the bounding values for the critic output
+        noise : float, optional
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`. Defaults to
+            0.05, i.e. 5% of action range.
         layer_norm : bool
             enable layer normalisation
         reuse : bool
@@ -1148,7 +1163,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 layers=layers,
                 act_fun=act_fun,
                 scope="Manager",
-                noise=0.05,  # FIXME
+                noise=noise,
             )
 
         # previous observation by the Manager
@@ -1208,7 +1223,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 layers=layers,
                 act_fun=act_fun,
                 scope="Worker",
-                noise=0.05,  # TODO: magic number
+                noise=noise,
             )
 
         # remove the last element to compute the reward FIXME
