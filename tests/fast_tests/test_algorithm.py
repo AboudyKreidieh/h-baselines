@@ -44,7 +44,6 @@ class TestTD3(unittest.TestCase):
             'tau': 0.001,
             'batch_size': 128,
             'normalize_returns': False,
-            'observation_range': (-5., 5.),
             'critic_l2_reg': 0.,
             'return_range': (-np.inf, np.inf),
             'actor_lr': 1e-4,
@@ -55,7 +54,6 @@ class TestTD3(unittest.TestCase):
             'render_eval': False,
             'memory_limit': None,
             'buffer_size': 50000,
-            'random_exploration': 0.0,
             'verbose': 0,
             '_init_setup_model': True
         }
@@ -81,8 +79,6 @@ class TestTD3(unittest.TestCase):
         self.assertEqual(alg.batch_size, self.init_parameters['batch_size'])
         self.assertEqual(alg.normalize_returns,
                          self.init_parameters['normalize_returns'])
-        self.assertEqual(alg.observation_range,
-                         self.init_parameters['observation_range'])
         self.assertEqual(alg.critic_l2_reg,
                          self.init_parameters['critic_l2_reg'])
         self.assertEqual(alg.return_range,
@@ -97,8 +93,6 @@ class TestTD3(unittest.TestCase):
         self.assertEqual(alg.memory_limit,
                          self.init_parameters['memory_limit'])
         self.assertEqual(alg.buffer_size, self.init_parameters['buffer_size'])
-        self.assertEqual(alg.random_exploration,
-                         self.init_parameters['random_exploration'])
         self.assertEqual(alg.verbose, self.init_parameters['verbose'])
 
     def test_setup_model_feedforward(self):

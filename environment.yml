@@ -3,7 +3,6 @@ name: h-baselines
 dependencies:
     - python==3.6.6
     - numpy==1.16.0
-    - tensorflow==1.10.0
     - pip:
         - ray==0.6.1
         - redis==2.10.6

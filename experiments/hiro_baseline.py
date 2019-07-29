@@ -44,7 +44,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=10000,
+        log_interval=2000,
         seed=None,
         exp_num=i
     )

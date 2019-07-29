@@ -62,7 +62,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'tau': 0.005,
             'gamma': 0.001,
             'normalize_observations': False,
-            'observation_range': (-5, 5),
             'normalize_returns': False,
             'return_range': (-5, 5),
             'layer_norm': False,
@@ -94,8 +93,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(
             policy.normalize_observations,
             self.policy_params['normalize_observations'])
-        self.assertEqual(
-            policy.observation_range, self.policy_params['observation_range'])
         self.assertEqual(
             policy.normalize_returns, self.policy_params['normalize_returns'])
         self.assertEqual(
@@ -208,7 +205,6 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'tau': 0.005,
             'gamma': 0.001,
             'normalize_observations': False,
-            'observation_range': (-5, 5),
             'normalize_returns': False,
             'return_range': (-5, 5),
             'layer_norm': False,
@@ -448,7 +444,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.904881e-03, -3.909843e-03, -2.007475e-10])
+            error, [-3.896937e-03, -3.920287e-03, -2.347270e-08])
 
         # Test the _sample_best_meta_action method.  FIXME
 

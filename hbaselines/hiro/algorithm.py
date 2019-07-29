@@ -19,10 +19,10 @@ import tensorflow as tf
 from mpi4py import MPI
 
 from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+from hbaselines.hiro.policy import GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
 try:
-    from flow.utils.registry import make_create_env
+    # from flow.utils.registry import make_create_env
     from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 except (ImportError, ModuleNotFoundError):
     # for testing purposes
@@ -65,6 +65,9 @@ class TD3(object):
         the policy model to use
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
+    sims_per_step : int
+        number of sumo simulation steps performed in any given rollout step. RL
+        agents perform the same action for the duration of these steps.
     gamma : float
         the discount rate
     eval_env : gym.Env or str
@@ -83,8 +86,6 @@ class TD3(object):
         the size of the batch for learning the policy
     normalize_returns : bool
         should the critic output be normalized
-    observation_range : (float, float)
-        the bounding values for the observation
     critic_l2_reg : float
         l2 regularizer coefficient
     return_range : (float, float)
@@ -103,9 +104,6 @@ class TD3(object):
         enable rendering of the evaluation environment
     buffer_size : int
         the max number of transitions to store
-    random_exploration : float
-        fraction of actions that are randomly selected between the action range
-        (to be used in HER+DDPG)
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     action_space : gym.spaces.*
@@ -181,16 +179,16 @@ class TD3(object):
     def __init__(self,
                  policy,
                  env,
+                 sims_per_step=5,
                  gamma=0.99,
                  eval_env=None,
-                 nb_train_steps=50,
-                 nb_rollout_steps=100,
+                 nb_train_steps=1,
+                 nb_rollout_steps=1,
                  nb_eval_episodes=50,
                  normalize_observations=False,
                  tau=0.001,
-                 batch_size=128,
+                 batch_size=100,
                  normalize_returns=False,
-                 observation_range=(-5., 5.),
                  critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf),
                  actor_lr=1e-4,
@@ -201,7 +199,6 @@ class TD3(object):
                  render_eval=False,
                  memory_limit=None,
                  buffer_size=50000,
-                 random_exploration=0.0,
                  verbose=0,
                  meta_period=10,
                  relative_goals=False,
@@ -218,6 +215,10 @@ class TD3(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        sims_per_step : int, optional
+            number of sumo simulation steps performed in any given rollout
+            step. RL agents perform the same action for the duration of these
+            steps. Defaults to 5.
         gamma : float
             the discount rate
         eval_env : gym.Env or str
@@ -236,8 +237,6 @@ class TD3(object):
             the size of the batch for learning the policy
         normalize_returns : bool
             should the critic output be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         critic_l2_reg : float
             l2 regularizer coefficient
         return_range : (float, float)
@@ -256,9 +255,6 @@ class TD3(object):
             enable rendering of the evaluation environment
         buffer_size : int
             the max number of transitions to store
-        random_exploration : float
-            fraction of actions that are randomly selected between the action
-            range (to be used in HER+DDPG)
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -287,6 +283,7 @@ class TD3(object):
         """
         self.policy = policy
         self.env = self._create_env(env, evaluate=False)
+        self.sims_per_step = sims_per_step
         self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
@@ -296,7 +293,6 @@ class TD3(object):
         self.tau = tau
         self.batch_size = batch_size
         self.normalize_returns = normalize_returns
-        self.observation_range = observation_range
         self.critic_l2_reg = critic_l2_reg
         self.return_range = return_range
         self.actor_lr = actor_lr
@@ -307,7 +303,6 @@ class TD3(object):
         self.render_eval = render_eval
         self.memory_limit = memory_limit
         self.buffer_size = buffer_size
-        self.random_exploration = random_exploration
         self.verbose = verbose
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -424,7 +419,7 @@ class TD3(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            self.sess = make_session(num_cpu=1, graph=self.graph)
+            self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Collect specific parameters only if using GoalDirectedPolicy.
             additional_params = {}
@@ -457,7 +452,6 @@ class TD3(object):
                 gamma=self.gamma,
                 normalize_observations=self.normalize_observations,
                 normalize_returns=self.normalize_returns,
-                observation_range=self.observation_range,
                 **additional_params
             )
 
@@ -470,7 +464,7 @@ class TD3(object):
 
             return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, apply_noise=True, compute_q=True):
+    def _policy(self, obs, apply_noise=True, compute_q=True, **kwargs):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -489,18 +483,15 @@ class TD3(object):
         float
             the critic value
         """
-        del apply_noise  # FIXME
-
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-        context = [getattr(self.env, "current_context", None)]
 
-        # TODO: add noise
         action = self.policy_tf.get_action(
-            obs, time=self.episode_step, context_obs=context)
+            obs, apply_noise,
+            time=kwargs["episode_step"],
+            context_obs=kwargs["context"])
         action = action.flatten()
-        action *= self.action_space.high  # FIXME: In policy
 
-        q_value = self.policy_tf.value(obs, context_obs=context) \
+        q_value = self.policy_tf.value(obs, context_obs=kwargs["context"]) \
             if compute_q else None
 
         return action, q_value
@@ -681,43 +672,36 @@ class TD3(object):
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
+        new_obs, done = [], False
         for _ in range(self.nb_rollout_steps):
             # Predict next action.
             action, q_value = self._policy(
-                self.obs, apply_noise=True, compute_q=True)
+                self.obs,
+                apply_noise=True,
+                compute_q=True,
+                context=[getattr(self.env, "current_context", None)],
+                episode_step=self.episode_step)
             assert action.shape == self.env.action_space.shape
 
-            # Randomly sample actions from a uniform distribution with a
-            # probability self.random_exploration (used in HER + DDPG)
-            if np.random.rand() < self.random_exploration:
-                action = self.action_space.sample()
+            reward = 0
+            for _ in range(self.sims_per_step):
+                # Execute next action.
+                new_obs, new_reward, done, info = self.env.step(action)
+                reward += new_reward
 
-            # Execute next action.
-            new_obs, reward, done, info = self.env.step(action)
+                # Visualize the current step.
+                if rank == 0 and self.render:
+                    self.env.render()
 
             # Add the fingerprint term, if needed.
             if self.use_fingerprints:
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
+            # Add the contextual reward to the environment reward.
             if hasattr(self.env, "current_context"):
-                # Get the contextual term.
-                context = getattr(self.env, "current_context")
-
-                # Add the contextual reward to the environment reward.
-                if isinstance(self.policy_tf, FeedForwardPolicy):
-                    reward += getattr(self.env, "contextual_reward")(
-                        self.obs, context, new_obs)[0]
-                elif isinstance(self.policy_tf, GoalDirectedPolicy) \
-                        and (
-                        self.episode_step % self.policy_tf.meta_period == 0
-                        or done) and self.episode_step > 0:
-                    reward += getattr(self.env, "contextual_reward")(
-                        self.policy_tf.prev_meta_obs, context, new_obs)[0]
-
-            # Visualize the current step.
-            if rank == 0 and self.render:
-                self.env.render()
+                reward += getattr(self.env, "contextual_reward")(
+                    self.obs, getattr(self.env, "current_context"), new_obs)
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
@@ -803,22 +787,42 @@ class TD3(object):
                 self.nb_eval_episodes))
 
         for i in range(self.nb_eval_episodes):
-            # Reset the environment and episode reward.
+            # Reset the environment.
             eval_obs = self.eval_env.reset()
-            eval_episode_reward = 0.
 
+            # Reset rollout-specific variables.
+            eval_episode_reward = 0.
+            eval_episode_step = 0
+
+            obs, done, info = [], False, {}
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
                     apply_noise=False,
-                    compute_q=False)
+                    compute_q=False,
+                    context=[getattr(self.eval_env, "current_context", None)],
+                    episode_step=eval_episode_step)
 
-                obs, eval_r, done, info = self.eval_env.step(eval_action)
+                eval_r = 0
+                for _ in range(self.sims_per_step):
+                    obs, new_r, done, info = self.eval_env.step(eval_action)
+                    eval_r += new_r
 
-                if self.render_eval:
-                    self.eval_env.render()
+                    if self.render_eval:
+                        self.eval_env.render()
 
+                # Add the contextual reward to the environment reward.
+                if hasattr(self.eval_env, "current_context"):
+                    context_obs = getattr(self.eval_env, "current_context")
+                    eval_r += getattr(self.eval_env, "contextual_reward")(
+                        eval_obs, context_obs, obs)
+
+                # Update the previous step observation.
+                eval_obs = obs.copy()
+
+                # Increment the reward and step count.
                 eval_episode_reward += eval_r
+                eval_episode_step += 1
 
                 if done:
                     eval_episode_rewards.append(eval_episode_reward)

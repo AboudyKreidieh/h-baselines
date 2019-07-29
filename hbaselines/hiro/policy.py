@@ -2,6 +2,7 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import numpy as np
+from numpy.random import normal
 from functools import reduce
 import logging
 from gym.spaces import Box
@@ -72,13 +73,16 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_action(self, obs, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """Call the actor methods to compute policy actions.
 
         Parameters
         ----------
         obs : array_like
             the observation
+        apply_noise : bool, optional
+            whether to add Gaussian noise to the output of the actor. Defaults
+            to False
 
         Returns
         -------
@@ -174,12 +178,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
         target update rate
     gamma : float
         discount factor
+    noise : float
+        scaling term to the range of the action space, that is subsequently
+        used as the standard deviation of Gaussian noise added to the action if
+        `apply_noise` is set to True in `get_action`
     layer_norm : bool
         enable layer normalisation
     normalize_observations : bool
         should the observation be normalized
-    observation_range : (float, float)
-        the bounding values for the observation
     normalize_returns : bool
         should the critic output be normalized
     return_range : (float, float)
@@ -259,9 +265,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  normalize_observations,
-                 observation_range,
                  normalize_returns,
                  return_range,
+                 noise=0.05,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -300,12 +306,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
             discount factor
         normalize_observations : bool
             should the observation be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         normalize_returns : bool
             should the critic output be normalized
         return_range : (float, float)
             the bounding values for the critic output
+        noise : float, optional
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`. Defaults to
+            0.05, i.e. 5% of action range.
         layer_norm : bool
             enable layer normalisation
         reuse : bool
@@ -337,9 +346,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [300, 300]
         self.tau = tau
         self.gamma = gamma
+        self.noise = noise
         self.layer_norm = layer_norm
         self.normalize_observations = normalize_observations
-        self.observation_range = observation_range
         self.normalize_returns = normalize_returns
         self.return_range = return_range
         self.activ = act_fun
@@ -403,12 +412,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.obs_rms = None
 
-        normalized_obs0 = tf.clip_by_value(
-            normalize(self.obs_ph, self.obs_rms),
-            observation_range[0], observation_range[1])
-        normalized_obs1 = tf.clip_by_value(
-            normalize(self.obs1_ph, self.obs_rms),
-            observation_range[0], observation_range[1])
+        # FIXME
+        # normalized_obs0 = tf.clip_by_value(
+        #     normalize(self.obs_ph, self.obs_rms),
+        #     self.ob_space.low, self.ob_space.high)
+        # normalized_obs1 = tf.clip_by_value(
+        #     normalize(self.obs1_ph, self.obs_rms),
+        #     self.ob_space.low, self.ob_space.high)
+
+        normalized_obs0 = self.obs_ph
+        normalized_obs1 = self.obs1_ph
 
         # Return normalization.
         if normalize_returns:
@@ -625,25 +638,40 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 pi_h = self.activ(pi_h)
 
             # create the output layer
-            policy = tf.nn.tanh(tf.layers.dense(
-                pi_h,
-                self.ac_space.shape[0],
-                name=scope,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)))
+            if any(np.isinf(self.ac_space.high)) \
+                    or any(np.isinf(self.ac_space.low)):
+                # no nonlinearity to the output if the action space is not
+                # bounded
+                policy = tf.layers.dense(
+                    pi_h,
+                    self.ac_space.shape[0],
+                    name=scope,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3))
+            else:
+                # tanh nonlinearity with an added offset and scale is the
+                # action space is bounded
+                policy = tf.nn.tanh(tf.layers.dense(
+                    pi_h,
+                    self.ac_space.shape[0],
+                    name=scope,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3)))
 
-        # FIXME
-        # # scaling terms to the output from the actor
-        # action_means = tf.constant(
-        #     (self.ac_space.high + self.ac_space.low) / 2.,
-        #     dtype=tf.float32
-        # )
-        # action_magnitudes = tf.constant(
-        #     (self.ac_space.high - self.ac_space.low) / 2.,
-        #     dtype=tf.float32
-        # )
-        #
-        # return tf.add(action_means, tf.multiply(action_magnitudes * policy)
+                # scaling terms to the output from the actor
+                action_means = tf.expand_dims(
+                    tf.constant((self.ac_space.high + self.ac_space.low) / 2.,
+                                dtype=tf.float32),
+                    0
+                )
+                action_magnitudes = tf.expand_dims(
+                    tf.constant((self.ac_space.high - self.ac_space.low) / 2.,
+                                dtype=tf.float32),
+                    0
+                )
+
+                policy = tf.add(action_means,
+                                tf.multiply(action_magnitudes, policy))
 
         return policy
 
@@ -760,14 +788,20 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss, td_map
 
-    def get_action(self, obs, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
         if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
-        return self.sess.run(self.actor_tf, {self.obs_ph: obs})
+        action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
+        if apply_noise:
+            noise = self.noise * (self.ac_space.high - self.ac_space.low) / 2
+            action += normal(loc=0, scale=noise, size=action.shape)
+        action = np.clip(action, self.ac_space.low, self.ac_space.high)
+
+        return action
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
@@ -899,9 +933,36 @@ class FeedForwardPolicy(ActorCriticPolicy):
 class GoalDirectedPolicy(ActorCriticPolicy):
     """Goal-directed hierarchical reinforcement learning model.
 
-    TODO: Description
+    This policy is an implementation of the two-level hierarchy presented
+    in [1], which itself is similar to the feudal networks formulation [2, 3].
+    This network consists of a high-level, or Manager, pi_{\theta_H} that
+    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every meta_period
+    time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
+    current state and the assigned goals and attempts to perform an action
+    a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
 
-    See: http://papers.nips.cc/paper/714-feudal-reinforcement-learning.pdf
+    The Manager is rewarded based on the original environment reward function:
+    r_H = r(s,a;h).
+
+    The Target term, h, parameterizes the reward assigned to the Manager in
+    order to allow the policy to generalize to several goals within a task, a
+    technique that was first proposed by [4].
+
+    Finally, the Worker is motivated to follow the goals set by the Manager via
+    an intrinsic reward based on the distance between the current observation
+    and the goal observation: r_L (s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||
+
+    Bibliography:
+
+    [1] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement
+        learning." Advances in Neural Information Processing Systems. 2018.
+    [2] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning."
+        Advances in neural information processing systems. 1993.
+    [3] Vezhnevets, Alexander Sasha, et al. "Feudal networks for hierarchical
+        reinforcement learning." Proceedings of the 34th International
+        Conference on Machine Learning-Volume 70. JMLR. org, 2017.
+    [4] Schaul, Tom, et al. "Universal value function approximators."
+        International Conference on Machine Learning. 2015.
 
     Attributes
     ----------
@@ -958,9 +1019,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  normalize_observations,
-                 observation_range,
                  normalize_returns,
                  return_range,
+                 noise=0.05,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -1004,12 +1065,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             discount factor
         normalize_observations : bool
             should the observation be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         normalize_returns : bool
             should the critic output be normalized
         return_range : (float, float)
             the bounding values for the critic output
+        noise : float, optional
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`. Defaults to
+            0.05, i.e. 5% of action range.
         layer_norm : bool
             enable layer normalisation
         reuse : bool
@@ -1061,18 +1125,27 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         else:
             manager_worker_ob_space = ob_space
 
-        self.replay_buffer = HierReplayBuffer(buffer_size)
+        self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
+
+        # FIXME: only for ant
+        manager_ac_space = ob_space
+        # manager_ac_space = Box(
+        #     low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+        #                   -0.3, -0.5, -0.3, -0.5, -0.3]),
+        #     high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+        #                    0.3, 0.5, 0.3])
+        # )
 
         # Create the Manager policy.
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
                 ob_space=manager_worker_ob_space,
-                ac_space=ob_space,  # outputs actions for each observations
+                ac_space=manager_ac_space,
                 co_space=co_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
@@ -1084,14 +1157,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 normalize_observations=normalize_observations,
-                observation_range=observation_range,
                 normalize_returns=normalize_returns,
                 return_range=return_range,
                 layer_norm=layer_norm,
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
-                scope="Manager"
+                scope="Manager",
+                noise=noise,
             )
 
         # previous observation by the Manager
@@ -1133,7 +1206,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 sess,
                 ob_space=manager_worker_ob_space,
                 ac_space=ac_space,
-                co_space=ob_space,
+                co_space=manager_ac_space,
                 buffer_size=buffer_size,
                 batch_size=batch_size,
                 actor_lr=actor_lr,
@@ -1144,22 +1217,23 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 normalize_observations=normalize_observations,
-                observation_range=observation_range,
                 normalize_returns=normalize_returns,
                 return_range=return_range,
                 layer_norm=layer_norm,
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
-                scope="Worker"
+                scope="Worker",
+                noise=noise,
             )
 
-        # remove the last element to compute the reward
+        # remove the last element to compute the reward FIXME
         if self.use_fingerprints:
             state_indices = list(np.arange(
                 0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
         else:
             state_indices = None
+        # state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
@@ -1169,9 +1243,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
-                diff=False,
                 offset=0.0
-            )[0]
+            )
         self.worker_reward = worker_reward
 
     def initialize(self):
@@ -1323,14 +1396,16 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             np.array(worker_rew_all), \
             np.array(worker_done_all)
 
-    def get_action(self, obs, state=None, mask=None, **kwargs):
+    def get_action(self, obs, apply_noise=False, **kwargs):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
-            self.meta_action = self.manager.get_action(obs, **kwargs)
+            self.meta_action = self.manager.get_action(
+                obs, apply_noise, **kwargs)
 
         # Return the worker action.
-        return self.worker.get_action(obs, context_obs=self.meta_action)
+        return self.worker.get_action(
+            obs, apply_noise, context_obs=self.meta_action)
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""

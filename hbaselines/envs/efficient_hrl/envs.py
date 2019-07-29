@@ -141,17 +141,18 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
-        if self.use_contexts:
-            # Add success to the info dict.
-            new_rew, new_done = self.contextual_reward(
-                states=self.prev_obs,
-                next_states=obs,
-                goals=self.current_context,
-            )
-            info["is_success"] = new_done != 1  # FIXME
-
-            # Compute the done in terms of the distance to the current context.
-            # done = done or new_done != 1  # FIXME
+        # if self.use_contexts:
+        #     # Add success to the info dict  # FIXME
+        #     dist = self.contextual_reward(
+        #         states=self.prev_obs,
+        #         next_states=obs,
+        #         goals=self.current_context,
+        #     )
+        #     info["is_success"] = abs(dist) < 5
+        #
+        #     # Compute the done in terms of the distance to the current
+        #     # context.
+        #     # done = done or new_done != 1  # FIXME
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -233,7 +234,6 @@ class AntMaze(UniversalAntMazeEnv):
                 next_states=next_states,
                 state_indices=[0, 1],
                 relative_context=False,
-                diff=False,
                 offset=0.0,
                 reward_scales=0.1
             )
@@ -290,7 +290,6 @@ class AntPush(UniversalAntMazeEnv):
                 next_states=next_states,
                 state_indices=[0, 1],
                 relative_context=False,
-                diff=False,
                 offset=0.0,
                 reward_scales=0.1
             )
@@ -349,7 +348,6 @@ class AntFall(UniversalAntMazeEnv):
                 next_states=next_states,
                 state_indices=[0, 1, 2],
                 relative_context=False,
-                diff=False,
                 offset=0.0,
                 reward_scales=0.1
             )
