@@ -1,7 +1,7 @@
 stable-baselines==2.6.0
 ray==0.6.1
 numpy==1.16.0
-tensorflow==1.12.2
+tensorflow==1.14.0
 gym==0.10.9
 mpi4py
 redis==2.10.6
