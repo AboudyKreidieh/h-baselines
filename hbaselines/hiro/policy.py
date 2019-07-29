@@ -1132,12 +1132,13 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # FIXME: only for ant
-        manager_ac_space = Box(
-            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                          -0.3, -0.5, -0.3, -0.5, -0.3]),
-            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
-                           0.3, 0.5, 0.3])
-        )
+        manager_ac_space = ob_space
+        # manager_ac_space = Box(
+        #     low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+        #                   -0.3, -0.5, -0.3, -0.5, -0.3]),
+        #     high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+        #                    0.3, 0.5, 0.3])
+        # )
 
         # Create the Manager policy.
         with tf.variable_scope("Manager"):
@@ -1227,12 +1228,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
 
         # remove the last element to compute the reward FIXME
-        # if self.use_fingerprints:
-        #     state_indices = list(np.arange(
-        #         0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
-        # else:
-        #     state_indices = None
-        state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
+        if self.use_fingerprints:
+            state_indices = list(np.arange(
+                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        else:
+            state_indices = None
+        # state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
