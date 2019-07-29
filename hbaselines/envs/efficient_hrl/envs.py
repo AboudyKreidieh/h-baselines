@@ -150,7 +150,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
         #     )
         #     info["is_success"] = abs(dist) < 5
         #
-        #     # Compute the done in terms of the distance to the current context.
+        #     # Compute the done in terms of the distance to the current
+        #     # context.
         #     # done = done or new_done != 1  # FIXME
 
         # Check if the time horizon has been met.
