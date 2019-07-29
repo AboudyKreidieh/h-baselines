@@ -263,7 +263,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  normalize_observations,
                  normalize_returns,
                  return_range,
-                 noise=1/30,
+                 noise=0.05,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -788,7 +788,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
         if apply_noise:
-            action += normal(loc=0, scale=self.noise, size=action.shape)
+            noise = self.noise * (self.ac_space.high - self.ac_space.low) / 2
+            action += normal(loc=0, scale=noise, size=action.shape)
         action = np.clip(action, self.ac_space.low, self.ac_space.high)
 
         return action
@@ -923,9 +924,36 @@ class FeedForwardPolicy(ActorCriticPolicy):
 class GoalDirectedPolicy(ActorCriticPolicy):
     """Goal-directed hierarchical reinforcement learning model.
 
-    TODO: Description
+    This policy is an implementation of the two-level hierarchy presented
+    in [1], which itself is similar to the feudal networks formulation [2, 3].
+    This network consists of a high-level, or Manager, pi_{\theta_H} that
+    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every meta_period
+    time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
+    current state and the assigned goals and attempts to perform an action
+    a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
 
-    See: http://papers.nips.cc/paper/714-feudal-reinforcement-learning.pdf
+    The Manager is rewarded based on the original environment reward function:
+    r_H = r(s,a;h).
+
+    The Target term, h, parameterizes the reward assigned to the Manager in
+    order to allow the policy to generalize to several goals within a task, a
+    technique that was first proposed by [4].
+
+    Finally, the Worker is motivated to follow the goals set by the Manager via
+    an intrinsic reward based on the distance between the current observation
+    and the goal observation: r_L (s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||
+
+    Bibliography:
+
+    [1] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement
+        learning." Advances in Neural Information Processing Systems. 2018.
+    [2] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning."
+        Advances in neural information processing systems. 1993.
+    [3] Vezhnevets, Alexander Sasha, et al. "Feudal networks for hierarchical
+        reinforcement learning." Proceedings of the 34th International
+        Conference on Machine Learning-Volume 70. JMLR. org, 2017.
+    [4] Schaul, Tom, et al. "Universal value function approximators."
+        International Conference on Machine Learning. 2015.
 
     Attributes
     ----------
@@ -1120,7 +1148,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 layers=layers,
                 act_fun=act_fun,
                 scope="Manager",
-                noise=0.5,  # FIXME
+                noise=0.05,  # FIXME
             )
 
         # previous observation by the Manager
@@ -1180,7 +1208,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 layers=layers,
                 act_fun=act_fun,
                 scope="Worker",
-                noise=1/30,  # TODO: magic number
+                noise=0.05,  # TODO: magic number
             )
 
         # remove the last element to compute the reward FIXME

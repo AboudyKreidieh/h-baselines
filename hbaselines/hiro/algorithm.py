@@ -65,6 +65,9 @@ class TD3(object):
         the policy model to use
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
+    sims_per_step : int
+        number of sumo simulation steps performed in any given rollout step. RL
+        agents perform the same action for the duration of these steps.
     gamma : float
         the discount rate
     eval_env : gym.Env or str
@@ -176,6 +179,7 @@ class TD3(object):
     def __init__(self,
                  policy,
                  env,
+                 sims_per_step=5,
                  gamma=0.99,
                  eval_env=None,
                  nb_train_steps=1,
@@ -211,6 +215,10 @@ class TD3(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        sims_per_step : int, optional
+            number of sumo simulation steps performed in any given rollout
+            step. RL agents perform the same action for the duration of these
+            steps. Defaults to 5.
         gamma : float
             the discount rate
         eval_env : gym.Env or str
@@ -275,6 +283,7 @@ class TD3(object):
         """
         self.policy = policy
         self.env = self._create_env(env, evaluate=False)
+        self.sims_per_step = sims_per_step
         self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
@@ -482,9 +491,8 @@ class TD3(object):
             context_obs=kwargs["context"])
         action = action.flatten()
 
-        q_value = 0
-        # self.policy_tf.value(obs, context_obs=kwargs["context"]) \
-        #     if compute_q else None
+        q_value = self.policy_tf.value(obs, context_obs=kwargs["context"]) \
+            if compute_q else None
 
         return action, q_value
 
@@ -664,6 +672,7 @@ class TD3(object):
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
+        new_obs, done = [], False
         for _ in range(self.nb_rollout_steps):
             # Predict next action.
             action, q_value = self._policy(
@@ -674,8 +683,15 @@ class TD3(object):
                 episode_step=self.episode_step)
             assert action.shape == self.env.action_space.shape
 
-            # Execute next action.
-            new_obs, reward, done, info = self.env.step(action)
+            reward = 0
+            for _ in range(self.sims_per_step):
+                # Execute next action.
+                new_obs, new_reward, done, info = self.env.step(action)
+                reward += new_reward
+
+                # Visualize the current step.
+                if rank == 0 and self.render:
+                    self.env.render()
 
             # Add the fingerprint term, if needed.
             if self.use_fingerprints:
@@ -686,10 +702,6 @@ class TD3(object):
             if hasattr(self.env, "current_context"):
                 reward += getattr(self.env, "contextual_reward")(
                     self.obs, getattr(self.env, "current_context"), new_obs)
-
-            # Visualize the current step.
-            if rank == 0 and self.render:
-                self.env.render()
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
@@ -782,6 +794,7 @@ class TD3(object):
             eval_episode_reward = 0.
             eval_episode_step = 0
 
+            obs, done, info = [], False, {}
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
@@ -790,7 +803,13 @@ class TD3(object):
                     context=[getattr(self.eval_env, "current_context", None)],
                     episode_step=eval_episode_step)
 
-                obs, eval_r, done, info = self.eval_env.step(eval_action)
+                eval_r = 0
+                for _ in range(self.sims_per_step):
+                    obs, new_r, done, info = self.eval_env.step(eval_action)
+                    eval_r += new_r
+
+                    if self.render_eval:
+                        self.eval_env.render()
 
                 # Add the contextual reward to the environment reward.
                 if hasattr(self.eval_env, "current_context"):
@@ -800,9 +819,6 @@ class TD3(object):
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
-
-                if self.render_eval:
-                    self.eval_env.render()
 
                 # Increment the reward and step count.
                 eval_episode_reward += eval_r
