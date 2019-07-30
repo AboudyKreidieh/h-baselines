@@ -174,6 +174,18 @@ class TD3(object):
         the cumulative reward since the most reward began
     saver : tf.train.Saver
         tensorflow saver object
+    rew_ph : tf.placeholder
+        a placeholder for the average training return for the last epoch. Used
+        for logging purposes.
+    rew_history_ph : tf.placeholder
+        a placeholder for the average training return for the last 100
+        episodes. Used for logging purposes.
+    eval_rew_ph : tf.placeholder
+        placeholder for the average evaluation return from the last time
+        evaluations occured. Used for logging purposes.
+    eval_success_ph : tf.placeholder
+        placeholder for the average evaluation success rate from the last time
+        evaluations occured. Used for logging purposes.
     """
 
     def __init__(self,
@@ -333,6 +345,10 @@ class TD3(object):
         self.epoch = None
         self.episode_rewards_history = None
         self.episode_reward = None
+        self.rew_ph = None
+        self.rew_history_ph = None
+        self.eval_rew_ph = None
+        self.eval_success_ph = None
 
         if _init_setup_model:
             # Create the model variables and operations.
@@ -455,12 +471,31 @@ class TD3(object):
                 **additional_params
             )
 
+            # for tensorboard logging
+            with tf.variable_scope("Train"):
+                self.rew_ph = tf.placeholder(tf.float32)
+                self.rew_history_ph = tf.placeholder(tf.float32)
+            with tf.variable_scope("Evaluate"):
+                self.eval_rew_ph = tf.placeholder(tf.float32)
+                self.eval_success_ph = tf.placeholder(tf.float32)
+
+            # Add tensorboard scalars for the return, return history, and
+            # success rate.
+            tf.summary.scalar("Train/return", self.rew_ph)
+            tf.summary.scalar("Train/return_history", self.rew_history_ph)
+            # FIXME
+            # if self.eval_env is not None:
+            #     eval_success_ph = self.eval_success_ph
+            #     tf.summary.scalar("Evaluate/return", self.eval_rew_ph)
+            #     tf.summary.scalar("Evaluate/success_rate", eval_success_ph)
+
+            # Create the tensorboard summary.
+            self.summary = tf.summary.merge_all()
+
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
                 self.sess.run(tf.global_variables_initializer())
                 self.policy_tf.initialize()
-
-            self.summary = tf.summary.merge_all()
 
             return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
@@ -563,9 +598,8 @@ class TD3(object):
         ensure_dir(log_dir)
 
         # Create a tensorboard object for logging.
-        # save_path = os.path.join(log_dir, tb_log_name)
-        # writer = tf.summary.FileWriter(save_path, graph=self.graph)
-        writer = None
+        save_path = os.path.join(log_dir, "tb_log")
+        writer = tf.summary.FileWriter(save_path)
 
         # file path for training and evaluation results
         train_filepath = os.path.join(log_dir, "train.csv")
@@ -618,7 +652,7 @@ class TD3(object):
                     self._collect_samples(total_timesteps)
 
                     # Train.
-                    self._train(writer)
+                    self._train()
 
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
@@ -634,6 +668,16 @@ class TD3(object):
                         eval_rewards,
                         eval_successes
                     )
+
+                # Run and store summary.
+                td_map = self.policy_tf.get_td_map()
+                td_map.update({
+                    self.rew_ph: np.mean(self.epoch_episode_rewards),
+                    self.rew_history_ph: np.mean(self.episode_rewards_history),
+                })
+                if writer is not None:
+                    summary = self.sess.run(self.summary, td_map)
+                    writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
                 self.save(os.path.join(log_dir, "itr"))
@@ -736,25 +780,15 @@ class TD3(object):
                     fp = [self.total_steps / total_timesteps * 5]
                     self.obs = np.concatenate((self.obs, fp), axis=0)
 
-    def _train(self, writer):
+    def _train(self):
         """Perform the training operation.
 
         Through this method, the actor and critic networks are updated within
         the policy, and the summary information is logged to tensorboard.
-
-        Parameters
-        ----------
-        writer : tf.Writer
-            the tensorboard writer object
         """
         for t_train in range(self.nb_train_steps):
             # Run a step of training from batch.
-            critic_loss, actor_loss, td_map = self.policy_tf.update()
-
-            # Run summary.
-            if t_train == 0 and writer is not None:
-                summary = self.sess.run(self.summary, td_map)
-                writer.add_summary(summary, self.total_steps)
+            critic_loss, actor_loss = self.policy_tf.update()
 
             # Add actor and critic loss information for logging purposes.
             self.epoch_critic_losses.append(critic_loss)

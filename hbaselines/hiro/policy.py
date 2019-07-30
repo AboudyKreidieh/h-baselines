@@ -68,8 +68,6 @@ class ActorCriticPolicy(object):
             critic loss
         float
             actor loss
-        dict
-            feed_dict map for the summary (to be run in the algorithm)
         """
         raise NotImplementedError
 
@@ -140,6 +138,10 @@ class ActorCriticPolicy(object):
         dict
             model statistic
         """
+        raise NotImplementedError
+
+    def get_td_map(self):
+        """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
 
 
@@ -510,7 +512,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Setup the running means and standard deviations of the model inputs
         # and outputs.
-        self.stats_ops, self.stats_names = self._setup_stats()
+        self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
 
     def _setup_actor_optimizer(self, scope):
         """Create the actor loss, gradient, and optimizer."""
@@ -549,8 +551,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.return_range[1])
 
         self.critic_loss = sum(
-            tf.reduce_mean(tf.square(
-                self.normalized_critic_tf[i] - normalized_critic_target_tf))
+            tf.losses.huber_loss(
+                self.normalized_critic_tf[i], normalized_critic_target_tf)
             for i in range(2)
         )
 
@@ -722,7 +724,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
-            return 0, 0, {}
+            return 0, 0
 
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
@@ -753,8 +755,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             critic loss
         float
             actor loss
-        dict
-            feed_dict map for the summary (to be run in the algorithm)
         """
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
@@ -786,7 +786,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Run target soft update operation.
         self.sess.run(self.target_soft_updates)
 
-        return critic_loss, actor_loss, td_map
+        return critic_loss, actor_loss
 
     def get_action(self, obs, apply_noise=False, **kwargs):
         """See parent class."""
@@ -844,44 +844,54 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.critic_optimizer[i].sync()
         self.sess.run(self.target_init_updates)
 
-    def _setup_stats(self):
-        """Create the running means and std of the model inputs and outputs."""
+    def _setup_stats(self, base="Model"):
+        """Create the running means and std of the model inputs and outputs.
+
+        This method also adds the same running means and stds as scalars to
+        tensorboard for additional storage.
+        """
         ops = []
         names = []
 
         if self.normalize_returns:
             ops += [self.ret_rms.mean, self.ret_rms.std]
-            names += ['ret_rms_mean', 'ret_rms_std']
+            names += ['{}/ret_rms_mean'.format(base),
+                      '{}/ret_rms_std'.format(base)]
 
         if self.normalize_observations:
             ops += [tf.reduce_mean(self.obs_rms.mean),
                     tf.reduce_mean(self.obs_rms.std)]
-            names += ['obs_rms_mean', 'obs_rms_std']
+            names += ['{}/obs_rms_mean'.format(base),
+                      '{}/obs_rms_std'.format(base)]
 
         ops += [tf.reduce_mean(self.critic_tf[0])]
-        names += ['reference_Q1_mean']
+        names += ['{}/reference_Q1_mean'.format(base)]
         ops += [reduce_std(self.critic_tf[0])]
-        names += ['reference_Q1_std']
+        names += ['{}/reference_Q1_std'.format(base)]
 
         ops += [tf.reduce_mean(self.critic_tf[1])]
-        names += ['reference_Q2_mean']
+        names += ['{}/reference_Q2_mean'.format(base)]
         ops += [reduce_std(self.critic_tf[1])]
-        names += ['reference_Q2_std']
+        names += ['{}/reference_Q2_std'.format(base)]
 
         ops += [tf.reduce_mean(self.critic_with_actor_tf[0])]
-        names += ['reference_actor_Q1_mean']
+        names += ['{}/reference_actor_Q1_mean'.format(base)]
         ops += [reduce_std(self.critic_with_actor_tf[0])]
-        names += ['reference_actor_Q1_std']
+        names += ['{}/reference_actor_Q1_std'.format(base)]
 
         ops += [tf.reduce_mean(self.critic_with_actor_tf[1])]
-        names += ['reference_actor_Q2_mean']
+        names += ['{}/reference_actor_Q2_mean'.format(base)]
         ops += [reduce_std(self.critic_with_actor_tf[1])]
-        names += ['reference_actor_Q2_std']
+        names += ['{}/reference_actor_Q2_std'.format(base)]
 
         ops += [tf.reduce_mean(self.actor_tf)]
-        names += ['reference_action_mean']
+        names += ['{}/reference_action_mean'.format(base)]
         ops += [reduce_std(self.actor_tf)]
-        names += ['reference_action_std']
+        names += ['{}/reference_action_std'.format(base)]
+
+        # Add all names and ops to the tensorboard summary.
+        for op, name in zip(ops, names):
+            tf.summary.scalar(name, op)
 
         return ops, names
 
@@ -928,6 +938,37 @@ class FeedForwardPolicy(ActorCriticPolicy):
         stats = dict(zip(names, values))
 
         return stats
+
+    def get_td_map(self):
+        """See parent class."""
+        # Get a batch.
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
+            batch_size=self.batch_size)
+
+        return self.get_td_map_from_batch(
+            obs0, actions, rewards, obs1, terminals1)
+
+    def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+        """Convert a batch to a td_map."""
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        # Compute the target Q-values.
+        target_q = self.sess.run(self.target_q, feed_dict={
+            self.obs1_ph: obs1,
+            self.rew_ph: rewards,
+            self.terminals1: terminals1
+        })
+
+        td_map = {
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+            self.rew_ph: rewards,
+            self.critic_target: target_q,
+        }
+
+        return td_map
 
 
 class GoalDirectedPolicy(ActorCriticPolicy):
@@ -1260,7 +1301,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
-            return 0, 0, {}
+            return (0, 0), (0, 0)
 
         # Get a batch.
         samples = self.replay_buffer.sample(batch_size=self.batch_size)
@@ -1271,7 +1312,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._process_samples(samples)
 
         # Update the Manager policy.
-        self.manager.update_from_batch(
+        m_critic_loss, m_actor_loss = self.manager.update_from_batch(
             obs0=meta_obs0,
             actions=meta_act,
             rewards=meta_rew,
@@ -1280,7 +1321,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         )
 
         # Update the Worker policy.
-        self.worker.update_from_batch(
+        w_critic_loss, w_actor_loss = self.worker.update_from_batch(
             obs0=worker_obs0,
             actions=worker_act,
             rewards=worker_rew,
@@ -1288,7 +1329,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             terminals1=worker_done
         )
 
-        return 0, 0, {}  # FIXME
+        return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
 
     @staticmethod
     def _process_samples(samples):
@@ -1627,4 +1668,26 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def get_stats(self):
         """See parent class."""
-        return {}  # FIXME
+        stats = {}
+        # FIXME
+        # stats.update(self.manager.get_stats())
+        # stats.update(self.worker.get_stats())
+        return stats
+
+    def get_td_map(self):
+        """See parent class."""
+        # Get a batch.
+        samples = self.replay_buffer.sample(batch_size=self.batch_size)
+
+        # Collect the relevant components of each sample.
+        meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
+            worker_obs1, worker_act, worker_rew, worker_done = \
+            self._process_samples(samples)
+
+        td_map = {}
+        td_map.update(self.manager.get_td_map_from_batch(
+            meta_obs0, meta_act, meta_rew, meta_obs1, meta_done))
+        td_map.update(self.worker.get_td_map_from_batch(
+            worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
+
+        return td_map
