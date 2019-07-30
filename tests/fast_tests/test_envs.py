@@ -4,6 +4,7 @@ import numpy as np
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -29,6 +30,32 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         x, y, *_ = line_intersect(p1, p2, p3, p4)
         self.assertAlmostEqual(x, 1)
         self.assertAlmostEqual(y, 1)
+
+    def test_envs(self):
+        """Test hbaselines/envs/efficient_hrl/envs.py."""
+        # test AntMaze
+        env = AntMaze(use_contexts=True, context_range=[0, 0])
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -0.14142135624084504
+        )
+
+        # test AntPush
+        env = AntPush(use_contexts=True, context_range=[0, 0])
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -0.14142135624084504
+        )
+
+        # test AntFall
+        env = AntFall(use_contexts=True, context_range=[0, 0, 0])
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
+            -0.17320508075977448
+        )
 
 
 if __name__ == '__main__':
