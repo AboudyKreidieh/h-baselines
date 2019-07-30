@@ -296,15 +296,6 @@ class TestTD3(unittest.TestCase):
         policy_params['use_fingerprints'] = True
         alg = TD3(**policy_params)
 
-        # Validate that observations include the fingerprints elements upon
-        # initializing the `learn` procedure.
-        alg.learn(1, log_dir='results', log_interval=1)
-        self.assertEqual(
-            len(alg.obs),
-            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
-        np.testing.assert_almost_equal(
-            alg.obs[-alg.fingerprint_dim[0]:], np.array([0]))
-
         # Test the observation spaces of the manager and worker, as well as the
         # context space of the worker and action space of the manager.
         self.assertTupleEqual(alg.policy_tf.manager.ob_space.shape, (3,))
@@ -320,13 +311,24 @@ class TestTD3(unittest.TestCase):
             -np.sqrt(1**2 + 2**2)
         )
 
-        # Validate that observations include the fingerprints elements during
-        # a step in collect_samples.  # TODO
-        pass
+        # Validate that observations include the fingerprints elements upon
+        # initializing the `learn` procedure and  during a step in the
+        # `_collect_samples` method.
+        alg.learn(1, log_dir='results', log_interval=1)
+        self.assertEqual(
+            len(alg.obs),
+            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+        np.testing.assert_almost_equal(
+            alg.obs[-alg.fingerprint_dim[0]:], np.array([0]))
 
         # Validate that observations include the fingerprints elements during
-        # a reset in collect_samples.  # TODO
-        pass
+        # a reset in the `_collect_samples` method.
+        alg.learn(500, log_dir='results', log_interval=500)
+        self.assertEqual(
+            len(alg.obs),
+            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+        np.testing.assert_almost_equal(
+            alg.obs[-alg.fingerprint_dim[0]:], np.array([4.99]))
 
         # Delete generated files.
         shutil.rmtree('results')
