@@ -57,6 +57,18 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             -0.17320508075977448
         )
 
+        # test context_space
+        env = AntMaze(use_contexts=True, random_contexts=True,
+                      context_range=[(-4, 5), (4, 20)])
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 4]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([5, 20]))
+
+        # test context_space without contexts
+        env = AntMaze(use_contexts=False)
+        self.assertIsNone(env.context_space)
+
 
 if __name__ == '__main__':
     unittest.main()
