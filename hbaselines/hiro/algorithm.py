@@ -21,7 +21,10 @@ from mpi4py import MPI
 from hbaselines.hiro.tf_util import make_session
 from hbaselines.hiro.policy import GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
-# from flow.utils.registry import make_create_env
+try:
+    from flow.utils.registry import make_create_env
+except (ImportError, ModuleNotFoundError):
+    pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 
