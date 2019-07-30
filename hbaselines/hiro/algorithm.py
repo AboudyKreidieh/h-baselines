@@ -570,10 +570,6 @@ class TD3(object):
                                         context_obs1=context,
                                         time=self.episode_step)
 
-    def _initialize(self):
-        """Initialize the model parameters and optimizers."""
-        self.sess.run(tf.global_variables_initializer())
-
     def learn(self,
               total_timesteps,
               log_dir=None,
