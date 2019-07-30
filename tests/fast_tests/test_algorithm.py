@@ -54,7 +54,7 @@ class TestTD3(unittest.TestCase):
             'render_eval': False,
             'memory_limit': None,
             'buffer_size': 50000,
-            'verbose': 0,
+            'verbose': 2,
             '_init_setup_model': True
         }
 
