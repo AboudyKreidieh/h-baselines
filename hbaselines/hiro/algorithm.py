@@ -763,8 +763,6 @@ class TD3(object):
 
             # Book-keeping.
             self.total_steps += 1
-            if rank == 0 and self.render:
-                self.env.render()
             self.episode_reward += reward
             self.episode_step += 1
             self.epoch_actions.append(action)
