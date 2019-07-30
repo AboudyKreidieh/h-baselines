@@ -16,9 +16,12 @@
 """Wrapper for creating the ant environment in gym_mujoco."""
 import math
 import numpy as np
-import mujoco_py
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+try:
+    import mujoco_py
+except ModuleNotFoundError:
+    mujoco_py = object()
 
 
 def q_inv(a):
