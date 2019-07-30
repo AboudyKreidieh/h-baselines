@@ -123,7 +123,7 @@ def construct_maze(maze_id='Maze'):
     Returns
     -------
     list of Any
-        TODO
+        the structure of the maze
     """
     if maze_id == 'Maze':
         structure = [
@@ -180,24 +180,31 @@ def line_intersect(pt1, pt2, ptA, ptB):
 
     Parameters
     ----------
-    pt1 : TODO
-        TODO
-    pt2 : TODO
-        TODO
-    ptA : TODO
-        TODO
-    ptB : TODO
-        TODO
+    pt1 : (float float)
+        x,y position of first point in the first line
+    pt2 : (float float)
+        x,y position of second point in the first line
+    ptA : (float float)
+        x,y position of first point in the second line
+    ptB : (float float)
+        x,y position of second point in the second line
 
     Returns
     -------
-    TODO
-        TODO
+    float
+        intersection x-coordinate
+    float
+        intersection y-coordinate
+    float
+        the value 1
+    float
+        the scalar amount along the "self" segment
+    float
+        the scalar amount along the input line
     """
     DET_TOLERANCE = 0.00000001
 
-    # the first line is pt1 + r*(pt2-pt1)
-    # in component form:
+    # the first line is pt1 + r*(pt2-pt1) in component form:
     x1, y1 = pt1
     x2, y2 = pt2
     dx1 = x2 - x1
