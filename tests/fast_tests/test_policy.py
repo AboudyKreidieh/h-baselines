@@ -448,36 +448,6 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
         # Test the _sample_best_meta_action method.  FIXME
 
-    def test_fingerprints(self):
-        """Validate the functionality of the fingerprints.
-
-        This feature should add a fingerprint dimension to the manager and
-        worker observation spaces, but NOT the context space of the worker or
-        the action space of the manager. The worker reward function should also
-        be ignoring the fingerprint elements  during its computation. The
-        fingerprint elements are passed by the algorithm, and tested under
-        test_algorithm.py
-        """
-        # Create the policy.
-        policy_params = self.policy_params.copy()
-        policy_params['use_fingerprints'] = True
-        policy = GoalDirectedPolicy(**policy_params)
-
-        # Test the observation spaces of the manager and worker, as well as the
-        # context space of the worker and action space of the manager.
-        self.assertTupleEqual(policy.manager.ob_space.shape, (3,))
-        self.assertTupleEqual(policy.manager.ac_space.shape, (2,))
-        self.assertTupleEqual(policy.worker.ob_space.shape, (3,))
-        self.assertTupleEqual(policy.worker.co_space.shape, (2,))
-
-        # Test worker_reward method within the policy.
-        self.assertAlmostEqual(
-            policy.worker_reward(states=np.array([1, 2, 3]),
-                                 goals=np.array([0, 0]),
-                                 next_states=np.array([1, 2, 3])),
-            -np.sqrt(1**2 + 2**2)
-        )
-
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function.
 
