@@ -17,11 +17,16 @@
 import math
 import numpy as np
 from gym import utils
-from gym.envs.mujoco import mujoco_env
 try:
     import mujoco_py
+    from gym.envs.mujoco import mujoco_env
 except ModuleNotFoundError:
+    import gym
     mujoco_py = object()
+
+    def mujoco_env():
+        return None
+    setattr(mujoco_env, "MujocoEnv", gym.Env)
 
 
 def q_inv(a):
