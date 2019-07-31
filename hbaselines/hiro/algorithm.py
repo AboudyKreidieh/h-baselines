@@ -22,12 +22,10 @@ from hbaselines.hiro.tf_util import make_session
 from hbaselines.hiro.policy import GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
 try:
-    # from flow.utils.registry import make_create_env
-    from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+    from flow.utils.registry import make_create_env
 except (ImportError, ModuleNotFoundError):
-    # for testing purposes
-    make_create_env = object
-    AntMaze, AntFall, AntPush = object, object, object
+    pass
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 
 def as_scalar(scalar):
@@ -123,6 +121,11 @@ class TD3(object):
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations. Only applies to GoalDirectedPolicy
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the
         Manager and Worker critic functions. Only applies to
@@ -323,6 +326,8 @@ class TD3(object):
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
+        self.fingerprint_range = ([0], [5])  # FIXME: parameter
+        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
 
@@ -349,6 +354,15 @@ class TD3(object):
         self.rew_history_ph = None
         self.eval_rew_ph = None
         self.eval_success_ph = None
+
+        # Append the fingerprint dimension to the observation dimension, if
+        # needed.
+        if self.use_fingerprints:
+            low = np.concatenate(
+                (self.observation_space.low, self.fingerprint_range[0]))
+            high = np.concatenate(
+                (self.observation_space.high, self.fingerprint_range[1]))
+            self.observation_space = Box(low=low, high=high)
 
         if _init_setup_model:
             # Create the model variables and operations.
@@ -445,6 +459,7 @@ class TD3(object):
                     "relative_goals": self.relative_goals,
                     "off_policy_corrections": self.off_policy_corrections,
                     "use_fingerprints": self.use_fingerprints,
+                    "fingerprint_range": self.fingerprint_range,
                     "centralized_value_functions":
                         self.centralized_value_functions,
                     "connected_gradients": self.connected_gradients,
@@ -558,10 +573,6 @@ class TD3(object):
                                         context_obs1=context,
                                         time=self.episode_step)
 
-    def _initialize(self):
-        """Initialize the model parameters and optimizers."""
-        self.sess.run(tf.global_variables_initializer())
-
     def learn(self,
               total_timesteps,
               log_dir=None,
@@ -670,14 +681,17 @@ class TD3(object):
                     )
 
                 # Run and store summary.
-                td_map = self.policy_tf.get_td_map()
-                td_map.update({
-                    self.rew_ph: np.mean(self.epoch_episode_rewards),
-                    self.rew_history_ph: np.mean(self.episode_rewards_history),
-                })
                 if writer is not None:
-                    summary = self.sess.run(self.summary, td_map)
-                    writer.add_summary(summary, self.total_steps)
+                    td_map = self.policy_tf.get_td_map()
+                    # Check if td_map is empty.
+                    if td_map:
+                        td_map.update({
+                            self.rew_ph: np.mean(self.epoch_episode_rewards),
+                            self.rew_history_ph: np.mean(
+                                self.episode_rewards_history),
+                        })
+                        summary = self.sess.run(self.summary, td_map)
+                        writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
                 self.save(os.path.join(log_dir, "itr"))
@@ -752,8 +766,6 @@ class TD3(object):
 
             # Book-keeping.
             self.total_steps += 1
-            if rank == 0 and self.render:
-                self.env.render()
             self.episode_reward += reward
             self.episode_step += 1
             self.epoch_actions.append(action)

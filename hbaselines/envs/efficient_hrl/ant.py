@@ -16,9 +16,17 @@
 """Wrapper for creating the ant environment in gym_mujoco."""
 import math
 import numpy as np
-import mujoco_py
 from gym import utils
-from gym.envs.mujoco import mujoco_env
+try:
+    import mujoco_py
+    from gym.envs.mujoco import mujoco_env
+except ModuleNotFoundError:
+    import gym
+    mujoco_py = object()
+
+    def mujoco_env():
+        return None
+    setattr(mujoco_env, "MujocoEnv", gym.Env)
 
 
 def q_inv(a):
@@ -62,7 +70,11 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._body_com_indices = {}
         self._body_comvel_indices = {}
 
-        mujoco_env.MujocoEnv.__init__(self, file_path, 5)
+        try:
+            mujoco_env.MujocoEnv.__init__(self, file_path, 5)
+        except TypeError:
+            # for testing purposes
+            pass
         utils.EzPickle.__init__(self)
 
     @property

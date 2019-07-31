@@ -54,7 +54,7 @@ class TestTD3(unittest.TestCase):
             'render_eval': False,
             'memory_limit': None,
             'buffer_size': 50000,
-            'verbose': 0,
+            'verbose': 2,
             '_init_setup_model': True
         }
 
@@ -266,6 +266,14 @@ class TestTD3(unittest.TestCase):
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
+    def test_collect_samples(self):
+        """Validate the functionality of the _collect_samples method."""
+        pass
+
+    def test_evaluate(self):
+        """Validate the functionality of the _evaluate method."""
+        pass
+
     def test_fingerprints(self):
         """Validate the functionality of the fingerprints.
 
@@ -273,23 +281,57 @@ class TestTD3(unittest.TestCase):
         the algorithm (stored under self.obs) should always include the
         fingerprint element.
 
-        Policy-specific features of the fingerprint implementation are tested
-        under test_policy.py
+        Policy-specific features of the fingerprint implementation are also
+        tested here. This feature should add a fingerprint dimension to the
+        manager and worker observation spaces, but NOT the context space of the
+        worker or the action space of the manager. The worker reward function
+        should also be ignoring the fingerprint elements  during its
+        computation. The fingerprint elements are passed by the algorithm, and
+        tested under test_algorithm.py
         """
-        # Create the algorithm.  # TODO
-        pass
+        # Create the algorithm.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['nb_rollout_steps'] = 1
+        policy_params['use_fingerprints'] = True
+        alg = TD3(**policy_params)
+
+        # Test the observation spaces of the manager and worker, as well as the
+        # context space of the worker and action space of the manager.
+        self.assertTupleEqual(alg.policy_tf.manager.ob_space.shape, (3,))
+        self.assertTupleEqual(alg.policy_tf.manager.ac_space.shape, (2,))
+        self.assertTupleEqual(alg.policy_tf.worker.ob_space.shape, (3,))
+        self.assertTupleEqual(alg.policy_tf.worker.co_space.shape, (2,))
+
+        # Test worker_reward method within the policy.
+        self.assertAlmostEqual(
+            alg.policy_tf.worker_reward(states=np.array([1, 2, 3]),
+                                        goals=np.array([0, 0]),
+                                        next_states=np.array([1, 2, 3])),
+            -np.sqrt(1**2 + 2**2)
+        )
 
         # Validate that observations include the fingerprints elements upon
-        # initializing the `learn` procedure.  # TODO
-        pass
+        # initializing the `learn` procedure and  during a step in the
+        # `_collect_samples` method.
+        alg.learn(1, log_dir='results', log_interval=1)
+        self.assertEqual(
+            len(alg.obs),
+            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+        np.testing.assert_almost_equal(
+            alg.obs[-alg.fingerprint_dim[0]:], np.array([0]))
 
         # Validate that observations include the fingerprints elements during
-        # a step in collect_samples.  # TODO
-        pass
+        # a reset in the `_collect_samples` method.
+        alg.learn(500, log_dir='results', log_interval=500)
+        self.assertEqual(
+            len(alg.obs),
+            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+        np.testing.assert_almost_equal(
+            alg.obs[-alg.fingerprint_dim[0]:], np.array([4.99]))
 
-        # Validate that observations include the fingerprints elements during
-        # a reset in collect_samples.  # TODO
-        pass
+        # Delete generated files.
+        shutil.rmtree('results')
 
 
 if __name__ == '__main__':

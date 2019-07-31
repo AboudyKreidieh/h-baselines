@@ -941,6 +941,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def get_td_map(self):
         """See parent class."""
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample(self.batch_size):
+            return {}
+
         # Get a batch.
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
@@ -1020,16 +1024,16 @@ class GoalDirectedPolicy(ActorCriticPolicy):
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
-    fingerprint_range : (list of float, list of float)
-        the low and high values for each fingerprint element, if they are being
-        used
     prev_meta_obs : array_like
         previous observation by the Manager
     meta_action : array_like
@@ -1071,6 +1075,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  relative_goals=False,
                  off_policy_corrections=False,
                  use_fingerprints=False,
+                 fingerprint_range=([0], [5]),
                  centralized_value_functions=False,
                  connected_gradients=False):
         """Instantiate the goal-directed hierarchical policy.
@@ -1135,6 +1140,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         use_fingerprints : bool, optional
             specifies whether to add a time-dependent fingerprint to the
             observations
+        fingerprint_range : (list of float, list of float), optional
+            the low and high values for each fingerprint element, if they are
+            being used
         centralized_value_functions : bool, optional
             specifies whether to use centralized value functions for the
             Manager and Worker critic functions
@@ -1149,22 +1157,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
+        self.fingerprint_range = fingerprint_range
+        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
         self.fingerprint_dim = (1,)
         self.fingerprint_range = ([0], [5])
-
-        # Compute the observation space for the Manager and Worker.
-        #
-        # If the fingerprint terms are being appended onto the observations,
-        # this should be the original observation space plus the fingerprint
-        # spaces at the end of the observation.
-        if self.use_fingerprints:
-            low = np.concatenate((ob_space.low, self.fingerprint_range[0]))
-            high = np.concatenate((ob_space.high, self.fingerprint_range[1]))
-            manager_worker_ob_space = Box(low=low, high=high)
-        else:
-            manager_worker_ob_space = ob_space
 
         self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
@@ -1172,8 +1170,16 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
 
+        # Compute the action space for the Manager. If the fingerprint terms
+        # are being appended onto the observations, this should be removed from
+        # the action space.
+        if self.use_fingerprints:
+            low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
+            high = ob_space.high[:-self.fingerprint_dim[0]]
+            manager_ac_space = Box(low=low, high=high)
+        else:
+            manager_ac_space = ob_space
         # FIXME: only for ant
-        manager_ac_space = ob_space
         # manager_ac_space = Box(
         #     low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
         #                   -0.3, -0.5, -0.3, -0.5, -0.3]),
@@ -1185,7 +1191,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
-                ob_space=manager_worker_ob_space,
+                ob_space=ob_space,
                 ac_space=manager_ac_space,
                 co_space=co_space,
                 buffer_size=buffer_size,
@@ -1245,7 +1251,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         with tf.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
-                ob_space=manager_worker_ob_space,
+                ob_space=ob_space,
                 ac_space=ac_space,
                 co_space=manager_ac_space,
                 buffer_size=buffer_size,
@@ -1676,6 +1682,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def get_td_map(self):
         """See parent class."""
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample(self.batch_size):
+            return {}
+
         # Get a batch.
         samples = self.replay_buffer.sample(batch_size=self.batch_size)
 
