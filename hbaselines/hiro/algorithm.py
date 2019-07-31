@@ -19,15 +19,13 @@ import tensorflow as tf
 from mpi4py import MPI
 
 from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+from hbaselines.hiro.policy import GoalDirectedPolicy
 from hbaselines.common.train import ensure_dir
 try:
     from flow.utils.registry import make_create_env
-    from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 except (ImportError, ModuleNotFoundError):
-    # for testing purposes
-    make_create_env = object
-    AntMaze, AntFall, AntPush = object, object, object
+    pass
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 
 
 def as_scalar(scalar):
@@ -65,6 +63,9 @@ class TD3(object):
         the policy model to use
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
+    sims_per_step : int
+        number of sumo simulation steps performed in any given rollout step. RL
+        agents perform the same action for the duration of these steps.
     gamma : float
         the discount rate
     eval_env : gym.Env or str
@@ -83,8 +84,6 @@ class TD3(object):
         the size of the batch for learning the policy
     normalize_returns : bool
         should the critic output be normalized
-    observation_range : (float, float)
-        the bounding values for the observation
     critic_l2_reg : float
         l2 regularizer coefficient
     return_range : (float, float)
@@ -103,18 +102,37 @@ class TD3(object):
         enable rendering of the evaluation environment
     buffer_size : int
         the max number of transitions to store
-    random_exploration : float
-        fraction of actions that are randomly selected between the action range
-        (to be used in HER+DDPG)
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     action_space : gym.spaces.*
         the action space of the training environment
     observation_space : gym.spaces.*
         the observation space of the training environment
-    use_fingerprints : bool, optional
+    meta_period : int
+        manger action period. Only applies to GoalDirectedPolicy
+    relative_goals : bool
+        specifies whether the goal issued by the Manager is meant to be a
+        relative or absolute goal, i.e. specific state or change in state.
+        Only applies to GoalDirectedPolicy
+    off_policy_corrections : bool
+        whether to use off-policy corrections during the update procedure.
+        See: https://arxiv.org/abs/1805.08296. Only applies to
+        GoalDirectedPolicy
+    use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations. Only applies to GoalDirectedPolicy
+    fingerprint_range : (list of float, list of float)
+        the low and high values for each fingerprint element, if they are being
+        used
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
+    centralized_value_functions : bool
+        specifies whether to use centralized value functions for the
+        Manager and Worker critic functions. Only applies to
+        GoalDirectedPolicy
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker.
+        Defaults to False. Only applies to GoalDirectedPolicy
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -159,21 +177,33 @@ class TD3(object):
         the cumulative reward since the most reward began
     saver : tf.train.Saver
         tensorflow saver object
+    rew_ph : tf.placeholder
+        a placeholder for the average training return for the last epoch. Used
+        for logging purposes.
+    rew_history_ph : tf.placeholder
+        a placeholder for the average training return for the last 100
+        episodes. Used for logging purposes.
+    eval_rew_ph : tf.placeholder
+        placeholder for the average evaluation return from the last time
+        evaluations occured. Used for logging purposes.
+    eval_success_ph : tf.placeholder
+        placeholder for the average evaluation success rate from the last time
+        evaluations occured. Used for logging purposes.
     """
 
     def __init__(self,
                  policy,
                  env,
+                 sims_per_step=5,
                  gamma=0.99,
                  eval_env=None,
-                 nb_train_steps=50,
-                 nb_rollout_steps=100,
+                 nb_train_steps=1,
+                 nb_rollout_steps=1,
                  nb_eval_episodes=50,
                  normalize_observations=False,
                  tau=0.001,
-                 batch_size=128,
+                 batch_size=100,
                  normalize_returns=False,
-                 observation_range=(-5., 5.),
                  critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf),
                  actor_lr=1e-4,
@@ -184,9 +214,13 @@ class TD3(object):
                  render_eval=False,
                  memory_limit=None,
                  buffer_size=50000,
-                 random_exploration=0.0,
                  verbose=0,
+                 meta_period=10,
+                 relative_goals=False,
+                 off_policy_corrections=False,
                  use_fingerprints=False,
+                 centralized_value_functions=False,
+                 connected_gradients=False,
                  _init_setup_model=True):
         """Instantiate the algorithm object.
 
@@ -196,6 +230,10 @@ class TD3(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        sims_per_step : int, optional
+            number of sumo simulation steps performed in any given rollout
+            step. RL agents perform the same action for the duration of these
+            steps. Defaults to 5.
         gamma : float
             the discount rate
         eval_env : gym.Env or str
@@ -214,8 +252,6 @@ class TD3(object):
             the size of the batch for learning the policy
         normalize_returns : bool
             should the critic output be normalized
-        observation_range : (float, float)
-            the bounding values for the observation
         critic_l2_reg : float
             l2 regularizer coefficient
         return_range : (float, float)
@@ -234,20 +270,35 @@ class TD3(object):
             enable rendering of the evaluation environment
         buffer_size : int
             the max number of transitions to store
-        random_exploration : float
-            fraction of actions that are randomly selected between the action
-            range (to be used in HER+DDPG)
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        meta_period : int, optional
+            manger action period. Only applies to GoalDirectedPolicy
+        relative_goals : bool, optional
+            specifies whether the goal issued by the Manager is meant to be a
+            relative or absolute goal, i.e. specific state or change in state.
+            Only applies to GoalDirectedPolicy
+        off_policy_corrections : bool, optional
+            whether to use off-policy corrections during the update procedure.
+            See: https://arxiv.org/abs/1805.08296. Only applies to
+            GoalDirectedPolicy
         use_fingerprints : bool, optional
             specifies whether to add a time-dependent fingerprint to the
             observations. Only applies to GoalDirectedPolicy
+        centralized_value_functions : bool, optional
+            specifies whether to use centralized value functions for the
+            Manager and Worker critic functions. Only applies to
+            GoalDirectedPolicy
+        connected_gradients : bool, optional
+            whether to connect the graph between the manager and worker. Only
+            applies to GoalDirectedPolicy
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
         self.policy = policy
         self.env = self._create_env(env, evaluate=False)
+        self.sims_per_step = sims_per_step
         self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
@@ -257,7 +308,6 @@ class TD3(object):
         self.tau = tau
         self.batch_size = batch_size
         self.normalize_returns = normalize_returns
-        self.observation_range = observation_range
         self.critic_l2_reg = critic_l2_reg
         self.return_range = return_range
         self.actor_lr = actor_lr
@@ -268,12 +318,18 @@ class TD3(object):
         self.render_eval = render_eval
         self.memory_limit = memory_limit
         self.buffer_size = buffer_size
-        self.random_exploration = random_exploration
         self.verbose = verbose
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
+        self.meta_period = meta_period
+        self.relative_goals = relative_goals
+        self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
+        self.fingerprint_range = ([0], [5])  # FIXME: parameter
+        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
+        self.centralized_value_functions = centralized_value_functions
+        self.connected_gradients = connected_gradients
 
         # init
         self.graph = None
@@ -294,6 +350,19 @@ class TD3(object):
         self.epoch = None
         self.episode_rewards_history = None
         self.episode_reward = None
+        self.rew_ph = None
+        self.rew_history_ph = None
+        self.eval_rew_ph = None
+        self.eval_success_ph = None
+
+        # Append the fingerprint dimension to the observation dimension, if
+        # needed.
+        if self.use_fingerprints:
+            low = np.concatenate(
+                (self.observation_space.low, self.fingerprint_range[0]))
+            high = np.concatenate(
+                (self.observation_space.high, self.fingerprint_range[1]))
+            self.observation_space = Box(low=low, high=high)
 
         if _init_setup_model:
             # Create the model variables and operations.
@@ -380,13 +449,20 @@ class TD3(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            self.sess = make_session(num_cpu=1, graph=self.graph)
+            self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Collect specific parameters only if using GoalDirectedPolicy.
             additional_params = {}
             if self.policy == GoalDirectedPolicy:
                 additional_params.update({
+                    "meta_period": self.meta_period,
+                    "relative_goals": self.relative_goals,
+                    "off_policy_corrections": self.off_policy_corrections,
                     "use_fingerprints": self.use_fingerprints,
+                    "fingerprint_range": self.fingerprint_range,
+                    "centralized_value_functions":
+                        self.centralized_value_functions,
+                    "connected_gradients": self.connected_gradients,
                 })
 
             # Create the policy.
@@ -407,20 +483,38 @@ class TD3(object):
                 gamma=self.gamma,
                 normalize_observations=self.normalize_observations,
                 normalize_returns=self.normalize_returns,
-                observation_range=self.observation_range,
                 **additional_params
             )
+
+            # for tensorboard logging
+            with tf.variable_scope("Train"):
+                self.rew_ph = tf.placeholder(tf.float32)
+                self.rew_history_ph = tf.placeholder(tf.float32)
+            with tf.variable_scope("Evaluate"):
+                self.eval_rew_ph = tf.placeholder(tf.float32)
+                self.eval_success_ph = tf.placeholder(tf.float32)
+
+            # Add tensorboard scalars for the return, return history, and
+            # success rate.
+            tf.summary.scalar("Train/return", self.rew_ph)
+            tf.summary.scalar("Train/return_history", self.rew_history_ph)
+            # FIXME
+            # if self.eval_env is not None:
+            #     eval_success_ph = self.eval_success_ph
+            #     tf.summary.scalar("Evaluate/return", self.eval_rew_ph)
+            #     tf.summary.scalar("Evaluate/success_rate", eval_success_ph)
+
+            # Create the tensorboard summary.
+            self.summary = tf.summary.merge_all()
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
                 self.sess.run(tf.global_variables_initializer())
                 self.policy_tf.initialize()
 
-            self.summary = tf.summary.merge_all()
-
             return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, apply_noise=True, compute_q=True):
+    def _policy(self, obs, apply_noise=True, compute_q=True, **kwargs):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -439,18 +533,15 @@ class TD3(object):
         float
             the critic value
         """
-        del apply_noise  # FIXME
-
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-        context = [getattr(self.env, "current_context", None)]
 
-        # TODO: add noise
         action = self.policy_tf.get_action(
-            obs, time=self.episode_step, context_obs=context)
+            obs, apply_noise,
+            time=kwargs["episode_step"],
+            context_obs=kwargs["context"])
         action = action.flatten()
-        action *= self.action_space.high  # FIXME: In policy
 
-        q_value = self.policy_tf.value(obs, context_obs=context) \
+        q_value = self.policy_tf.value(obs, context_obs=kwargs["context"]) \
             if compute_q else None
 
         return action, q_value
@@ -481,10 +572,6 @@ class TD3(object):
                                         context_obs0=context,
                                         context_obs1=context,
                                         time=self.episode_step)
-
-    def _initialize(self):
-        """Initialize the model parameters and optimizers."""
-        self.sess.run(tf.global_variables_initializer())
 
     def learn(self,
               total_timesteps,
@@ -522,9 +609,8 @@ class TD3(object):
         ensure_dir(log_dir)
 
         # Create a tensorboard object for logging.
-        # save_path = os.path.join(log_dir, tb_log_name)
-        # writer = tf.summary.FileWriter(save_path, graph=self.graph)
-        writer = None
+        save_path = os.path.join(log_dir, "tb_log")
+        writer = tf.summary.FileWriter(save_path)
 
         # file path for training and evaluation results
         train_filepath = os.path.join(log_dir, "train.csv")
@@ -577,7 +663,7 @@ class TD3(object):
                     self._collect_samples(total_timesteps)
 
                     # Train.
-                    self._train(writer)
+                    self._train()
 
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
@@ -593,6 +679,19 @@ class TD3(object):
                         eval_rewards,
                         eval_successes
                     )
+
+                # Run and store summary.
+                if writer is not None:
+                    td_map = self.policy_tf.get_td_map()
+                    # Check if td_map is empty.
+                    if td_map:
+                        td_map.update({
+                            self.rew_ph: np.mean(self.epoch_episode_rewards),
+                            self.rew_history_ph: np.mean(
+                                self.episode_rewards_history),
+                        })
+                        summary = self.sess.run(self.summary, td_map)
+                        writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
                 self.save(os.path.join(log_dir, "itr"))
@@ -631,51 +730,42 @@ class TD3(object):
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
+        new_obs, done = [], False
         for _ in range(self.nb_rollout_steps):
             # Predict next action.
             action, q_value = self._policy(
-                self.obs, apply_noise=True, compute_q=True)
+                self.obs,
+                apply_noise=True,
+                compute_q=True,
+                context=[getattr(self.env, "current_context", None)],
+                episode_step=self.episode_step)
             assert action.shape == self.env.action_space.shape
 
-            # Randomly sample actions from a uniform distribution with a
-            # probability self.random_exploration (used in HER + DDPG)
-            if np.random.rand() < self.random_exploration:
-                action = self.action_space.sample()
+            reward = 0
+            for _ in range(self.sims_per_step):
+                # Execute next action.
+                new_obs, new_reward, done, info = self.env.step(action)
+                reward += new_reward
 
-            # Execute next action.
-            new_obs, reward, done, info = self.env.step(action)
+                # Visualize the current step.
+                if rank == 0 and self.render:
+                    self.env.render()
 
             # Add the fingerprint term, if needed.
             if self.use_fingerprints:
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
+            # Add the contextual reward to the environment reward.
             if hasattr(self.env, "current_context"):
-                # Get the contextual term.
-                context = getattr(self.env, "current_context")
-
-                # Add the contextual reward to the environment reward.
-                if isinstance(self.policy_tf, FeedForwardPolicy):
-                    reward += getattr(self.env, "contextual_reward")(
-                        self.obs, context, new_obs)[0]
-                elif isinstance(self.policy_tf, GoalDirectedPolicy) \
-                        and (
-                        self.episode_step % self.policy_tf.meta_period == 0
-                        or done):
-                    reward += getattr(self.env, "contextual_reward")(
-                        self.policy_tf.prev_meta_obs, context, new_obs)[0]
-
-            # Visualize the current step.
-            if rank == 0 and self.render:
-                self.env.render()
+                reward += getattr(self.env, "contextual_reward")(
+                    self.obs, getattr(self.env, "current_context"), new_obs)
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
 
             # Book-keeping.
             self.total_steps += 1
-            if rank == 0 and self.render:
-                self.env.render()
             self.episode_reward += reward
             self.episode_step += 1
             self.epoch_actions.append(action)
@@ -702,25 +792,15 @@ class TD3(object):
                     fp = [self.total_steps / total_timesteps * 5]
                     self.obs = np.concatenate((self.obs, fp), axis=0)
 
-    def _train(self, writer):
+    def _train(self):
         """Perform the training operation.
 
         Through this method, the actor and critic networks are updated within
         the policy, and the summary information is logged to tensorboard.
-
-        Parameters
-        ----------
-        writer : tf.Writer
-            the tensorboard writer object
         """
         for t_train in range(self.nb_train_steps):
             # Run a step of training from batch.
-            critic_loss, actor_loss, td_map = self.policy_tf.update()
-
-            # Run summary.
-            if t_train == 0 and writer is not None:
-                summary = self.sess.run(self.summary, td_map)
-                writer.add_summary(summary, self.total_steps)
+            critic_loss, actor_loss = self.policy_tf.update()
 
             # Add actor and critic loss information for logging purposes.
             self.epoch_critic_losses.append(critic_loss)
@@ -753,22 +833,42 @@ class TD3(object):
                 self.nb_eval_episodes))
 
         for i in range(self.nb_eval_episodes):
-            # Reset the environment and episode reward.
+            # Reset the environment.
             eval_obs = self.eval_env.reset()
-            eval_episode_reward = 0.
 
+            # Reset rollout-specific variables.
+            eval_episode_reward = 0.
+            eval_episode_step = 0
+
+            obs, done, info = [], False, {}
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
                     apply_noise=False,
-                    compute_q=False)
+                    compute_q=False,
+                    context=[getattr(self.eval_env, "current_context", None)],
+                    episode_step=eval_episode_step)
 
-                obs, eval_r, done, info = self.eval_env.step(eval_action)
+                eval_r = 0
+                for _ in range(self.sims_per_step):
+                    obs, new_r, done, info = self.eval_env.step(eval_action)
+                    eval_r += new_r
 
-                if self.render_eval:
-                    self.eval_env.render()
+                    if self.render_eval:
+                        self.eval_env.render()
 
+                # Add the contextual reward to the environment reward.
+                if hasattr(self.eval_env, "current_context"):
+                    context_obs = getattr(self.eval_env, "current_context")
+                    eval_r += getattr(self.eval_env, "contextual_reward")(
+                        eval_obs, context_obs, obs)
+
+                # Update the previous step observation.
+                eval_obs = obs.copy()
+
+                # Increment the reward and step count.
                 eval_episode_reward += eval_r
+                eval_episode_step += 1
 
                 if done:
                     eval_episode_rewards.append(eval_episode_reward)

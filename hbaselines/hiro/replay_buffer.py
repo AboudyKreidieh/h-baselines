@@ -138,22 +138,34 @@ class HierReplayBuffer(ReplayBuffer):
         Parameters
         ----------
         obs_t : array_like
-            the last observation
+            list of all worker observations for a given meta period
         action_t : array_like
-            the action
+            list of all worker actions for a given meta period
         goal_t : array_like
-            the goal
+            the meta action
         reward_t : list of float
-            the worker reward at every time step
+            list of all worker rewards for a given meta period
         done : list of float or list of bool
-            is the episode done
-        """
-        data = (obs_t, goal_t, action_t, reward_t, done)
+            list of done masks
+        kwargs : Any
+            additional parameters, including:
 
+            * meta_obs_t: a tuple of the manager observation and next
+              observation
+            * meta_reward_t: the reward of the manager
+        """
+        # Store the manager samples, then the worker samples.
+        data = (kwargs["meta_obs_t"], goal_t, kwargs["meta_reward_t"],
+                obs_t, action_t, reward_t, done)
+
+        # Add the element to the list. If the list is already the max size of
+        # the replay buffer, then replace the oldest sample with this one.
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
         else:
             self._storage[self._next_idx] = data
+
+        # Increment the index of the oldest element.
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
@@ -166,28 +178,30 @@ class HierReplayBuffer(ReplayBuffer):
 
         Returns
         -------
-        sample from replay buffer (s_t, g_t, a_t, r, s_t+1, done, h(s,g,s'))
+        list of tuple
+            each element of the tuples consists of:
+
+            * list of (numpy.ndarray, numpy.ndarray): the previous and next
+              manager observations for each meta period
+            * list of numpy.ndarray: the meta action (goal) for each meta
+              period
+            * list of float: the meta reward for each meta period
+              FIXME: maybe numpy.ndarray
+            * list of list of numpy.ndarray: all observations for the worker
+              for each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of numpy.ndarray: all actions for the worker for
+              each meta period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all rewards for the worker for each meta
+              period
+              FIXME: maybe list of numpy.ndarray
+            * list of list of float: all done masks for the worker for each
+              meta period. The last done mask corresponds to the done mask of
+              the manager
+              FIXME: maybe list of numpy.ndarray
         """
-        obses_t, goals, actions, rewards = [], [], [], []
-        done, h_t, g_up, obs_tp1 = [], [], [], []
-
+        ret = []
         for i in idxes:
-            # never use the last element, as it has no next state
-            if i == (self._next_idx - 1) % self._maxsize:
-                i = (i - 1) % self._maxsize
-
-            data = self._storage[i]
-            obstp1 = self._storage[(i+1) % self._maxsize][0]
-            obs_t, goals_t, actions_t, rewards_t, d, h, g_uptd = data
-            obses_t.append(np.array(obs_t, copy=False))
-            goals.append(np.array(goals_t, copy=False))
-            actions.append(np.array(actions_t, copy=False))
-            rewards.append(np.array(rewards_t, copy=False))
-            done.append(d)
-            h_t.append(np.array(h, copy=False))
-            g_up.append(np.array(g_uptd, copy=False))
-            obs_tp1.append(np.array(obstp1, copy=False))
-
-        return np.array(obses_t), np.array(goals), np.array(actions), \
-            np.array(rewards), np.array(done), \
-            np.array(h_t), np.array(g_up), np.array(obs_tp1)
+            ret.append(self._storage[i])
+        return ret
