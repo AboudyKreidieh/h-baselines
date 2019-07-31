@@ -62,7 +62,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'tau': 0.005,
             'gamma': 0.001,
             'normalize_observations': False,
-            'observation_range': (-5, 5),
             'normalize_returns': False,
             'return_range': (-5, 5),
             'layer_norm': False,
@@ -95,8 +94,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             policy.normalize_observations,
             self.policy_params['normalize_observations'])
         self.assertEqual(
-            policy.observation_range, self.policy_params['observation_range'])
-        self.assertEqual(
             policy.normalize_returns, self.policy_params['normalize_returns'])
         self.assertEqual(
             policy.return_range, self.policy_params['return_range'])
@@ -115,24 +112,36 @@ class TestFeedForwardPolicy(unittest.TestCase):
              'model/pi/fc1/kernel:0',
              'model/pi/pi/bias:0',
              'model/pi/pi/kernel:0',
-             'model/qf/fc0/bias:0',
-             'model/qf/fc0/kernel:0',
-             'model/qf/fc1/bias:0',
-             'model/qf/fc1/kernel:0',
-             'model/qf/qf_output/bias:0',
-             'model/qf/qf_output/kernel:0',
+             'model/qf_0/fc0/bias:0',
+             'model/qf_0/fc0/kernel:0',
+             'model/qf_0/fc1/bias:0',
+             'model/qf_0/fc1/kernel:0',
+             'model/qf_0/qf_output/bias:0',
+             'model/qf_0/qf_output/kernel:0',
+             'model/qf_1/fc0/bias:0',
+             'model/qf_1/fc0/kernel:0',
+             'model/qf_1/fc1/bias:0',
+             'model/qf_1/fc1/kernel:0',
+             'model/qf_1/qf_output/bias:0',
+             'model/qf_1/qf_output/kernel:0',
              'target/pi/fc0/bias:0',
              'target/pi/fc0/kernel:0',
              'target/pi/fc1/bias:0',
              'target/pi/fc1/kernel:0',
              'target/pi/pi/bias:0',
              'target/pi/pi/kernel:0',
-             'target/qf/fc0/bias:0',
-             'target/qf/fc0/kernel:0',
-             'target/qf/fc1/bias:0',
-             'target/qf/fc1/kernel:0',
-             'target/qf/qf_output/bias:0',
-             'target/qf/qf_output/kernel:0']
+             'target/qf_0/fc0/bias:0',
+             'target/qf_0/fc0/kernel:0',
+             'target/qf_0/fc1/bias:0',
+             'target/qf_0/fc1/kernel:0',
+             'target/qf_0/qf_output/bias:0',
+             'target/qf_0/qf_output/kernel:0',
+             'target/qf_1/fc0/bias:0',
+             'target/qf_1/fc0/kernel:0',
+             'target/qf_1/fc1/bias:0',
+             'target/qf_1/fc1/kernel:0',
+             'target/qf_1/qf_output/bias:0',
+             'target/qf_1/qf_output/kernel:0']
         )
 
         # Check that all the input placeholders were properly created.
@@ -196,7 +205,6 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'tau': 0.005,
             'gamma': 0.001,
             'normalize_observations': False,
-            'observation_range': (-5, 5),
             'normalize_returns': False,
             'return_range': (-5, 5),
             'layer_norm': False,
@@ -246,48 +254,72 @@ class TestGoalDirectedPolicy(unittest.TestCase):
              'Manager/model/pi/fc1/kernel:0',
              'Manager/model/pi/pi/bias:0',
              'Manager/model/pi/pi/kernel:0',
-             'Manager/model/qf/fc0/bias:0',
-             'Manager/model/qf/fc0/kernel:0',
-             'Manager/model/qf/fc1/bias:0',
-             'Manager/model/qf/fc1/kernel:0',
-             'Manager/model/qf/qf_output/bias:0',
-             'Manager/model/qf/qf_output/kernel:0',
+             'Manager/model/qf_0/fc0/bias:0',
+             'Manager/model/qf_0/fc0/kernel:0',
+             'Manager/model/qf_0/fc1/bias:0',
+             'Manager/model/qf_0/fc1/kernel:0',
+             'Manager/model/qf_0/qf_output/bias:0',
+             'Manager/model/qf_0/qf_output/kernel:0',
+             'Manager/model/qf_1/fc0/bias:0',
+             'Manager/model/qf_1/fc0/kernel:0',
+             'Manager/model/qf_1/fc1/bias:0',
+             'Manager/model/qf_1/fc1/kernel:0',
+             'Manager/model/qf_1/qf_output/bias:0',
+             'Manager/model/qf_1/qf_output/kernel:0',
              'Manager/target/pi/fc0/bias:0',
              'Manager/target/pi/fc0/kernel:0',
              'Manager/target/pi/fc1/bias:0',
              'Manager/target/pi/fc1/kernel:0',
              'Manager/target/pi/pi/bias:0',
              'Manager/target/pi/pi/kernel:0',
-             'Manager/target/qf/fc0/bias:0',
-             'Manager/target/qf/fc0/kernel:0',
-             'Manager/target/qf/fc1/bias:0',
-             'Manager/target/qf/fc1/kernel:0',
-             'Manager/target/qf/qf_output/bias:0',
-             'Manager/target/qf/qf_output/kernel:0',
+             'Manager/target/qf_0/fc0/bias:0',
+             'Manager/target/qf_0/fc0/kernel:0',
+             'Manager/target/qf_0/fc1/bias:0',
+             'Manager/target/qf_0/fc1/kernel:0',
+             'Manager/target/qf_0/qf_output/bias:0',
+             'Manager/target/qf_0/qf_output/kernel:0',
+             'Manager/target/qf_1/fc0/bias:0',
+             'Manager/target/qf_1/fc0/kernel:0',
+             'Manager/target/qf_1/fc1/bias:0',
+             'Manager/target/qf_1/fc1/kernel:0',
+             'Manager/target/qf_1/qf_output/bias:0',
+             'Manager/target/qf_1/qf_output/kernel:0',
              'Worker/model/pi/fc0/bias:0',
              'Worker/model/pi/fc0/kernel:0',
              'Worker/model/pi/fc1/bias:0',
              'Worker/model/pi/fc1/kernel:0',
              'Worker/model/pi/pi/bias:0',
              'Worker/model/pi/pi/kernel:0',
-             'Worker/model/qf/fc0/bias:0',
-             'Worker/model/qf/fc0/kernel:0',
-             'Worker/model/qf/fc1/bias:0',
-             'Worker/model/qf/fc1/kernel:0',
-             'Worker/model/qf/qf_output/bias:0',
-             'Worker/model/qf/qf_output/kernel:0',
+             'Worker/model/qf_0/fc0/bias:0',
+             'Worker/model/qf_0/fc0/kernel:0',
+             'Worker/model/qf_0/fc1/bias:0',
+             'Worker/model/qf_0/fc1/kernel:0',
+             'Worker/model/qf_0/qf_output/bias:0',
+             'Worker/model/qf_0/qf_output/kernel:0',
+             'Worker/model/qf_1/fc0/bias:0',
+             'Worker/model/qf_1/fc0/kernel:0',
+             'Worker/model/qf_1/fc1/bias:0',
+             'Worker/model/qf_1/fc1/kernel:0',
+             'Worker/model/qf_1/qf_output/bias:0',
+             'Worker/model/qf_1/qf_output/kernel:0',
              'Worker/target/pi/fc0/bias:0',
              'Worker/target/pi/fc0/kernel:0',
              'Worker/target/pi/fc1/bias:0',
              'Worker/target/pi/fc1/kernel:0',
              'Worker/target/pi/pi/bias:0',
              'Worker/target/pi/pi/kernel:0',
-             'Worker/target/qf/fc0/bias:0',
-             'Worker/target/qf/fc0/kernel:0',
-             'Worker/target/qf/fc1/bias:0',
-             'Worker/target/qf/fc1/kernel:0',
-             'Worker/target/qf/qf_output/bias:0',
-             'Worker/target/qf/qf_output/kernel:0']
+             'Worker/target/qf_0/fc0/bias:0',
+             'Worker/target/qf_0/fc0/kernel:0',
+             'Worker/target/qf_0/fc1/bias:0',
+             'Worker/target/qf_0/fc1/kernel:0',
+             'Worker/target/qf_0/qf_output/bias:0',
+             'Worker/target/qf_0/qf_output/kernel:0',
+             'Worker/target/qf_1/fc0/bias:0',
+             'Worker/target/qf_1/fc0/kernel:0',
+             'Worker/target/qf_1/fc1/bias:0',
+             'Worker/target/qf_1/fc1/kernel:0',
+             'Worker/target/qf_1/qf_output/bias:0',
+             'Worker/target/qf_1/qf_output/kernel:0']
         )
 
         # Test the worker_reward function.
@@ -338,14 +370,14 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         policy_params["relative_goals"] = True
         policy = GoalDirectedPolicy(**policy_params)
 
-        # Test the goal_xsition_model method.
+        # Test the updated reward function.
         states = np.array([1, 2, 3])
         goals = np.array([4, 5, 6])
         next_states = np.array([7, 8, 9])
-        new_goal = policy.goal_xsition_model(states, goals, next_states)
-        np.testing.assert_array_almost_equal(new_goal, np.array([-2, -1, 0]))
-
-        # Test the updated reward function. FIXME
+        self.assertAlmostEqual(
+            policy.worker_reward(states, goals, next_states),
+            -2.2360679775221506
+        )
 
     def test_off_policy_corrections(self):
         """Validate the functionality of the off-policy corrections."""
@@ -412,39 +444,9 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.912313e-03, -3.885057e-03, -7.010017e-07])
+            error, [-3.902073e-03, -3.915521e-03, -1.596316e-08])
 
         # Test the _sample_best_meta_action method.  FIXME
-
-    def test_fingerprints(self):
-        """Validate the functionality of the fingerprints.
-
-        This feature should add a fingerprint dimension to the manager and
-        worker observation spaces, but NOT the context space of the worker or
-        the action space of the manager. The worker reward function should also
-        be ignoring the fingerprint elements  during its computation. The
-        fingerprint elements are passed by the algorithm, and tested under
-        test_algorithm.py
-        """
-        # Create the policy.
-        policy_params = self.policy_params.copy()
-        policy_params['use_fingerprints'] = True
-        policy = GoalDirectedPolicy(**policy_params)
-
-        # Test the observation spaces of the manager and worker, as well as the
-        # context space of the worker and action space of the manager.
-        self.assertTupleEqual(policy.manager.ob_space.shape, (3,))
-        self.assertTupleEqual(policy.manager.ac_space.shape, (2,))
-        self.assertTupleEqual(policy.worker.ob_space.shape, (3,))
-        self.assertTupleEqual(policy.worker.co_space.shape, (2,))
-
-        # Test worker_reward method within the policy.
-        self.assertAlmostEqual(
-            policy.worker_reward(states=np.array([1, 2, 3]),
-                                 goals=np.array([0, 0]),
-                                 next_states=np.array([1, 2, 3])),
-            -np.sqrt(1**2 + 2**2)
-        )
 
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function.

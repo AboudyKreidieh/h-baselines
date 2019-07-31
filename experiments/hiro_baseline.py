@@ -15,8 +15,7 @@ from hbaselines.common.train import ensure_dir
 from hbaselines.common.train import parse_options, get_hyperparameters
 from hbaselines.hiro import TD3, GoalDirectedPolicy
 
-EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --gamma 0.995'
-NUM_CPUS = 3
+EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
 @ray.remote
@@ -45,7 +44,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=10000,
+        log_interval=2000,
         seed=None,
         exp_num=i
     )
@@ -53,21 +52,11 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
     return None
 
 
-def main(args):
+def main(args, base_dir):
     """Execute multiple training operations."""
-    args = parse_options(
-        description='Test the performance of TD3 with goal-directed '
-                    'hierarchical models on various environments.',
-        example_usage=EXAMPLE_USAGE,
-        args=args
-    )
-
-    # if the environment is in Flow or h-baselines, register it
-    env = args.env_name
-
     # create a save directory folder (if it doesn't exist)
-    dir_name = 'data/goal-directed/{}/{}'.format(
-        env, strftime("%Y-%m-%d-%H:%M:%S"))
+    dir_name = os.path.join(
+        base_dir, '{}/{}'.format(args.env_name, strftime("%Y-%m-%d-%H:%M:%S")))
     ensure_dir(dir_name)
 
     # get the hyperparameters
@@ -79,12 +68,25 @@ def main(args):
         w.writeheader()
         w.writerow(hp)
 
-    ray.init(num_cpus=NUM_CPUS)
-    ray.get([run_exp.remote(env, hp, args.steps, dir_name, args.evaluate, i)
+    ray.get([run_exp.remote(args.env_name, hp, args.steps, dir_name,
+                            args.evaluate, i)
              for i in range(args.n_training)])
-    ray.shutdown()
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    # collect arguments
+    args = parse_options(
+        description='Test the performance of TD3 with goal-directed '
+                    'hierarchical models on various environments.',
+        example_usage=EXAMPLE_USAGE,
+        args=sys.argv[1:]
+    )
+
+    # start the ray instance with the requested number of CPUs
+    ray.init(num_cpus=args.n_cpus)
+
+    # execute the training procedure
+    main(args, 'data/goal-directed')
+
+    # exit from the process
     os._exit(1)

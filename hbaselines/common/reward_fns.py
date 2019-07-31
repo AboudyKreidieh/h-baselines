@@ -15,11 +15,9 @@ def negative_distance(states,
                       goal_scales=1.0,
                       reward_scales=1.0,
                       weight_vector=None,
-                      termination_epsilon=1e-4,
                       state_indices=None,
                       goal_indices=None,
                       relative_context=False,
-                      diff=False,
                       norm='L2',
                       epsilon=1e-10,
                       bonus_epsilon=0.,
@@ -42,8 +40,6 @@ def negative_distance(states,
         multiplicative scale for rewards
     weight_vector : float or array_like
         The weighting vector, broadcastable to `next_states`.
-    termination_epsilon : float
-        terminate if dist is less than this quantity.
     state_indices : list of int
         list of state indices to select.
     goal_indices : list of int
@@ -51,9 +47,6 @@ def negative_distance(states,
     relative_context : bool
         if True, then the goal is a relative goal, i.e. the requested position
         is the current position plus the requested goal.
-    diff : bool
-        specifies whether to reward the current distance or the difference in
-        consecutive differences
     norm : {"L1", "L2"}
         specifies whether to use L1 or L2 normalization.
     epsilon : float
@@ -83,32 +76,21 @@ def negative_distance(states,
         goals = states + goals
 
     sq_dists = np.square(next_states * state_scales - goals * goal_scales)
-    old_sq_dists = np.square(states * state_scales - goals * goal_scales)
 
     if weight_vector is not None:
         sq_dists *= weight_vector
-        old_sq_dists *= weight_vector
 
     # Apply either the L1 or L2 norm.
     if norm == 'L1':
         dist = np.sqrt(sq_dists + epsilon)
-        old_dist = np.sqrt(old_sq_dists + epsilon)
         dist = np.sum(dist, -1)
-        old_dist = np.sum(old_dist, -1)
     elif norm == 'L2':
         dist = np.sum(sq_dists, -1)
-        old_dist = np.sum(old_sq_dists, -1)
         dist = np.sqrt(dist + epsilon)
-        old_dist = np.sqrt(old_dist + epsilon)
     else:
         raise NotImplementedError(norm)
 
-    discounts = float(dist > termination_epsilon)
     bonus = float(dist < bonus_epsilon)
     dist *= reward_scales
-    old_dist *= reward_scales
 
-    if diff:
-        return bonus + offset + old_dist - dist, discounts
-    else:
-        return bonus + offset - dist, discounts
+    return bonus + offset - dist
