@@ -1322,15 +1322,20 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._process_samples(samples)
 
         if self.off_policy_corrections:
+            low_states, low_actions = [], []
+            for sample in samples:
+                _, _, _, worker_obses, worker_actions, _, _ = sample
+                low_states.append(worker_obses)
+                low_actions.append(worker_actions)
+
             # Replace the goals with the most likely goals.
-            manager_actions = self._sample_best_meta_action(
-                state_reps=None,  # FIXME
-                next_state_reprs=None,  # FIXME
-                prev_meta_actions=None,  # FIXME
-                low_states=None,  # FIXME
-                low_actions=None,  # FIXME
-                low_state_reprs=None,  # FIXME
-                k=8
+            meta_act = self._sample_best_meta_action(
+                state_reps=meta_obs0,
+                next_state_reprs=meta_obs1,
+                prev_meta_actions=meta_act,
+                low_states=low_states,
+                low_actions=low_actions,
+                k=10
             )
 
         # Update the Manager policy.
@@ -1472,7 +1477,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""
-        return 0  # FIXME
+        return (self.manager.value(self.prev_meta_obs, self.meta_action,
+                                   with_actor, **kwargs),
+                self.manager.value(obs, action, with_actor, **kwargs))
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
@@ -1543,24 +1550,21 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                                  prev_meta_actions,
                                  low_states,
                                  low_actions,
-                                 low_state_reprs,
-                                 k=8):
+                                 k=10):
         """Return meta-actions that approximately maximize low-level log-probs.
 
         Parameters
         ----------
         state_reps : array_like
-            current Manager state observation
+            (batch_size, m_obs_dim) matrix of manager observations
         next_state_reprs : array_like
-            next Manager state observation
+            (batch_size, m_obs_dim) matrix of next time step observation
         prev_meta_actions : array_like
             previous meta Manager action
         low_states : array_like
             current Worker state observation
         low_actions : array_like
-            current Worker environmental action
-        low_state_reprs : array_like
-            current Worker state observation
+            current Worker state action
         k : int, optional
             number of goals returned, excluding the initial goal and the mean
             value
@@ -1569,25 +1573,27 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         -------
         array_like
             most likely meta-actions
+
+        Raises
+        ------
+        AssertionError
+            if the shapes of the sample actions, sample log-probabilities, or
+            the output goals are not the expected values given the inputs
         """
         # Collect several samples of potentially optimal goals.
         sampled_actions = self._sample(
             state_reps, next_state_reprs, k, prev_meta_actions)
+        assert sampled_actions.shape == prev_meta_actions.shape + (k,)
 
-        sampled_log_probs = tf.reshape(self._log_probs(
-            tf.tile(low_states, [k, 1, 1]),
-            tf.tile(low_actions, [k, 1, 1]),
-            tf.tile(low_state_reprs, [k, 1, 1]),
-            [tf.reshape(sampled_actions, [-1, sampled_actions.shape[-1]])]),
-            [k, low_states.shape[0], low_states.shape[1], -1])
+        # Compute the log-probability of each meta-action.
+        sampled_log_probs = self._log_probs(
+            state_reps, low_states, low_actions, prev_meta_actions)
+        assert sampled_log_probs.shape == (state_reps.shape[0], k)
 
-        fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
-        best_actions = tf.argmax(fitness, 0)
-        best_goals = tf.gather_nd(
-            sampled_actions,
-            tf.stack([
-                best_actions,
-                tf.range(prev_meta_actions.shape[0], dtype=tf.int64)], -1))
+        # Grab the best meta-action given based on the log-probs
+        best_actions = np.argmax(sampled_log_probs, axis=1)
+        best_goals = sampled_actions[:, :, best_actions]
+        assert best_goals.shape == prev_meta_actions.shape
 
         return best_goals
 
@@ -1613,10 +1619,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         Helps
         -----
-        * _sample_best_meta_action(self):
+        * _sample_best_meta_action(self)
         """
         # Action a policy would perform given a specific observation / goal.
-        pred_actions = self.worker.get_action(worker_obs, context_obs=goals)
+        pred_actions = []
+        for i in range(worker_obs.shape[2]):
+            pred_actions.append(
+                self.worker.get_action(worker_obs[:, :, i], context_obs=goals))
+        pred_actions = np.concatenate(pred_actions, axis=-1)
 
         # Normalize the error based on the range of applicable goals.
         goal_space = self.manager.ac_space
@@ -1625,7 +1635,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # Compute error as the distance between expected and actual actions.
         normalized_error = np.mean(
-            np.square(np.divide(actions - pred_actions, scale)), axis=1)
+            np.square(np.divide(actions - pred_actions, scale)), axis=-1)
 
         return -normalized_error
 
@@ -1638,9 +1648,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         states : array_like
-            (batch_size, obs_dim) matrix of current time step observation
+            (batch_size, m_obs_dim) matrix of current time step
+            meta-observation
         next_states : array_like
-            (batch_size, obs_dim) matrix of next time step observation
+            (batch_size, m_obs_dim) matrix of next time step meta-observation
         num_samples : int
             number of samples
         orig_goals : array_like

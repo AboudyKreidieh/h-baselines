@@ -114,7 +114,7 @@ def reduce_std(tensor, axis=None, keepdims=False):
 
     Parameters
     ----------
-    tensor : tf.Tensor
+    tensor : tf.Tensor or tf.Variable
         the input tensor
     axis : int or list of int
         the axis to itterate the std over
