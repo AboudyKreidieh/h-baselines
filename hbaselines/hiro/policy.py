@@ -438,23 +438,23 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=False):
-            self.actor_tf = self._make_actor(normalized_obs0)
+            self.actor_tf = self.make_actor(normalized_obs0)
             self.normalized_critic_tf = [
-                self._make_critic(normalized_obs0, self.action_ph,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs0, self.action_ph,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
             self.normalized_critic_with_actor_tf = [
-                self._make_critic(normalized_obs0, self.actor_tf, reuse=True,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs0, self.actor_tf, reuse=True,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
 
         with tf.variable_scope("target", reuse=False):
-            actor_target = self._make_actor(normalized_obs1)
+            actor_target = self.make_actor(normalized_obs1)
             critic_target = [
-                self._make_critic(normalized_obs1, actor_target,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs1, actor_target,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
 
@@ -610,7 +610,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         beta1=0.9, beta2=0.999, epsilon=1e-08)
             )
 
-    def _make_actor(self, obs, reuse=False, scope="pi"):
+    def make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
 
         Parameters
@@ -677,7 +677,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return policy
 
-    def _make_critic(self, obs, action, reuse=False, scope="qf"):
+    def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
 
         Parameters
@@ -1298,10 +1298,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.worker_reward = worker_reward
 
         if self.connected_gradients:
-            manager_tf = self.manager.get_actor_tf()
-            worker_obs_ph = self.worker.get_obs_ph()
-            obs = tf.concat((worker_obs_ph, manager_tf), axis=1)
-            self.worker.actor_tf = self.worker._make_actor(obs=obs)
+            self._setup_connected_gradients()
 
     def initialize(self):
         """See parent class.
@@ -1326,43 +1323,44 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1, worker_act, worker_rew, worker_done = \
             self._process_samples(samples)
 
-        if self.connected_gradients:
-            # Reshape to match previous behavior and placeholder shape.
-            rewards = meta_rew.reshape(-1, 1)
-            terminals1 = meta_done.reshape(-1, 1)
-
-            target_q = self.sess.run(self.manager.target_q, feed_dict={
-                self.manager.obs1_ph: meta_obs1,
-                self.manager.rew_ph: rewards,
-                self.manager.terminals1: terminals1
-            })
-
-            # TODO this is the belly of the gradient beast
-            # TODO ---------------------------------------
-            # Get all gradients and perform a synced update.
-            ops = [self.worker.actor_grads, self.worker.actor_loss,
-                   self.manager.critic_grads, self.manager.critic_loss]
-            td_map = {
-                self.worker.obs_ph: worker_obs0,
-                self.worker.action_ph: worker_act,
-                self.manager.rew_ph: rewards,
-                self.manager.critic_target: target_q,
-            }
-            # TODO ---------------------------------------
-
-            actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(
-                ops, td_map)
-
-            self.worker.actor_optimizer.update(
-                actor_grads, learning_rate=self.worker.actor_lr)
-            for critic_optimizer in self.manager.critic_optimizer:
-                critic_optimizer.update(
-                    critic_grads, learning_rate=self.manager.critic_lr)
-
-            # Run target soft update operation.
-            self.sess.run(self.manager.target_soft_updates)
-
-            return critic_loss, actor_loss, td_map
+        # if self.connected_gradients:
+        #     # Reshape to match previous behavior and placeholder shape.
+        #     rewards = meta_rew.reshape(-1, 1)
+        #     terminals1 = meta_done.reshape(-1, 1)
+        #
+        #     target_q = self.sess.run(self.manager.target_q, feed_dict={
+        #         self.manager.obs1_ph: meta_obs1,
+        #         self.manager.rew_ph: rewards,
+        #         self.manager.terminals1: terminals1
+        #     })
+        #
+        #     # TODO this is the belly of the gradient beast
+        #     # TODO ---------------------------------------
+        #     # Get all gradients and perform a synced update.
+        #     ops = [self.worker.actor_grads, self.worker.actor_loss,
+        #            self.manager.critic_grads, self.manager.critic_loss]
+        #     td_map = {
+        #         self.worker.obs_ph: worker_obs0,
+        #         self.worker.action_ph: worker_act,
+        #         self.manager.rew_ph: rewards,
+        #         self.manager.critic_target: target_q,
+        #     }
+        #     # TODO ---------------------------------------
+        #
+        #     actor_grads, actor_loss, critic_grads, critic_loss =
+        #     self.sess.run(
+        #         ops, td_map)
+        #
+        #     self.worker.actor_optimizer.update(
+        #         actor_grads, learning_rate=self.worker.actor_lr)
+        #     for critic_optimizer in self.manager.critic_optimizer:
+        #         critic_optimizer.update(
+        #             critic_grads, learning_rate=self.manager.critic_lr)
+        #
+        #     # Run target soft update operation.
+        #     self.sess.run(self.manager.target_soft_updates)
+        #
+        #     return critic_loss, actor_loss, td_map
 
         if self.off_policy_corrections:
             # Replace the goals with the most likely goals.
@@ -1761,3 +1759,119 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
 
         return td_map
+
+    def _setup_connected_gradients(self):
+        """Create the updated manager optimization with connected gradients."""
+        # Create an input placeholders for the worker that also include the
+        # output from the manager.
+        manager_tf = self.manager.actor_tf
+        self.worker_obs_ph = tf.placeholder(
+            tf.float32, shape=(None,) + self.worker.ob_space.shape)
+        self.worker_obs1_ph = tf.placeholder(
+            tf.float32, shape=(None,) + self.worker.ob_space.shape)
+        obs_ph = tf.concat((self.worker_obs_ph, manager_tf), axis=1)
+        obs1_ph = tf.concat((self.worker_obs1_ph, manager_tf), axis=1)
+
+        # Create networks and core TF parts that are shared across setup parts.
+        with tf.variable_scope("Worker"):
+            # =============================================================== #
+            #                   Actor and Critic Networks                     #
+            # =============================================================== #
+
+            with tf.variable_scope("model"):
+                worker_actor_tf = self.worker.make_actor(obs_ph, reuse=True)
+                normalized_critic_tf = [
+                    self.worker.make_critic(
+                        obs_ph,
+                        self.worker.action_ph,
+                        scope="qf_{}".format(i),
+                        reuse=True)
+                    for i in range(2)
+                ]
+                normalized_critic_with_actor_tf = [
+                    self.worker.make_critic(
+                        obs_ph,
+                        self.worker.actor_tf,
+                        scope="qf_{}".format(i),
+                        reuse=True)
+                    for i in range(2)
+                ]
+
+            # =============================================================== #
+            #                       Target Functions                          #
+            # =============================================================== #
+
+            with tf.variable_scope("target"):
+                actor_target = self.worker.make_actor(obs1_ph, reuse=True)
+                critic_target = [
+                    self.worker.make_critic(
+                        obs1_ph,
+                        actor_target,
+                        scope="qf_{}".format(i),
+                        reuse=True)
+                    for i in range(2)
+                ]
+
+            with tf.variable_scope("loss"):
+                critic_tf = [
+                    denormalize(
+                        tf.clip_by_value(
+                            critic,
+                            self.worker.return_range[0],
+                            self.worker.return_range[1]),
+                        self.worker.ret_rms)
+                    for critic in normalized_critic_tf
+                ]
+                critic_with_actor_tf = [
+                    denormalize(
+                        tf.clip_by_value(
+                            critic,
+                            self.worker.return_range[0],
+                            self.worker.return_range[1]),
+                        self.worker.ret_rms)
+                    for critic in normalized_critic_with_actor_tf
+                ]
+
+                q_obs1 = tf.reduce_min(
+                    [critic_target[0], critic_target[1]], axis=0)
+                target_q = self.worker.rew_ph + \
+                    (1 - self.worker.terminals1) * self.worker.gamma * q_obs1
+
+            # =============================================================== #
+            #                     Actor and Critic Losses                     #
+            # =============================================================== #
+
+            # TODO
+
+            # =============================================================== #
+            #                   Actor and Critic Optimizers                   #
+            # =============================================================== #
+
+            # Add the new loss to the manager actor gradients and optimizer.
+            self.manager_actor_grads = tf.add(
+                self.manager.actor_grads, flatgrad(  # TODO: weighted
+                    worker_with_manager_actor_loss,  # FIXME: create it
+                    var_list=get_trainable_vars("Manager/model/pi/"),
+                    clip_norm=self.manager.clip_norm
+                )
+            )
+            self.manager_actor_optimizer = MpiAdam(
+                var_list=get_trainable_vars("Manager/model/pi/"),
+                beta1=0.9, beta2=0.999, epsilon=1e-08
+            )
+
+            # Add the new loss to the manager critic gradients and optimizer.
+            self.manager_critic_grads = tf.add(
+                self.manager.critic_grads, flatgrad(  # TODO: weighted
+                    worker_with_manager_critic_loss,  # FIXME: create it
+                    var_list=get_trainable_vars("Manager/model/pi/"),
+                    clip_norm=self.manager.clip_norm
+                )
+            )
+            self.manager_critic_optimizer = [
+                MpiAdam(
+                    var_list=get_trainable_vars(
+                        "Manager/model/qf_{}/".format(i)),
+                    beta1=0.9, beta2=0.999, epsilon=1e-08)
+                for i in range(2)
+            ]
