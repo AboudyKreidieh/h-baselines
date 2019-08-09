@@ -248,7 +248,7 @@ def flatgrad(loss, var_list, clip_norm=None):
 
     Parameters
     ----------
-    loss : float
+    loss : float or tf.Variable
         the loss value
     var_list : list of tf.Tensor
         the variables

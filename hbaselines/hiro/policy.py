@@ -1037,6 +1037,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    cg_weights : float
+        weights for the gradients of the loss of the worker with respect to the
+        parameters of the manager. Only used if `connected_gradients` is set to
+        True.
     prev_meta_obs : array_like
         previous observation by the Manager
     meta_action : array_like
@@ -1080,7 +1084,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  use_fingerprints=False,
                  fingerprint_range=([0], [5]),
                  centralized_value_functions=False,
-                 connected_gradients=False):
+                 connected_gradients=False,
+                 cg_weights=1):
         """Instantiate the goal-directed hierarchical policy.
 
         Parameters
@@ -1152,6 +1157,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         connected_gradients : bool, optional
             whether to connect the graph between the manager and worker.
             Defaults to False.
+        cg_weights : float, optional
+            weights for the gradients of the loss of the worker with respect to
+            the parameters of the manager. Only used if `connected_gradients`
+            is set to True.
         """
         super(GoalDirectedPolicy, self).__init__(sess,
                                                  ob_space, ac_space, co_space)
@@ -1166,6 +1175,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.fingerprint_dim = (1,)
         self.fingerprint_range = ([0], [5])
+        self.cg_weights = cg_weights
 
         self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
@@ -1772,106 +1782,35 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         obs_ph = tf.concat((self.worker_obs_ph, manager_tf), axis=1)
         obs1_ph = tf.concat((self.worker_obs1_ph, manager_tf), axis=1)
 
-        # Create networks and core TF parts that are shared across setup parts.
-        with tf.variable_scope("Worker"):
-            # =============================================================== #
-            #                   Actor and Critic Networks                     #
-            # =============================================================== #
+        # worker critic with manager as an input TODO
+        del obs_ph, obs1_ph
 
-            with tf.variable_scope("model"):
-                worker_actor_tf = self.worker.make_actor(obs_ph, reuse=True)
-                normalized_critic_tf = [
-                    self.worker.make_critic(
-                        obs_ph,
-                        self.worker.action_ph,
-                        scope="qf_{}".format(i),
-                        reuse=True)
-                    for i in range(2)
-                ]
-                normalized_critic_with_actor_tf = [
-                    self.worker.make_critic(
-                        obs_ph,
-                        self.worker.actor_tf,
-                        scope="qf_{}".format(i),
-                        reuse=True)
-                    for i in range(2)
-                ]
+        # define the form of the reward function in tensorflow
+        self.rew_tf = tf.subtract(
+            tf.add(self.manager.obs_ph, self.manager.action_ph),
+            self.manager.obs1_ph)  # FIXME: correct placeholders?
 
-            # =============================================================== #
-            #                       Target Functions                          #
-            # =============================================================== #
+        # gradient of the manager actor with respect to its policy parameters
+        goal_grad = flatgrad(
+            self.manager.actor_tf,
+            var_list=get_trainable_vars("Manager/model/pi/"),
+            clip_norm=self.manager.clip_norm
+        )
 
-            with tf.variable_scope("target"):
-                actor_target = self.worker.make_actor(obs1_ph, reuse=True)
-                critic_target = [
-                    self.worker.make_critic(
-                        obs1_ph,
-                        actor_target,
-                        scope="qf_{}".format(i),
-                        reuse=True)
-                    for i in range(2)
-                ]
+        # gradient of the second terms, which include the worker components
+        connected_grads = flatgrad(
+            tf.add_n([
+                self.manager.critic_tf[0],
+                tf.multiply(self.cg_weights, self.rew_tf),
+                tf.multiply(self.cg_weights, tf.multiply(
+                    self.worker.actor_tf, flatgrad(
+                        self.worker.critic_tf[0],
+                        var_list=self.worker.action_ph,
+                        clip_norm=self.manager.clip_norm)))
+            ]),
+            var_list=self.manager.action_ph,
+            clip_norm=self.manager.clip_norm
+        )
 
-            with tf.variable_scope("loss"):
-                critic_tf = [
-                    denormalize(
-                        tf.clip_by_value(
-                            critic,
-                            self.worker.return_range[0],
-                            self.worker.return_range[1]),
-                        self.worker.ret_rms)
-                    for critic in normalized_critic_tf
-                ]
-                critic_with_actor_tf = [
-                    denormalize(
-                        tf.clip_by_value(
-                            critic,
-                            self.worker.return_range[0],
-                            self.worker.return_range[1]),
-                        self.worker.ret_rms)
-                    for critic in normalized_critic_with_actor_tf
-                ]
-
-                q_obs1 = tf.reduce_min(
-                    [critic_target[0], critic_target[1]], axis=0)
-                target_q = self.worker.rew_ph + \
-                    (1 - self.worker.terminals1) * self.worker.gamma * q_obs1
-
-            # =============================================================== #
-            #                     Actor and Critic Losses                     #
-            # =============================================================== #
-
-            # TODO
-
-            # =============================================================== #
-            #                   Actor and Critic Optimizers                   #
-            # =============================================================== #
-
-            # Add the new loss to the manager actor gradients and optimizer.
-            self.manager_actor_grads = tf.add(
-                self.manager.actor_grads, flatgrad(  # TODO: weighted
-                    worker_with_manager_actor_loss,  # FIXME: create it
-                    var_list=get_trainable_vars("Manager/model/pi/"),
-                    clip_norm=self.manager.clip_norm
-                )
-            )
-            self.manager_actor_optimizer = MpiAdam(
-                var_list=get_trainable_vars("Manager/model/pi/"),
-                beta1=0.9, beta2=0.999, epsilon=1e-08
-            )
-
-            # Add the new loss to the manager critic gradients and optimizer.
-            self.manager_critic_grads = tf.add(
-                self.manager.critic_grads, flatgrad(  # TODO: weighted
-                    worker_with_manager_critic_loss,  # FIXME: create it
-                    var_list=get_trainable_vars("Manager/model/pi/"),
-                    clip_norm=self.manager.clip_norm
-                )
-            )
-            self.manager_critic_optimizer = [
-                MpiAdam(
-                    var_list=get_trainable_vars(
-                        "Manager/model/qf_{}/".format(i)),
-                    beta1=0.9, beta2=0.999, epsilon=1e-08)
-                for i in range(2)
-            ]
+        # compute the new gradients
+        self.manager.actor_grads = tf.multiply(goal_grad, connected_grads)
