@@ -345,7 +345,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.critic_l2_reg = critic_l2_reg
         self.verbose = verbose
         self.reuse = reuse
-        self.layers = layers or [300, 300]
+        self.layers = layers or [128, 128]
         self.tau = tau
         self.gamma = gamma
         self.noise = noise
@@ -414,16 +414,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.obs_rms = None
 
-        # FIXME
-        # normalized_obs0 = tf.clip_by_value(
-        #     normalize(self.obs_ph, self.obs_rms),
-        #     self.ob_space.low, self.ob_space.high)
-        # normalized_obs1 = tf.clip_by_value(
-        #     normalize(self.obs1_ph, self.obs_rms),
-        #     self.ob_space.low, self.ob_space.high)
+        obs_high = self.ob_space.high
+        obs_low = self.ob_space.low
+        if co_space is not None:
+            obs_high = np.append(obs_high, self.co_space.high)
+            obs_low = np.append(obs_low, self.co_space.low)
 
-        normalized_obs0 = self.obs_ph
-        normalized_obs1 = self.obs1_ph
+        # Clip the observations by their min/max values.
+        normalized_obs0 = tf.clip_by_value(
+            normalize(self.obs_ph, self.obs_rms), obs_low, obs_high)
+        normalized_obs1 = tf.clip_by_value(
+            normalize(self.obs1_ph, self.obs_rms), obs_low, obs_high)
 
         # Return normalization.
         if normalize_returns:
@@ -478,8 +479,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             )
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
-            tf.summary.scalar('critic_target',
-                              tf.reduce_mean(self.critic_target))
+            tf.summary.scalar('critic_target', tf.reduce_mean(self.target_q))
 
         # Create the target update operations.
         model_scope = 'model/'
@@ -546,7 +546,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             logging.info('setting up critic optimizer')
 
         normalized_critic_target_tf = tf.clip_by_value(
-            normalize(self.critic_target, self.ret_rms),
+            normalize(self.target_q, self.ret_rms),
             self.return_range[0],
             self.return_range[1])
 
@@ -760,12 +760,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        target_q = self.sess.run(self.target_q, feed_dict={
-            self.obs1_ph: obs1,
-            self.rew_ph: rewards,
-            self.terminals1: terminals1
-        })
-
         # Get all gradients and perform a synced update.
         ops = [self.actor_grads, self.actor_loss, self.critic_grads[0],
                self.critic_grads[1], self.critic_loss]
@@ -773,7 +767,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.obs_ph: obs0,
             self.action_ph: actions,
             self.rew_ph: rewards,
-            self.critic_target: target_q,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
         }
 
         actor_grads, actor_loss, grads_0, grads_1, critic_loss = self.sess.run(
@@ -958,18 +953,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        # Compute the target Q-values.
-        target_q = self.sess.run(self.target_q, feed_dict={
-            self.obs1_ph: obs1,
-            self.rew_ph: rewards,
-            self.terminals1: terminals1
-        })
-
         td_map = {
             self.obs_ph: obs0,
             self.action_ph: actions,
             self.rew_ph: rewards,
-            self.critic_target: target_q,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
         }
 
         return td_map
@@ -1173,19 +1162,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Compute the action space for the Manager. If the fingerprint terms
         # are being appended onto the observations, this should be removed from
         # the action space.
-        if self.use_fingerprints:
-            low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
-            high = ob_space.high[:-self.fingerprint_dim[0]]
-            manager_ac_space = Box(low=low, high=high)
-        else:
-            manager_ac_space = ob_space
+        # if self.use_fingerprints:
+        #     low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
+        #     high = ob_space.high[:-self.fingerprint_dim[0]]
+        #     manager_ac_space = Box(low=low, high=high)
+        # else:
+        #     manager_ac_space = ob_space
         # FIXME: only for ant
-        # manager_ac_space = Box(
-        #     low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-        #                   -0.3, -0.5, -0.3, -0.5, -0.3]),
-        #     high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
-        #                    0.3, 0.5, 0.3])
-        # )
+        manager_ac_space = Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3])
+        )
 
         # Create the Manager policy.
         with tf.variable_scope("Manager"):
@@ -1275,12 +1264,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
 
         # remove the last element to compute the reward FIXME
-        if self.use_fingerprints:
-            state_indices = list(np.arange(
-                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
-        else:
-            state_indices = None
-        # state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
+        # if self.use_fingerprints:
+        #     state_indices = list(np.arange(
+        #         0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        # else:
+        #     state_indices = None
+        state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
@@ -1351,20 +1340,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             * list of numpy.ndarray: the meta action (goal) for each meta
               period
             * list of float: the meta reward for each meta period
-              FIXME: maybe numpy.ndarray
             * list of list of numpy.ndarray: all observations for the worker
               for each meta period
-              FIXME: maybe list of numpy.ndarray
             * list of list of numpy.ndarray: all actions for the worker for
               each meta period
-              FIXME: maybe list of numpy.ndarray
             * list of list of float: all rewards for the worker for each meta
               period
-              FIXME: maybe list of numpy.ndarray
             * list of list of float: all done masks for the worker for each
               meta period. The last done mask corresponds to the done mask of
               the manager
-              FIXME: maybe list of numpy.ndarray
 
         Returns
         -------

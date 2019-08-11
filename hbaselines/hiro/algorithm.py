@@ -63,6 +63,8 @@ class TD3(object):
         the policy model to use
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
+    num_cpus : int
+        number of CPUs to be used during the training procedure
     sims_per_step : int
         number of sumo simulation steps performed in any given rollout step. RL
         agents perform the same action for the duration of these steps.
@@ -194,6 +196,7 @@ class TD3(object):
     def __init__(self,
                  policy,
                  env,
+                 num_cpus=1,
                  sims_per_step=5,
                  gamma=0.99,
                  eval_env=None,
@@ -230,6 +233,9 @@ class TD3(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        num_cpus : int, optional
+            number of CPUs to be used during the training procedure. Defaults
+            to 1.
         sims_per_step : int, optional
             number of sumo simulation steps performed in any given rollout
             step. RL agents perform the same action for the duration of these
@@ -298,6 +304,7 @@ class TD3(object):
         """
         self.policy = policy
         self.env = self._create_env(env, evaluate=False)
+        self.num_cpus = num_cpus
         self.sims_per_step = sims_per_step
         self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
@@ -449,6 +456,7 @@ class TD3(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
+            # self.sess = make_session(num_cpu=self.num_cpus, graph=self.graph)
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Collect specific parameters only if using GoalDirectedPolicy.
