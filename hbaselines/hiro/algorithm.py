@@ -11,7 +11,7 @@ from collections import deque
 import csv
 import random
 import logging
-
+from copy import deepcopy
 import gym
 from gym.spaces import Box
 import numpy as np
@@ -680,7 +680,8 @@ class TD3(object):
                 if self.eval_env is not None and \
                         (self.total_steps - steps_incr) >= eval_interval:
                     steps_incr += eval_interval
-                    eval_rewards, eval_successes = self._evaluate()
+                    eval_rewards, eval_successes = self._evaluate(
+                        total_timesteps)
                     self._log_eval(
                         eval_filepath,
                         start_time,
@@ -814,15 +815,20 @@ class TD3(object):
             self.epoch_critic_losses.append(critic_loss)
             self.epoch_actor_losses.append(actor_loss)
 
-    def _evaluate(self):
+    def _evaluate(self, total_timesteps):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
         and returns the cumulative rewards and successes from each environment.
 
+        Parameters
+        ----------
+        total_timesteps : int
+            the total number of samples to train on
+
         Returns
         -------
-        array_like
+        list of float
             the list of cumulative rewards from every episode in the evaluation
             phase
         list of bool
@@ -831,6 +837,7 @@ class TD3(object):
             output successes or failures, and the success rate will be set to
             zero.
         """
+        num_steps = deepcopy(self.total_steps)
         eval_episode_rewards = []
         eval_episode_successes = []
 
@@ -843,6 +850,11 @@ class TD3(object):
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = self.eval_env.reset()
+
+            # Add the fingerprint term, if needed.
+            if self.use_fingerprints:
+                fp = [num_steps / total_timesteps * 5]
+                eval_obs = np.concatenate((eval_obs, fp), axis=0)
 
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
@@ -874,7 +886,13 @@ class TD3(object):
                 # Update the previous step observation.
                 eval_obs = obs.copy()
 
+                # Add the fingerprint term, if needed.
+                if self.use_fingerprints:
+                    fp = [num_steps / total_timesteps * 5]
+                    eval_obs = np.concatenate((eval_obs, fp), axis=0)
+
                 # Increment the reward and step count.
+                num_steps += 1
                 eval_episode_reward += eval_r
                 eval_episode_step += 1
 
