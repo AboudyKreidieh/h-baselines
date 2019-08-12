@@ -114,7 +114,7 @@ def reduce_std(tensor, axis=None, keepdims=False):
 
     Parameters
     ----------
-    tensor : tf.Tensor
+    tensor : tf.Tensor or tf.Variable
         the input tensor
     axis : int or list of int
         the axis to itterate the std over
@@ -243,15 +243,18 @@ def intprod(tensor):
     return int(np.prod(tensor))
 
 
-def flatgrad(loss, var_list, clip_norm=None):
+def flatgrad(loss, var_list, grads_ys=None, clip_norm=None):
     """Calculate the gradient and flatten it.
 
     Parameters
     ----------
-    loss : float
+    loss : float or tf.Variable
         the loss value
     var_list : list of tf.Tensor
         the variables
+    grads_ys : Any
+        a list of `Tensor`, holding the gradients received by the `ys`. The
+        list must be the same length as `ys`.
     clip_norm : float
         clip the gradients (disabled if None)
 
@@ -260,7 +263,7 @@ def flatgrad(loss, var_list, clip_norm=None):
     list of tf.Tensor
         flattened gradient
     """
-    grads = tf.gradients(loss, var_list)
+    grads = tf.gradients(loss, var_list, grads_ys)
     if clip_norm is not None:
         grads = [tf.clip_by_norm(grad, clip_norm=clip_norm) for grad in grads]
     return tf.concat(axis=0, values=[

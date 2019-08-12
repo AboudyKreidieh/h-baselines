@@ -536,6 +536,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.actor_loss,
             get_trainable_vars(scope_name),
             clip_norm=self.clip_norm)
+
         self.actor_optimizer = MpiAdam(
             var_list=get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
@@ -646,7 +647,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 policy = tf.layers.dense(
                     pi_h,
                     self.ac_space.shape[0],
-                    name=scope,
+                    name='output',
                     kernel_initializer=tf.random_uniform_initializer(
                         minval=-3e-3, maxval=3e-3))
             else:
@@ -655,7 +656,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 policy = tf.nn.tanh(tf.layers.dense(
                     pi_h,
                     self.ac_space.shape[0],
-                    name=scope,
+                    name='output',
                     kernel_initializer=tf.random_uniform_initializer(
                         minval=-3e-3, maxval=3e-3)))
 
@@ -698,6 +699,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.variable_scope(scope, reuse=reuse):
             # flatten the input placeholder
             qf_h = tf.layers.flatten(obs)
+            qf_h = tf.concat([qf_h, action], axis=-1)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -706,8 +708,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
                 qf_h = self.activ(qf_h)
-                if i == 0:
-                    qf_h = tf.concat([qf_h, action], axis=-1)
 
             # create the output layer
             qvalue_fn = tf.layers.dense(
