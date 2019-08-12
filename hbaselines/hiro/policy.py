@@ -345,7 +345,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.critic_l2_reg = critic_l2_reg
         self.verbose = verbose
         self.reuse = reuse
-        self.layers = layers or [128, 128]
+        self.layers = layers or [300, 300]
         self.tau = tau
         self.gamma = gamma
         self.noise = noise

@@ -141,15 +141,15 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
-        # if self.use_contexts:
-        #     # Add success to the info dict  # FIXME
-        #     dist = self.contextual_reward(
-        #         states=self.prev_obs,
-        #         next_states=obs,
-        #         goals=self.current_context,
-        #     )
-        #     info["is_success"] = abs(dist) < 5
-        #
+        if self.use_contexts:
+            # Add success to the info dict
+            dist = self.contextual_reward(
+                states=self.prev_obs,
+                next_states=obs,
+                goals=self.current_context,
+            )
+            info["is_success"] = abs(dist) < 5
+
         #     # Compute the done in terms of the distance to the current
         #     # context.
         #     # done = done or new_done != 1  # FIXME
@@ -235,7 +235,7 @@ class AntMaze(UniversalAntMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=0.1
+                reward_scales=1.0
             )
 
         super(AntMaze, self).__init__(
@@ -291,7 +291,7 @@ class AntPush(UniversalAntMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=0.1
+                reward_scales=1.0
             )
 
         super(AntPush, self).__init__(
@@ -349,7 +349,7 @@ class AntFall(UniversalAntMazeEnv):
                 state_indices=[0, 1, 2],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=0.1
+                reward_scales=1.0
             )
 
         super(AntFall, self).__init__(
