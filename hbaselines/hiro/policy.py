@@ -675,8 +675,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 policy = tf.add(action_means,
                                 tf.multiply(action_magnitudes, policy))
 
-        print(tf.gradients(policy, obs))
-
         return policy
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
@@ -905,10 +903,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # Get a sample and keep that fixed for all further computations.
             # This allows us to estimate the change in value for the same set
             # of inputs.
-            obs0, actions, _, \
-                rewards, terminals1, \
-                _, _, obs1 = self.replay_buffer.sample(
-                    batch_size=self.batch_size)
+            obs0, actions, rewards, obs1, terminals1 = \
+                self.replay_buffer.sample(batch_size=self.batch_size)
 
             self.stats_sample = {
                 'obs0': obs0,
