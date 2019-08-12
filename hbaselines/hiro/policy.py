@@ -524,7 +524,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             scope_name = scope + '/' + scope_name
 
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
-
         if self.verbose >= 2:
             actor_shapes = [var.get_shape().as_list()
                             for var in get_trainable_vars(scope_name)]
