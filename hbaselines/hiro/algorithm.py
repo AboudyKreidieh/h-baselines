@@ -214,7 +214,7 @@ class TD3(object):
                  clip_norm=None,
                  reward_scale=1.,
                  render=False,
-                 render_eval=False,
+                 render_eval=True,
                  memory_limit=None,
                  buffer_size=50000,
                  verbose=0,

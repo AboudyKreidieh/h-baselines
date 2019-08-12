@@ -524,11 +524,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             scope_name = scope + '/' + scope_name
 
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
-        actor_shapes = [var.get_shape().as_list()
-                        for var in get_trainable_vars(scope_name)]
-        actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                               for shape in actor_shapes])
+
         if self.verbose >= 2:
+            actor_shapes = [var.get_shape().as_list()
+                            for var in get_trainable_vars(scope_name)]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
             logging.info('  actor shapes: {}'.format(actor_shapes))
             logging.info('  actor params: {}'.format(actor_nb_params))
 
@@ -536,6 +537,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.actor_loss,
             get_trainable_vars(scope_name),
             clip_norm=self.clip_norm)
+
         self.actor_optimizer = MpiAdam(
             var_list=get_trainable_vars(scope_name),
             beta1=0.9, beta2=0.999, epsilon=1e-08)
@@ -590,12 +592,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if scope is not None:
                 scope_name = scope + '/' + scope_name
 
-            critic_shapes = [var.get_shape().as_list()
-                             for var in get_trainable_vars(scope_name)]
-            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                    for shape in critic_shapes])
-
             if self.verbose >= 2:
+                critic_shapes = [var.get_shape().as_list()
+                                 for var in get_trainable_vars(scope_name)]
+                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                        for shape in critic_shapes])
                 logging.info('  critic shapes: {}'.format(critic_shapes))
                 logging.info('  critic params: {}'.format(critic_nb_params))
 
@@ -647,7 +648,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 policy = tf.layers.dense(
                     pi_h,
                     self.ac_space.shape[0],
-                    name=scope,
+                    name='output',
                     kernel_initializer=tf.random_uniform_initializer(
                         minval=-3e-3, maxval=3e-3))
             else:
@@ -656,7 +657,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 policy = tf.nn.tanh(tf.layers.dense(
                     pi_h,
                     self.ac_space.shape[0],
-                    name=scope,
+                    name='output',
                     kernel_initializer=tf.random_uniform_initializer(
                         minval=-3e-3, maxval=3e-3)))
 
@@ -674,6 +675,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                 policy = tf.add(action_means,
                                 tf.multiply(action_magnitudes, policy))
+
+        print(tf.gradients(policy, obs))
 
         return policy
 
@@ -699,6 +702,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.variable_scope(scope, reuse=reuse):
             # flatten the input placeholder
             qf_h = tf.layers.flatten(obs)
+            qf_h = tf.concat([qf_h, action], axis=-1)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -707,8 +711,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
                 qf_h = self.activ(qf_h)
-                if i == 0:
-                    qf_h = tf.concat([qf_h, action], axis=-1)
 
             # create the output layer
             qvalue_fn = tf.layers.dense(
@@ -1074,7 +1076,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  fingerprint_range=([0], [5]),
                  centralized_value_functions=False,
                  connected_gradients=False,
-                 cg_weights=1):
+                 cg_weights=0.001):
         """Instantiate the goal-directed hierarchical policy.
 
         Parameters
@@ -1322,45 +1324,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1, worker_act, worker_rew, worker_done = \
             self._process_samples(samples)
 
-        # if self.connected_gradients:
-        #     # Reshape to match previous behavior and placeholder shape.
-        #     rewards = meta_rew.reshape(-1, 1)
-        #     terminals1 = meta_done.reshape(-1, 1)
-        #
-        #     target_q = self.sess.run(self.manager.target_q, feed_dict={
-        #         self.manager.obs1_ph: meta_obs1,
-        #         self.manager.rew_ph: rewards,
-        #         self.manager.terminals1: terminals1
-        #     })
-        #
-        #     # TODO this is the belly of the gradient beast
-        #     # TODO ---------------------------------------
-        #     # Get all gradients and perform a synced update.
-        #     ops = [self.worker.actor_grads, self.worker.actor_loss,
-        #            self.manager.critic_grads, self.manager.critic_loss]
-        #     td_map = {
-        #         self.worker.obs_ph: worker_obs0,
-        #         self.worker.action_ph: worker_act,
-        #         self.manager.rew_ph: rewards,
-        #         self.manager.critic_target: target_q,
-        #     }
-        #     # TODO ---------------------------------------
-        #
-        #     actor_grads, actor_loss, critic_grads, critic_loss =
-        #     self.sess.run(
-        #         ops, td_map)
-        #
-        #     self.worker.actor_optimizer.update(
-        #         actor_grads, learning_rate=self.worker.actor_lr)
-        #     for critic_optimizer in self.manager.critic_optimizer:
-        #         critic_optimizer.update(
-        #             critic_grads, learning_rate=self.manager.critic_lr)
-        #
-        #     # Run target soft update operation.
-        #     self.sess.run(self.manager.target_soft_updates)
-        #
-        #     return critic_loss, actor_loss, td_map
-
         if self.off_policy_corrections:
             # Replace the goals with the most likely goals.
             meta_act = self._sample_best_meta_action(
@@ -1375,13 +1338,65 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
 
         # Update the Manager policy.
-        m_critic_loss, m_actor_loss = self.manager.update_from_batch(
-            obs0=meta_obs0,
-            actions=meta_act,
-            rewards=meta_rew,
-            obs1=meta_obs1,
-            terminals1=meta_done
-        )
+        if self.connected_gradients:
+            # Reshape to match previous behavior and placeholder shape.
+            meta_rew = meta_rew.reshape(-1, 1)
+            meta_done = meta_done.reshape(-1, 1)
+
+            dqw_da = self.sess.run(
+                self.dqw_da,
+                feed_dict={
+                    self.worker.obs_ph: worker_obs0,
+                    self.worker.action_ph: worker_act,
+                    self.worker.obs1_ph: worker_obs1,
+                }
+            )
+            dqw_da = dqw_da[0]
+
+            connected_grads = self.sess.run(
+                self.connected_grads,
+                feed_dict={
+                    self.worker.obs_ph: worker_obs0,
+                    self.worker.action_ph: worker_act,
+                    self.worker.obs1_ph: worker_obs1,
+                    self.dqw_da_ph: dqw_da
+                }
+            )
+            connected_grads = connected_grads[0]
+
+            # Get all gradients and perform a synced update.
+            ops = [self.manager.actor_grads, self.manager.actor_loss,
+                   self.manager.critic_grads[0], self.manager.critic_grads[1],
+                   self.manager.critic_loss]
+            td_map = {
+                self.manager.obs_ph: meta_obs0,
+                self.manager.action_ph: meta_act,
+                self.manager.rew_ph: meta_rew,
+                self.manager.obs1_ph: meta_obs1,
+                self.manager.terminals1: meta_done,
+                self.connected_grads_ph: connected_grads,
+            }
+
+            actor_grads, m_actor_loss, grads_0, grads_1, m_critic_loss = \
+                self.sess.run(ops, td_map)
+
+            self.manager.actor_optimizer.update(
+                actor_grads, learning_rate=self.manager.actor_lr)
+            self.manager.critic_optimizer[0].update(
+                grads_0, learning_rate=self.manager.critic_lr)
+            self.manager.critic_optimizer[1].update(
+                grads_1, learning_rate=self.manager.critic_lr)
+
+            # Run target soft update operation.
+            self.sess.run(self.manager.target_soft_updates)
+        else:
+            m_critic_loss, m_actor_loss = self.manager.update_from_batch(
+                obs0=meta_obs0,
+                actions=meta_act,
+                rewards=meta_rew,
+                obs1=meta_obs1,
+                terminals1=meta_done
+            )
 
         # Update the Worker policy.
         w_critic_loss, w_actor_loss = self.worker.update_from_batch(
@@ -1756,45 +1771,47 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""
-        # Create an input placeholders for the worker that also include the
-        # output from the manager.
-        manager_tf = self.manager.actor_tf
-        self.worker_obs_ph = tf.placeholder(
-            tf.float32, shape=(None,) + self.worker.ob_space.shape)
-        self.worker_obs1_ph = tf.placeholder(
-            tf.float32, shape=(None,) + self.worker.ob_space.shape)
-        obs_ph = tf.concat((self.worker_obs_ph, manager_tf), axis=1)
-        obs1_ph = tf.concat((self.worker_obs1_ph, manager_tf), axis=1)
-
-        # worker critic with manager as an input TODO
-        del obs_ph, obs1_ph
+        # placeholder for the goals as perceived by the worker
+        goal_vars = self.worker.obs_ph[:, -15:]  # FIXME
 
         # define the form of the reward function in tensorflow
         self.rew_tf = tf.subtract(
-            tf.add(self.manager.obs_ph, self.manager.action_ph),
-            self.manager.obs1_ph)  # FIXME: correct placeholders?
+            tf.add(self.worker.obs_ph[:, :15], goal_vars),  # FIXME
+            self.worker.obs1_ph[:, :15])  # FIXME: correct placeholders?
 
-        # gradient of the manager actor with respect to its policy parameters
-        goal_grad = flatgrad(
-            self.manager.actor_tf,
-            var_list=get_trainable_vars("Manager/model/pi/"),
-            clip_norm=self.manager.clip_norm
+        self.dqw_da = tf.gradients(
+            self.worker.critic_tf,
+            self.worker.action_ph)
+        self.dqw_da_ph = tf.placeholder(
+            tf.float32,
+            shape=(None,) + self.worker.ac_space.shape,
+            name="dqw_da_ph"
         )
 
-        # gradient of the second terms, which include the worker components
-        connected_grads = flatgrad(
-            tf.add_n([
-                self.manager.critic_tf[0],
-                tf.multiply(self.cg_weights, self.rew_tf),
-                tf.multiply(self.cg_weights, tf.multiply(
-                    self.worker.actor_tf, flatgrad(
-                        self.worker.critic_tf[0],
-                        var_list=self.worker.action_ph,
-                        clip_norm=self.manager.clip_norm)))
-            ]),
-            var_list=self.manager.action_ph,
-            clip_norm=self.manager.clip_norm
+        self.connected_grads = tf.add(
+            tf.gradients(self.rew_tf, goal_vars),
+            [tf.gradients(
+                self.worker.actor_tf, self.worker.obs_ph, self.dqw_da_ph,
+                # FIXME
+                stop_gradients=self.worker.obs_ph[:, :-15])[0][:, -15:]]
+        )
+        self.connected_grads_ph = tf.placeholder(
+            tf.float32,
+            shape=(None, 15),  # FIXME
+            name="connected_grads_ph"
         )
 
         # compute the new gradients
-        self.manager.actor_grads = tf.multiply(goal_grad, connected_grads)
+        self.manager.actor_grads = tf.add(
+            self.manager.actor_grads,
+            tf.multiply(
+                tf.constant(
+                    self.manager.actor_lr * self.cg_weights, tf.float32),
+                flatgrad(
+                    self.manager.actor_tf,
+                    var_list=get_trainable_vars("Manager/model/pi"),
+                    grads_ys=self.connected_grads_ph,
+                    clip_norm=self.manager.clip_norm
+                )
+            )
+        )
