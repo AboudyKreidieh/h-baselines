@@ -439,23 +439,23 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=False):
-            self.actor_tf = self._make_actor(normalized_obs0)
+            self.actor_tf = self.make_actor(normalized_obs0)
             self.normalized_critic_tf = [
-                self._make_critic(normalized_obs0, self.action_ph,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs0, self.action_ph,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
             self.normalized_critic_with_actor_tf = [
-                self._make_critic(normalized_obs0, self.actor_tf, reuse=True,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs0, self.actor_tf, reuse=True,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
 
         with tf.variable_scope("target", reuse=False):
-            actor_target = self._make_actor(normalized_obs1)
+            actor_target = self.make_actor(normalized_obs1)
             critic_target = [
-                self._make_critic(normalized_obs1, actor_target,
-                                  scope="qf_{}".format(i))
+                self.make_critic(normalized_obs1, actor_target,
+                                 scope="qf_{}".format(i))
                 for i in range(2)
             ]
 
@@ -524,11 +524,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             scope_name = scope + '/' + scope_name
 
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
-        actor_shapes = [var.get_shape().as_list()
-                        for var in get_trainable_vars(scope_name)]
-        actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                               for shape in actor_shapes])
         if self.verbose >= 2:
+            actor_shapes = [var.get_shape().as_list()
+                            for var in get_trainable_vars(scope_name)]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
             logging.info('  actor shapes: {}'.format(actor_shapes))
             logging.info('  actor params: {}'.format(actor_nb_params))
 
@@ -590,12 +590,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if scope is not None:
                 scope_name = scope + '/' + scope_name
 
-            critic_shapes = [var.get_shape().as_list()
-                             for var in get_trainable_vars(scope_name)]
-            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                    for shape in critic_shapes])
-
             if self.verbose >= 2:
+                critic_shapes = [var.get_shape().as_list()
+                                 for var in get_trainable_vars(scope_name)]
+                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                        for shape in critic_shapes])
                 logging.info('  critic shapes: {}'.format(critic_shapes))
                 logging.info('  critic params: {}'.format(critic_nb_params))
 
@@ -610,7 +609,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         beta1=0.9, beta2=0.999, epsilon=1e-08)
             )
 
-    def _make_actor(self, obs, reuse=False, scope="pi"):
+    def make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
 
         Parameters
@@ -677,7 +676,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return policy
 
-    def _make_critic(self, obs, action, reuse=False, scope="qf"):
+    def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
 
         Parameters
