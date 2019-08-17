@@ -26,6 +26,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+from hbaselines.envs.hac.envs import UR5, Pendulum
 
 
 def as_scalar(scalar):
@@ -61,6 +62,9 @@ class TD3(object):
     ----------
     policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
         the policy model to use
+    env_name : str
+        name of the environment. Affects the action bounds of the Manager
+        policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
     num_cpus : int
@@ -197,7 +201,7 @@ class TD3(object):
                  policy,
                  env,
                  num_cpus=1,
-                 sims_per_step=5,
+                 sims_per_step=1,
                  gamma=0.99,
                  eval_env=None,
                  nb_train_steps=1,
@@ -303,6 +307,7 @@ class TD3(object):
             Whether or not to build the network at the creation of the instance
         """
         self.policy = policy
+        self.env_name = deepcopy(env)
         self.env = self._create_env(env, evaluate=False)
         self.num_cpus = num_cpus
         self.sims_per_step = sims_per_step
@@ -422,6 +427,30 @@ class TD3(object):
                 #               random_contexts=True,
                 #               context_range=[(-4, 12), (-4, 28), (0, 5)])
 
+        elif env == "UR5":
+            if evaluate:
+                env = UR5(use_contexts=True,
+                          random_contexts=True,
+                          context_range=[(-np.pi, np.pi),
+                                         (-np.pi / 4, 0),
+                                         (-np.pi / 4, np.pi / 4)])
+            else:
+                env = UR5(use_contexts=True,
+                          random_contexts=True,
+                          context_range=[(-np.pi, np.pi),
+                                         (-np.pi / 4, 0),
+                                         (-np.pi / 4, np.pi / 4)])
+
+        elif env == "Pendulum":
+            if evaluate:
+                env = Pendulum(use_contexts=True, context_range=[0, 0])
+            else:
+                env = Pendulum(use_contexts=True,
+                               random_contexts=True,
+                               context_range=[
+                                   (np.deg2rad(-16), np.deg2rad(16)),
+                                   (-0.6, 0.6)])
+
         elif env in ["figureeight0", "figureeight1", "figureeight2", "merge0",
                      "merge1", "merge2", "bottleneck0", "bottleneck1",
                      "bottleneck2", "grid0", "grid1"]:
@@ -471,6 +500,7 @@ class TD3(object):
                     "centralized_value_functions":
                         self.centralized_value_functions,
                     "connected_gradients": self.connected_gradients,
+                    "env_name": self.env_name
                 })
 
             # Create the policy.
@@ -545,6 +575,7 @@ class TD3(object):
 
         action = self.policy_tf.get_action(
             obs, apply_noise,
+            total_steps=self.total_steps,
             time=kwargs["episode_step"],
             context_obs=kwargs["context"])
         action = action.flatten()
@@ -587,7 +618,8 @@ class TD3(object):
               seed=None,
               log_interval=100,
               eval_interval=5e4,
-              exp_num=None):
+              exp_num=None,
+              start_timesteps=10000):
         """Return a trained model.
 
         Parameters
@@ -609,6 +641,9 @@ class TD3(object):
             when running multiple experiments simultaneously. If set to None,
             the train, evaluate, and tensorboard results are stored in log_dir
             immediately
+        start_timesteps : int, optional
+            number of timesteps that the policy is run before training to
+            initialize the replay buffer with samples
         """
         if exp_num is not None:
             log_dir = os.path.join(log_dir, "trial_{}".format(exp_num))
@@ -650,6 +685,25 @@ class TD3(object):
                 fp = [self.total_steps / total_timesteps * 5]
                 self.obs = np.concatenate((self.obs, fp), axis=0)
             start_time = time.time()
+
+            # Reset epoch-specific variables. FIXME: hacky
+            self.epoch_episodes = 0
+            self.epoch_actions = []
+            self.epoch_qs = []
+            self.epoch_actor_losses = []
+            self.epoch_critic_losses = []
+            self.epoch_episode_rewards = []
+            self.epoch_episode_steps = []
+            # Perform rollouts.
+            print("Collecting pre-samples...")
+            self._collect_samples(total_timesteps, run_steps=start_timesteps)
+            print("Done!")
+            self.episode_reward = 0
+            self.episode_step = 0
+            self.episodes = 0
+            self.total_steps = 0
+            self.epoch = 0
+            self.episode_rewards_history = deque(maxlen=100)
 
             while True:
                 # Reset epoch-specific variables.
@@ -724,7 +778,7 @@ class TD3(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self, total_timesteps):
+    def _collect_samples(self, total_timesteps, run_steps=None):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
@@ -736,11 +790,14 @@ class TD3(object):
         total_timesteps : int
             the total number of samples to train on. Used by the fingerprint
             element
+        run_steps : int, optional
+            number of steps to collect samples from. If not provided, the value
+            defaults to `self.nb_rollout_steps`.
         """
         rank = MPI.COMM_WORLD.Get_rank()
 
         new_obs, done = [], False
-        for _ in range(self.nb_rollout_steps):
+        for _ in range(run_steps or self.nb_rollout_steps):
             # Predict next action.
             action, q_value = self._policy(
                 self.obs,

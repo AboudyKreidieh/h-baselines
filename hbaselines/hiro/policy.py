@@ -472,11 +472,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for critic in self.normalized_critic_with_actor_tf
             ]
 
-            q_obs1 = tf.reduce_min(
-                [denormalize(critic_target[0], self.ret_rms),
-                 denormalize(critic_target[1], self.ret_rms)],
-                axis=0
-            )
+            q_obs1 = tf.minimum(critic_target[0], critic_target[1])
+            q_obs1 = denormalize(q_obs1, self.ret_rms)
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
             tf.summary.scalar('critic_target', tf.reduce_mean(self.target_q))
@@ -790,9 +787,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             obs = np.concatenate((obs, context_obs), axis=1)
 
         action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
+
         if apply_noise:
+            # convert noise percentage to absolute value
             noise = self.noise * (self.ac_space.high - self.ac_space.low) / 2
+            # apply Ornstein-Uhlenbeck process
+            noise *= np.maximum(np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
+            # compute noisy action
             action += normal(loc=0, scale=noise, size=action.shape)
+
+        # clip by bounds
         action = np.clip(action, self.ac_space.low, self.ac_space.high)
 
         return action
@@ -1065,7 +1069,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  use_fingerprints=False,
                  fingerprint_range=([0], [5]),
                  centralized_value_functions=False,
-                 connected_gradients=False):
+                 connected_gradients=False,
+                 env_name=""):
         """Instantiate the goal-directed hierarchical policy.
 
         Parameters
@@ -1161,19 +1166,31 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Compute the action space for the Manager. If the fingerprint terms
         # are being appended onto the observations, this should be removed from
         # the action space.
-        # if self.use_fingerprints:
-        #     low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
-        #     high = ob_space.high[:-self.fingerprint_dim[0]]
-        #     manager_ac_space = Box(low=low, high=high)
-        # else:
-        #     manager_ac_space = ob_space
-        # FIXME: only for ant
-        manager_ac_space = Box(
-            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                          -0.3, -0.5, -0.3, -0.5, -0.3]),
-            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
-                           0.3, 0.5, 0.3])
-        )
+        if env_name in ["AntMaze", "AntPush", "AntFall"]:
+            manager_ac_space = Box(
+                low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                              -0.3, -0.5, -0.3, -0.5, -0.3]),
+                high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3,
+                               0.5, 0.3, 0.5, 0.3]),
+                dtype=np.float32,
+            )
+        elif env_name == "UR5":
+            manager_ac_space = Box(
+                low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
+                high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
+                dtype=np.float32,
+            )
+        elif env_name == "Pendulum":
+            manager_ac_space = Box(low=np.array([-np.pi, -15]),
+                                   high=np.array([np.pi, 15]),
+                                   dtype=np.float32)
+        else:
+            if self.use_fingerprints:
+                low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
+                high = ob_space.high[:-self.fingerprint_dim[0]]
+                manager_ac_space = Box(low=low, high=high, dtype=np.float32)
+            else:
+                manager_ac_space = ob_space
 
         # Create the Manager policy.
         with tf.variable_scope("Manager"):
@@ -1268,7 +1285,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         #         0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
         # else:
         #     state_indices = None
-        state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
+        if env_name in ["AntMaze", "AntPush", "AntFall"]:
+            state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
+        elif env_name == "UR5":
+            state_indices = None
+        elif env_name == "Pendulum":
+            state_indices = [0, 2]
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
@@ -1290,6 +1312,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.manager.initialize()
         self.worker.initialize()
         self.meta_reward = 0
+        self.i = 0  # FIXME: hacky
 
     def update(self):
         """See parent class."""
@@ -1306,13 +1329,17 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._process_samples(samples)
 
         # Update the Manager policy.
-        m_critic_loss, m_actor_loss = self.manager.update_from_batch(
-            obs0=meta_obs0,
-            actions=meta_act,
-            rewards=meta_rew,
-            obs1=meta_obs1,
-            terminals1=meta_done
-        )
+        if self.i % self.meta_period == 0:
+            m_critic_loss, m_actor_loss = self.manager.update_from_batch(
+                obs0=meta_obs0,
+                actions=meta_act,
+                rewards=meta_rew,
+                obs1=meta_obs1,
+                terminals1=meta_done
+            )
+        else:
+            m_critic_loss, m_actor_loss = 0, 0
+        self.i += 1
 
         # Update the Worker policy.
         w_critic_loss, w_actor_loss = self.worker.update_from_batch(
@@ -1435,7 +1462,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # Return the worker action.
         return self.worker.get_action(
-            obs, apply_noise, context_obs=self.meta_action)
+            obs, apply_noise,
+            context_obs=self.meta_action, total_steps=kwargs['total_steps'])
 
     def value(self, obs, action=None, with_actor=True, **kwargs):
         """See parent class."""

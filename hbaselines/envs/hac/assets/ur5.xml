@@ -1,0 +1,231 @@
+<mujoco model="ur5">
+    <compiler angle="radian" meshdir="muj_gripper/" />
+    <option impratio="5" tolerance="1e-10" cone="elliptic"/>
+    <!--option impratio="5" tolerance="1e-10" noslip_tolerance="0" noslip_iterations="200" /-->
+    <size njmax="550" nconmax="150" />
+    <default class="all">
+        <joint damping="1" />
+        <geom condim="4" solref="0.01 1" solimp="0.99 0.99 0.01" />
+    </default>
+    <asset>
+        <mesh name="v_base" file="v_base.stl" />
+        <mesh name="c_base" file="c_base.stl" />
+        <mesh name="v_shoulder" file="v_shoulder.stl" />
+        <mesh name="c_shoulder" file="c_shoulder.stl" />
+        <mesh name="v_upperarm" file="v_upperarm.stl" />
+        <mesh name="c_upperarm" file="c_upperarm.stl" />
+        <mesh name="v_forearm" file="v_forearm.stl" />
+        <mesh name="c_forearm" file="c_forearm.stl" />
+        <mesh name="v_wrist1" file="v_wrist1.stl" />
+        <mesh name="c_wrist1" file="c_wrist1.stl" />
+        <mesh name="v_wrist2" file="v_wrist2.stl" />
+        <mesh name="c_wrist2" file="c_wrist2.stl" />
+        <mesh name="v_wrist3" file="v_wrist3.stl" />
+        <mesh name="c_wrist3" file="c_wrist3.stl" />
+        <mesh name="robotiq_85_base_link_fine" file="robotiq_85_base_link_fine.stl" />
+        <mesh name="robotiq_85_base_link_coarse" file="robotiq_85_base_link_coarse.stl" />
+        <mesh name="inner_knuckle_fine" file="inner_knuckle_fine.stl" />
+        <mesh name="inner_knuckle_coarse" file="inner_knuckle_coarse.stl" />
+        <mesh name="inner_finger_fine" file="inner_finger_fine.stl" />
+        <mesh name="inner_finger_coarse" file="inner_finger_coarse.stl" />
+        <mesh name="outer_knuckle_fine" file="outer_knuckle_fine.stl" />
+        <mesh name="outer_knuckle_coarse" file="outer_knuckle_coarse.stl" />
+        <mesh name="outer_finger_fine" file="outer_finger_fine.stl" />
+        <mesh name="outer_finger_coarse" file="outer_finger_coarse.stl" />
+    </asset>
+    <worldbody>
+        <geom name="bottom_plane" size="5 5 0.1" type="plane" />
+        <camera name="main" pos="0 1.5 1" quat="1.22206e-06 -5.16678e-07 0.389418 0.921061" />
+        <light name="light1" pos="0 -0.25 3" dir="0 0 -1" directional="true" />
+        <light name="light2" pos="0 0.25 3" dir="0 0 -1" directional="true" />
+        <body name="base_link" childclass="all" pos="0 0 0">
+            <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="4" diaginertia="0.0072 0.00443333 0.00443333" />
+            <geom name="v_base_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_base" />
+            <geom name="c_base_link" type="mesh" mesh="c_base" />
+            <body name="shoulder_link" pos="0 0 0.089159">
+                <inertial pos="0 0 0" mass="3.7" diaginertia="0.0102675 0.0102675 0.00666" />
+                <joint name="shoulder_pan_joint" pos="0 0 0" axis="0 0 1" damping="10" />
+                <geom name="v_shoulder_link" type="mesh" contype="0" conaffinity="0" group="1"  mesh="v_shoulder" />
+                <geom name="c_shoulder_link" type="mesh" mesh="c_shoulder" />
+                <body name="upper_arm_link" pos="0 0.13585 0" quat="0.707107 0 0.707107 0">
+                    <inertial pos="0 0 0.28" mass="8.393" diaginertia="0.226891 0.226891 0.0151074" />
+                    <joint name="shoulder_lift_joint" pos="0 0 0" axis="0 1 0" damping="10" />
+                    <geom name="v_upper_arm_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_upperarm" />
+                    <geom name="c_upper_arm_link" type="mesh" mesh="c_upperarm" />
+                    <body name="forearm_link" pos="0 -0.1197 0.425">
+                        <inertial pos="0 0 0.25" mass="2.275" diaginertia="0.0494433 0.0494433 0.004095" />
+                        <joint name="elbow_joint" pos="0 0 0" axis="0 1 0" damping="10" />
+                        <geom name="v_forearm_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_forearm" />
+                        <geom name="c_forearm_link" type="mesh" mesh="c_forearm" />
+                        <!--body name="wrist_1_link" pos="0 0 0.39225" quat="0.707107 0 0.707107 0">
+                            <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="1.219" diaginertia="0.21942 0.111173 0.111173" />
+                            <joint name="wrist_1_joint" pos="0 0 0" axis="0 1 0" damping="10" />
+                            <geom name="v_wrist_1_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_wrist1" />
+                            <geom name="c_wrist_1_link" type="mesh" mesh="c_wrist1" />
+                            <body name="wrist_2_link" pos="0 0.093 0">
+                                <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="1.219" diaginertia="0.21942 0.111173 0.111173" />
+                                <joint name="wrist_2_joint" pos="0 0 0" axis="0 0 1" damping="10" />
+                                <geom name="v_wrist_2_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_wrist2" />
+                                <geom name="c_wrist_2_link" type="mesh" mesh="c_wrist2" />
+                                <body name="wrist_3_link" pos="0 0 0.09465">
+                                    <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="0.1879" diaginertia="0.033822 0.0171365 0.0171365" />
+                                    <joint name="wrist_3_joint" pos="0 0 0" axis="0 1 0" damping="10" />
+                                    <geom name="v_wrist_3_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="v_wrist3" />
+                                    <geom name="c_wrist_3_link" type="mesh" mesh="c_wrist3" />
+                                    <body name="robotiq_85_base_link" pos="0 0.0823 0" quat="9.38231e-07 9.3814e-07 0.707073 0.707141">
+                                        <inertial pos="0.00021987 -2.3546e-10 0.030163" quat="0.707058 0.00723369 0.00723345 0.707081" mass="0.30915" diaginertia="0.00030737 0.000289758 0.000199102" />
+                                        <geom name="v_robotiq_85_base_link" type="mesh" contype="0" conaffinity="0" group="1" mesh="robotiq_85_base_link_fine" />
+                                        <geom name="c_robotiq_85_base_link" type="mesh" mesh="robotiq_85_base_link_coarse" />
+                                        <body name="left_outer_knuckle" pos="0.0306011 0 0.062792">
+                                            <inertial pos="0.0178332 3.68915e-11 0.00214425" quat="0.463241 0.534235 0.534235 0.463241" mass="0.00684839" diaginertia="1.38892e-06 1.28691e-06 2.45951e-07" />
+                                            <joint name="finger_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="0 0.8757" />
+                                            <geom name="v_left_outer_knuckle" type="mesh" contype="0" conaffinity="0" group="1" mesh="outer_knuckle_fine" />
+                                            <geom name="c_left_outer_knuckle" type="mesh" mesh="outer_knuckle_coarse" />
+                                            <body name="left_outer_finger" pos="0.031691 0 -0.00193396">
+                                                <inertial pos="0.00131452 0 0.0215404" quat="0.999536 0 -0.0304703 0" mass="0.0273094" diaginertia="8.53972e-06 6.91333e-06 2.22664e-06" />
+                                                <geom name="v_left_outer_finger" type="mesh" contype="0" conaffinity="0" group="1" mesh="outer_finger_fine" />
+                                                <geom name="c_left_outer_finger" type="mesh" mesh="outer_finger_coarse" />
+                                            </body>
+                                        </body>
+                                        <body name="left_inner_knuckle" pos="0.0127 0 0.0693075">
+                                            <inertial pos="0.0170975 -3.93809e-10 0.0224918" quat="0.947655 0 -0.319297 0" mass="0.0110931" diaginertia="5.59353e-06 3.96549e-06 1.88108e-06" />
+                                            <joint name="left_inner_knuckle_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="0 0.8757" />
+                                            <geom name="v_left_inner_knuckle" type="mesh" contype="0" conaffinity="0" group="1" mesh="inner_knuckle_fine" />
+                                            <geom name="c_left_inner_knuckle" type="mesh" mesh="inner_knuckle_coarse" />
+                                            <body name="left_inner_finger" pos="0.0345853 0 0.045497">
+                                                <inertial pos="0.00602756 0 0.00669926" quat="0.699065 0.106339 0.106339 0.699065" mass="0.00724255" diaginertia="1.70064e-06 1.58577e-06 3.69621e-07" />
+                                                <joint name="left_inner_finger_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.8757 0" />
+                                                <geom name="v_left_inner_finger" type="mesh" contype="0" conaffinity="0" group="1" mesh="inner_finger_fine" />
+                                                <geom name="c_left_inner_finger" type="mesh" mesh="inner_finger_coarse" />
+                                            </body>
+                                        </body>
+                                        <body name="right_inner_knuckle" pos="-0.0127 0 0.0693075" quat="0 0 0 1">
+                                            <inertial pos="0.0168606 3.93808e-10 0.02267" quat="0.949316 0 -0.314322 0" mass="0.0110931" diaginertia="5.59353e-06 3.96549e-06 1.88108e-06" />
+                                            <joint name="right_inner_knuckle_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.8757 0" />
+                                            <geom name="v_right_inner_knuckle" type="mesh" contype="0" conaffinity="0" group="1" mesh="inner_knuckle_fine" />
+                                            <geom name="c_right_inner_knuckle" type="mesh" mesh="inner_knuckle_coarse" />
+                                            <body name="right_inner_finger" pos="0.034106 0 0.0458574">
+                                                <inertial pos="0.00602756 0 0.00669926" quat="0.699065 0.106339 0.106339 0.699065" mass="0.00724255" diaginertia="1.70064e-06 1.58577e-06 3.69621e-07" />
+                                                <joint name="right_inner_finger_joint" pos="0 0 0" axis="0 1 0" limited="true" range="0 0.8757" />
+                                                <geom name="v_right_inner_finger" type="mesh" contype="0" conaffinity="0" group="1" mesh="inner_finger_fine" />
+                                                <geom name="c_right_inner_finger" type="mesh" mesh="inner_finger_coarse" />
+                                            </body>
+                                        </body>
+                                        <body name="right_outer_knuckle" pos="-0.0306011 0 0.062792" quat="0 0 0 1">
+                                            <inertial pos="0.0178097 3.60493e-11 0.00233123" quat="0.460432 0.536658 0.536658 0.460432" mass="0.00684839" diaginertia="1.38892e-06 1.28691e-06 2.45951e-07" />
+                                            <joint name="right_outer_knuckle_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.8757 0" />
+                                            <geom name="v_right_outer_knuckle" type="mesh" contype="0" conaffinity="0" group="1" mesh="outer_knuckle_fine" />
+                                            <geom name="c_right_outer_knuckle" type="mesh" mesh="outer_knuckle_coarse" />
+                                            <body name="right_outer_finger" pos="0.0317096 0 -0.00160136">
+                                                <inertial pos="0.00108844 0 0.021553" quat="0.999682 0 -0.0252262 0" mass="0.0273094" diaginertia="8.53972e-06 6.91333e-06 2.22664e-06" />
+                                                <geom name="v_right_outer_finger" type="mesh" contype="0" conaffinity="0" group="1" mesh="outer_finger_fine" />
+                                                <geom name="c_right_outer_finger" type="mesh" mesh="outer_finger_coarse" />
+                                            </body>
+                                        </body>
+                                    </body>
+                                </body>
+                            </body>
+                        </body!-->
+                    </body>
+                </body>
+            </body>
+        </body>
+
+        <!-- End goal and subgoal Visualizations -->
+
+        <!-- End Goal: Yellow -->
+        <body name="end_goal_upper_arm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 1 0 0.5" />
+        </body>
+
+        <body name="end_goal_forearm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 1 0 0.5" />
+        </body>
+
+        <body name="end_goal_wrist" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 1 0 0.5" />
+        </body>
+
+
+        <!-- Subgoal 1: Purple -->
+        <body name="subgoal_1_upper_arm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 0 1 0" />
+        </body>
+
+        <body name="subgoal_1_forearm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 0 1 0" />
+        </body>
+
+        <body name="subgoal_1_wrist_1" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="1 0 1 0" />
+        </body>
+
+        <!-- Subgoal 2: Green -->
+        <body name="subgoal_2_upper_arm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="0 1 0 0" />
+        </body>
+
+        <body name="subgoal_2_forearm" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="0 1 0 0" />
+        </body>
+
+        <body name="subgoal_2_wrist_1" pos="0 0 0" mocap="true">
+            <site type="box" size="0.06 0.06 0.06" rgba="0 1 0 0" />
+        </body>
+
+        <!-- Subgoal 3: Red -->
+        <body name="subgoal_3" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="1 0 0 0" />
+        </body>
+
+        <!-- Subgoal 4: Blue -->
+        <body name="subgoal_4" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="0 0 1 0" />
+        </body>
+
+        <!-- Subgoal 5: Cyan -->
+        <body name="subgoal_5" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="0 1 1 0" />
+        </body>
+
+        <!-- Subgoal 6: Orange -->
+        <body name="subgoal_6" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="1 0.65 0 0" />
+        </body>
+
+        <!-- Subgoal 7: Maroon -->
+        <body name="subgoal_7" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="0.5 0 0 0" />
+        </body>
+
+        <!-- Subgoal 8: Gray -->
+        <body name="subgoal_8" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="0.5 0.5 0.5 0" />
+        </body>
+
+        <!-- Subgoal 9: White -->
+        <body name="subgoal_9" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="1 1 1 0" />
+        </body>
+
+        <!-- Subgoal 10: Black -->
+        <body name="subgoal_10" pos="0 0 0" mocap="true">
+            <site type="box" size="0.08 0.08 0.08" rgba="0 0 0 0" />
+        </body>
+
+    </worldbody>
+    <actuator>
+        <general name="shoulder_pan_joint" joint="shoulder_pan_joint" ctrllimited="true" forcelimited="true" ctrlrange="-3.15 3.15" forcerange="-150 150" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <general name="shoulder_lift_joint" joint="shoulder_lift_joint" ctrllimited="true" forcelimited="true" ctrlrange="-5.0 5.0" forcerange="-150 150" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <general name="elbow_joint" joint="elbow_joint" ctrllimited="true" forcelimited="true" ctrlrange="-3.15 3.15" forcerange="-150 150" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <!--general name="wrist_1_joint" joint="wrist_1_joint" ctrllimited="true" forcelimited="true" ctrlrange="-3.15 3.15" forcerange="-28 28" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <general name="wrist_2_joint" joint="wrist_2_joint" ctrllimited="true" forcelimited="true" ctrlrange="-3.15 3.15" forcerange="-28 28" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <general name="wrist_3_joint" joint="wrist_3_joint" ctrllimited="true" forcelimited="true" ctrlrange="-3.15 3.15" forcerange="-28 28" biastype="affine" gainprm="10 0 0" biasprm="0 0 -10" />
+        <general name="finger_joint" joint="finger_joint" forcelimited="true" ctrlrange="0 0.27" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" />
+        <general name="left_inner_knuckle_joint" joint="left_inner_knuckle_joint" forcelimited="true" ctrlrange="0 0.27" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" />
+        <general name="left_inner_finger_joint" joint="left_inner_finger_joint" forcelimited="true" ctrlrange="0 -0.27" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" />
+        <general name="right_inner_knuckle_joint" joint="right_inner_knuckle_joint" forcelimited="true" ctrlrange="-0.27 0" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" />
+        <general name="right_inner_finger_joint" joint="right_inner_finger_joint" forcelimited="true" ctrlrange="0.27 0" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" />
+        <general name="right_outer_knuckle_joint" joint="right_outer_knuckle_joint" forcelimited="true" ctrlrange="-0.27 0" forcerange="-1000 1000" biastype="affine" gainprm="2.5 0 0" biasprm="0 -2.5 0" /-->
+    </actuator>
+</mujoco>
