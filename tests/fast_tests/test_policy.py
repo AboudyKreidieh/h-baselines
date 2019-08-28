@@ -110,8 +110,8 @@ class TestFeedForwardPolicy(unittest.TestCase):
              'model/pi/fc0/kernel:0',
              'model/pi/fc1/bias:0',
              'model/pi/fc1/kernel:0',
-             'model/pi/pi/bias:0',
-             'model/pi/pi/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
              'model/qf_0/fc0/bias:0',
              'model/qf_0/fc0/kernel:0',
              'model/qf_0/fc1/bias:0',
@@ -128,8 +128,8 @@ class TestFeedForwardPolicy(unittest.TestCase):
              'target/pi/fc0/kernel:0',
              'target/pi/fc1/bias:0',
              'target/pi/fc1/kernel:0',
-             'target/pi/pi/bias:0',
-             'target/pi/pi/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0',
              'target/qf_0/fc0/bias:0',
              'target/qf_0/fc0/kernel:0',
              'target/qf_0/fc1/bias:0',
@@ -252,8 +252,8 @@ class TestGoalDirectedPolicy(unittest.TestCase):
              'Manager/model/pi/fc0/kernel:0',
              'Manager/model/pi/fc1/bias:0',
              'Manager/model/pi/fc1/kernel:0',
-             'Manager/model/pi/pi/bias:0',
-             'Manager/model/pi/pi/kernel:0',
+             'Manager/model/pi/output/bias:0',
+             'Manager/model/pi/output/kernel:0',
              'Manager/model/qf_0/fc0/bias:0',
              'Manager/model/qf_0/fc0/kernel:0',
              'Manager/model/qf_0/fc1/bias:0',
@@ -270,8 +270,8 @@ class TestGoalDirectedPolicy(unittest.TestCase):
              'Manager/target/pi/fc0/kernel:0',
              'Manager/target/pi/fc1/bias:0',
              'Manager/target/pi/fc1/kernel:0',
-             'Manager/target/pi/pi/bias:0',
-             'Manager/target/pi/pi/kernel:0',
+             'Manager/target/pi/output/bias:0',
+             'Manager/target/pi/output/kernel:0',
              'Manager/target/qf_0/fc0/bias:0',
              'Manager/target/qf_0/fc0/kernel:0',
              'Manager/target/qf_0/fc1/bias:0',
@@ -288,8 +288,8 @@ class TestGoalDirectedPolicy(unittest.TestCase):
              'Worker/model/pi/fc0/kernel:0',
              'Worker/model/pi/fc1/bias:0',
              'Worker/model/pi/fc1/kernel:0',
-             'Worker/model/pi/pi/bias:0',
-             'Worker/model/pi/pi/kernel:0',
+             'Worker/model/pi/output/bias:0',
+             'Worker/model/pi/output/kernel:0',
              'Worker/model/qf_0/fc0/bias:0',
              'Worker/model/qf_0/fc0/kernel:0',
              'Worker/model/qf_0/fc1/bias:0',
@@ -306,8 +306,8 @@ class TestGoalDirectedPolicy(unittest.TestCase):
              'Worker/target/pi/fc0/kernel:0',
              'Worker/target/pi/fc1/bias:0',
              'Worker/target/pi/fc1/kernel:0',
-             'Worker/target/pi/pi/bias:0',
-             'Worker/target/pi/pi/kernel:0',
+             'Worker/target/pi/output/bias:0',
+             'Worker/target/pi/output/kernel:0',
              'Worker/target/qf_0/fc0/bias:0',
              'Worker/target/qf_0/fc0/kernel:0',
              'Worker/target/qf_0/fc1/bias:0',
@@ -444,7 +444,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.902073e-03, -3.915521e-03, -1.596316e-08])
+            error, [-3.918604e-03, -3.920621e-03, -8.046365e-08])
 
         # Test the _sample_best_meta_action method.  FIXME
 
