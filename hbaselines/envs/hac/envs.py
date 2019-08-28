@@ -55,7 +55,7 @@ class Environment(gym.Env):
                  random_contexts=False,
                  context_range=None,
                  max_actions=1200,
-                 num_frames_skip=10,
+                 num_frames_skip=1,
                  show=False):
         """Instantiate the Environment object.
 
@@ -187,10 +187,10 @@ class Environment(gym.Env):
         # Success is defined as TODO
         info_dict = {
             'is_success':
-                np.absolute(self.project_state_to_end_goal(self.sim, obs)
-                            - self.get_state())
-                < self.end_goal_thresholds
-        }  # FIXME
+                all(np.absolute(self.project_state_to_end_goal(self.sim, obs)
+                                - self.current_context)
+                    < self.end_goal_thresholds)
+        }
 
         return obs, reward, done, info_dict
 
@@ -510,7 +510,7 @@ class Pendulum(Environment):
         max_actions = 1000
 
         # number of time steps per atomic action.
-        timesteps_per_action = 10
+        timesteps_per_action = 1
 
         # file name of Mujoco model. This file is stored in the "assets" folder
         model_name = "pendulum.xml"

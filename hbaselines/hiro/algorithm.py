@@ -181,18 +181,18 @@ class TD3(object):
         the cumulative return from the last 100 training episodes
     episode_reward : float
         the cumulative reward since the most reward began
-    saver : tf.train.Saver
+    saver : tf.compat.v1.train.Saver
         tensorflow saver object
-    rew_ph : tf.placeholder
+    rew_ph : tf.compat.v1.placeholder
         a placeholder for the average training return for the last epoch. Used
         for logging purposes.
-    rew_history_ph : tf.placeholder
+    rew_history_ph : tf.compat.v1.placeholder
         a placeholder for the average training return for the last 100
         episodes. Used for logging purposes.
-    eval_rew_ph : tf.placeholder
+    eval_rew_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation return from the last time
         evaluations occured. Used for logging purposes.
-    eval_success_ph : tf.placeholder
+    eval_success_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation success rate from the last time
         evaluations occured. Used for logging purposes.
     """
@@ -381,7 +381,7 @@ class TD3(object):
             trainable_vars = self.setup_model()
 
             # Create a saver object.
-            self.saver = tf.train.Saver(trainable_vars)
+            self.saver = tf.compat.v1.train.Saver(trainable_vars)
 
     @staticmethod
     def _create_env(env, evaluate=False):
@@ -526,31 +526,35 @@ class TD3(object):
 
             # for tensorboard logging
             with tf.variable_scope("Train"):
-                self.rew_ph = tf.placeholder(tf.float32)
-                self.rew_history_ph = tf.placeholder(tf.float32)
+                self.rew_ph = tf.compat.v1.placeholder(tf.float32)
+                self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
             with tf.variable_scope("Evaluate"):
-                self.eval_rew_ph = tf.placeholder(tf.float32)
-                self.eval_success_ph = tf.placeholder(tf.float32)
+                self.eval_rew_ph = tf.compat.v1.placeholder(tf.float32)
+                self.eval_success_ph = tf.compat.v1.placeholder(tf.float32)
 
             # Add tensorboard scalars for the return, return history, and
             # success rate.
-            tf.summary.scalar("Train/return", self.rew_ph)
-            tf.summary.scalar("Train/return_history", self.rew_history_ph)
+            tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
+            tf.compat.v1.summary.scalar("Train/return_history",
+                                        self.rew_history_ph)
             # FIXME
             # if self.eval_env is not None:
             #     eval_success_ph = self.eval_success_ph
-            #     tf.summary.scalar("Evaluate/return", self.eval_rew_ph)
-            #     tf.summary.scalar("Evaluate/success_rate", eval_success_ph)
+            #     tf.compat.v1.summary.scalar("Evaluate/return",
+            #                                 self.eval_rew_ph)
+            #     tf.compat.v1.summary.scalar("Evaluate/success_rate",
+            #                                 eval_success_ph)
 
             # Create the tensorboard summary.
-            self.summary = tf.summary.merge_all()
+            self.summary = tf.compat.v1.summary.merge_all()
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
                 self.sess.run(tf.global_variables_initializer())
                 self.policy_tf.initialize()
 
-            return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+            return tf.compat.v1.get_collection(
+                tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
     def _policy(self, obs, apply_noise=True, compute_q=True, **kwargs):
         """Get the actions and critic output, from a given observation.
@@ -653,7 +657,7 @@ class TD3(object):
 
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
-        writer = tf.summary.FileWriter(save_path)
+        writer = tf.compat.v1.summary.FileWriter(save_path)
 
         # file path for training and evaluation results
         train_filepath = os.path.join(log_dir, "train.csv")
@@ -662,7 +666,7 @@ class TD3(object):
         # Setup the seed value.
         random.seed(seed)
         np.random.seed(seed)
-        tf.set_random_seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
         if self.verbose >= 2:
             logging.info('Using agent with the following configuration:')

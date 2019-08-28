@@ -40,7 +40,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -0.14142135624084504
+            -1.4142135624084504
         )
 
         # test AntPush
@@ -48,7 +48,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -0.14142135624084504
+            -1.4142135624084504
         )
 
         # test AntFall
@@ -56,7 +56,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
-            -0.17320508075977448
+            -1.7320508075977448
         )
 
         # test context_space
@@ -140,6 +140,7 @@ class TestUR5(unittest.TestCase):
                            (-np.pi / 4, 0),
                            (-np.pi / 4, np.pi / 4)]
         )
+        self.env.reset()
 
     def tearDown(self):
         del self.env
@@ -158,14 +159,10 @@ class TestUR5(unittest.TestCase):
         self.assertEqual(len(self.env.context_range), 3)
         np.testing.assert_array_almost_equal(
             self.env.end_goal_thresholds, [0.17453293 for _ in range(3)])
-        self.assertEqual(
-            self.env.initial_state_space,
-            [(-0.39269908, 0.39269908), (0.00322758, 0.00322758),
-             (-0.12794455, -0.12794455), (0, 0), (0, 0), (0, 0)])
         self.assertEqual(self.env.max_actions, 600)
         self.assertEqual(self.env.visualize, False)
         self.assertEqual(self.env.viewer, None)
-        self.assertEqual(self.env.num_frames_skip, 15)
+        self.assertEqual(self.env.num_frames_skip, 1)
 
     def test_step(self):
         """Ensure the step method is functioning properly.
@@ -205,6 +202,7 @@ class TestPendulum(unittest.TestCase):
             random_contexts=True,
             context_range=[(np.deg2rad(-16), np.deg2rad(16)), (-0.6, 0.6)]
         )
+        self.env.reset()
 
     def tearDown(self):
         del self.env
@@ -221,16 +219,13 @@ class TestPendulum(unittest.TestCase):
         self.assertEqual(len(self.env.context_range), 2)
         np.testing.assert_array_almost_equal(
             self.env.end_goal_thresholds, [0.16580628, 0.6])
-        np.testing.assert_array_almost_equal(
-            self.env.initial_state_space,
-            [[0.78539816, 5.49778714], [-0.05, 0.05]])
         self.assertEqual(
             self.env.context_range,
             [(-0.2792526803190927, 0.2792526803190927), (-0.6, 0.6)])
         self.assertEqual(self.env.max_actions, 1000)
         self.assertEqual(self.env.visualize, False)
         self.assertEqual(self.env.viewer, None)
-        self.assertEqual(self.env.num_frames_skip, 10)
+        self.assertEqual(self.env.num_frames_skip, 1)
 
     def test_step(self):
         """Ensure the step method is functioning properly.

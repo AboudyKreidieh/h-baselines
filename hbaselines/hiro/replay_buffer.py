@@ -186,20 +186,15 @@ class HierReplayBuffer(ReplayBuffer):
             * list of numpy.ndarray: the meta action (goal) for each meta
               period
             * list of float: the meta reward for each meta period
-              FIXME: maybe numpy.ndarray
             * list of list of numpy.ndarray: all observations for the worker
               for each meta period
-              FIXME: maybe list of numpy.ndarray
             * list of list of numpy.ndarray: all actions for the worker for
               each meta period
-              FIXME: maybe list of numpy.ndarray
             * list of list of float: all rewards for the worker for each meta
               period
-              FIXME: maybe list of numpy.ndarray
             * list of list of float: all done masks for the worker for each
               meta period. The last done mask corresponds to the done mask of
               the manager
-              FIXME: maybe list of numpy.ndarray
         """
         ret = []
         for i in idxes:

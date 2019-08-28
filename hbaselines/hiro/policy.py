@@ -196,17 +196,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the activation function to use in the neural network
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
-    critic_target : tf.placeholder
+    critic_target : tf.compat.v1.placeholder
         a placeholder for the current-step estimate of the target Q values
-    terminals1 : tf.placeholder
+    terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals
-    rew_ph : tf.placeholder
+    rew_ph : tf.compat.v1.placeholder
         placeholder for the rewards
-    action_ph : tf.placeholder
+    action_ph : tf.compat.v1.placeholder
         placeholder for the actions
-    obs_ph : tf.placeholder
+    obs_ph : tf.compat.v1.placeholder
         placeholder for the observations
-    obs1_ph : tf.placeholder
+    obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
     obs_rms : stable_baselines.common.mpi_running_mean_std.RunningMeanStd
         an object that computes the running mean and standard deviations for
@@ -374,34 +374,34 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
         with tf.variable_scope("input", reuse=False):
-            self.critic_target = tf.placeholder(
+            self.critic_target = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
                 name='critic_target')
-            self.terminals1 = tf.placeholder(
+            self.terminals1 = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
                 name='terminals1')
-            self.rew_ph = tf.placeholder(
+            self.rew_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
                 name='rewards')
-            self.action_ph = tf.placeholder(
+            self.action_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ac_space.shape,
                 name='actions')
-            self.obs_ph = tf.placeholder(
+            self.obs_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='observations')
-            self.obs1_ph = tf.placeholder(
+            self.obs1_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='observations')
 
         # logging of rewards to tensorboard
         with tf.variable_scope("input_info", reuse=False):
-            tf.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
+            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
 
         # =================================================================== #
         # Step 3: Additional (optional) normalizing terms.                    #
@@ -476,7 +476,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             q_obs1 = denormalize(q_obs1, self.ret_rms)
             self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
 
-            tf.summary.scalar('critic_target', tf.reduce_mean(self.target_q))
+            tf.compat.v1.summary.scalar('critic_target',
+                                        tf.reduce_mean(self.target_q))
 
         # Create the target update operations.
         model_scope = 'model/'
@@ -498,8 +499,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.variable_scope("Adam_mpi", reuse=False):
             self._setup_actor_optimizer(scope=scope)
             self._setup_critic_optimizer(scope=scope)
-            tf.summary.scalar('actor_loss', self.actor_loss)
-            tf.summary.scalar('critic_loss', self.critic_loss)
+            tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
+            tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
 
         # =================================================================== #
         # Step 6: Setup the operations for computing model statistics.        #
@@ -549,7 +550,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.return_range[1])
 
         self.critic_loss = sum(
-            tf.losses.huber_loss(
+            tf.compat.v1.losses.huber_loss(
                 self.normalized_critic_tf[i], normalized_critic_target_tf)
             for i in range(2)
         )
@@ -612,7 +613,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs : tf.placeholder
+        obs : tf.compat.v1.placeholder
             the input observation placeholder
         reuse : bool
             whether or not to reuse parameters
@@ -637,40 +638,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 pi_h = self.activ(pi_h)
 
             # create the output layer
-            if any(np.isinf(self.ac_space.high)) \
-                    or any(np.isinf(self.ac_space.low)):
-                # no nonlinearity to the output if the action space is not
-                # bounded
-                policy = tf.layers.dense(
-                    pi_h,
-                    self.ac_space.shape[0],
-                    name='output',
-                    kernel_initializer=tf.random_uniform_initializer(
-                        minval=-3e-3, maxval=3e-3))
-            else:
-                # tanh nonlinearity with an added offset and scale is the
-                # action space is bounded
-                policy = tf.nn.tanh(tf.layers.dense(
-                    pi_h,
-                    self.ac_space.shape[0],
-                    name='output',
-                    kernel_initializer=tf.random_uniform_initializer(
-                        minval=-3e-3, maxval=3e-3)))
+            policy = tf.nn.tanh(tf.layers.dense(
+                pi_h,
+                self.ac_space.shape[0],
+                name='output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)))
 
-                # scaling terms to the output from the actor
-                action_means = tf.expand_dims(
-                    tf.constant((self.ac_space.high + self.ac_space.low) / 2.,
-                                dtype=tf.float32),
-                    0
-                )
-                action_magnitudes = tf.expand_dims(
-                    tf.constant((self.ac_space.high - self.ac_space.low) / 2.,
-                                dtype=tf.float32),
-                    0
-                )
+            # scaling terms to the output from the policy
+            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-                policy = tf.add(action_means,
-                                tf.multiply(action_magnitudes, policy))
+            policy = ac_means + ac_magnitudes * policy
 
         return policy
 
@@ -679,9 +658,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs : tf.placeholder
+        obs : tf.compat.v1.placeholder
             the input observation placeholder
-        action : tf.placeholder
+        action : tf.compat.v1.placeholder
             the input action placeholder
         reuse : bool
             whether or not to reuse parameters
@@ -889,7 +868,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Add all names and ops to the tensorboard summary.
         for op, name in zip(ops, names):
-            tf.summary.scalar(name, op)
+            tf.compat.v1.summary.scalar(name, op)
 
         return ops, names
 
@@ -1280,11 +1259,12 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
 
         # remove the last element to compute the reward FIXME
-        # if self.use_fingerprints:
-        #     state_indices = list(np.arange(
-        #         0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
-        # else:
-        #     state_indices = None
+        if self.use_fingerprints:
+            state_indices = list(np.arange(
+                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
+        else:
+            state_indices = None
+
         if env_name in ["AntMaze", "AntPush", "AntFall"]:
             state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
         elif env_name == "UR5":
@@ -1519,7 +1499,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                     reward_t=self._worker_rewards,
                     done=self._dones,
                     meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=self.meta_reward,
+                    meta_reward_t=0.1*self.meta_reward,
                 )
 
                 # Reset the meta reward.

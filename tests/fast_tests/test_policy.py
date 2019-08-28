@@ -167,7 +167,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
              self.policy_params['co_space'].shape[0]))
 
         # Clear the graph.
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
     def test_normalization(self):
         """Test the normalizers for the observations and reward."""
@@ -224,7 +224,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         del self.policy_params
 
         # Clear the graph.
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
@@ -333,7 +333,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         )
 
         # Clear the graph.
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
     def test_store_transition(self):
         """Test the `store_transition` method."""
@@ -350,7 +350,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         del policy
 
         # Clear the graph.
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
         # Test for a meta period of 10.
         policy_params = self.policy_params.copy()
@@ -384,7 +384,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         # Set a random variable seed.
         np.random.seed(1)
         random.seed(1)
-        tf.set_random_seed(1)
+        tf.compat.v1.set_random_seed(1)
 
         policy_params = self.policy_params.copy()
         policy_params["relative_goals"] = True
