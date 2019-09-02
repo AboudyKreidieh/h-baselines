@@ -58,10 +58,12 @@ class DummyData(object):
             self.qpos = np.zeros(1)
             self.qvel = np.zeros(1)
             self.ctrl = np.zeros(1)
+            self.mocap_pos = np.zeros(1)
         elif model_name == "ur5":
             self.qpos = np.zeros(3)
             self.qvel = np.zeros(3)
             self.ctrl = np.zeros(3)
+            self.mocap_pos = np.zeros(3)
 
         # variables that need to be defined for any mujoco model object
         self.actuator_ctrlrange = None
