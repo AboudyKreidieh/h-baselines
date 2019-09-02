@@ -18,7 +18,7 @@ def load_model_from_path(path):
     elif "ur5" in path:
         model_name = "ur5"
     else:
-        model_name = "unknown"
+        raise NotImplementedError("Unknown model path {}".format(path))
 
     return model_name
 
@@ -52,18 +52,19 @@ class DummyData(object):
         self.qpos = None
         self.qvel = None
         self.ctrl = None
+        self.mocap_pos = None
 
         # update the aforementioned variables if the model is known
         if model_name == "pendulum":
             self.qpos = np.zeros(1)
             self.qvel = np.zeros(1)
             self.ctrl = np.zeros(1)
-            self.mocap_pos = np.zeros(1)
+            self.mocap_pos = [None for _ in range(1)]
         elif model_name == "ur5":
             self.qpos = np.zeros(3)
             self.qvel = np.zeros(3)
             self.ctrl = np.zeros(3)
-            self.mocap_pos = np.zeros(3)
+            self.mocap_pos = [None for _ in range(3)]
 
         # variables that need to be defined for any mujoco model object
         self.actuator_ctrlrange = None
