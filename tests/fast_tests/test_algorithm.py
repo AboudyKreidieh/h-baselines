@@ -113,8 +113,8 @@ class TestTD3(unittest.TestCase):
              'model/pi/fc0/kernel:0',
              'model/pi/fc1/bias:0',
              'model/pi/fc1/kernel:0',
-             'model/pi/pi/bias:0',
-             'model/pi/pi/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
              'model/qf_0/fc0/bias:0',
              'model/qf_0/fc0/kernel:0',
              'model/qf_0/fc1/bias:0',
@@ -131,8 +131,8 @@ class TestTD3(unittest.TestCase):
              'target/pi/fc0/kernel:0',
              'target/pi/fc1/bias:0',
              'target/pi/fc1/kernel:0',
-             'target/pi/pi/bias:0',
-             'target/pi/pi/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0',
              'target/qf_0/fc0/bias:0',
              'target/qf_0/fc0/kernel:0',
              'target/qf_0/fc1/bias:0',
@@ -165,8 +165,8 @@ class TestTD3(unittest.TestCase):
              'Manager/model/pi/fc0/kernel:0',
              'Manager/model/pi/fc1/bias:0',
              'Manager/model/pi/fc1/kernel:0',
-             'Manager/model/pi/pi/bias:0',
-             'Manager/model/pi/pi/kernel:0',
+             'Manager/model/pi/output/bias:0',
+             'Manager/model/pi/output/kernel:0',
              'Manager/model/qf_0/fc0/bias:0',
              'Manager/model/qf_0/fc0/kernel:0',
              'Manager/model/qf_0/fc1/bias:0',
@@ -183,8 +183,8 @@ class TestTD3(unittest.TestCase):
              'Manager/target/pi/fc0/kernel:0',
              'Manager/target/pi/fc1/bias:0',
              'Manager/target/pi/fc1/kernel:0',
-             'Manager/target/pi/pi/bias:0',
-             'Manager/target/pi/pi/kernel:0',
+             'Manager/target/pi/output/bias:0',
+             'Manager/target/pi/output/kernel:0',
              'Manager/target/qf_0/fc0/bias:0',
              'Manager/target/qf_0/fc0/kernel:0',
              'Manager/target/qf_0/fc1/bias:0',
@@ -201,8 +201,8 @@ class TestTD3(unittest.TestCase):
              'Worker/model/pi/fc0/kernel:0',
              'Worker/model/pi/fc1/bias:0',
              'Worker/model/pi/fc1/kernel:0',
-             'Worker/model/pi/pi/bias:0',
-             'Worker/model/pi/pi/kernel:0',
+             'Worker/model/pi/output/bias:0',
+             'Worker/model/pi/output/kernel:0',
              'Worker/model/qf_0/fc0/bias:0',
              'Worker/model/qf_0/fc0/kernel:0',
              'Worker/model/qf_0/fc1/bias:0',
@@ -219,8 +219,8 @@ class TestTD3(unittest.TestCase):
              'Worker/target/pi/fc0/kernel:0',
              'Worker/target/pi/fc1/bias:0',
              'Worker/target/pi/fc1/kernel:0',
-             'Worker/target/pi/pi/bias:0',
-             'Worker/target/pi/pi/kernel:0',
+             'Worker/target/pi/output/bias:0',
+             'Worker/target/pi/output/kernel:0',
              'Worker/target/qf_0/fc0/bias:0',
              'Worker/target/qf_0/fc0/kernel:0',
              'Worker/target/qf_0/fc1/bias:0',
@@ -244,7 +244,7 @@ class TestTD3(unittest.TestCase):
         alg = TD3(**policy_params)
 
         # Run the learn operation for zero timesteps.
-        alg.learn(0, log_dir='results')
+        alg.learn(0, log_dir='results', start_timesteps=0)
         self.assertEqual(alg.episode_reward, 0)
         self.assertEqual(alg.episode_step, 0)
         self.assertEqual(alg.episodes, 0)
@@ -261,10 +261,14 @@ class TestTD3(unittest.TestCase):
         shutil.rmtree('results')
 
         # Test the seeds.
-        alg.learn(0, log_dir='results', seed=1)
-        self.assertEqual(np.random.sample(), 0.417022004702574)
+        alg.learn(0, log_dir='results', seed=1, start_timesteps=0)
+        self.assertEqual(np.random.sample(), 0.15679139464608427)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
+
+    def test_learn_start_timesteps(self):
+        """TODO"""
+        pass
 
     def test_collect_samples(self):
         """Validate the functionality of the _collect_samples method."""
@@ -314,7 +318,7 @@ class TestTD3(unittest.TestCase):
         # Validate that observations include the fingerprints elements upon
         # initializing the `learn` procedure and  during a step in the
         # `_collect_samples` method.
-        alg.learn(1, log_dir='results', log_interval=1)
+        alg.learn(1, log_dir='results', log_interval=1, start_timesteps=0)
         self.assertEqual(
             len(alg.obs),
             alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
@@ -323,7 +327,7 @@ class TestTD3(unittest.TestCase):
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
-        alg.learn(500, log_dir='results', log_interval=500)
+        alg.learn(500, log_dir='results', log_interval=500, start_timesteps=0)
         self.assertEqual(
             len(alg.obs),
             alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])

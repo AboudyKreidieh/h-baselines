@@ -209,6 +209,8 @@ class AntMaze(UniversalAntMazeEnv):
                  context_range=None):
         """Initialize the Ant Maze environment.
 
+        Parameters
+        ----------
         use_contexts : bool, optional
             specifies whether to add contexts to the observations and add the
             contextual rewards
@@ -265,6 +267,8 @@ class AntPush(UniversalAntMazeEnv):
                  context_range=None):
         """Initialize the Ant Push environment.
 
+        Parameters
+        ----------
         use_contexts : bool, optional
             specifies whether to add contexts to the observations and add the
             contextual rewards
@@ -323,6 +327,8 @@ class AntFall(UniversalAntMazeEnv):
                  context_range=None):
         """Initialize the Ant Fall environment.
 
+        Parameters
+        ----------
         use_contexts : bool, optional
             specifies whether to add contexts to the observations and add the
             contextual rewards

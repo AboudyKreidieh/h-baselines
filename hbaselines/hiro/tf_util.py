@@ -50,7 +50,8 @@ def get_trainable_vars(name=None):
     list of tf.Variable
         trainable variables
     """
-    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+    return tf.compat.v1.get_collection(
+        tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
 
 def get_globals_vars(name=None):
@@ -66,7 +67,8 @@ def get_globals_vars(name=None):
     list of tf.Variable
         global variables
     """
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+    return tf.compat.v1.get_collection(
+        tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=name)
 
 
 def normalize(tensor, stats):
@@ -182,9 +184,9 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     for var, target_var in zip(_vars, target_vars):
         if verbose >= 2:
             logger.info('  {} <- {}'.format(target_var.name, var.name))
-        init_updates.append(tf.assign(target_var, var))
+        init_updates.append(tf.compat.v1.assign(target_var, var))
         soft_updates.append(
-            tf.assign(target_var, (1. - tau) * target_var + tau * var))
+            tf.compat.v1.assign(target_var, (1.-tau) * target_var + tau * var))
 
     assert len(init_updates) == len(_vars)
     assert len(soft_updates) == len(_vars)
