@@ -1395,7 +1395,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                     rewards=meta_rew,
                     obs1=meta_obs1,
                     terminals1=meta_done
-            )
+                )
             else:
                 m_critic_loss, m_actor_loss = 0, 0
         self.i += 1
