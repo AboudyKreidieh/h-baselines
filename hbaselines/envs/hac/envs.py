@@ -106,7 +106,7 @@ class Environment(gym.Env):
         # Implement visualization if necessary
         self.visualize = show  # Visualization boolean
         if self.visualize:
-            self.viewer = mujoco_py.MjViewer(self.sim)
+            self.viewer = mujoco_py.MjViewer(self.sim)  # pragma: no cover
         else:
             self.viewer = None
         self.num_frames_skip = num_frames_skip
@@ -173,7 +173,7 @@ class Environment(gym.Env):
             self.sim.step()
             self.num_steps += 1
             if self.visualize:
-                self.render()
+                self.render()  # pragma: no cover
 
         obs = self.get_state()
 
@@ -218,7 +218,7 @@ class Environment(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='human'):
-        self.viewer.render()
+        self.viewer.render()  # pragma: no cover
 
     @property
     def context_space(self):

@@ -6,7 +6,7 @@ omit =
     */setup.py
 
 exclude_lines =
+    pragma: no cover
     if __name__ == .__main__.:
     raise NotImplementedError
-    @ray.remote
     def _create_env*
