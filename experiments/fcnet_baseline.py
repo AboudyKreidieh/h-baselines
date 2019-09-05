@@ -6,7 +6,6 @@ network models on various environments.
 import os
 import csv
 from time import strftime
-import ray
 import sys
 
 from hbaselines.common.train import ensure_dir
@@ -16,7 +15,6 @@ from hbaselines.hiro import TD3, FeedForwardPolicy
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
-@ray.remote
 def run_exp(env, hp, steps, dir_name, evaluate, i):
     """Run a single training procedure.
 
@@ -66,9 +64,8 @@ def main(args, base_dir):
         w.writeheader()
         w.writerow(hp)
 
-    ray.get([run_exp.remote(args.env_name, hp, args.steps, dir_name,
-                            args.evaluate, i)
-             for i in range(args.n_training)])
+    for i in range(args.n_training):
+        run_exp(args.env_name, hp, args.steps, dir_name, args.evaluate, i)
 
 
 if __name__ == '__main__':
@@ -79,9 +76,6 @@ if __name__ == '__main__':
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
-
-    # start the ray instance with the requested number of CPUs
-    ray.init(num_cpus=args.n_cpus)
 
     # execute the training procedure
     main(args, 'data/fcnet')
