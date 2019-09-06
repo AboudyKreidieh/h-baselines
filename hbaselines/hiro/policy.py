@@ -1163,6 +1163,36 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             manager_ac_space = Box(low=np.array([-np.pi, -15]),
                                    high=np.array([np.pi, 15]),
                                    dtype=np.float32)
+        elif env_name == "figureeight0":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(1,), dtype=np.float32)
+        elif env_name == "figureeight1":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(7,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(7,), dtype=np.float32)
+        elif env_name == "figureeight2":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(14,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(14,), dtype=np.float32)
+        elif env_name == "merge0":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(5,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(5,), dtype=np.float32)
+        elif env_name == "merge1":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(13,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(13,), dtype=np.float32)
+        elif env_name == "merge2":
+            if self.relative_goals:
+                manager_ac_space = Box(-.5, .5, shape=(17,), dtype=np.float32)
+            else:
+                manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
         else:
             if self.use_fingerprints:
                 low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
@@ -1271,6 +1301,18 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             state_indices = None
         elif env_name == "Pendulum":
             state_indices = [0, 2]
+        elif env_name == "figureeight0":
+            state_indices = [13]
+        elif env_name == "figureeight1":
+            state_indices = [i for i in range(1, 14, 2)]
+        elif env_name == "figureeight2":
+            state_indices = [i for i in range(14)]
+        elif env_name == "merge0":
+            state_indices = [5 * i for i in range(5)]
+        elif env_name == "merge1":
+            state_indices = [5 * i for i in range(13)]
+        elif env_name == "merge2":
+            state_indices = [5 * i for i in range(17)]
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):

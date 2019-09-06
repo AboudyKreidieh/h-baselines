@@ -2,13 +2,10 @@
 import unittest
 import os
 import shutil
-import ray
 
 from hbaselines.common.train import parse_options
 from experiments.fcnet_baseline import main as fcnet_baseline
 from experiments.hiro_baseline import main as hiro_baseline
-
-ray.init(num_cpus=1, redirect_output=True)
 
 
 class TestExperimentRunnerScripts(unittest.TestCase):

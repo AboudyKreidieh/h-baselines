@@ -460,7 +460,7 @@ class TD3(object):
             flow_params = benchmark.flow_params
 
             # Get the env name and a creator for the environment.
-            create_env, env_name = make_create_env(flow_params, version=0)
+            create_env, _ = make_create_env(flow_params, version=0)
 
             # Create the environment.
             env = create_env()
@@ -1015,12 +1015,9 @@ class TD3(object):
         combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
 
         combined_stats_sums = MPI.COMM_WORLD.allreduce(
-            np.array([as_scalar(x)
-                      for x in combined_stats.values()]))
-        combined_stats = {
-            k: v / mpi_size for (k, v) in
-            zip(combined_stats.keys(), combined_stats_sums)
-        }
+            np.array([as_scalar(x) for x in combined_stats.values()]))
+        combined_stats = {k: v / mpi_size for (k, v) in
+                          zip(combined_stats.keys(), combined_stats_sums)}
 
         # Total statistics.
         combined_stats['total/epochs'] = self.epoch + 1

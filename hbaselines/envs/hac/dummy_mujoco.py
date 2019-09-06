@@ -26,7 +26,7 @@ def load_model_from_path(path):
 class MjViewer(object):
 
     def __init__(self, *_):
-        pass
+        pass  # pragma: no cover
 
 
 class MjSim(object):
@@ -42,7 +42,7 @@ class MjSim(object):
 class DummyModel(object):
 
     def __init__(self, model_name):
-        pass
+        pass  # pragma: no cover
 
 
 class DummyData(object):
