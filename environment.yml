@@ -4,7 +4,6 @@ dependencies:
     - python==3.6.8
     - numpy==1.16.0
     - pip:
-        - ray==0.6.1
         - redis==2.10.6
         - stable-baselines==2.6.0
         - gym==0.14.0
