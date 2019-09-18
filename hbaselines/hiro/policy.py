@@ -420,7 +420,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.target_soft_updates = soft_updates
 
         # =================================================================== #
-        # Step 5: Setup the optimizers for the actor and critic.              #
+        # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
         with tf.variable_scope("Adam_mpi", reuse=False):
@@ -430,7 +430,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
 
         # =================================================================== #
-        # Step 6: Setup the operations for computing model statistics.        #
+        # Step 5: Setup the operations for computing model statistics.        #
         # =================================================================== #
 
         self.stats_sample = None
