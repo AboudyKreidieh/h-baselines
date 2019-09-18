@@ -71,46 +71,6 @@ def get_globals_vars(name=None):
         tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=name)
 
 
-def normalize(tensor, stats):
-    """Normalize a tensor using a running mean and std.
-
-    Parameters
-    ----------
-    tensor : tf.Tensor
-        the input tensor
-    stats : RunningMeanStd
-        the running mean and std of the input to normalize
-
-    Returns
-    -------
-    tf.Tensor
-        the normalized tensor
-    """
-    if stats is None:
-        return tensor
-    return (tensor - stats.mean) / stats.std
-
-
-def denormalize(tensor, stats):
-    """Denormalize a tensor using a running mean and std.
-
-    Parameters
-    ----------
-    tensor : tf.Variable
-        the normalized tensor
-    stats : RunningMeanStd
-        the running mean and std of the input to normalize
-
-    Returns
-    -------
-    tf.Tensor
-        the restored tensor
-    """
-    if stats is None:
-        return tensor
-    return tensor * stats.std + stats.mean
-
-
 def reduce_std(tensor, axis=None, keepdims=False):
     """Get the standard deviation of a Tensor.
 
