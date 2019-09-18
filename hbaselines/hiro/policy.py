@@ -400,7 +400,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         with tf.variable_scope("loss", reuse=False):
             q_obs1 = tf.minimum(critic_target[0], critic_target[1])
-            self.target_q = self.rew_ph + (1-self.terminals1) * gamma * q_obs1
+            self.target_q = tf.stop_gradient(
+                self.rew_ph + (1. - self.terminals1) * gamma * q_obs1)
 
             tf.compat.v1.summary.scalar('critic_target',
                                         tf.reduce_mean(self.target_q))
