@@ -10,9 +10,19 @@ dist: trusty
 sudo: required
 
 install:
+  # Setup conda.
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - export TEST_FLAG="True"
+
   # dependencies for mpi4py
   - sudo apt-get install libopenmpi-dev
   - sudo apt-get install openmpi-bin
+
+  # Create the h-baselines conda environment.
+  - conda env create -f environment.yml
+  - source activate h-baselines
 
   # other packages to install
   - pip install flake8
