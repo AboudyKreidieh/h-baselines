@@ -1,6 +1,5 @@
 """Utility methods when performing training."""
 import argparse
-import numpy as np
 import os
 import errno
 
@@ -9,12 +8,9 @@ DEFAULT_TD3_HP = dict(
     nb_train_steps=1,
     nb_rollout_steps=1,
     nb_eval_episodes=50,
-    normalize_observations=False,
     tau=0.005,
     batch_size=100,
-    normalize_returns=False,
     critic_l2_reg=0.,
-    return_range=(-np.inf, np.inf),
     actor_lr=1e-4,
     critic_lr=1e-3,
     clip_norm=None,
@@ -37,10 +33,8 @@ def get_hyperparameters(args):
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
-        "normalize_observations": args.normalize_observations,
         "tau": args.tau,
         "batch_size": args.batch_size,
-        # "normalize_returns": args.normalize_returns,
         "critic_l2_reg": args.critic_l2_reg,
         "actor_lr": args.actor_lr,
         "critic_lr": args.critic_lr,
@@ -147,9 +141,6 @@ def create_td3_parser(parser):
                         type=int,
                         default=DEFAULT_TD3_HP['nb_eval_episodes'],
                         help='the number of evaluation episodes')
-    parser.add_argument('--normalize_observations',
-                        action='store_true',
-                        help='should the observation be normalized')
     parser.add_argument('--render',
                         action='store_true',
                         help='enable rendering of the environment')

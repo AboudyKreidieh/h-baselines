@@ -10,7 +10,6 @@ import time
 from collections import deque
 import csv
 import random
-import logging
 from copy import deepcopy
 import gym
 from gym.spaces import Box
@@ -82,18 +81,12 @@ class TD3(object):
         the number of rollout steps
     nb_eval_episodes : int
         the number of evaluation episodes
-    normalize_observations : bool
-        should the observation be normalized
     tau : float
         the soft update coefficient (keep old values, between 0 and 1)
     batch_size : int
         the size of the batch for learning the policy
-    normalize_returns : bool
-        should the critic output be normalized
     critic_l2_reg : float
         l2 regularizer coefficient
-    return_range : (float, float)
-        the bounding values for the critic output
     actor_lr : float
         the actor learning rate
     critic_lr : float
@@ -207,12 +200,9 @@ class TD3(object):
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
-                 normalize_observations=False,
                  tau=0.001,
                  batch_size=100,
-                 normalize_returns=False,
                  critic_l2_reg=0.,
-                 return_range=(-np.inf, np.inf),
                  actor_lr=1e-4,
                  critic_lr=1e-3,
                  clip_norm=None,
@@ -254,18 +244,12 @@ class TD3(object):
             the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
-        normalize_observations : bool
-            should the observation be normalized
         tau : float
             the soft update coefficient (keep old values, between 0 and 1)
         batch_size : int
             the size of the batch for learning the policy
-        normalize_returns : bool
-            should the critic output be normalized
         critic_l2_reg : float
             l2 regularizer coefficient
-        return_range : (float, float)
-            the bounding values for the critic output
         actor_lr : float
             the actor learning rate
         critic_lr : float
@@ -316,12 +300,9 @@ class TD3(object):
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
-        self.normalize_observations = normalize_observations
         self.tau = tau
         self.batch_size = batch_size
-        self.normalize_returns = normalize_returns
         self.critic_l2_reg = critic_l2_reg
-        self.return_range = return_range
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
@@ -509,7 +490,6 @@ class TD3(object):
                 self.observation_space,
                 self.action_space,
                 self.context_space,
-                return_range=self.return_range,
                 buffer_size=self.buffer_size,
                 batch_size=self.batch_size,
                 actor_lr=self.actor_lr,
@@ -519,8 +499,6 @@ class TD3(object):
                 verbose=self.verbose,
                 tau=self.tau,
                 gamma=self.gamma,
-                normalize_observations=self.normalize_observations,
-                normalize_returns=self.normalize_returns,
                 **additional_params
             )
 
@@ -669,8 +647,8 @@ class TD3(object):
         tf.compat.v1.set_random_seed(seed)
 
         if self.verbose >= 2:
-            logging.info('Using agent with the following configuration:')
-            logging.info(str(self.__dict__.items()))
+            print('Using agent with the following configuration:')
+            print(str(self.__dict__.items()))
 
         # Initialize class variables.
         steps_incr = 0
@@ -1033,12 +1011,12 @@ class TD3(object):
                 w.writerow(combined_stats)
 
         # Print statistics.
-        logging.info("-" * 57)
+        print("-" * 57)
         for key in sorted(combined_stats.keys()):
             val = combined_stats[key]
-            logging.info("| {:<25} | {:<25} |".format(key, val))
-        logging.info("-" * 57)
-        logging.info('')
+            print("| {:<25} | {:<25} |".format(key, val))
+        print("-" * 57)
+        print('')
 
     def _log_eval(self,
                   file_path,

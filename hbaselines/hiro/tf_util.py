@@ -1,6 +1,5 @@
 """TensorFlow utility methods."""
 import tensorflow as tf
-from stable_baselines import logger
 import numpy as np
 import os
 import multiprocessing
@@ -71,46 +70,6 @@ def get_globals_vars(name=None):
         tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=name)
 
 
-def normalize(tensor, stats):
-    """Normalize a tensor using a running mean and std.
-
-    Parameters
-    ----------
-    tensor : tf.Tensor
-        the input tensor
-    stats : RunningMeanStd
-        the running mean and std of the input to normalize
-
-    Returns
-    -------
-    tf.Tensor
-        the normalized tensor
-    """
-    if stats is None:
-        return tensor
-    return (tensor - stats.mean) / stats.std
-
-
-def denormalize(tensor, stats):
-    """Denormalize a tensor using a running mean and std.
-
-    Parameters
-    ----------
-    tensor : tf.Variable
-        the normalized tensor
-    stats : RunningMeanStd
-        the running mean and std of the input to normalize
-
-    Returns
-    -------
-    tf.Tensor
-        the restored tensor
-    """
-    if stats is None:
-        return tensor
-    return tensor * stats.std + stats.mean
-
-
 def reduce_std(tensor, axis=None, keepdims=False):
     """Get the standard deviation of a Tensor.
 
@@ -175,7 +134,7 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
         soft update
     """
     if verbose >= 2:
-        logger.info('setting up target updates ...')
+        print('setting up target updates ...')
 
     soft_updates = []
     init_updates = []
@@ -183,7 +142,7 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
 
     for var, target_var in zip(_vars, target_vars):
         if verbose >= 2:
-            logger.info('  {} <- {}'.format(target_var.name, var.name))
+            print('  {} <- {}'.format(target_var.name, var.name))
         init_updates.append(tf.compat.v1.assign(target_var, var))
         soft_updates.append(
             tf.compat.v1.assign(target_var, (1.-tau) * target_var + tau * var))

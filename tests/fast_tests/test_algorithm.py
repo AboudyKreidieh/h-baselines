@@ -40,12 +40,9 @@ class TestTD3(unittest.TestCase):
             'nb_train_steps': 50,
             'nb_rollout_steps': 100,
             'nb_eval_episodes': 50,
-            'normalize_observations': False,
             'tau': 0.001,
             'batch_size': 128,
-            'normalize_returns': False,
             'critic_l2_reg': 0.,
-            'return_range': (-np.inf, np.inf),
             'actor_lr': 1e-4,
             'critic_lr': 1e-3,
             'clip_norm': None,
@@ -73,16 +70,10 @@ class TestTD3(unittest.TestCase):
                          self.init_parameters['nb_rollout_steps'])
         self.assertEqual(alg.nb_eval_episodes,
                          self.init_parameters['nb_eval_episodes'])
-        self.assertEqual(alg.normalize_observations,
-                         self.init_parameters['normalize_observations'])
         self.assertEqual(alg.tau, self.init_parameters['tau'])
         self.assertEqual(alg.batch_size, self.init_parameters['batch_size'])
-        self.assertEqual(alg.normalize_returns,
-                         self.init_parameters['normalize_returns'])
         self.assertEqual(alg.critic_l2_reg,
                          self.init_parameters['critic_l2_reg'])
-        self.assertEqual(alg.return_range,
-                         self.init_parameters['return_range'])
         self.assertEqual(alg.actor_lr, self.init_parameters['actor_lr'])
         self.assertEqual(alg.critic_lr, self.init_parameters['critic_lr'])
         self.assertEqual(alg.clip_norm, self.init_parameters['clip_norm'])

@@ -61,9 +61,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'verbose': 2,
             'tau': 0.005,
             'gamma': 0.001,
-            'normalize_observations': False,
-            'normalize_returns': False,
-            'return_range': (-5, 5),
             'layer_norm': False,
             'reuse': False,
             'layers': None,
@@ -90,13 +87,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.verbose,  self.policy_params['verbose'])
         self.assertEqual(policy.tau,  self.policy_params['tau'])
         self.assertEqual(policy.gamma,  self.policy_params['gamma'])
-        self.assertEqual(
-            policy.normalize_observations,
-            self.policy_params['normalize_observations'])
-        self.assertEqual(
-            policy.normalize_returns, self.policy_params['normalize_returns'])
-        self.assertEqual(
-            policy.return_range, self.policy_params['return_range'])
         self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
         self.assertEqual(policy.reuse, self.policy_params['reuse'])
         self.assertListEqual(policy.layers, [300, 300])
@@ -169,10 +159,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-    def test_normalization(self):
-        """Test the normalizers for the observations and reward."""
-        pass
-
     def test_optimization(self):
         """Test the losses and gradient update steps."""
         pass
@@ -204,9 +190,6 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'verbose': 2,
             'tau': 0.005,
             'gamma': 0.001,
-            'normalize_observations': False,
-            'normalize_returns': False,
-            'return_range': (-5, 5),
             'layer_norm': False,
             'reuse': False,
             'layers': None,
@@ -444,7 +427,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.918604e-03, -3.920621e-03, -8.046365e-08])
+            error, [-3.898157e-03, -3.909790e-03, -4.080378e-10])
 
         # Test the _sample_best_meta_action method.  FIXME
 
