@@ -4,7 +4,6 @@ import tensorflow.contrib as tc
 import numpy as np
 from numpy.random import normal
 from functools import reduce
-import logging
 from gym.spaces import Box
 import random
 
@@ -442,7 +441,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _setup_actor_optimizer(self, scope):
         """Create the actor loss, gradient, and optimizer."""
         if self.verbose >= 2:
-            logging.info('setting up actor optimizer')
+            print('setting up actor optimizer')
 
         scope_name = 'model/pi/'
         if scope is not None:
@@ -454,8 +453,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             for var in get_trainable_vars(scope_name)]
             actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                    for shape in actor_shapes])
-            logging.info('  actor shapes: {}'.format(actor_shapes))
-            logging.info('  actor params: {}'.format(actor_nb_params))
+            print('  actor shapes: {}'.format(actor_shapes))
+            print('  actor params: {}'.format(actor_nb_params))
 
         self.actor_grads = flatgrad(
             self.actor_loss,
@@ -469,7 +468,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _setup_critic_optimizer(self, scope):
         """Create the critic loss, gradient, and optimizer."""
         if self.verbose >= 2:
-            logging.info('setting up critic optimizer')
+            print('setting up critic optimizer')
 
         self.critic_loss = sum(
             tf.compat.v1.losses.huber_loss(self.critic_tf[i], self.target_q)
@@ -492,8 +491,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             if self.verbose >= 2:
                 for var in critic_reg_vars:
-                    logging.info('  regularizing: {}'.format(var.name))
-                logging.info('  applying l2 regularization with {}'.format(
+                    print('  regularizing: {}'.format(var.name))
+                print('  applying l2 regularization with {}'.format(
                     self.critic_l2_reg))
 
             critic_reg = tc.layers.apply_regularization(
@@ -515,8 +514,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                  for var in get_trainable_vars(scope_name)]
                 critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
                                         for shape in critic_shapes])
-                logging.info('  critic shapes: {}'.format(critic_shapes))
-                logging.info('  critic params: {}'.format(critic_nb_params))
+                print('  critic shapes: {}'.format(critic_shapes))
+                print('  critic params: {}'.format(critic_nb_params))
 
             self.critic_grads.append(
                 flatgrad(self.critic_loss,
