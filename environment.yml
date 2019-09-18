@@ -5,5 +5,4 @@ dependencies:
     - numpy==1.16.0
     - pip:
         - redis==2.10.6
-        - stable-baselines==2.6.0
         - gym==0.14.0

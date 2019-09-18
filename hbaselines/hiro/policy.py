@@ -1,18 +1,15 @@
 """TD3-compatible policies."""
 import tensorflow as tf
-import tensorflow.contrib as tc
 import numpy as np
 from numpy.random import normal
 from functools import reduce
 from gym.spaces import Box
 import random
 
-from hbaselines.hiro.tf_util import flatgrad
 from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
 from hbaselines.hiro.tf_util import reduce_std
 from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
-from stable_baselines.common.mpi_adam import MpiAdam
 
 
 class ActorCriticPolicy(object):
@@ -457,24 +454,30 @@ class FeedForwardPolicy(ActorCriticPolicy):
             print('  actor shapes: {}'.format(actor_shapes))
             print('  actor params: {}'.format(actor_nb_params))
 
-        self.actor_grads = flatgrad(
-            self.actor_loss,
-            get_trainable_vars(scope_name),
-            clip_norm=self.clip_norm)
+        # create an optimizer object
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
-        self.actor_optimizer = MpiAdam(
-            var_list=get_trainable_vars(scope_name),
-            beta1=0.9, beta2=0.999, epsilon=1e-08)
+        self.q_gradient_input = tf.compat.v1.placeholder(
+            tf.float32, (None,) + self.ac_space.shape)
+
+        self.actor_grads = tf.gradients(
+            self.actor_tf,
+            get_trainable_vars(scope_name),
+            -self.q_gradient_input)
+
+        self.actor_optimizer = optimizer.apply_gradients(
+            zip(self.actor_grads, get_trainable_vars(scope_name)))
 
     def _setup_critic_optimizer(self, scope):
         """Create the critic loss, gradient, and optimizer."""
         if self.verbose >= 2:
             print('setting up critic optimizer')
 
-        self.critic_loss = sum(
-            tf.compat.v1.losses.huber_loss(self.critic_tf[i], self.target_q)
-            for i in range(2)
-        )
+        # TODO: maybe huber loss
+        mse = tf.compat.v1.losses.mean_squared_error
+        self.critic_loss = \
+            mse(self.critic_tf[0], self.target_q) + \
+            mse(self.critic_tf[1], self.target_q)
 
         if self.critic_l2_reg > 0.:
             critic_reg_vars = []
@@ -496,8 +499,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 print('  applying l2 regularization with {}'.format(
                     self.critic_l2_reg))
 
-            critic_reg = tc.layers.apply_regularization(
-                tc.layers.l2_regularizer(self.critic_l2_reg),
+            critic_reg = tf.contrib.layers.apply_regularization(
+                tf.contrib.layers.l2_regularizer(self.critic_l2_reg),
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
@@ -518,16 +521,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 print('  critic shapes: {}'.format(critic_shapes))
                 print('  critic params: {}'.format(critic_nb_params))
 
+            # create an optimizer object
+            optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
+
+            # add to the critic grads list  TODO: add grad clipping
             self.critic_grads.append(
-                flatgrad(self.critic_loss,
-                         get_trainable_vars(scope_name),
-                         clip_norm=self.clip_norm)
+                tf.gradients(self.critic_tf[i], self.action_ph)
             )
 
-            self.critic_optimizer.append(
-                MpiAdam(var_list=get_trainable_vars(scope_name),
-                        beta1=0.9, beta2=0.999, epsilon=1e-08)
-            )
+            # create the optimizer object  TODO: add grad clipping
+            self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
 
     def make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
@@ -656,23 +659,27 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        # Get all gradients and perform a synced update.
-        ops = [self.actor_grads, self.actor_loss, self.critic_grads[0],
-               self.critic_grads[1], self.critic_loss]
-        td_map = {
-            self.obs_ph: obs0,
-            self.action_ph: actions,
-            self.rew_ph: rewards,
-            self.obs1_ph: obs1,
-            self.terminals1: terminals1
-        }
+        # Perform the critic updates.
+        critic_loss, grads0, *_ = self.sess.run(
+            [self.critic_loss, self.critic_grads[0],
+             self.critic_optimizer[0], self.critic_optimizer[1]],
+            feed_dict={
+                self.obs_ph: obs0,
+                self.action_ph: actions,
+                self.rew_ph: rewards,
+                self.obs1_ph: obs1,
+                self.terminals1: terminals1
+            }
+        )
 
-        actor_grads, actor_loss, grads_0, grads_1, critic_loss = self.sess.run(
-            ops, td_map)
-
-        self.actor_optimizer.update(actor_grads, learning_rate=self.actor_lr)
-        self.critic_optimizer[0].update(grads_0, learning_rate=self.critic_lr)
-        self.critic_optimizer[1].update(grads_1, learning_rate=self.critic_lr)
+        # Perform the actor updates.
+        actor_loss, *_ = self.sess.run(
+            [self.actor_loss, self.actor_optimizer],
+            feed_dict={
+                self.obs_ph: obs0,
+                self.q_gradient_input: grads0[0]
+            }
+        )
 
         # Run target soft update operation.
         self.sess.run(self.target_soft_updates)
@@ -735,9 +742,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         This method syncs the actor and critic optimizers across CPUs, and
         initializes the target parameters to match the model parameters.
         """
-        self.actor_optimizer.sync()
-        for i in range(2):
-            self.critic_optimizer[i].sync()
         self.sess.run(self.target_init_updates)
 
     def _setup_stats(self, base="Model"):
