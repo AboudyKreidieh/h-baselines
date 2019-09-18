@@ -30,6 +30,9 @@ install:
   - pip install nose2
   - pip install pydocstyle
 
+  # resolve "corrupted size vs. prev_size" error
+  - export LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4"
+
 #  # third-party tools
 #  - ./scripts/install_thirdparty.sh
 
