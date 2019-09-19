@@ -15,7 +15,6 @@ import gym
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
-from mpi4py import MPI
 
 from hbaselines.hiro.tf_util import make_session
 from hbaselines.hiro.policy import GoalDirectedPolicy
@@ -776,8 +775,6 @@ class TD3(object):
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
         """
-        rank = MPI.COMM_WORLD.Get_rank()
-
         new_obs, done = [], False
         for _ in range(run_steps or self.nb_rollout_steps):
             # Predict next action.
@@ -796,7 +793,7 @@ class TD3(object):
                 reward += new_reward
 
                 # Visualize the current step.
-                if rank == 0 and self.render:
+                if self.render:
                     self.env.render()
 
             # Add the fingerprint term, if needed.
@@ -971,8 +968,6 @@ class TD3(object):
             the time when training began. This is used to print the total
             training time.
         """
-        mpi_size = MPI.COMM_WORLD.Get_size()
-
         # Log statistics.
         duration = time.time() - start_time
         stats = self.policy_tf.get_stats()
@@ -991,11 +986,6 @@ class TD3(object):
         combined_stats['total/episodes'] = self.episodes
         combined_stats['rollout/episodes'] = self.epoch_episodes
         combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
-
-        combined_stats_sums = MPI.COMM_WORLD.allreduce(
-            np.array([as_scalar(x) for x in combined_stats.values()]))
-        combined_stats = {k: v / mpi_size for (k, v) in
-                          zip(combined_stats.keys(), combined_stats_sums)}
 
         # Total statistics.
         combined_stats['total/epochs'] = self.epoch + 1
