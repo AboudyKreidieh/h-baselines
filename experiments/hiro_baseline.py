@@ -17,7 +17,7 @@ from hbaselines.hiro import TD3, GoalDirectedPolicy
 EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
-def run_exp(env, hp, steps, dir_name, evaluate, i):
+def run_exp(env, hp, steps, dir_name, evaluate, seed, i):
     """Run a single training procedure.
 
     Parameters
@@ -32,6 +32,8 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
         the location the results files are meant to be stored
     evaluate : bool
         whether to include an evaluation environment
+    seed : int
+        specified the random seed for numpy, tensorflow, and random
     i : int
         an increment term, used for logging purposes
     """
@@ -43,7 +45,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, i):
         total_timesteps=steps,
         log_dir=dir_name,
         log_interval=2000,
-        seed=None,
+        seed=seed,
         exp_num=i
     )
 
@@ -67,7 +69,8 @@ def main(args, base_dir):
         w.writerow(hp)
 
     for i in range(args.n_training):
-        run_exp(args.env_name, hp, args.steps, dir_name, args.evaluate, i)
+        run_exp(args.env_name, hp, args.steps, dir_name, args.evaluate,
+                args.seed, i)
 
 
 if __name__ == '__main__':

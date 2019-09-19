@@ -84,6 +84,9 @@ def parse_options(description, example_usage, args):
     parser.add_argument(
         '--steps',  type=int, default=1e6,
         help='Total number of timesteps used during training.')
+    parser.add_argument(
+        '--seed', type=int, default=1,
+        help='Sets the seed for numpy, tensorflow, and random.')
 
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)

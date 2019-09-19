@@ -1,6 +1,5 @@
 """TensorFlow utility methods."""
 import tensorflow as tf
-import numpy as np
 import os
 import multiprocessing
 
@@ -151,83 +150,3 @@ def get_target_updates(_vars, target_vars, tau, verbose=0):
     assert len(soft_updates) == len(_vars)
 
     return tf.group(*init_updates), tf.group(*soft_updates)
-
-
-def var_shape(tensor):
-    """Get TensorFlow Tensor shape.
-
-    Parameters
-    ----------
-    tensor : tf.Tensor
-        the input tensor
-
-    Returns
-    -------
-    list of int
-        the shape
-    """
-    out = tensor.get_shape().as_list()
-    assert all(isinstance(a, int) for a in out), \
-        "shape function assumes that shape is fully known"
-    return out
-
-
-def numel(tensor):
-    """Get TensorFlow Tensor's number of elements.
-
-    Parameters
-    ----------
-    tensor : tf.Tensor
-        the input tensor
-
-    Returns
-    -------
-    int
-        the number of elements
-    """
-    return intprod(var_shape(tensor))
-
-
-def intprod(tensor):
-    """Calculate the product of all the elements in a list.
-
-    Parameters
-    ----------
-    tensor : array_like
-        the list of elements
-
-    Returns
-    -------
-    int
-        the product truncated
-    """
-    return int(np.prod(tensor))
-
-
-def flatgrad(loss, var_list, grads_ys=None, clip_norm=None):
-    """Calculate the gradient and flatten it.
-
-    Parameters
-    ----------
-    loss : float or tf.Variable
-        the loss value
-    var_list : list of tf.Tensor
-        the variables
-    grads_ys : Any
-        a list of `Tensor`, holding the gradients received by the `ys`. The
-        list must be the same length as `ys`.
-    clip_norm : float
-        clip the gradients (disabled if None)
-
-    Returns
-    -------
-    list of tf.Tensor
-        flattened gradient
-    """
-    grads = tf.gradients(loss, var_list, grads_ys)
-    if clip_norm is not None:
-        grads = [tf.clip_by_norm(grad, clip_norm=clip_norm) for grad in grads]
-    return tf.concat(axis=0, values=[
-        tf.reshape(grad if grad is not None else tf.zeros_like(v), [numel(v)])
-        for (v, grad) in zip(var_list, grads)
-    ])
