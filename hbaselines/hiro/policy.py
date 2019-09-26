@@ -238,12 +238,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise=0.05,
-                 layer_norm=False,
+                 noise,
+                 layer_norm,
+                 layers,
+                 act_fun,
+                 use_huber,
                  reuse=False,
-                 layers=None,
-                 act_fun=tf.nn.relu,
-                 use_huber=True,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
 
@@ -275,12 +275,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         noise : float, optional
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
-            action if `apply_noise` is set to True in `get_action`. Defaults to
-            0.05, i.e. 5% of action range.
+            action if `apply_noise` is set to True in `get_action`.
         layer_norm : bool
             enable layer normalisation
-        reuse : bool
-            if the policy is reusable or not
         layers : list of int or None
             the size of the Neural network for the policy (if None, default to
             [64, 64])
@@ -290,6 +287,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        reuse : bool
+            if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
 
@@ -911,19 +910,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise=0.05,
-                 layer_norm=False,
-                 reuse=False,
-                 layers=None,
-                 act_fun=tf.nn.relu,
-                 use_huber=False,
-                 meta_period=10,
-                 relative_goals=False,
-                 off_policy_corrections=False,
-                 use_fingerprints=False,
+                 noise,
+                 layer_norm,
+                 layers,
+                 act_fun,
+                 use_huber,
+                 meta_period,
+                 relative_goals,
+                 off_policy_corrections,
+                 use_fingerprints,
                  fingerprint_range=([0], [5]),
                  centralized_value_functions=False,
                  connected_gradients=False,
+                 reuse=False,
                  env_name=""):
         """Instantiate the goal-directed hierarchical policy.
 
@@ -961,34 +960,32 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         reuse : bool
             if the policy is reusable or not
         layers : list of int or None
-            the size of the Neural network for the policy (if None, default to
-            [64, 64])
+            the size of the neural network for the policy
         act_fun : tf.nn.*
             the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
-        meta_period : int, optional
-            manger action period. Defaults to 10.
-        relative_goals : bool, optional
+        meta_period : int
+            manger action period
+        relative_goals : bool
             specifies whether the goal issued by the Manager is meant to be a
             relative or absolute goal, i.e. specific state or change in state
-        off_policy_corrections : bool, optional
+        off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
-            See: https://arxiv.org/abs/1805.08296. Defaults to False.
-        use_fingerprints : bool, optional
+            See: https://arxiv.org/abs/1805.08296
+        use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
-        fingerprint_range : (list of float, list of float), optional
+        fingerprint_range : (list of float, list of float)
             the low and high values for each fingerprint element, if they are
             being used
-        centralized_value_functions : bool, optional
+        centralized_value_functions : bool
             specifies whether to use centralized value functions for the
             Manager and Worker critic functions
-        connected_gradients : bool, optional
-            whether to connect the graph between the manager and worker.
-            Defaults to False.
+        connected_gradients : bool
+            whether to connect the graph between the manager and worker
         """
         super(GoalDirectedPolicy, self).__init__(sess,
                                                  ob_space, ac_space, co_space)
