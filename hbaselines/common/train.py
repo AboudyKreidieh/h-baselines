@@ -10,10 +10,8 @@ DEFAULT_TD3_HP = dict(
     nb_eval_episodes=50,
     tau=0.005,
     batch_size=100,
-    critic_l2_reg=0.,
     actor_lr=1e-4,
     critic_lr=1e-3,
-    clip_norm=None,
     reward_scale=1.,
     render=False,
     render_eval=False,
@@ -35,10 +33,8 @@ def get_hyperparameters(args):
         "nb_eval_episodes": args.nb_eval_episodes,
         "tau": args.tau,
         "batch_size": args.batch_size,
-        "critic_l2_reg": args.critic_l2_reg,
         "actor_lr": args.actor_lr,
         "critic_lr": args.critic_lr,
-        "clip_norm": args.clip_norm,
         "reward_scale": args.reward_scale,
         "render": args.render,
         "buffer_size": int(args.buffer_size),
@@ -124,14 +120,6 @@ def create_td3_parser(parser):
                         type=float,
                         default=DEFAULT_TD3_HP['critic_lr'],
                         help='the critic learning rate')
-    parser.add_argument('--critic_l2_reg',
-                        type=float,
-                        default=DEFAULT_TD3_HP['critic_l2_reg'],
-                        help='l2 regularizer coefficient')
-    parser.add_argument('--clip_norm',
-                        type=float,
-                        default=DEFAULT_TD3_HP['clip_norm'],
-                        help='clip the gradients (disabled if None)')
     parser.add_argument('--nb_train_steps',
                         type=int,
                         default=DEFAULT_TD3_HP['nb_train_steps'],
@@ -159,6 +147,11 @@ def create_td3_parser(parser):
     parser.add_argument('--evaluate',
                         action='store_true',
                         help='add an evaluation environment')
+    parser.add_argument("--use_huber",
+                        action="store_true",
+                        help="specifies whether to use the huber distance "
+                             "function as the loss for the critic. If set to "
+                             "False, the mean-squared error metric is used.")
 
     return parser
 

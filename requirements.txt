@@ -1,5 +1,6 @@
 numpy==1.16.0
 tensorflow==1.14.0
-gym==0.14.0
+gym==0.10.8
 redis==2.10.6
 ray==0.7.3
+# mujoco-py==1.50.1.68

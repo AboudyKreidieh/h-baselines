@@ -19,8 +19,6 @@ class TestTrain(unittest.TestCase):
         self.assertEqual(args.reward_scale, DEFAULT_TD3_HP["reward_scale"])
         self.assertEqual(args.actor_lr, DEFAULT_TD3_HP["actor_lr"])
         self.assertEqual(args.critic_lr, DEFAULT_TD3_HP["critic_lr"])
-        self.assertEqual(args.critic_l2_reg, DEFAULT_TD3_HP["critic_l2_reg"])
-        self.assertEqual(args.clip_norm, DEFAULT_TD3_HP["clip_norm"])
         self.assertEqual(args.nb_train_steps, DEFAULT_TD3_HP["nb_train_steps"])
         self.assertEqual(args.nb_rollout_steps,
                          DEFAULT_TD3_HP["nb_rollout_steps"])
@@ -48,8 +46,6 @@ class TestTrain(unittest.TestCase):
             "--reward_scale", "6",
             "--actor_lr", "7",
             "--critic_lr", "8",
-            "--critic_l2_reg", "9",
-            "--clip_norm", "10",
             "--nb_train_steps", "11",
             "--nb_rollout_steps", "12",
             "--nb_eval_episodes", "13",
@@ -74,8 +70,6 @@ class TestTrain(unittest.TestCase):
         self.assertEqual(hp["reward_scale"], 6)
         self.assertEqual(hp["actor_lr"], 7)
         self.assertEqual(hp["critic_lr"], 8)
-        self.assertEqual(hp["critic_l2_reg"], 9)
-        self.assertEqual(hp["clip_norm"], 10)
         self.assertEqual(hp["nb_train_steps"], 11)
         self.assertEqual(hp["nb_rollout_steps"], 12)
         self.assertEqual(hp["nb_eval_episodes"], 13)

@@ -84,7 +84,7 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """Call the critic methods to compute the value.
 
         Parameters
@@ -93,10 +93,6 @@ class ActorCriticPolicy(object):
             the observation
         action : array_like, optional
             the actions performed in the given observation
-        with_actor : bool, optional
-            specifies whether to use the actor when computing the values. In
-            this case, the actions are computed directly from the actor, and
-            the input actions are not used.
 
         Returns
         -------
@@ -161,10 +157,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor learning rate
     critic_lr : float
         critic learning rate
-    clip_norm : float
-        clip the gradients (disabled if None)
-    critic_l2_reg : float
-        l2 regularizer coefficient
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     reuse : bool
@@ -183,6 +175,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         enable layer normalisation
     activ : tf.nn.*
         the activation function to use in the neural network
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -239,8 +235,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  batch_size,
                  actor_lr,
                  critic_lr,
-                 clip_norm,
-                 critic_l2_reg,
                  verbose,
                  tau,
                  gamma,
@@ -249,6 +243,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
+                 use_huber=True,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
 
@@ -270,10 +265,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
-        critic_l2_reg : float
-            l2 regularizer coefficient
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -295,6 +286,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         scope : str
             an upper-level scope term. Used by policies that call this one.
 
@@ -310,8 +305,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.batch_size = batch_size
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
-        self.clip_norm = clip_norm
-        self.critic_l2_reg = critic_l2_reg
         self.verbose = verbose
         self.reuse = reuse
         self.layers = layers or [300, 300]
@@ -320,6 +313,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.noise = noise
         self.layer_norm = layer_norm
         self.activ = act_fun
+        self.use_huber = use_huber
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -473,37 +467,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if self.verbose >= 2:
             print('setting up critic optimizer')
 
-        # TODO: maybe huber loss
-        mse = tf.compat.v1.losses.mean_squared_error
+        # choose the loss function
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
         self.critic_loss = \
-            mse(self.critic_tf[0], self.target_q) + \
-            mse(self.critic_tf[1], self.target_q)
-
-        if self.critic_l2_reg > 0.:
-            critic_reg_vars = []
-            for i in range(2):
-                scope_name = 'model/qf_{}/'.format(i)
-                if scope is not None:
-                    scope_name = scope + '/' + scope_name
-
-                critic_reg_vars += [
-                    var for var in get_trainable_vars(scope_name)
-                    if 'bias' not in var.name
-                    and 'qf_output' not in var.name
-                    and 'b' not in var.name
-                ]
-
-            if self.verbose >= 2:
-                for var in critic_reg_vars:
-                    print('  regularizing: {}'.format(var.name))
-                print('  applying l2 regularization with {}'.format(
-                    self.critic_l2_reg))
-
-            critic_reg = tf.contrib.layers.apply_regularization(
-                tf.contrib.layers.l2_regularizer(self.critic_l2_reg),
-                weights_list=critic_reg_vars
-            )
-            self.critic_loss += critic_reg
+            loss_fn(self.critic_tf[0], self.target_q) + \
+            loss_fn(self.critic_tf[1], self.target_q)
 
         self.critic_grads = []
         self.critic_optimizer = []
@@ -708,21 +680,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
         if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
-        if with_actor:
-            return self.sess.run(
-                self.critic_with_actor_tf,
-                feed_dict={self.obs_ph: obs})
-        else:
-            return self.sess.run(
-                self.critic_tf,
-                feed_dict={self.obs_ph: obs, self.action_ph: action})
+        return self.sess.run(
+            self.critic_tf,
+            feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
@@ -941,8 +908,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  batch_size,
                  actor_lr,
                  critic_lr,
-                 clip_norm,
-                 critic_l2_reg,
                  verbose,
                  tau,
                  gamma,
@@ -951,6 +916,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
+                 use_huber=False,
                  meta_period=10,
                  relative_goals=False,
                  off_policy_corrections=False,
@@ -979,10 +945,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
-        critic_l2_reg : float
-            l2 regularizer coefficient
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -1003,6 +965,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         meta_period : int, optional
             manger action period. Defaults to 10.
         relative_goals : bool, optional
@@ -1114,8 +1080,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 batch_size=batch_size,
                 actor_lr=actor_lr,
                 critic_lr=critic_lr,
-                clip_norm=clip_norm,
-                critic_l2_reg=critic_l2_reg,
                 verbose=verbose,
                 tau=tau,
                 gamma=gamma,
@@ -1123,6 +1087,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
+                use_huber=use_huber,
                 scope="Manager",
                 noise=noise,
             )
@@ -1171,8 +1136,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 batch_size=batch_size,
                 actor_lr=actor_lr,
                 critic_lr=critic_lr,
-                clip_norm=clip_norm,
-                critic_l2_reg=critic_l2_reg,
                 verbose=verbose,
                 tau=tau,
                 gamma=gamma,
@@ -1180,6 +1143,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
+                use_huber=use_huber,
                 scope="Worker",
                 noise=noise,
             )
@@ -1383,7 +1347,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             obs, apply_noise,
             context_obs=self.meta_action, total_steps=kwargs['total_steps'])
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """See parent class."""
         return 0  # FIXME
 

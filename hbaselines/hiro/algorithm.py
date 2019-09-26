@@ -84,14 +84,14 @@ class TD3(object):
         the soft update coefficient (keep old values, between 0 and 1)
     batch_size : int
         the size of the batch for learning the policy
-    critic_l2_reg : float
-        l2 regularizer coefficient
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     actor_lr : float
         the actor learning rate
     critic_lr : float
         the critic learning rate
-    clip_norm : float
-        clip the gradients (disabled if None)
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -201,15 +201,14 @@ class TD3(object):
                  nb_eval_episodes=50,
                  tau=0.001,
                  batch_size=100,
-                 critic_l2_reg=0.,
                  actor_lr=1e-4,
                  critic_lr=1e-3,
-                 clip_norm=None,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
                  memory_limit=None,
                  buffer_size=50000,
+                 use_huber=False,
                  verbose=0,
                  meta_period=10,
                  relative_goals=False,
@@ -247,14 +246,10 @@ class TD3(object):
             the soft update coefficient (keep old values, between 0 and 1)
         batch_size : int
             the size of the batch for learning the policy
-        critic_l2_reg : float
-            l2 regularizer coefficient
         actor_lr : float
             the actor learning rate
         critic_lr : float
             the critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -263,6 +258,10 @@ class TD3(object):
             enable rendering of the evaluation environment
         buffer_size : int
             the max number of transitions to store
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -301,10 +300,9 @@ class TD3(object):
         self.nb_eval_episodes = nb_eval_episodes
         self.tau = tau
         self.batch_size = batch_size
-        self.critic_l2_reg = critic_l2_reg
+        self.use_huber = use_huber
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
-        self.clip_norm = clip_norm
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -493,11 +491,10 @@ class TD3(object):
                 batch_size=self.batch_size,
                 actor_lr=self.actor_lr,
                 critic_lr=self.critic_lr,
-                clip_norm=self.clip_norm,
-                critic_l2_reg=self.critic_l2_reg,
                 verbose=self.verbose,
                 tau=self.tau,
                 gamma=self.gamma,
+                use_huber=self.use_huber,
                 **additional_params
             )
 
@@ -559,12 +556,11 @@ class TD3(object):
             total_steps=self.total_steps,
             time=kwargs["episode_step"],
             context_obs=kwargs["context"])
-        action = action.flatten()
 
-        q_value = self.policy_tf.value(obs, context_obs=kwargs["context"]) \
-            if compute_q else None
+        q_value = self.policy_tf.value(
+            obs, action, context_obs=kwargs["context"]) if compute_q else None
 
-        return action, q_value
+        return action.flatten(), q_value
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.
