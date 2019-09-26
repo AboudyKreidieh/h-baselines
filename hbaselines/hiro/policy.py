@@ -161,10 +161,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor learning rate
     critic_lr : float
         critic learning rate
-    clip_norm : float
-        clip the gradients (disabled if None)
-    critic_l2_reg : float
-        l2 regularizer coefficient
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     reuse : bool
@@ -239,8 +235,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  batch_size,
                  actor_lr,
                  critic_lr,
-                 clip_norm,
-                 critic_l2_reg,
                  verbose,
                  tau,
                  gamma,
@@ -270,10 +264,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
-        critic_l2_reg : float
-            l2 regularizer coefficient
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -310,8 +300,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.batch_size = batch_size
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
-        self.clip_norm = clip_norm
-        self.critic_l2_reg = critic_l2_reg
         self.verbose = verbose
         self.reuse = reuse
         self.layers = layers or [300, 300]
@@ -478,32 +466,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.critic_loss = \
             mse(self.critic_tf[0], self.target_q) + \
             mse(self.critic_tf[1], self.target_q)
-
-        if self.critic_l2_reg > 0.:
-            critic_reg_vars = []
-            for i in range(2):
-                scope_name = 'model/qf_{}/'.format(i)
-                if scope is not None:
-                    scope_name = scope + '/' + scope_name
-
-                critic_reg_vars += [
-                    var for var in get_trainable_vars(scope_name)
-                    if 'bias' not in var.name
-                    and 'qf_output' not in var.name
-                    and 'b' not in var.name
-                ]
-
-            if self.verbose >= 2:
-                for var in critic_reg_vars:
-                    print('  regularizing: {}'.format(var.name))
-                print('  applying l2 regularization with {}'.format(
-                    self.critic_l2_reg))
-
-            critic_reg = tf.contrib.layers.apply_regularization(
-                tf.contrib.layers.l2_regularizer(self.critic_l2_reg),
-                weights_list=critic_reg_vars
-            )
-            self.critic_loss += critic_reg
 
         self.critic_grads = []
         self.critic_optimizer = []
@@ -941,8 +903,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  batch_size,
                  actor_lr,
                  critic_lr,
-                 clip_norm,
-                 critic_l2_reg,
                  verbose,
                  tau,
                  gamma,
@@ -979,10 +939,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
-        critic_l2_reg : float
-            l2 regularizer coefficient
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -1114,8 +1070,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 batch_size=batch_size,
                 actor_lr=actor_lr,
                 critic_lr=critic_lr,
-                clip_norm=clip_norm,
-                critic_l2_reg=critic_l2_reg,
                 verbose=verbose,
                 tau=tau,
                 gamma=gamma,
@@ -1171,8 +1125,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 batch_size=batch_size,
                 actor_lr=actor_lr,
                 critic_lr=critic_lr,
-                clip_norm=clip_norm,
-                critic_l2_reg=critic_l2_reg,
                 verbose=verbose,
                 tau=tau,
                 gamma=gamma,

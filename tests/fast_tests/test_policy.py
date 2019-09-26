@@ -56,8 +56,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'batch_size': 100,
             'actor_lr': 1e-3,
             'critic_lr': 1e-4,
-            'clip_norm': 0,
-            'critic_l2_reg': 0,
             'verbose': 2,
             'tau': 0.005,
             'gamma': 0.001,
@@ -81,9 +79,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.batch_size, self.policy_params['batch_size'])
         self.assertEqual(policy.actor_lr, self.policy_params['actor_lr'])
         self.assertEqual(policy.critic_lr, self.policy_params['critic_lr'])
-        self.assertEqual(policy.clip_norm, self.policy_params['clip_norm'])
-        self.assertEqual(
-            policy.critic_l2_reg,  self.policy_params['critic_l2_reg'])
         self.assertEqual(policy.verbose,  self.policy_params['verbose'])
         self.assertEqual(policy.tau,  self.policy_params['tau'])
         self.assertEqual(policy.gamma,  self.policy_params['gamma'])
@@ -185,8 +180,6 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'batch_size': 100,
             'actor_lr': 1e-3,
             'critic_lr': 1e-4,
-            'clip_norm': 0,
-            'critic_l2_reg': 0,
             'verbose': 2,
             'tau': 0.005,
             'gamma': 0.001,

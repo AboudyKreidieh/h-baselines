@@ -84,14 +84,10 @@ class TD3(object):
         the soft update coefficient (keep old values, between 0 and 1)
     batch_size : int
         the size of the batch for learning the policy
-    critic_l2_reg : float
-        l2 regularizer coefficient
     actor_lr : float
         the actor learning rate
     critic_lr : float
         the critic learning rate
-    clip_norm : float
-        clip the gradients (disabled if None)
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -201,10 +197,8 @@ class TD3(object):
                  nb_eval_episodes=50,
                  tau=0.001,
                  batch_size=100,
-                 critic_l2_reg=0.,
                  actor_lr=1e-4,
                  critic_lr=1e-3,
-                 clip_norm=None,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -247,14 +241,10 @@ class TD3(object):
             the soft update coefficient (keep old values, between 0 and 1)
         batch_size : int
             the size of the batch for learning the policy
-        critic_l2_reg : float
-            l2 regularizer coefficient
         actor_lr : float
             the actor learning rate
         critic_lr : float
             the critic learning rate
-        clip_norm : float
-            clip the gradients (disabled if None)
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -301,10 +291,8 @@ class TD3(object):
         self.nb_eval_episodes = nb_eval_episodes
         self.tau = tau
         self.batch_size = batch_size
-        self.critic_l2_reg = critic_l2_reg
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
-        self.clip_norm = clip_norm
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -493,8 +481,6 @@ class TD3(object):
                 batch_size=self.batch_size,
                 actor_lr=self.actor_lr,
                 critic_lr=self.critic_lr,
-                clip_norm=self.clip_norm,
-                critic_l2_reg=self.critic_l2_reg,
                 verbose=self.verbose,
                 tau=self.tau,
                 gamma=self.gamma,
