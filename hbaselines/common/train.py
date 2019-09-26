@@ -147,6 +147,11 @@ def create_td3_parser(parser):
     parser.add_argument('--evaluate',
                         action='store_true',
                         help='add an evaluation environment')
+    parser.add_argument("--use_huber",
+                        action="store_true",
+                        help="specifies whether to use the huber distance "
+                             "function as the loss for the critic. If set to "
+                             "False, the mean-squared error metric is used.")
 
     return parser
 

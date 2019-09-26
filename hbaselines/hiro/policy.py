@@ -175,6 +175,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         enable layer normalisation
     activ : tf.nn.*
         the activation function to use in the neural network
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -239,6 +243,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
+                 use_huber=True,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
 
@@ -281,6 +286,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         scope : str
             an upper-level scope term. Used by policies that call this one.
 
@@ -304,6 +313,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.noise = noise
         self.layer_norm = layer_norm
         self.activ = act_fun
+        self.use_huber = use_huber
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -457,11 +467,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if self.verbose >= 2:
             print('setting up critic optimizer')
 
-        # TODO: maybe huber loss
-        mse = tf.compat.v1.losses.mean_squared_error
+        # choose the loss function
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
         self.critic_loss = \
-            mse(self.critic_tf[0], self.target_q) + \
-            mse(self.critic_tf[1], self.target_q)
+            loss_fn(self.critic_tf[0], self.target_q) + \
+            loss_fn(self.critic_tf[1], self.target_q)
 
         self.critic_grads = []
         self.critic_optimizer = []
@@ -902,6 +916,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  reuse=False,
                  layers=None,
                  act_fun=tf.nn.relu,
+                 use_huber=False,
                  meta_period=10,
                  relative_goals=False,
                  off_policy_corrections=False,
@@ -950,6 +965,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             [64, 64])
         act_fun : tf.nn.*
             the activation function to use in the neural network
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         meta_period : int, optional
             manger action period. Defaults to 10.
         relative_goals : bool, optional
@@ -1068,6 +1087,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
+                use_huber=use_huber,
                 scope="Manager",
                 noise=noise,
             )
@@ -1123,6 +1143,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
+                use_huber=use_huber,
                 scope="Worker",
                 noise=noise,
             )
