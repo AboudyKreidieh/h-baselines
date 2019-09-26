@@ -35,12 +35,14 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
 
     def test_envs(self):
         """Test hbaselines/envs/efficient_hrl/envs.py."""
+        from hbaselines.envs.efficient_hrl.envs import REWARD_SCALE
+
         # test AntMaze
         env = AntMaze(use_contexts=True, context_range=[0, 0])
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -1.4142135624084504
+            -1.4142135624084504 * REWARD_SCALE
         )
 
         # test AntPush
@@ -48,7 +50,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -1.4142135624084504
+            -1.4142135624084504 * REWARD_SCALE
         )
 
         # test AntFall
@@ -56,7 +58,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
-            -1.7320508075977448
+            -1.7320508075977448 * REWARD_SCALE
         )
 
         # test context_space
