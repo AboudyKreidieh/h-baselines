@@ -238,7 +238,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise=0.05,
+                 noise=0.1,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
@@ -275,8 +275,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         noise : float, optional
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
-            action if `apply_noise` is set to True in `get_action`. Defaults to
-            0.05, i.e. 5% of action range.
+            action if `apply_noise` is set to True in `get_action`
         layer_norm : bool
             enable layer normalisation
         reuse : bool
@@ -307,7 +306,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.critic_lr = critic_lr
         self.verbose = verbose
         self.reuse = reuse
-        self.layers = layers or [300, 300]
+        self.layers = layers or [256, 256]
         self.tau = tau
         self.gamma = gamma
         self.noise = noise
@@ -911,7 +910,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise=0.05,
+                 noise=0.1,
                  layer_norm=False,
                  reuse=False,
                  layers=None,
