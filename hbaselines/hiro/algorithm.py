@@ -545,12 +545,11 @@ class TD3(object):
             total_steps=self.total_steps,
             time=kwargs["episode_step"],
             context_obs=kwargs["context"])
-        action = action.flatten()
 
-        q_value = self.policy_tf.value(obs, context_obs=kwargs["context"]) \
-            if compute_q else None
+        q_value = self.policy_tf.value(
+            obs, action, context_obs=kwargs["context"]) if compute_q else None
 
-        return action, q_value
+        return action.flatten(), q_value
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """Store a transition in the replay buffer.

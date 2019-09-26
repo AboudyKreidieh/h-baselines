@@ -84,7 +84,7 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """Call the critic methods to compute the value.
 
         Parameters
@@ -93,10 +93,6 @@ class ActorCriticPolicy(object):
             the observation
         action : array_like, optional
             the actions performed in the given observation
-        with_actor : bool, optional
-            specifies whether to use the actor when computing the values. In
-            this case, the actions are computed directly from the actor, and
-            the input actions are not used.
 
         Returns
         -------
@@ -670,21 +666,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
         if context_obs[0] is not None:
             obs = np.concatenate((obs, context_obs), axis=1)
 
-        if with_actor:
-            return self.sess.run(
-                self.critic_with_actor_tf,
-                feed_dict={self.obs_ph: obs})
-        else:
-            return self.sess.run(
-                self.critic_tf,
-                feed_dict={self.obs_ph: obs, self.action_ph: action})
+        return self.sess.run(
+            self.critic_tf,
+            feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
@@ -1335,7 +1326,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             obs, apply_noise,
             context_obs=self.meta_action, total_steps=kwargs['total_steps'])
 
-    def value(self, obs, action=None, with_actor=True, **kwargs):
+    def value(self, obs, action=None, **kwargs):
         """See parent class."""
         return 0  # FIXME
 
