@@ -33,21 +33,26 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 FEEDFORWARD_POLICY_KWARGS = dict(
     # the max number of transitions to store
-    buffer_size=None,
+    buffer_size=50000,
     # the size of the batch for learning the policy
-    batch_size=None,
+    batch_size=128,
     # the actor learning rate
-    actor_lr=None,
+    actor_lr=3e-4,
     # the critic learning rate
-    critic_lr=None,
+    critic_lr=3e-4,
     # the soft update coefficient (keep old values, between 0 and 1)
-    tau=None,
+    tau=0.005,
     # the discount rate
-    gamma=None,
+    gamma=0.99,
     # scaling term to the range of the action space, that is subsequently used
     # as the standard deviation of Gaussian noise added to the action if
     # `apply_noise` is set to True in `get_action`
     noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
@@ -67,23 +72,23 @@ FEEDFORWARD_POLICY_KWARGS = dict(
 GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
 GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     # manger action period. Only applies to GoalDirectedPolicy
-    meta_period=None,
+    meta_period=10,
     # specifies whether the goal issued by the Manager is meant to be a
     # relative or absolute goal, i.e. specific state or change in state
-    relative_goals=None,
+    relative_goals=False,
     # whether to use off-policy corrections during the update procedure. See:
     # https://arxiv.org/abs/1805.08296
-    off_policy_corrections=None,
+    off_policy_corrections=False,
     # specifies whether to add a time-dependent fingerprint to the observations
-    use_fingerprints=None,
+    use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
     # used
     fingerprint_range=([0], [5]),
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
-    centralized_value_functions=None,
+    centralized_value_functions=False,
     # whether to connect the graph between the manager and worker
-    connected_gradients=None,
+    connected_gradients=False,
 ))
 
 

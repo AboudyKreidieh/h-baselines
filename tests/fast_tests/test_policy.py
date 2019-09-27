@@ -84,7 +84,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.gamma,  self.policy_params['gamma'])
         self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
         self.assertEqual(policy.reuse, self.policy_params['reuse'])
-        self.assertListEqual(policy.layers, [300, 300])
+        self.assertListEqual(policy.layers, [256, 256])
         self.assertEqual(policy.activ, self.policy_params['act_fun'])
 
         # Check that all trainable variables have been created in the
@@ -420,7 +420,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.898157e-03, -3.909790e-03, -4.080378e-10])
+            error, [-3.923483e-03, -3.844697e-03, -6.648080e-07])
 
         # Test the _sample_best_meta_action method.  FIXME
 
