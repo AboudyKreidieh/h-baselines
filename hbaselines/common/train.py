@@ -13,6 +13,7 @@ def get_hyperparameters(args, policy):
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
+        "actor_update_freq": args.actor_update_freq,
         "reward_scale": args.reward_scale,
         "render": args.render,
         "render_eval": args.render_eval,
@@ -130,6 +131,10 @@ def create_td3_parser(parser):
         '--verbose', type=int, default=2,
         help='the verbosity level: 0 none, 1 training information, '
              '2 tensorflow debug')
+    parser.add_argument(
+        '--actor_update_freq', type=int, default=2,
+        help='number of training steps per actor policy update step. The '
+             'critic policy is updated every training step.')
 
     return parser
 

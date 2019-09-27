@@ -54,8 +54,14 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def update(self):
+    def update(self, update_actor=True):
         """Perform a gradient update step.
+
+        Parameters
+        ----------
+        update_actor : bool
+            specifies whether to update the actor policy. The critic policy is
+            still updated if this value is set to False.
 
         Returns
         -------
@@ -617,7 +623,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return qvalue_fn
 
-    def update(self):
+    def update(self, update_actor=True):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
@@ -627,9 +633,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
             batch_size=self.batch_size)
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1)
+        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
+                                      update_actor=update_actor)
 
-    def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+    def update_from_batch(self,
+                          obs0,
+                          actions,
+                          rewards,
+                          obs1,
+                          terminals1,
+                          update_actor=True):
         """Perform gradient update step given a batch of data.
 
         Parameters
@@ -645,6 +658,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
+        update_actor : bool, optional
+            specified whether to perform gradient update procedures to the
+            actor policy. Default set to True. Note that the update procedure
+            for the critic is always performed when calling this method.
 
         Returns
         -------
@@ -670,17 +687,20 @@ class FeedForwardPolicy(ActorCriticPolicy):
             }
         )
 
-        # Perform the actor updates.
-        actor_loss, *_ = self.sess.run(
-            [self.actor_loss, self.actor_optimizer],
-            feed_dict={
-                self.obs_ph: obs0,
-                self.q_gradient_input: grads0[0]
-            }
-        )
+        if update_actor:
+            # Perform the actor updates.
+            actor_loss, *_ = self.sess.run(
+                [self.actor_loss, self.actor_optimizer],
+                feed_dict={
+                    self.obs_ph: obs0,
+                    self.q_gradient_input: grads0[0]
+                }
+            )
 
-        # Run target soft update operation.
-        self.sess.run(self.target_soft_updates)
+            # Run target soft update operation.
+            self.sess.run(self.target_soft_updates)
+        else:
+            actor_loss = 0
 
         return critic_loss, actor_loss
 
@@ -1233,7 +1253,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward = 0
         self.i = 0  # FIXME: hacky
 
-    def update(self):
+    def update(self, update_actor=True):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
@@ -1254,7 +1274,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 actions=meta_act,
                 rewards=meta_rew,
                 obs1=meta_obs1,
-                terminals1=meta_done
+                terminals1=meta_done,
+                # FIXME: replace 2 with freq variable
+                update_actor=self.i % (self.meta_period * 2) == 0,
             )
         else:
             m_critic_loss, m_actor_loss = 0, 0
@@ -1266,7 +1288,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             actions=worker_act,
             rewards=worker_rew,
             obs1=worker_obs1,
-            terminals1=worker_done
+            terminals1=worker_done,
+            update_actor=update_actor,
         )
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)

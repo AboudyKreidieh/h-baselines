@@ -143,6 +143,9 @@ class TD3(object):
         the number of rollout steps
     nb_eval_episodes : int
         the number of evaluation episodes
+    actor_update_freq : int
+        number of training steps per actor policy update step. The critic
+        policy is updated every training step.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -229,6 +232,7 @@ class TD3(object):
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
+                 actor_update_freq=2,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -258,6 +262,9 @@ class TD3(object):
             the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
+        actor_update_freq : int
+            number of training steps per actor policy update step. The critic
+            policy is updated every training step.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -281,6 +288,7 @@ class TD3(object):
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
+        self.actor_update_freq = actor_update_freq
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -803,7 +811,10 @@ class TD3(object):
         """
         for t_train in range(self.nb_train_steps):
             # Run a step of training from batch.
-            critic_loss, actor_loss = self.policy_tf.update()
+            critic_loss, actor_loss = self.policy_tf.update(
+                update_actor=(self.total_steps + t_train) % (
+                        self.nb_train_steps * self.actor_update_freq) == 0
+            )
 
             # Add actor and critic loss information for logging purposes.
             self.epoch_critic_losses.append(critic_loss)
