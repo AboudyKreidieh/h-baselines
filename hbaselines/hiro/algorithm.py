@@ -18,7 +18,7 @@ import tensorflow as tf
 
 from hbaselines.hiro.tf_util import make_session
 from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
-from hbaselines.common.train import ensure_dir
+from hbaselines.common.utils import ensure_dir
 try:
     from flow.utils.registry import make_create_env
 except (ImportError, ModuleNotFoundError):
@@ -71,7 +71,7 @@ FEEDFORWARD_POLICY_KWARGS = dict(
 
 GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
 GOAL_DIRECTED_POLICY_KWARGS.update(dict(
-    # manger action period. Only applies to GoalDirectedPolicy
+    # manger action period
     meta_period=10,
     # specifies whether the goal issued by the Manager is meant to be a
     # relative or absolute goal, i.e. specific state or change in state
@@ -249,7 +249,7 @@ class TD3(object):
         sims_per_step : int, optional
             number of sumo simulation steps performed in any given rollout
             step. RL agents perform the same action for the duration of these
-            steps. Defaults to 5.
+            steps. Defaults to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
