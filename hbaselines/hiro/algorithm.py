@@ -295,7 +295,7 @@ class TD3(object):
         elif policy == GoalDirectedPolicy:
             self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
         else:
-            raise ValueError("Unknown policy {}".format(policy.__str__))
+            self.policy_kwargs = {}
 
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose

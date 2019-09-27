@@ -7,6 +7,8 @@ from gym.spaces import Box
 from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
 from hbaselines.hiro.policy import GoalDirectedPolicy
+from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -52,19 +54,11 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'buffer_size': 1e6,
-            'batch_size': 100,
-            'actor_lr': 1e-3,
-            'critic_lr': 1e-4,
-            'verbose': 2,
-            'tau': 0.005,
-            'gamma': 0.001,
-            'layer_norm': False,
             'reuse': False,
-            'layers': None,
-            'act_fun': tf.nn.relu,
-            'scope': None
+            'scope': None,
+            'verbose': 2,
         }
+        self.policy_params.update(FEEDFORWARD_POLICY_KWARGS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -176,24 +170,10 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'buffer_size': 1e6,
-            'batch_size': 100,
-            'actor_lr': 1e-3,
-            'critic_lr': 1e-4,
-            'verbose': 2,
-            'tau': 0.005,
-            'gamma': 0.001,
-            'layer_norm': False,
-            'reuse': False,
             'layers': None,
-            'act_fun': tf.nn.relu,
-            'meta_period': 10,
-            'relative_goals': False,
-            'off_policy_corrections': False,
-            'use_fingerprints': False,
-            'centralized_value_functions': False,
-            'connected_gradients': False
+            'verbose': 2,
         }
+        self.policy_params.update(GOAL_DIRECTED_POLICY_KWARGS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -420,7 +400,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.923483e-03, -3.844697e-03, -6.648080e-07])
+            error, [-3.909344e-03, -3.908227e-03, -9.826410e-09])
 
         # Test the _sample_best_meta_action method.  FIXME
 

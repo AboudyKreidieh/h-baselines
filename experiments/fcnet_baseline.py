@@ -82,6 +82,3 @@ if __name__ == '__main__':
 
     # execute the training procedure
     main(args, 'data/fcnet')
-
-    # exit from the process
-    os._exit(1)

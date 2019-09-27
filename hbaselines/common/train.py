@@ -81,7 +81,7 @@ def parse_options(description, example_usage, args):
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
     parser.add_argument(
-        '--total_steps',  type=int, default=1e6,
+        '--total_steps',  type=int, default=1000000,
         help='Total number of timesteps used during training.')
     parser.add_argument(
         '--seed', type=int, default=1,

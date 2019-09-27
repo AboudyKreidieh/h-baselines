@@ -7,6 +7,8 @@ import shutil
 from hbaselines.hiro.algorithm import as_scalar, TD3
 from hbaselines.hiro.tf_util import get_trainable_vars
 from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -35,21 +37,17 @@ class TestTD3(unittest.TestCase):
         self.init_parameters = {
             'policy': None,
             'env': 'MountainCarContinuous-v0',
-            'gamma': 0.99,
             'eval_env': None,
-            'nb_train_steps': 50,
-            'nb_rollout_steps': 100,
+            'num_cpus': 1,
+            'sims_per_step': 1,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
-            'tau': 0.001,
-            'batch_size': 128,
-            'actor_lr': 1e-4,
-            'critic_lr': 1e-3,
             'reward_scale': 1.,
             'render': False,
             'render_eval': False,
-            'memory_limit': None,
-            'buffer_size': 50000,
             'verbose': 2,
+            'policy_kwargs': None,
             '_init_setup_model': True
         }
 
@@ -61,24 +59,21 @@ class TestTD3(unittest.TestCase):
         alg = TD3(**policy_params)
 
         # Test the attribute values.
-        self.assertEqual(alg.gamma, self.init_parameters['gamma'])
+        self.assertEqual(alg.policy, self.init_parameters['policy'])
+        self.assertEqual(alg.eval_env, self.init_parameters['eval_env'])
+        self.assertEqual(alg.num_cpus, self.init_parameters['num_cpus'])
+        self.assertEqual(alg.sims_per_step,
+                         self.init_parameters['sims_per_step'])
         self.assertEqual(alg.nb_train_steps,
                          self.init_parameters['nb_train_steps'])
         self.assertEqual(alg.nb_rollout_steps,
                          self.init_parameters['nb_rollout_steps'])
         self.assertEqual(alg.nb_eval_episodes,
                          self.init_parameters['nb_eval_episodes'])
-        self.assertEqual(alg.tau, self.init_parameters['tau'])
-        self.assertEqual(alg.batch_size, self.init_parameters['batch_size'])
-        self.assertEqual(alg.actor_lr, self.init_parameters['actor_lr'])
-        self.assertEqual(alg.critic_lr, self.init_parameters['critic_lr'])
         self.assertEqual(alg.reward_scale,
                          self.init_parameters['reward_scale'])
         self.assertEqual(alg.render, self.init_parameters['render'])
         self.assertEqual(alg.render_eval, self.init_parameters['render_eval'])
-        self.assertEqual(alg.memory_limit,
-                         self.init_parameters['memory_limit'])
-        self.assertEqual(alg.buffer_size, self.init_parameters['buffer_size'])
         self.assertEqual(alg.verbose, self.init_parameters['verbose'])
 
     def test_setup_model_feedforward(self):
@@ -87,6 +82,11 @@ class TestTD3(unittest.TestCase):
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
+
+        # check the policy_kwargs term
+        policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
+        policy_kwargs['verbose'] = self.init_parameters['verbose']
+        self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
             expected_vars = sorted([var.name for var in get_trainable_vars()])
@@ -139,6 +139,11 @@ class TestTD3(unittest.TestCase):
         policy_params['policy'] = GoalDirectedPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
+
+        # check the policy_kwargs term
+        policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+        policy_kwargs['verbose'] = self.init_parameters['verbose']
+        self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
             expected_vars = sorted([var.name for var in get_trainable_vars()])
@@ -248,7 +253,7 @@ class TestTD3(unittest.TestCase):
 
         # Test the seeds.
         alg.learn(0, log_dir='results', seed=1, start_timesteps=0)
-        self.assertEqual(np.random.sample(), 0.15679139464608427)
+        self.assertEqual(np.random.sample(), 0.39676747423066994)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
@@ -283,7 +288,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalDirectedPolicy
         policy_params['nb_rollout_steps'] = 1
-        policy_params['use_fingerprints'] = True
+        policy_params['policy_kwargs'] = {'use_fingerprints': True}
         alg = TD3(**policy_params)
 
         # Test the observation spaces of the manager and worker, as well as the
