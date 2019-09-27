@@ -93,6 +93,7 @@ class TestTrain(unittest.TestCase):
             'reward_scale': 9.0,
             'render': True,
             'render_eval': True,
+            'verbose': 10,
             '_init_setup_model': True,
             'policy_kwargs': {
                 'buffer_size': 11,

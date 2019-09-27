@@ -294,6 +294,7 @@ class TD3(object):
             self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
         elif policy == GoalDirectedPolicy:
             self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+            self.policy_kwargs['env_name'] = self.env_name.__str__()
         else:
             self.policy_kwargs = {}
 

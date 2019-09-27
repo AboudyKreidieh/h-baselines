@@ -16,6 +16,7 @@ def get_hyperparameters(args, policy):
         "reward_scale": args.reward_scale,
         "render": args.render,
         "render_eval": args.render_eval,
+        "verbose": args.verbose,
         "_init_setup_model": True,
     }
     policy_kwargs = {}

@@ -1059,9 +1059,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 dtype=np.float32,
             )
         elif env_name == "Pendulum":
-            manager_ac_space = Box(low=np.array([-np.pi, -15]),
-                                   high=np.array([np.pi, 15]),
-                                   dtype=np.float32)
+            manager_ac_space = Box(
+                low=np.array([-np.pi, -15]),
+                high=np.array([np.pi, 15]),
+                dtype=np.float32
+            )
         elif env_name == "figureeight0":
             if self.relative_goals:
                 manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
@@ -1275,7 +1277,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        samples : list of tuple
+        samples : list of tuple or Any
             each element of the tuples consists of:
 
             * list of (numpy.ndarray, numpy.ndarray): the previous and next
