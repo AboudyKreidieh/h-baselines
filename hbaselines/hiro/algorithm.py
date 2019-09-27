@@ -1,9 +1,9 @@
 """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
-See: https://arxiv.org/pdf/1802.09477.pdf
+This algorithm also contains modifications to support contextual environments
+and hierarchical policies.
 
-A large portion of this code is adapted from the following repository:
-https://github.com/hill-a/stable-baselines
+See: https://arxiv.org/pdf/1802.09477.pdf
 """
 import os
 import time
@@ -17,14 +17,79 @@ import numpy as np
 import tensorflow as tf
 
 from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import GoalDirectedPolicy
-from hbaselines.common.train import ensure_dir
+from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+from hbaselines.common.utils import ensure_dir
 try:
     from flow.utils.registry import make_create_env
 except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
+
+
+# =========================================================================== #
+#                   Policy parameters for FeedForwardPolicy                   #
+# =========================================================================== #
+
+FEEDFORWARD_POLICY_KWARGS = dict(
+    # the max number of transitions to store
+    buffer_size=50000,
+    # the size of the batch for learning the policy
+    batch_size=128,
+    # the actor learning rate
+    actor_lr=3e-4,
+    # the critic learning rate
+    critic_lr=3e-4,
+    # the soft update coefficient (keep old values, between 0 and 1)
+    tau=0.005,
+    # the discount rate
+    gamma=0.99,
+    # scaling term to the range of the action space, that is subsequently used
+    # as the standard deviation of Gaussian noise added to the action if
+    # `apply_noise` is set to True in `get_action`
+    noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
+    # enable layer normalisation
+    layer_norm=False,
+    # the size of the neural network for the policy
+    layers=None,
+    # the activation function to use in the neural network
+    act_fun=tf.nn.relu,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=True,
+)
+
+
+# =========================================================================== #
+#                  Policy parameters for GoalDirectedPolicy                   #
+# =========================================================================== #
+
+GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
+GOAL_DIRECTED_POLICY_KWARGS.update(dict(
+    # manger action period
+    meta_period=10,
+    # specifies whether the goal issued by the Manager is meant to be a
+    # relative or absolute goal, i.e. specific state or change in state
+    relative_goals=False,
+    # whether to use off-policy corrections during the update procedure. See:
+    # https://arxiv.org/abs/1805.08296
+    off_policy_corrections=False,
+    # specifies whether to add a time-dependent fingerprint to the observations
+    use_fingerprints=False,
+    # the low and high values for each fingerprint element, if they are being
+    # used
+    fingerprint_range=([0], [5]),
+    # specifies whether to use centralized value functions for the Manager and
+    # Worker critic functions
+    centralized_value_functions=False,
+    # whether to connect the graph between the manager and worker
+    connected_gradients=False,
+))
 
 
 def as_scalar(scalar):
@@ -70,8 +135,6 @@ class TD3(object):
     sims_per_step : int
         number of sumo simulation steps performed in any given rollout step. RL
         agents perform the same action for the duration of these steps.
-    gamma : float
-        the discount rate
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -80,57 +143,25 @@ class TD3(object):
         the number of rollout steps
     nb_eval_episodes : int
         the number of evaluation episodes
-    tau : float
-        the soft update coefficient (keep old values, between 0 and 1)
-    batch_size : int
-        the size of the batch for learning the policy
-    use_huber : bool
-        specifies whether to use the huber distance function as the loss for
-        the critic. If set to False, the mean-squared error metric is used
-        instead
-    actor_lr : float
-        the actor learning rate
-    critic_lr : float
-        the critic learning rate
     reward_scale : float
         the value the reward should be scaled by
     render : bool
         enable rendering of the training environment
     render_eval : bool
         enable rendering of the evaluation environment
-    buffer_size : int
-        the max number of transitions to store
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     action_space : gym.spaces.*
         the action space of the training environment
     observation_space : gym.spaces.*
         the observation space of the training environment
-    meta_period : int
-        manger action period. Only applies to GoalDirectedPolicy
-    relative_goals : bool
-        specifies whether the goal issued by the Manager is meant to be a
-        relative or absolute goal, i.e. specific state or change in state.
-        Only applies to GoalDirectedPolicy
-    off_policy_corrections : bool
-        whether to use off-policy corrections during the update procedure.
-        See: https://arxiv.org/abs/1805.08296. Only applies to
-        GoalDirectedPolicy
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations. Only applies to GoalDirectedPolicy
+    policy_kwargs : dict
+        policy-specific hyperparameters
     fingerprint_range : (list of float, list of float)
         the low and high values for each fingerprint element, if they are being
         used
     fingerprint_dim : tuple of int
         the shape of the fingerprint elements, if they are being used
-    centralized_value_functions : bool
-        specifies whether to use centralized value functions for the
-        Manager and Worker critic functions. Only applies to
-        GoalDirectedPolicy
-    connected_gradients : bool
-        whether to connect the graph between the manager and worker.
-        Defaults to False. Only applies to GoalDirectedPolicy
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -194,28 +225,15 @@ class TD3(object):
                  env,
                  num_cpus=1,
                  sims_per_step=1,
-                 gamma=0.99,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
-                 tau=0.001,
-                 batch_size=128,
-                 actor_lr=3e-4,
-                 critic_lr=3e-4,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
-                 memory_limit=None,
-                 buffer_size=50000,
-                 use_huber=False,
                  verbose=0,
-                 meta_period=10,
-                 relative_goals=False,
-                 off_policy_corrections=False,
-                 use_fingerprints=False,
-                 centralized_value_functions=False,
-                 connected_gradients=False,
+                 policy_kwargs=None,
                  _init_setup_model=True):
         """Instantiate the algorithm object.
 
@@ -231,9 +249,7 @@ class TD3(object):
         sims_per_step : int, optional
             number of sumo simulation steps performed in any given rollout
             step. RL agents perform the same action for the duration of these
-            steps. Defaults to 5.
-        gamma : float
-            the discount rate
+            steps. Defaults to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -242,49 +258,17 @@ class TD3(object):
             the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
-        tau : float
-            the soft update coefficient (keep old values, between 0 and 1)
-        batch_size : int
-            the size of the batch for learning the policy
-        actor_lr : float
-            the actor learning rate
-        critic_lr : float
-            the critic learning rate
         reward_scale : float
             the value the reward should be scaled by
         render : bool
             enable rendering of the training environment
         render_eval : bool
             enable rendering of the evaluation environment
-        buffer_size : int
-            the max number of transitions to store
-        use_huber : bool
-            specifies whether to use the huber distance function as the loss
-            for the critic. If set to False, the mean-squared error metric is
-            used instead
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        meta_period : int, optional
-            manger action period. Only applies to GoalDirectedPolicy
-        relative_goals : bool, optional
-            specifies whether the goal issued by the Manager is meant to be a
-            relative or absolute goal, i.e. specific state or change in state.
-            Only applies to GoalDirectedPolicy
-        off_policy_corrections : bool, optional
-            whether to use off-policy corrections during the update procedure.
-            See: https://arxiv.org/abs/1805.08296. Only applies to
-            GoalDirectedPolicy
-        use_fingerprints : bool, optional
-            specifies whether to add a time-dependent fingerprint to the
-            observations. Only applies to GoalDirectedPolicy
-        centralized_value_functions : bool, optional
-            specifies whether to use centralized value functions for the
-            Manager and Worker critic functions. Only applies to
-            GoalDirectedPolicy
-        connected_gradients : bool, optional
-            whether to connect the graph between the manager and worker. Only
-            applies to GoalDirectedPolicy
+        policy_kwargs : dict
+            policy-specific hyperparameters
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
@@ -293,33 +277,33 @@ class TD3(object):
         self.env = self._create_env(env, evaluate=False)
         self.num_cpus = num_cpus
         self.sims_per_step = sims_per_step
-        self.gamma = gamma
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
-        self.tau = tau
-        self.batch_size = batch_size
-        self.use_huber = use_huber
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
-        self.memory_limit = memory_limit
-        self.buffer_size = buffer_size
         self.verbose = verbose
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
-        self.meta_period = meta_period
-        self.relative_goals = relative_goals
-        self.off_policy_corrections = off_policy_corrections
-        self.use_fingerprints = use_fingerprints
-        self.fingerprint_range = ([0], [5])  # FIXME: parameter
+
+        # add the default policy kwargs to the policy_kwargs term
+        if policy == FeedForwardPolicy:
+            self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
+        elif policy == GoalDirectedPolicy:
+            self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+        else:
+            self.policy_kwargs = {}
+
+        self.policy_kwargs.update(policy_kwargs or {})
+        self.policy_kwargs['verbose'] = verbose
+
+        # a few algorithm-specific parameters  FIXME: get rid of?
+        self.fingerprint_range = self.policy_kwargs.get(
+            "fingerprint_range", ([0], [5]))
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
-        self.centralized_value_functions = centralized_value_functions
-        self.connected_gradients = connected_gradients
 
         # init
         self.graph = None
@@ -347,7 +331,7 @@ class TD3(object):
 
         # Append the fingerprint dimension to the observation dimension, if
         # needed.
-        if self.use_fingerprints:
+        if self.policy_kwargs.get("use_fingerprints", False):
             low = np.concatenate(
                 (self.observation_space.low, self.fingerprint_range[0]))
             high = np.concatenate(
@@ -466,36 +450,13 @@ class TD3(object):
             # self.sess = make_session(num_cpu=self.num_cpus, graph=self.graph)
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
-            # Collect specific parameters only if using GoalDirectedPolicy.
-            additional_params = {}
-            if self.policy == GoalDirectedPolicy:
-                additional_params.update({
-                    "meta_period": self.meta_period,
-                    "relative_goals": self.relative_goals,
-                    "off_policy_corrections": self.off_policy_corrections,
-                    "use_fingerprints": self.use_fingerprints,
-                    "fingerprint_range": self.fingerprint_range,
-                    "centralized_value_functions":
-                        self.centralized_value_functions,
-                    "connected_gradients": self.connected_gradients,
-                    "env_name": self.env_name
-                })
-
             # Create the policy.
             self.policy_tf = self.policy(
                 self.sess,
                 self.observation_space,
                 self.action_space,
                 self.context_space,
-                buffer_size=self.buffer_size,
-                batch_size=self.batch_size,
-                actor_lr=self.actor_lr,
-                critic_lr=self.critic_lr,
-                verbose=self.verbose,
-                tau=self.tau,
-                gamma=self.gamma,
-                use_huber=self.use_huber,
-                **additional_params
+                **self.policy_kwargs
             )
 
             # for tensorboard logging
@@ -658,7 +619,7 @@ class TD3(object):
             # Prepare everything.
             self.obs = self.env.reset()
             # Add the fingerprint term, if needed.
-            if self.use_fingerprints:
+            if self.policy_kwargs.get("use_fingerprints", False):
                 fp = [self.total_steps / total_timesteps * 5]
                 self.obs = np.concatenate((self.obs, fp), axis=0)
             start_time = time.time()
@@ -793,7 +754,7 @@ class TD3(object):
                     self.env.render()
 
             # Add the fingerprint term, if needed.
-            if self.use_fingerprints:
+            if self.policy_kwargs.get("use_fingerprints", False):
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
@@ -829,7 +790,7 @@ class TD3(object):
                 self.obs = self.env.reset()
 
                 # Add the fingerprint term, if needed.
-                if self.use_fingerprints:
+                if self.policy_kwargs.get("use_fingerprints", False):
                     fp = [self.total_steps / total_timesteps * 5]
                     self.obs = np.concatenate((self.obs, fp), axis=0)
 
@@ -884,7 +845,7 @@ class TD3(object):
             eval_obs = self.eval_env.reset()
 
             # Add the fingerprint term, if needed.
-            if self.use_fingerprints:
+            if self.policy_kwargs.get("use_fingerprints", False):
                 fp = [num_steps / total_timesteps * 5]
                 eval_obs = np.concatenate((eval_obs, fp), axis=0)
 
@@ -919,7 +880,7 @@ class TD3(object):
                 eval_obs = obs.copy()
 
                 # Add the fingerprint term, if needed.
-                if self.use_fingerprints:
+                if self.policy_kwargs.get("use_fingerprints", False):
                     fp = [num_steps / total_timesteps * 5]
                     eval_obs = np.concatenate((eval_obs, fp), axis=0)
 

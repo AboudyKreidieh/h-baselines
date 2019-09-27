@@ -2,13 +2,15 @@
 
 This run script used to test the performance of TD3 with fully connected
 network models on various environments.
+
+See: TODO: add paper
 """
 import os
-import csv
+import json
 from time import strftime
 import sys
 
-from hbaselines.common.train import ensure_dir
+from hbaselines.common.utils import ensure_dir
 from hbaselines.common.train import parse_options, get_hyperparameters
 from hbaselines.hiro import TD3, FeedForwardPolicy
 
@@ -58,16 +60,14 @@ def main(args, base_dir):
     ensure_dir(dir_name)
 
     # get the hyperparameters
-    hp = get_hyperparameters(args)
+    hp = get_hyperparameters(args, FeedForwardPolicy)
 
     # add the hyperparameters to the folder
-    with open(os.path.join(dir_name, 'hyperparameters.csv'), 'w') as f:
-        w = csv.DictWriter(f, fieldnames=hp.keys())
-        w.writeheader()
-        w.writerow(hp)
+    with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
+        json.dump(hp, f, sort_keys=True, indent=4)
 
     for i in range(args.n_training):
-        run_exp(args.env_name, hp, args.steps, dir_name, args.evaluate,
+        run_exp(args.env_name, hp, args.total_steps, dir_name, args.evaluate,
                 args.seed, i)
 
 
@@ -82,6 +82,3 @@ if __name__ == '__main__':
 
     # execute the training procedure
     main(args, 'data/fcnet')
-
-    # exit from the process
-    os._exit(1)

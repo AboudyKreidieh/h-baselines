@@ -1,7 +1,9 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
 from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.common.train import DEFAULT_TD3_HP
+from hbaselines.hiro.algorithm import GoalDirectedPolicy
+from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 class TestTrain(unittest.TestCase):
@@ -10,79 +12,109 @@ class TestTrain(unittest.TestCase):
     def test_parse_options(self):
         # Test the default case.
         args = parse_options("", "", args=["AntMaze"])
-        self.assertEqual(args.env_name, "AntMaze")
-        self.assertEqual(args.n_training, 1)
-        self.assertEqual(args.steps, 1e6)
-        self.assertEqual(args.gamma, DEFAULT_TD3_HP["gamma"])
-        self.assertEqual(args.tau, DEFAULT_TD3_HP["tau"])
-        self.assertEqual(args.batch_size, DEFAULT_TD3_HP["batch_size"])
-        self.assertEqual(args.reward_scale, DEFAULT_TD3_HP["reward_scale"])
-        self.assertEqual(args.actor_lr, DEFAULT_TD3_HP["actor_lr"])
-        self.assertEqual(args.critic_lr, DEFAULT_TD3_HP["critic_lr"])
-        self.assertEqual(args.nb_train_steps, DEFAULT_TD3_HP["nb_train_steps"])
-        self.assertEqual(args.nb_rollout_steps,
-                         DEFAULT_TD3_HP["nb_rollout_steps"])
-        self.assertEqual(args.nb_eval_episodes,
-                         DEFAULT_TD3_HP["nb_eval_episodes"])
-        self.assertEqual(args.render, False)
-        self.assertEqual(args.verbose, 2)
-        self.assertEqual(args.buffer_size, DEFAULT_TD3_HP["buffer_size"])
-        self.assertEqual(args.evaluate, False)
-        self.assertEqual(args.meta_period, DEFAULT_TD3_HP["meta_period"])
-        self.assertEqual(args.relative_goals, False)
-        self.assertEqual(args.off_policy_corrections, False)
-        self.assertEqual(args.use_fingerprints, False)
-        self.assertEqual(args.centralized_value_functions, False)
-        self.assertEqual(args.connected_gradients, False)
+        expected_args = {
+            'env_name': 'AntMaze',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'num_cpus': 1,
+            'sims_per_step': 1,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'buffer_size': FEEDFORWARD_POLICY_KWARGS['buffer_size'],
+            'batch_size': FEEDFORWARD_POLICY_KWARGS['batch_size'],
+            'actor_lr': FEEDFORWARD_POLICY_KWARGS['actor_lr'],
+            'critic_lr': FEEDFORWARD_POLICY_KWARGS['critic_lr'],
+            'tau': FEEDFORWARD_POLICY_KWARGS['tau'],
+            'gamma': FEEDFORWARD_POLICY_KWARGS['gamma'],
+            'noise': FEEDFORWARD_POLICY_KWARGS['noise'],
+            'target_policy_noise': FEEDFORWARD_POLICY_KWARGS[
+                'target_policy_noise'],
+            'target_noise_clip': FEEDFORWARD_POLICY_KWARGS[
+                'target_noise_clip'],
+            'layer_norm': False,
+            'use_huber': False,
+            'meta_period': GOAL_DIRECTED_POLICY_KWARGS['meta_period'],
+            'relative_goals': False,
+            'off_policy_corrections': False,
+            'use_fingerprints': False,
+            'centralized_value_functions': False,
+            'connected_gradients': False
+        }
+        self.assertDictEqual(vars(args), expected_args)
 
         # Test custom cases.
         args = parse_options("", "", args=[
             "AntMaze",
-            "--n_training", "1",
-            "--steps", "2",
-            "--gamma", "3",
-            "--tau", "4",
-            "--batch_size", "5",
-            "--reward_scale", "6",
-            "--actor_lr", "7",
-            "--critic_lr", "8",
-            "--nb_train_steps", "11",
-            "--nb_rollout_steps", "12",
-            "--nb_eval_episodes", "13",
-            "--normalize_observations",
-            "--render",
-            "--verbose", "14",
-            "--buffer_size", "15",
-            "--evaluate",
-            "--meta_period", "16",
-            "--relative_goals",
-            "--off_policy_corrections",
-            "--use_fingerprints",
-            "--centralized_value_functions",
-            "--connected_gradients",
+            '--evaluate',
+            '--n_training', '1',
+            '--total_steps', '2',
+            '--seed', '3',
+            '--num_cpus', '4',
+            '--sims_per_step', '5',
+            '--nb_train_steps', '6',
+            '--nb_rollout_steps', '7',
+            '--nb_eval_episodes', '8',
+            '--reward_scale', '9',
+            '--render',
+            '--render_eval',
+            '--verbose', '10',
+            '--buffer_size', '11',
+            '--batch_size', '12',
+            '--actor_lr', '13',
+            '--critic_lr', '14',
+            '--tau', '15',
+            '--gamma', '16',
+            '--noise', '17',
+            '--target_policy_noise', '18',
+            '--target_noise_clip', '19',
+            '--layer_norm',
+            '--use_huber',
+            '--meta_period', '20',
+            '--relative_goals',
+            '--off_policy_corrections',
+            '--use_fingerprints',
+            '--centralized_value_functions',
+            '--connected_gradients',
         ])
-        hp = get_hyperparameters(args)
-        self.assertEqual(args.n_training, 1)
-        self.assertEqual(args.steps, 2)
-        self.assertEqual(hp["gamma"], 3)
-        self.assertEqual(hp["tau"], 4)
-        self.assertEqual(hp["batch_size"], 5)
-        self.assertEqual(hp["reward_scale"], 6)
-        self.assertEqual(hp["actor_lr"], 7)
-        self.assertEqual(hp["critic_lr"], 8)
-        self.assertEqual(hp["nb_train_steps"], 11)
-        self.assertEqual(hp["nb_rollout_steps"], 12)
-        self.assertEqual(hp["nb_eval_episodes"], 13)
-        self.assertEqual(hp["render"], True)
-        self.assertEqual(hp["verbose"], 14)
-        self.assertEqual(hp["buffer_size"], 15)
-        self.assertEqual(args.evaluate, True)
-        self.assertEqual(hp["meta_period"], 16)
-        self.assertEqual(hp["relative_goals"], True)
-        self.assertEqual(hp["off_policy_corrections"], True)
-        self.assertEqual(hp["use_fingerprints"], True)
-        self.assertEqual(hp["centralized_value_functions"], True)
-        self.assertEqual(hp["connected_gradients"], True)
+        hp = get_hyperparameters(args, GoalDirectedPolicy)
+        expected_hp = {
+            'num_cpus': 4,
+            'sims_per_step': 5,
+            'nb_train_steps': 6,
+            'nb_rollout_steps': 7,
+            'nb_eval_episodes': 8,
+            'reward_scale': 9.0,
+            'render': True,
+            'render_eval': True,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': 11,
+                'batch_size': 12,
+                'actor_lr': 13.0,
+                'critic_lr': 14.0,
+                'tau': 15.0,
+                'gamma': 16.0,
+                'noise': 17.0,
+                'target_policy_noise': 18.0,
+                'target_noise_clip': 19.0,
+                'layer_norm': True,
+                'use_huber': True,
+                'meta_period': 20,
+                'relative_goals': True,
+                'off_policy_corrections': True,
+                'use_fingerprints': True,
+                'centralized_value_functions': True,
+                'connected_gradients': True
+            }
+        }
+        self.assertDictEqual(hp, expected_hp)
 
 
 class TestStats(unittest.TestCase):
