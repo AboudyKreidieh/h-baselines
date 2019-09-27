@@ -217,10 +217,10 @@ class TD3(object):
         episodes. Used for logging purposes.
     eval_rew_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation return from the last time
-        evaluations occured. Used for logging purposes.
+        evaluations occurred. Used for logging purposes.
     eval_success_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation success rate from the last time
-        evaluations occured. Used for logging purposes.
+        evaluations occurred. Used for logging purposes.
     """
 
     def __init__(self,
@@ -233,6 +233,7 @@ class TD3(object):
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
                  actor_update_freq=2,
+                 meta_update_freq=10,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -265,6 +266,11 @@ class TD3(object):
         actor_update_freq : int
             number of training steps per actor policy update step. The critic
             policy is updated every training step.
+        meta_update_freq : int
+            number of training steps per meta policy update step. The actor
+            policy of the meta-policy is further updated at the frequency
+            provided by the actor_update_freq variable. Note that this value is
+            only relevant when using the GoalDirectedPolicy policy.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -289,6 +295,7 @@ class TD3(object):
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
         self.actor_update_freq = actor_update_freq
+        self.meta_update_freq = meta_update_freq
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -712,6 +719,8 @@ class TD3(object):
     def save(self, save_path):
         """Save the parameters of a tensorflow model.
 
+        Parameters
+        ----------
         save_path : str
             Prefix of filenames created for the checkpoint
         """
@@ -720,7 +729,9 @@ class TD3(object):
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
-        save_path : str
+        Parameters
+        ----------
+        load_path : str
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
@@ -810,11 +821,27 @@ class TD3(object):
         the policy, and the summary information is logged to tensorboard.
         """
         for t_train in range(self.nb_train_steps):
+            if self.policy == GoalDirectedPolicy:
+                # specifies whether to update the meta actor and critic
+                # policies based on the meta and actor update frequencies
+                kwargs = {
+                    "update_meta":
+                        (self.total_steps + t_train)
+                        % self.meta_update_freq == 0,
+                    "update_meta_actor":
+                        (self.total_steps + t_train)
+                        % (self.meta_update_freq * self.actor_update_freq) == 0
+                }
+            else:
+                kwargs = {}
+
+            # specifies whether to update the actor policy, base on the actor
+            # update frequency
+            update = (self.total_steps + t_train) % self.actor_update_freq == 0
+
             # Run a step of training from batch.
             critic_loss, actor_loss = self.policy_tf.update(
-                update_actor=(self.total_steps + t_train) % (
-                        self.nb_train_steps * self.actor_update_freq) == 0
-            )
+                update_actor=update, **kwargs)
 
             # Add actor and critic loss information for logging purposes.
             self.epoch_critic_losses.append(critic_loss)

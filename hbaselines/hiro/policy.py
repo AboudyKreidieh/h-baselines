@@ -1,7 +1,6 @@
 """TD3-compatible policies."""
 import tensorflow as tf
 import numpy as np
-from numpy.random import normal
 from functools import reduce
 from gym.spaces import Box
 import random
@@ -54,7 +53,7 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def update(self, update_actor=True):
+    def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
 
         Parameters
@@ -623,7 +622,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return qvalue_fn
 
-    def update(self, update_actor=True):
+    def update(self, update_actor=True, **kwargs):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
@@ -719,7 +718,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # apply Ornstein-Uhlenbeck process
             noise *= np.maximum(np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
             # compute noisy action
-            action += normal(loc=0, scale=noise, size=action.shape)
+            action += np.random.normal(loc=0, scale=noise, size=action.shape)
 
         # clip by bounds
         action = np.clip(action, self.ac_space.low, self.ac_space.high)
@@ -1251,10 +1250,18 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.manager.initialize()
         self.worker.initialize()
         self.meta_reward = 0
-        self.i = 0  # FIXME: hacky
 
-    def update(self, update_actor=True):
-        """See parent class."""
+    def update(self, update_actor=True, **kwargs):
+        """See parent class.
+
+        The kwargs argument for this method contains two additional terms:
+
+        * update_meta (bool): specifies whether to perform a gradient update
+          step for the meta-policy (i.e. Manager)
+        * update_meta_actor (bool): similar to the `update_policy` term, but
+          for the meta-policy. Note that, if `update_meta` is set to False,
+          this term is void.
+        """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
             return (0, 0), (0, 0)
@@ -1268,19 +1275,17 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._process_samples(samples)
 
         # Update the Manager policy.
-        if self.i % self.meta_period == 0:
+        if kwargs['update_meta']:
             m_critic_loss, m_actor_loss = self.manager.update_from_batch(
                 obs0=meta_obs0,
                 actions=meta_act,
                 rewards=meta_rew,
                 obs1=meta_obs1,
                 terminals1=meta_done,
-                # FIXME: replace 2 with freq variable
-                update_actor=self.i % (self.meta_period * 2) == 0,
+                update_actor=kwargs['update_meta_actor'],
             )
         else:
             m_critic_loss, m_actor_loss = 0, 0
-        self.i += 1
 
         # Update the Worker policy.
         w_critic_loss, w_actor_loss = self.worker.update_from_batch(
