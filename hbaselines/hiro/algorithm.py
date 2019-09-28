@@ -146,6 +146,11 @@ class TD3(object):
     actor_update_freq : int
         number of training steps per actor policy update step. The critic
         policy is updated every training step.
+    meta_update_freq : int
+        number of training steps per meta policy update step. The actor policy
+        of the meta-policy is further updated at the frequency provided by the
+        actor_update_freq variable. Note that this value is only relevant when
+        using the GoalDirectedPolicy policy.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -917,6 +922,7 @@ class TD3(object):
                 eval_action, _ = self._policy(
                     eval_obs,
                     apply_noise=False,
+                    random_actions=False,
                     compute_q=False,
                     context=[getattr(self.eval_env, "current_context", None)],
                     episode_step=eval_episode_step)

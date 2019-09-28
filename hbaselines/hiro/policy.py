@@ -627,7 +627,24 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return qvalue_fn
 
     def update(self, update_actor=True, **kwargs):
-        """See parent class."""
+        """Perform a gradient update step.
+
+        **Note**; The target update soft updates occur at the same frequency as
+        the actor update frequencies.
+
+        Parameters
+        ----------
+        update_actor : bool
+            specifies whether to update the actor policy. The critic policy is
+            still updated if this value is set to False.
+
+        Returns
+        -------
+        float
+            critic loss
+        float
+            actor loss
+        """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
             return 0, 0
@@ -1263,7 +1280,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward = 0
 
     def update(self, update_actor=True, **kwargs):
-        """See parent class.
+        """Perform a gradient update step.
+
+        This is done both at the level of the Manager and Worker policies.
 
         The kwargs argument for this method contains two additional terms:
 
@@ -1272,6 +1291,23 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         * update_meta_actor (bool): similar to the `update_policy` term, but
           for the meta-policy. Note that, if `update_meta` is set to False,
           this term is void.
+
+        **Note**; The target update soft updates for both the manager and the
+        worker policies occur at the same frequency as their respective actor
+        update frequencies.
+
+        Parameters
+        ----------
+        update_actor : bool
+            specifies whether to update the actor policy. The critic policy is
+            still updated if this value is set to False.
+
+        Returns
+        -------
+        (float, float)
+            manager critic loss, worker critic loss
+        (float, float)
+            manager actor loss, worker actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample(self.batch_size):
