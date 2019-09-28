@@ -507,7 +507,12 @@ class TD3(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, apply_noise=True, compute_q=True, **kwargs):
+    def _policy(self,
+                obs,
+                apply_noise=True,
+                compute_q=True,
+                random_actions=False,
+                **kwargs):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -518,6 +523,10 @@ class TD3(object):
             enable the noise
         compute_q : bool
             compute the critic output
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
 
         Returns
         -------
@@ -529,7 +538,9 @@ class TD3(object):
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         action = self.policy_tf.get_action(
-            obs, apply_noise,
+            obs,
+            apply_noise=apply_noise,
+            random_actions=random_actions,
             total_steps=self.total_steps,
             time=kwargs["episode_step"],
             context_obs=kwargs["context"])
@@ -736,7 +747,10 @@ class TD3(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self, total_timesteps, run_steps=None):
+    def _collect_samples(self,
+                         total_timesteps,
+                         run_steps=None,
+                         random_actions=False):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
@@ -751,13 +765,19 @@ class TD3(object):
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
         """
         new_obs, done = [], False
         for _ in range(run_steps or self.nb_rollout_steps):
-            # Predict next action.
+            # Predict next action. Use random actions when initializing the
+            # replay buffer.
             action, q_value = self._policy(
                 self.obs,
                 apply_noise=True,
+                random_actions=random_actions,
                 compute_q=True,
                 context=[getattr(self.env, "current_context", None)],
                 episode_step=self.episode_step)
