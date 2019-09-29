@@ -143,6 +143,14 @@ class TD3(object):
         the number of rollout steps
     nb_eval_episodes : int
         the number of evaluation episodes
+    actor_update_freq : int
+        number of training steps per actor policy update step. The critic
+        policy is updated every training step.
+    meta_update_freq : int
+        number of training steps per meta policy update step. The actor policy
+        of the meta-policy is further updated at the frequency provided by the
+        actor_update_freq variable. Note that this value is only relevant when
+        using the GoalDirectedPolicy policy.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -214,10 +222,10 @@ class TD3(object):
         episodes. Used for logging purposes.
     eval_rew_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation return from the last time
-        evaluations occured. Used for logging purposes.
+        evaluations occurred. Used for logging purposes.
     eval_success_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation success rate from the last time
-        evaluations occured. Used for logging purposes.
+        evaluations occurred. Used for logging purposes.
     """
 
     def __init__(self,
@@ -229,6 +237,8 @@ class TD3(object):
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
+                 actor_update_freq=2,
+                 meta_update_freq=10,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -258,6 +268,14 @@ class TD3(object):
             the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
+        actor_update_freq : int
+            number of training steps per actor policy update step. The critic
+            policy is updated every training step.
+        meta_update_freq : int
+            number of training steps per meta policy update step. The actor
+            policy of the meta-policy is further updated at the frequency
+            provided by the actor_update_freq variable. Note that this value is
+            only relevant when using the GoalDirectedPolicy policy.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -281,6 +299,8 @@ class TD3(object):
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
+        self.actor_update_freq = actor_update_freq
+        self.meta_update_freq = meta_update_freq
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -294,6 +314,7 @@ class TD3(object):
             self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
         elif policy == GoalDirectedPolicy:
             self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+            self.policy_kwargs['env_name'] = self.env_name.__str__()
         else:
             self.policy_kwargs = {}
 
@@ -491,7 +512,12 @@ class TD3(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, apply_noise=True, compute_q=True, **kwargs):
+    def _policy(self,
+                obs,
+                apply_noise=True,
+                compute_q=True,
+                random_actions=False,
+                **kwargs):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -502,6 +528,10 @@ class TD3(object):
             enable the noise
         compute_q : bool
             compute the critic output
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
 
         Returns
         -------
@@ -513,7 +543,9 @@ class TD3(object):
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         action = self.policy_tf.get_action(
-            obs, apply_noise,
+            obs,
+            apply_noise=apply_noise,
+            random_actions=random_actions,
             total_steps=self.total_steps,
             time=kwargs["episode_step"],
             context_obs=kwargs["context"])
@@ -703,6 +735,8 @@ class TD3(object):
     def save(self, save_path):
         """Save the parameters of a tensorflow model.
 
+        Parameters
+        ----------
         save_path : str
             Prefix of filenames created for the checkpoint
         """
@@ -711,12 +745,17 @@ class TD3(object):
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
-        save_path : str
+        Parameters
+        ----------
+        load_path : str
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self, total_timesteps, run_steps=None):
+    def _collect_samples(self,
+                         total_timesteps,
+                         run_steps=None,
+                         random_actions=False):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
@@ -731,13 +770,19 @@ class TD3(object):
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
         """
         new_obs, done = [], False
         for _ in range(run_steps or self.nb_rollout_steps):
-            # Predict next action.
+            # Predict next action. Use random actions when initializing the
+            # replay buffer.
             action, q_value = self._policy(
                 self.obs,
                 apply_noise=True,
+                random_actions=random_actions,
                 compute_q=True,
                 context=[getattr(self.env, "current_context", None)],
                 episode_step=self.episode_step)
@@ -801,8 +846,27 @@ class TD3(object):
         the policy, and the summary information is logged to tensorboard.
         """
         for t_train in range(self.nb_train_steps):
+            if self.policy == GoalDirectedPolicy:
+                # specifies whether to update the meta actor and critic
+                # policies based on the meta and actor update frequencies
+                kwargs = {
+                    "update_meta":
+                        (self.total_steps + t_train)
+                        % self.meta_update_freq == 0,
+                    "update_meta_actor":
+                        (self.total_steps + t_train)
+                        % (self.meta_update_freq * self.actor_update_freq) == 0
+                }
+            else:
+                kwargs = {}
+
+            # specifies whether to update the actor policy, base on the actor
+            # update frequency
+            update = (self.total_steps + t_train) % self.actor_update_freq == 0
+
             # Run a step of training from batch.
-            critic_loss, actor_loss = self.policy_tf.update()
+            critic_loss, actor_loss = self.policy_tf.update(
+                update_actor=update, **kwargs)
 
             # Add actor and critic loss information for logging purposes.
             self.epoch_critic_losses.append(critic_loss)
@@ -858,6 +922,7 @@ class TD3(object):
                 eval_action, _ = self._policy(
                     eval_obs,
                     apply_noise=False,
+                    random_actions=False,
                     compute_q=False,
                     context=[getattr(self.eval_env, "current_context", None)],
                     episode_step=eval_episode_step)

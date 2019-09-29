@@ -143,6 +143,7 @@ class TestTD3(unittest.TestCase):
         # check the policy_kwargs term
         policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
         policy_kwargs['verbose'] = self.init_parameters['verbose']
+        policy_kwargs['env_name'] = self.init_parameters['env']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():

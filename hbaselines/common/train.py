@@ -13,9 +13,12 @@ def get_hyperparameters(args, policy):
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
+        "actor_update_freq": args.actor_update_freq,
+        "meta_update_freq": args.meta_update_freq,
         "reward_scale": args.reward_scale,
         "render": args.render,
         "render_eval": args.render_eval,
+        "verbose": args.verbose,
         "_init_setup_model": True,
     }
     policy_kwargs = {}
@@ -129,6 +132,16 @@ def create_td3_parser(parser):
         '--verbose', type=int, default=2,
         help='the verbosity level: 0 none, 1 training information, '
              '2 tensorflow debug')
+    parser.add_argument(
+        '--actor_update_freq', type=int, default=2,
+        help='number of training steps per actor policy update step. The '
+             'critic policy is updated every training step.')
+    parser.add_argument(
+        '--meta_update_freq', type=int, default=10,
+        help='number of training steps per meta policy update step. The actor '
+             'policy of the meta-policy is further updated at the frequency '
+             'provided by the actor_update_freq variable. Note that this value'
+             ' is only relevant when using the GoalDirectedPolicy policy.')
 
     return parser
 
