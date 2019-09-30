@@ -1523,7 +1523,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                     reward_t=self._worker_rewards,
                     done=self._dones,
                     meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=0.1*self.meta_reward,
+                    meta_reward_t=self.meta_reward,
                 )
 
                 # Reset the meta reward.

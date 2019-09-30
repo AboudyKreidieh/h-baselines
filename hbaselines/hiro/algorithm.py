@@ -33,7 +33,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 FEEDFORWARD_POLICY_KWARGS = dict(
     # the max number of transitions to store
-    buffer_size=50000,
+    buffer_size=200000,
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
@@ -61,7 +61,7 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
-    use_huber=True,
+    use_huber=False,
 )
 
 
@@ -666,7 +666,9 @@ class TD3(object):
             self.epoch_episode_steps = []
             # Perform rollouts.
             print("Collecting pre-samples...")
-            self._collect_samples(total_timesteps, run_steps=start_timesteps)
+            self._collect_samples(total_timesteps,
+                                  run_steps=start_timesteps,
+                                  random_actions=True)
             print("Done!")
             self.episode_reward = 0
             self.episode_step = 0
