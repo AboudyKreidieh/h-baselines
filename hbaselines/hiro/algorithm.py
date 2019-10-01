@@ -61,7 +61,7 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
-    use_huber=True,
+    use_huber=False,
 )
 
 
@@ -657,7 +657,9 @@ class TD3(object):
             self.epoch_episode_steps = []
             # Perform rollouts.
             print("Collecting pre-samples...")
-            self._collect_samples(total_timesteps, run_steps=start_timesteps)
+            self._collect_samples(total_timesteps,
+                                  run_steps=start_timesteps,
+                                  random_actions=True)
             print("Done!")
             self.episode_reward = 0
             self.episode_step = 0
@@ -792,8 +794,9 @@ class TD3(object):
 
             # Add the contextual reward to the environment reward.
             if hasattr(self.env, "current_context"):
-                reward += getattr(self.env, "contextual_reward")(
-                    self.obs, getattr(self.env, "current_context"), new_obs)
+                context = getattr(self.env, "current_context")
+                reward_fn = getattr(self.env, "contextual_reward")
+                reward += reward_fn(self.obs, context, new_obs)
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
@@ -921,8 +924,8 @@ class TD3(object):
                 # Add the contextual reward to the environment reward.
                 if hasattr(self.eval_env, "current_context"):
                     context_obs = getattr(self.eval_env, "current_context")
-                    eval_r += getattr(self.eval_env, "contextual_reward")(
-                        eval_obs, context_obs, obs)
+                    reward_fn = getattr(self.eval_env, "contextual_reward")
+                    eval_r += reward_fn(eval_obs, context_obs, obs)
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()

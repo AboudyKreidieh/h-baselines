@@ -251,7 +251,7 @@ class TestTD3(unittest.TestCase):
 
         # Test the seeds.
         alg.learn(0, log_dir='results', seed=1, start_timesteps=0)
-        self.assertEqual(np.random.sample(), 0.39676747423066994)
+        self.assertEqual(np.random.sample(), 0.417022004702574)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
