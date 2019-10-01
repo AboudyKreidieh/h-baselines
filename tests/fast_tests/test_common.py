@@ -19,7 +19,6 @@ class TestTrain(unittest.TestCase):
             'total_steps': 1000000,
             'seed': 1,
             'num_cpus': 1,
-            'sims_per_step': 1,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -59,7 +58,6 @@ class TestTrain(unittest.TestCase):
             '--total_steps', '2',
             '--seed', '3',
             '--num_cpus', '4',
-            '--sims_per_step', '5',
             '--nb_train_steps', '6',
             '--nb_rollout_steps', '7',
             '--nb_eval_episodes', '8',
@@ -90,7 +88,6 @@ class TestTrain(unittest.TestCase):
         hp = get_hyperparameters(args, GoalDirectedPolicy)
         expected_hp = {
             'num_cpus': 4,
-            'sims_per_step': 5,
             'nb_train_steps': 6,
             'nb_rollout_steps': 7,
             'nb_eval_episodes': 8,

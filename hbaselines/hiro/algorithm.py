@@ -132,9 +132,6 @@ class TD3(object):
         the environment to learn from (if registered in Gym, can be str)
     num_cpus : int
         number of CPUs to be used during the training procedure
-    sims_per_step : int
-        number of sumo simulation steps performed in any given rollout step. RL
-        agents perform the same action for the duration of these steps.
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -232,7 +229,6 @@ class TD3(object):
                  policy,
                  env,
                  num_cpus=1,
-                 sims_per_step=1,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -256,10 +252,6 @@ class TD3(object):
         num_cpus : int, optional
             number of CPUs to be used during the training procedure. Defaults
             to 1.
-        sims_per_step : int, optional
-            number of sumo simulation steps performed in any given rollout
-            step. RL agents perform the same action for the duration of these
-            steps. Defaults to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -294,7 +286,6 @@ class TD3(object):
         self.env_name = deepcopy(env)
         self.env = self._create_env(env, evaluate=False)
         self.num_cpus = num_cpus
-        self.sims_per_step = sims_per_step
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -775,7 +766,6 @@ class TD3(object):
             instead of being computed by the policy. This is used for
             exploration purposes.
         """
-        new_obs, done = [], False
         for _ in range(run_steps or self.nb_rollout_steps):
             # Predict next action. Use random actions when initializing the
             # replay buffer.
@@ -788,15 +778,12 @@ class TD3(object):
                 episode_step=self.episode_step)
             assert action.shape == self.env.action_space.shape
 
-            reward = 0
-            for _ in range(self.sims_per_step):
-                # Execute next action.
-                new_obs, new_reward, done, info = self.env.step(action)
-                reward += new_reward
+            # Execute next action.
+            new_obs, reward, done, info = self.env.step(action)
 
-                # Visualize the current step.
-                if self.render:
-                    self.env.render()
+            # Visualize the current step.
+            if self.render:
+                self.env.render()
 
             # Add the fingerprint term, if needed.
             if self.policy_kwargs.get("use_fingerprints", False):
@@ -819,7 +806,7 @@ class TD3(object):
             self.epoch_qs.append(q_value)
 
             # Update the current observation.
-            self.obs = new_obs
+            self.obs = new_obs.copy()
 
             if done:
                 # Episode done.
@@ -917,7 +904,6 @@ class TD3(object):
             eval_episode_reward = 0.
             eval_episode_step = 0
 
-            obs, done, info = [], False, {}
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
@@ -927,13 +913,10 @@ class TD3(object):
                     context=[getattr(self.eval_env, "current_context", None)],
                     episode_step=eval_episode_step)
 
-                eval_r = 0
-                for _ in range(self.sims_per_step):
-                    obs, new_r, done, info = self.eval_env.step(eval_action)
-                    eval_r += new_r
+                obs, eval_r, done, info = self.eval_env.step(eval_action)
 
-                    if self.render_eval:
-                        self.eval_env.render()
+                if self.render_eval:
+                    self.eval_env.render()
 
                 # Add the contextual reward to the environment reward.
                 if hasattr(self.eval_env, "current_context"):

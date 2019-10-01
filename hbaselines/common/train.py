@@ -9,7 +9,6 @@ def get_hyperparameters(args, policy):
     """Return the hyperparameters of a training algorithm from the parser."""
     algorithm_params = {
         "num_cpus": args.num_cpus,
-        "sims_per_step": args.sims_per_step,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
@@ -105,11 +104,6 @@ def create_td3_parser(parser):
     parser.add_argument(
         '--num_cpus', type=int, default=1,
         help='Number CPUs to distribute experiments over. Defaults to 1.')
-    parser.add_argument(
-        '--sims_per_step', type=int, default=1,
-        help='number of sumo simulation steps performed in any given rollout '
-             'step. RL agents perform the same action for the duration of '
-             'these steps. Defaults to 1.')
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')
