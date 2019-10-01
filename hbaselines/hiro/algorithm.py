@@ -33,7 +33,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 FEEDFORWARD_POLICY_KWARGS = dict(
     # the max number of transitions to store
-    buffer_size=200000,
+    buffer_size=50000,
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
@@ -706,13 +706,14 @@ class TD3(object):
                 if self.eval_env is not None and \
                         (self.total_steps - steps_incr) >= eval_interval:
                     steps_incr += eval_interval
-                    eval_rewards, eval_successes = self._evaluate(
+                    eval_rewards, eval_successes, eval_info = self._evaluate(
                         total_timesteps)
                     self._log_eval(
                         eval_filepath,
                         start_time,
                         eval_rewards,
-                        eval_successes
+                        eval_successes,
+                        eval_info
                     )
 
                 # Run and store summary.
@@ -895,10 +896,13 @@ class TD3(object):
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
+        dict
+            additional information that is meant to be logged
         """
         num_steps = deepcopy(self.total_steps)
         eval_episode_rewards = []
         eval_episode_successes = []
+        ret_info = {'initial': [], 'final': [], 'average': []}
 
         if self.verbose >= 1:
             for _ in range(3):
@@ -920,6 +924,7 @@ class TD3(object):
             eval_episode_step = 0
 
             obs, done, info = [], False, {}
+            rets = np.array([])
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
@@ -942,6 +947,11 @@ class TD3(object):
                     context_obs = getattr(self.eval_env, "current_context")
                     eval_r += getattr(self.eval_env, "contextual_reward")(
                         eval_obs, context_obs, obs)
+                    rets = np.append(
+                        rets,
+                        getattr(self.eval_env, "contextual_reward")(
+                            eval_obs, context_obs, obs)
+                    )
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
@@ -962,11 +972,23 @@ class TD3(object):
                     if maybe_is_success is not None:
                         eval_episode_successes.append(float(maybe_is_success))
 
+                    if self.verbose >= 1:
+                        if rets.shape[0] > 0:
+                            print("%d/%d: initial: %.3f, final: %.3f, average:"
+                                  " %.3f, success: %d"
+                                  % (i + 1, self.nb_eval_episodes, rets[0],
+                                     rets[-1], float(rets.mean()),
+                                     int(info.get('is_success'))))
+                        else:
+                            print("%d/%d" % (i + 1, self.nb_eval_episodes))
+
+                    if hasattr(self.eval_env, "current_context"):
+                        ret_info['initial'].append(rets[0])
+                        ret_info['final'].append(rets[-1])
+                        ret_info['average'].append(float(rets.mean()))
+
                     # Exit the loop.
                     break
-
-            if self.verbose >= 1:
-                print("{}/{}...".format(i+1, self.nb_eval_episodes))
 
         if self.verbose >= 1:
             print("Done.")
@@ -978,7 +1000,12 @@ class TD3(object):
                 print("-------------------")
             print("")
 
-        return eval_episode_rewards, eval_episode_successes
+        # get the average of the reward information
+        ret_info['initial'] = np.mean(ret_info['initial'])
+        ret_info['final'] = np.mean(ret_info['final'])
+        ret_info['average'] = np.mean(ret_info['average'])
+
+        return eval_episode_rewards, eval_episode_successes, ret_info
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.
@@ -1036,7 +1063,8 @@ class TD3(object):
                   file_path,
                   start_time,
                   eval_episode_rewards,
-                  eval_episode_successes):
+                  eval_episode_successes,
+                  eval_info):
         """Log evaluation statistics.
 
         Parameters
@@ -1054,6 +1082,8 @@ class TD3(object):
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
+        eval_info : dict
+            additional information that is meant to be logged
         """
         duration = time.time() - start_time
 
@@ -1068,6 +1098,8 @@ class TD3(object):
             "success_rate": success_rate,
             "average_return": np.mean(eval_episode_rewards)
         }
+        # add additional evaluation information
+        evaluation_stats.update(eval_info)
 
         # Save evaluation statistics in a csv file.
         if file_path is not None:

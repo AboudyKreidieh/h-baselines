@@ -415,7 +415,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # clip the noisy action to remain in the bounds [-1, 1]
             noisy_actor_target = tf.clip_by_value(
-                actor_target + target_noise, -1, 1)
+                actor_target + target_noise,
+                self.ac_space.low,
+                self.ac_space.high
+            )
 
             # create the target critic policies
             critic_target = [
@@ -494,8 +497,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             get_trainable_vars(scope_name),
             -self.q_gradient_input)
 
-        self.actor_optimizer = optimizer.apply_gradients(
-            zip(self.actor_grads, get_trainable_vars(scope_name)))
+        # self.actor_optimizer = optimizer.apply_gradients(
+        #     zip(self.actor_grads, get_trainable_vars(scope_name)))
+        self.actor_optimizer = optimizer.minimize(
+            self.actor_loss,
+            var_list=get_trainable_vars(scope_name)
+        )
 
     def _setup_critic_optimizer(self, scope):
         """Create the critic loss, gradient, and optimizer."""
@@ -531,12 +538,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
 
-            # add to the critic grads list  TODO: add grad clipping
+            # add to the critic grads list
             self.critic_grads.append(
                 tf.gradients(self.critic_tf[i], self.action_ph)
             )
 
-            # create the optimizer object  TODO: add grad clipping
+            # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
 
     def make_actor(self, obs, reuse=False, scope="pi"):
@@ -694,33 +701,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        # Perform the critic updates.
-        critic_loss, grads0, *_ = self.sess.run(
-            [self.critic_loss, self.critic_grads[0],
-             self.critic_optimizer[0], self.critic_optimizer[1]],
-            feed_dict={
-                self.obs_ph: obs0,
-                self.action_ph: actions,
-                self.rew_ph: rewards,
-                self.obs1_ph: obs1,
-                self.terminals1: terminals1
-            }
-        )
+        # update operations for the critic networks
+        step_ops = [self.critic_loss,
+                    self.critic_optimizer[0],
+                    self.critic_optimizer[1]]
 
         if update_actor:
-            # Perform the actor updates.
-            actor_loss, *_ = self.sess.run(
-                [self.actor_loss, self.actor_optimizer],
-                feed_dict={
-                    self.obs_ph: obs0,
-                    self.q_gradient_input: grads0[0]
-                }
-            )
+            # actor updates and target soft update operation
+            step_ops += [self.actor_loss,
+                         self.actor_optimizer,
+                         self.target_soft_updates]
 
-            # Run target soft update operation.
-            self.sess.run(self.target_soft_updates)
-        else:
-            actor_loss = 0
+        # perform the update operations and collect the critic loss
+        critic_loss, *_vals = self.sess.run(step_ops, feed_dict={
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+            self.rew_ph: rewards,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
+        })
+
+        # extract the actor loss
+        actor_loss = _vals[2] if update_actor else 0
 
         return critic_loss, actor_loss
 
@@ -1449,23 +1451,17 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
-        # TODO: looks like this wasn't working originally...
         # Update the meta action, if the time period requires is.
-        if kwargs["time"] % self.meta_period == 0:
-            if random_actions:
-                self.meta_action = self.manager.ac_space.sample()
-            else:
-                self.meta_action = self.manager.get_action(
-                    obs, apply_noise, random_actions, **kwargs)
+        if len(self._observations) == 0:
+            self.meta_action = self.manager.get_action(
+                obs, apply_noise, random_actions=False, **kwargs)
 
         # Return the worker action.
-        if random_actions:
-            worker_action = self.worker.ac_space.sample()
-        else:
-            worker_action = self.worker.get_action(
-                obs, apply_noise, random_actions,
-                context_obs=self.meta_action,
-                total_steps=kwargs['total_steps'])
+        worker_action = self.worker.get_action(
+            obs, apply_noise,
+            random_actions=False,
+            context_obs=self.meta_action,
+            total_steps=kwargs['total_steps'])
 
         return worker_action
 
@@ -1491,7 +1487,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward += reward
 
         # Modify the previous meta observation whenever the action has changed.
-        if kwargs["time"] % self.meta_period == 0:
+        if len(self._observations) == 1:
             if kwargs.get("context_obs0") is not None:
                 self.prev_meta_obs = np.concatenate(
                     (obs0, kwargs["context_obs0"].flatten()), axis=0)
@@ -1499,7 +1495,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self.prev_meta_obs = np.copy(obs0)
 
         # Add a sample to the replay buffer.
-        if (kwargs["time"] + 1) % self.meta_period == 0 or done:
+        if len(self._observations) == self.meta_period or done:
             # Add the last observation if about to reset.
             if done:
                 self._observations.append(
