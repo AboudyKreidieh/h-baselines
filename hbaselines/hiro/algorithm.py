@@ -61,7 +61,7 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
-    use_huber=True,
+    use_huber=False,
 )
 
 
@@ -132,9 +132,6 @@ class TD3(object):
         the environment to learn from (if registered in Gym, can be str)
     num_cpus : int
         number of CPUs to be used during the training procedure
-    sims_per_step : int
-        number of sumo simulation steps performed in any given rollout step. RL
-        agents perform the same action for the duration of these steps.
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -232,7 +229,6 @@ class TD3(object):
                  policy,
                  env,
                  num_cpus=1,
-                 sims_per_step=1,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -256,10 +252,6 @@ class TD3(object):
         num_cpus : int, optional
             number of CPUs to be used during the training procedure. Defaults
             to 1.
-        sims_per_step : int, optional
-            number of sumo simulation steps performed in any given rollout
-            step. RL agents perform the same action for the duration of these
-            steps. Defaults to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -294,7 +286,6 @@ class TD3(object):
         self.env_name = deepcopy(env)
         self.env = self._create_env(env, evaluate=False)
         self.num_cpus = num_cpus
-        self.sims_per_step = sims_per_step
         self.eval_env = self._create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -379,14 +370,14 @@ class TD3(object):
 
         Returns
         -------
-        gym.Env
-            a gym-compatible environment
+        gym.Env or list of gym.Env
+            gym-compatible environment(s)
         """
         if env == "AntMaze":
             if evaluate:
-                env = AntMaze(use_contexts=True, context_range=[16, 0])
-                # env = AntMaze(use_contexts=True, context_range=[16, 16])
-                # env = AntMaze(use_contexts=True, context_range=[0, 16])
+                env = [AntMaze(use_contexts=True, context_range=[16, 0]),
+                       AntMaze(use_contexts=True, context_range=[16, 16]),
+                       AntMaze(use_contexts=True, context_range=[0, 16])]
             else:
                 env = AntMaze(use_contexts=True,
                               random_contexts=True,
@@ -454,7 +445,11 @@ class TD3(object):
 
         # Reset the environment.
         if env is not None:
-            env.reset()
+            if isinstance(env, list):
+                for next_env in env:
+                    next_env.reset()
+            else:
+                env.reset()
 
         return env
 
@@ -620,6 +615,7 @@ class TD3(object):
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
+        ensure_dir(os.path.join(log_dir, "checkpoints"))
 
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
@@ -666,7 +662,9 @@ class TD3(object):
             self.epoch_episode_steps = []
             # Perform rollouts.
             print("Collecting pre-samples...")
-            self._collect_samples(total_timesteps, run_steps=start_timesteps)
+            self._collect_samples(total_timesteps,
+                                  run_steps=start_timesteps,
+                                  random_actions=True)
             print("Done!")
             self.episode_reward = 0
             self.episode_step = 0
@@ -704,13 +702,30 @@ class TD3(object):
                 if self.eval_env is not None and \
                         (self.total_steps - steps_incr) >= eval_interval:
                     steps_incr += eval_interval
-                    eval_rewards, eval_successes = self._evaluate(
-                        total_timesteps)
+
+                    # Run the evaluation operations over the evaluation env(s).
+                    # Note that multiple evaluation envs can be provided.
+                    if isinstance(self.eval_env, list):
+                        eval_rewards = []
+                        eval_successes = []
+                        eval_info = []
+                        for env in self.eval_env:
+                            rew, suc, inf = \
+                                self._evaluate(total_timesteps, env)
+                            eval_rewards.append(rew)
+                            eval_successes.append(suc)
+                            eval_info.append(inf)
+                    else:
+                        eval_rewards, eval_successes, eval_info = \
+                            self._evaluate(total_timesteps, self.eval_env)
+
+                    # Log the evaluation statistics.
                     self._log_eval(
                         eval_filepath,
                         start_time,
                         eval_rewards,
-                        eval_successes
+                        eval_successes,
+                        eval_info,
                     )
 
                 # Run and store summary.
@@ -727,7 +742,7 @@ class TD3(object):
                         writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
-                self.save(os.path.join(log_dir, "itr"))
+                self.save(os.path.join(log_dir, "checkpoints/itr"))
 
                 # Update the epoch count.
                 self.epoch += 1
@@ -775,7 +790,6 @@ class TD3(object):
             instead of being computed by the policy. This is used for
             exploration purposes.
         """
-        new_obs, done = [], False
         for _ in range(run_steps or self.nb_rollout_steps):
             # Predict next action. Use random actions when initializing the
             # replay buffer.
@@ -788,15 +802,12 @@ class TD3(object):
                 episode_step=self.episode_step)
             assert action.shape == self.env.action_space.shape
 
-            reward = 0
-            for _ in range(self.sims_per_step):
-                # Execute next action.
-                new_obs, new_reward, done, info = self.env.step(action)
-                reward += new_reward
+            # Execute next action.
+            new_obs, reward, done, info = self.env.step(action)
 
-                # Visualize the current step.
-                if self.render:
-                    self.env.render()
+            # Visualize the current step.
+            if self.render:
+                self.env.render()
 
             # Add the fingerprint term, if needed.
             if self.policy_kwargs.get("use_fingerprints", False):
@@ -805,8 +816,9 @@ class TD3(object):
 
             # Add the contextual reward to the environment reward.
             if hasattr(self.env, "current_context"):
-                reward += getattr(self.env, "contextual_reward")(
-                    self.obs, getattr(self.env, "current_context"), new_obs)
+                context = getattr(self.env, "current_context")
+                reward_fn = getattr(self.env, "contextual_reward")
+                reward += reward_fn(self.obs, context, new_obs)
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
@@ -819,7 +831,7 @@ class TD3(object):
             self.epoch_qs.append(q_value)
 
             # Update the current observation.
-            self.obs = new_obs
+            self.obs = new_obs.copy()
 
             if done:
                 # Episode done.
@@ -872,7 +884,7 @@ class TD3(object):
             self.epoch_critic_losses.append(critic_loss)
             self.epoch_actor_losses.append(actor_loss)
 
-    def _evaluate(self, total_timesteps):
+    def _evaluate(self, total_timesteps, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -882,6 +894,8 @@ class TD3(object):
         ----------
         total_timesteps : int
             the total number of samples to train on
+        env : gym.Env
+            the evaluation environment that the policy is meant to be tested on
 
         Returns
         -------
@@ -893,10 +907,13 @@ class TD3(object):
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
+        dict
+            additional information that is meant to be logged
         """
         num_steps = deepcopy(self.total_steps)
         eval_episode_rewards = []
         eval_episode_successes = []
+        ret_info = {'initial': [], 'final': [], 'average': []}
 
         if self.verbose >= 1:
             for _ in range(3):
@@ -906,7 +923,7 @@ class TD3(object):
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
-            eval_obs = self.eval_env.reset()
+            eval_obs = env.reset()
 
             # Add the fingerprint term, if needed.
             if self.policy_kwargs.get("use_fingerprints", False):
@@ -917,29 +934,31 @@ class TD3(object):
             eval_episode_reward = 0.
             eval_episode_step = 0
 
-            obs, done, info = [], False, {}
+            rets = np.array([])
             while True:
                 eval_action, _ = self._policy(
                     eval_obs,
                     apply_noise=False,
                     random_actions=False,
                     compute_q=False,
-                    context=[getattr(self.eval_env, "current_context", None)],
+                    context=[getattr(env, "current_context", None)],
                     episode_step=eval_episode_step)
 
-                eval_r = 0
-                for _ in range(self.sims_per_step):
-                    obs, new_r, done, info = self.eval_env.step(eval_action)
-                    eval_r += new_r
+                obs, eval_r, done, info = env.step(eval_action)
 
-                    if self.render_eval:
-                        self.eval_env.render()
+                if self.render_eval:
+                    env.render()
 
                 # Add the contextual reward to the environment reward.
-                if hasattr(self.eval_env, "current_context"):
-                    context_obs = getattr(self.eval_env, "current_context")
-                    eval_r += getattr(self.eval_env, "contextual_reward")(
-                        eval_obs, context_obs, obs)
+                if hasattr(env, "current_context"):
+                    context_obs = getattr(env, "current_context")
+                    reward_fn = getattr(env, "contextual_reward")
+                    eval_r += reward_fn(eval_obs, context_obs, obs)
+
+                    # Add the distance to this list for logging purposes
+                    # (applies only to the Ant* environments).
+                    rets = np.append(rets,
+                                     reward_fn(eval_obs, context_obs, obs))
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
@@ -960,11 +979,23 @@ class TD3(object):
                     if maybe_is_success is not None:
                         eval_episode_successes.append(float(maybe_is_success))
 
+                    if self.verbose >= 1:
+                        if rets.shape[0] > 0:
+                            print("%d/%d: initial: %.3f, final: %.3f, average:"
+                                  " %.3f, success: %d"
+                                  % (i + 1, self.nb_eval_episodes, rets[0],
+                                     rets[-1], float(rets.mean()),
+                                     int(info.get('is_success'))))
+                        else:
+                            print("%d/%d" % (i + 1, self.nb_eval_episodes))
+
+                    if hasattr(env, "current_context"):
+                        ret_info['initial'].append(rets[0])
+                        ret_info['final'].append(rets[-1])
+                        ret_info['average'].append(float(rets.mean()))
+
                     # Exit the loop.
                     break
-
-            if self.verbose >= 1:
-                print("{}/{}...".format(i+1, self.nb_eval_episodes))
 
         if self.verbose >= 1:
             print("Done.")
@@ -976,7 +1007,12 @@ class TD3(object):
                 print("-------------------")
             print("")
 
-        return eval_episode_rewards, eval_episode_successes
+        # get the average of the reward information
+        ret_info['initial'] = np.mean(ret_info['initial'])
+        ret_info['final'] = np.mean(ret_info['final'])
+        ret_info['average'] = np.mean(ret_info['average'])
+
+        return eval_episode_rewards, eval_episode_successes, ret_info
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.
@@ -1034,7 +1070,8 @@ class TD3(object):
                   file_path,
                   start_time,
                   eval_episode_rewards,
-                  eval_episode_successes):
+                  eval_episode_successes,
+                  eval_info):
         """Log evaluation statistics.
 
         Parameters
@@ -1052,26 +1089,41 @@ class TD3(object):
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
+        eval_info : dict
+            additional information that is meant to be logged
         """
         duration = time.time() - start_time
 
-        if len(eval_episode_successes) > 0:
-            success_rate = np.mean(eval_episode_successes)
-        else:
-            success_rate = 0  # no success rate to log
+        if isinstance(eval_info, dict):
+            eval_episode_rewards = [eval_episode_rewards]
+            eval_episode_successes = [eval_episode_successes]
+            eval_info = [eval_info]
 
-        evaluation_stats = {
-            "duration": duration,
-            "total_step": self.total_steps,
-            "success_rate": success_rate,
-            "average_return": np.mean(eval_episode_rewards)
-        }
+        for i, (ep_rewards, ep_success, info) in enumerate(
+                zip(eval_episode_rewards, eval_episode_successes, eval_info)):
+            if len(eval_episode_successes) > 0:
+                success_rate = np.mean(ep_success)
+            else:
+                success_rate = 0  # no success rate to log
 
-        # Save evaluation statistics in a csv file.
-        if file_path is not None:
-            exists = os.path.exists(file_path)
-            with open(file_path, "a") as f:
-                w = csv.DictWriter(f, fieldnames=evaluation_stats.keys())
-                if not exists:
-                    w.writeheader()
-                w.writerow(evaluation_stats)
+            evaluation_stats = {
+                "duration": duration,
+                "total_step": self.total_steps,
+                "success_rate": success_rate,
+                "average_return": np.mean(ep_rewards)
+            }
+            # Add additional evaluation information.
+            evaluation_stats.update(info)
+
+            if file_path is not None:
+                # Add an evaluation number to the csv file in case of multiple
+                # evaluation environments.
+                eval_fp = file_path[:-4] + "_{}.csv".format(i)
+                exists = os.path.exists(eval_fp)
+
+                # Save evaluation statistics in a csv file.
+                with open(eval_fp, "a") as f:
+                    w = csv.DictWriter(f, fieldnames=evaluation_stats.keys())
+                    if not exists:
+                        w.writeheader()
+                    w.writerow(evaluation_stats)

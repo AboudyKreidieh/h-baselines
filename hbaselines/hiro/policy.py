@@ -415,7 +415,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # clip the noisy action to remain in the bounds [-1, 1]
             noisy_actor_target = tf.clip_by_value(
-                actor_target + target_noise, -1, 1)
+                actor_target + target_noise,
+                self.ac_space.low,
+                self.ac_space.high
+            )
 
             # create the target critic policies
             critic_target = [
@@ -531,12 +534,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
 
-            # add to the critic grads list  TODO: add grad clipping
+            # add to the critic grads list
             self.critic_grads.append(
                 tf.gradients(self.critic_tf[i], self.action_ph)
             )
 
-            # create the optimizer object  TODO: add grad clipping
+            # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
 
     def make_actor(self, obs, reuse=False, scope="pi"):
@@ -1452,20 +1455,14 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # TODO: looks like this wasn't working originally...
         # Update the meta action, if the time period requires is.
         if kwargs["time"] % self.meta_period == 0:
-            if random_actions:
-                self.meta_action = self.manager.ac_space.sample()
-            else:
-                self.meta_action = self.manager.get_action(
-                    obs, apply_noise, random_actions, **kwargs)
+            self.meta_action = self.manager.get_action(
+                obs, apply_noise, random_actions, **kwargs)
 
         # Return the worker action.
-        if random_actions:
-            worker_action = self.worker.ac_space.sample()
-        else:
-            worker_action = self.worker.get_action(
-                obs, apply_noise, random_actions,
-                context_obs=self.meta_action,
-                total_steps=kwargs['total_steps'])
+        worker_action = self.worker.get_action(
+            obs, apply_noise, random_actions,
+            context_obs=self.meta_action,
+            total_steps=kwargs['total_steps'])
 
         return worker_action
 
@@ -1523,7 +1520,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                     reward_t=self._worker_rewards,
                     done=self._dones,
                     meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=0.1*self.meta_reward,
+                    meta_reward_t=self.meta_reward,
                 )
 
                 # Reset the meta reward.
