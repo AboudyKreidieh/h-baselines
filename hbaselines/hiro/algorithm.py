@@ -370,8 +370,8 @@ class TD3(object):
 
         Returns
         -------
-        gym.Env or list gym.Env
-            a gym-compatible environment
+        gym.Env or list of gym.Env
+            gym-compatible environment(s)
         """
         if env == "AntMaze":
             if evaluate:
@@ -725,7 +725,7 @@ class TD3(object):
                         start_time,
                         eval_rewards,
                         eval_successes,
-                        eval_info
+                        eval_info,
                     )
 
                 # Run and store summary.
@@ -831,7 +831,7 @@ class TD3(object):
             self.epoch_qs.append(q_value)
 
             # Update the current observation.
-            self.obs = new_obs
+            self.obs = new_obs.copy()
 
             if done:
                 # Episode done.
