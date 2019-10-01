@@ -611,6 +611,7 @@ class TD3(object):
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
+        ensure_dir(os.path.join(log_dir, "checkpoints"))
 
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
@@ -720,7 +721,7 @@ class TD3(object):
                         writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
-                self.save(os.path.join(log_dir, "itr"))
+                self.save(os.path.join(log_dir, "checkpoints/itr"))
 
                 # Update the epoch count.
                 self.epoch += 1
