@@ -1441,13 +1441,13 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         return np.array(meta_obs0_all), \
             np.array(meta_obs1_all), \
             np.array(meta_act_all), \
-            np.array(meta_rew_all), \
-            np.array(meta_done_all), \
+            np.array(meta_rew_all).reshape(-1, 1), \
+            np.array(meta_done_all).reshape(-1, 1), \
             np.array(worker_obs0_all), \
             np.array(worker_obs1_all), \
             np.array(worker_act_all), \
-            np.array(worker_rew_all), \
-            np.array(worker_done_all)
+            np.array(worker_rew_all).reshape(-1, 1), \
+            np.array(worker_done_all).reshape(-1, 1)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
