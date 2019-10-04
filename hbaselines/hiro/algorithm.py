@@ -634,7 +634,7 @@ class TD3(object):
             print('Using agent with the following configuration:')
             print(str(self.__dict__.items()))
 
-        # Initialize class variables.?
+        # Initialize class variables.
         steps_incr = 0
         self.episode_reward = 0
         self.episode_step = 0
@@ -818,7 +818,7 @@ class TD3(object):
             if hasattr(self.env, "current_context"):
                 context = getattr(self.env, "current_context")
                 reward_fn = getattr(self.env, "contextual_reward")
-                reward += reward_fn(self.obs, context, new_obs)
+                reward = reward_fn(self.obs, context, new_obs)
 
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
@@ -953,7 +953,7 @@ class TD3(object):
                 if hasattr(env, "current_context"):
                     context_obs = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
-                    eval_r += reward_fn(eval_obs, context_obs, obs)
+                    eval_r = reward_fn(eval_obs, context_obs, obs)
 
                     # Add the distance to this list for logging purposes
                     # (applies only to the Ant* environments).

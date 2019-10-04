@@ -321,6 +321,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         super(FeedForwardPolicy, self).__init__(sess,
                                                 ob_space, ac_space, co_space)
 
+        ac_magnitudes = 0.5 * (ac_space.high - ac_space.low)
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.actor_lr = actor_lr
@@ -330,9 +332,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [256, 256]
         self.tau = tau
         self.gamma = gamma
-        self.noise = noise
-        self.target_policy_noise = target_policy_noise
-        self.target_noise_clip = target_noise_clip
+        self.noise = noise * ac_magnitudes
+        self.target_policy_noise = np.array([target_policy_noise * ac_magnitudes])
+        self.target_noise_clip = np.array([target_noise_clip * ac_magnitudes])
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
@@ -519,7 +521,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             loss_fn(self.critic_tf[0], self.target_q) + \
             loss_fn(self.critic_tf[1], self.target_q)
 
-        self.critic_grads = []
         self.critic_optimizer = []
 
         for i in range(2):
@@ -537,11 +538,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
-
-            # add to the critic grads list
-            self.critic_grads.append(
-                tf.gradients(self.critic_tf[i], self.action_ph)
-            )
 
             # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
@@ -851,16 +847,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             }
 
         feed_dict = {
-            self.action_ph: self.stats_sample['actions']
+            self.action_ph: self.stats_sample['actions'],
+            self.obs_ph: self.stats_sample['obs0'],
+            self.obs1_ph: self.stats_sample['obs1']
         }
-
-        for placeholder in [self.action_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['actions']
-
-        for placeholder in [self.obs_ph, self.obs1_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['obs0']
 
         values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
@@ -1415,7 +1405,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             meta_obs0, meta_obs1 = meta_obs
 
             # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
+            meta_done = 0  # worker_dones[-1]
 
             # Sample one obs0/obs1/action/reward from the list of per-meta-
             # period variables.
@@ -1424,7 +1414,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
             worker_reward = worker_rewards[indx_val]
-            worker_done = worker_dones[indx_val]
+            worker_done = 0  # worker_dones[indx_val]
 
             # Add the new sample to the list of returned samples.
             meta_obs0_all.append(np.array(meta_obs0, copy=False))
