@@ -814,12 +814,6 @@ class TD3(object):
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
-            # Add the contextual reward to the environment reward.
-            if hasattr(self.env, "current_context"):
-                context = getattr(self.env, "current_context")
-                reward_fn = getattr(self.env, "contextual_reward")
-                reward += reward_fn(self.obs, context, new_obs)
-
             # Store a transition in the replay buffer.
             self._store_transition(self.obs, action, reward, new_obs, done)
 
@@ -949,16 +943,13 @@ class TD3(object):
                 if self.render_eval:
                     env.render()
 
-                # Add the contextual reward to the environment reward.
+                # Add the distance to this list for logging purposes (applies
+                # only to the Ant* environments).
                 if hasattr(env, "current_context"):
                     context_obs = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
-                    eval_r += reward_fn(eval_obs, context_obs, obs)
-
-                    # Add the distance to this list for logging purposes
-                    # (applies only to the Ant* environments).
-                    rets = np.append(rets,
-                                     reward_fn(eval_obs, context_obs, obs))
+                    rets = np.append(
+                        rets, reward_fn(eval_obs, context_obs, obs))
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()

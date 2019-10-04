@@ -321,6 +321,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         super(FeedForwardPolicy, self).__init__(sess,
                                                 ob_space, ac_space, co_space)
 
+        ac_mag = 0.5 * (ac_space.high - ac_space.low)
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.actor_lr = actor_lr
@@ -330,9 +332,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [256, 256]
         self.tau = tau
         self.gamma = gamma
-        self.noise = noise
-        self.target_policy_noise = target_policy_noise
-        self.target_noise_clip = target_noise_clip
+        self.noise = noise * ac_mag
+        self.target_policy_noise = np.array([ac_mag * target_policy_noise])
+        self.target_noise_clip = np.array([ac_mag * target_noise_clip])
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
@@ -1416,7 +1418,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             meta_obs0, meta_obs1 = meta_obs
 
             # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
+            meta_done = 0  # worker_dones[-1]  FIXME
 
             # Sample one obs0/obs1/action/reward from the list of per-meta-
             # period variables.
@@ -1425,7 +1427,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
             worker_reward = worker_rewards[indx_val]
-            worker_done = worker_dones[indx_val]
+            worker_done = 0  # worker_dones[indx_val]  FIXME
 
             # Add the new sample to the list of returned samples.
             meta_obs0_all.append(np.array(meta_obs0, copy=False))
