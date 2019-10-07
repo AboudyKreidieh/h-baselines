@@ -33,7 +33,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 FEEDFORWARD_POLICY_KWARGS = dict(
     # the max number of transitions to store
-    buffer_size=50000,
+    buffer_size=200000,
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
