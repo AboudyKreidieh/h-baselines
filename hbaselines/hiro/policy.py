@@ -861,7 +861,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             }
 
         feed_dict = {
-            self.action_ph: self.stats_sample['actions']
+            self.action_ph: self.stats_sample['actions'],
             self.obs_ph: self.stats_sample['obs0'],
             self.obs1_ph: self.stats_sample['obs1']
         }
