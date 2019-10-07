@@ -194,6 +194,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    zero_obs : bool
+        whether to zero the first and second elements of the observations for
+        the actor and worker computations. Used for the Ant* envs.
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -311,6 +314,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
+        zero_obs : bool
+            whether to zero the first and second elements of the observations
+            for the actor and worker computations. Used for the Ant* envs.
 
         Raises
         ------
@@ -565,7 +571,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # zero out the first two observations if requested
             if self.zero_obs:
-                obs *= tf.constant([0.0] * 2 + [1.0] * (obs.shape[-1] - 2))
+                pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -1213,6 +1219,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # done masks at every time step for the worker
         self._dones = []
 
+        # actions performed by the manager during a given meta period. Used by
+        # the replay buffer.
         self._meta_actions = []
 
         # =================================================================== #
@@ -1242,7 +1250,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                zero_obs=True,
+                zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
             )
 
         # remove the last element to compute the reward FIXME
