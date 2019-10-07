@@ -205,9 +205,11 @@ class TD3(object):
     epoch_actions : list of array_like
         a list of the actions that were performed during the most recent
         training iteration
-    epoch_qs : list of float
-        a list of the Q values that were calculated during the most recent
+    epoch_q1s : list of float
+        a list of the Q1 values that were calculated during the most recent
         training iteration
+    epoch_q2s : list of float
+        a list of the Q2 values that were calculated during the most recent
     epoch_episodes : int
         the total number of rollouts performed since the most recent training
         iteration began
@@ -351,7 +353,8 @@ class TD3(object):
         self.epoch_actor_losses = None
         self.epoch_critic_losses = None
         self.epoch_actions = None
-        self.epoch_qs = None
+        self.epoch_q1s = None
+        self.epoch_q2s = None
         self.epoch_episodes = None
         self.epoch = None
         self.episode_rewards_history = None
@@ -673,7 +676,8 @@ class TD3(object):
             # Reset epoch-specific variables. FIXME: hacky
             self.epoch_episodes = 0
             self.epoch_actions = []
-            self.epoch_qs = []
+            self.epoch_q1s = []
+            self.epoch_q2s = []
             self.epoch_actor_losses = []
             self.epoch_critic_losses = []
             self.epoch_episode_rewards = []
@@ -695,7 +699,8 @@ class TD3(object):
                 # Reset epoch-specific variables.
                 self.epoch_episodes = 0
                 self.epoch_actions = []
-                self.epoch_qs = []
+                self.epoch_q1s = []
+                self.epoch_q2s = []
                 self.epoch_actor_losses = []
                 self.epoch_critic_losses = []
                 self.epoch_episode_rewards = []
@@ -811,7 +816,7 @@ class TD3(object):
         for _ in range(run_steps or self.nb_rollout_steps):
             # Predict next action. Use random actions when initializing the
             # replay buffer.
-            action, q_value = self._policy(
+            action, (q1_value, q2_value) = self._policy(
                 self.obs,
                 apply_noise=True,
                 random_actions=random_actions,
@@ -847,7 +852,8 @@ class TD3(object):
             self.episode_reward += reward
             self.episode_step += 1
             self.epoch_actions.append(action)
-            self.epoch_qs.append(q_value)
+            self.epoch_q1s.append(q1_value)
+            self.epoch_q2s.append(q2_value)
 
             # Update the current observation.
             self.obs = new_obs.copy()
@@ -1051,7 +1057,8 @@ class TD3(object):
         combined_stats['rollout/episode_steps'] = np.mean(
             self.epoch_episode_steps)
         combined_stats['rollout/actions_mean'] = np.mean(self.epoch_actions)
-        combined_stats['rollout/Q_mean'] = np.mean(self.epoch_qs)
+        combined_stats['rollout/Q1_mean'] = np.mean(self.epoch_q1s)
+        combined_stats['rollout/Q2_mean'] = np.mean(self.epoch_q2s)
         combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
         combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
         combined_stats['total/duration'] = duration
