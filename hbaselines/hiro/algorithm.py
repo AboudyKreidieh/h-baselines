@@ -811,8 +811,16 @@ class TD3(object):
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
-            # Store a transition in the replay buffer.
-            self._store_transition(self.obs, action, reward, new_obs, done)
+            # Store a transition in the replay buffer. The terminal flag is
+            # chosen to match the TD3 implementation (see Appendix 1 of their
+            # paper).
+            self._store_transition(
+                obs0=self.obs,
+                action=action,
+                reward=reward,
+                obs1=new_obs,
+                terminal1=done and self.episode_step < self.env.horizon - 1
+            )
 
             # Book-keeping.
             self.total_steps += 1

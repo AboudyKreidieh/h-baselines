@@ -1362,6 +1362,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
     def _process_samples(samples):
         """Convert the samples into a form that is usable for an update.
 
+        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
+        the worker batches.
+
         Parameters
         ----------
         samples : list of tuple or Any
@@ -1434,7 +1437,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
             worker_reward = worker_rewards[indx_val]
-            worker_done = worker_dones[indx_val]
+            worker_done = 0  # see docstring
 
             # Add the new sample to the list of returned samples.
             meta_obs0_all.append(np.array(meta_obs0, copy=False))
@@ -1505,10 +1508,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # Add a sample to the replay buffer.
         if len(self._observations) == self.meta_period or done:
-            # Add the last observation if about to reset.
-            if done:
-                self._observations.append(
-                    np.concatenate((obs1, self.meta_action.flatten()), axis=0))
+            # Add the last observation.
+            self._observations.append(
+                np.concatenate((obs1, self.meta_action.flatten()), axis=0))
 
             # Add the contextual observation, if applicable.
             if kwargs.get("context_obs1") is not None:
