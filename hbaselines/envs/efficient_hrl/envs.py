@@ -7,7 +7,7 @@ from hbaselines.common.reward_fns import negative_distance
 from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 
 # scale to the contextual reward. Does not affect the environmental reward.
-REWARD_SCALE = 0.1  # TODO: maybe reward scale is for the sum of both?
+REWARD_SCALE = 0.1
 # threshold after which the agent is considered to have reached its target
 DISTANCE_THRESHOLD = 5
 

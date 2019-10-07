@@ -16,7 +16,7 @@ class TestActorCriticPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
@@ -50,7 +50,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
@@ -166,7 +166,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
