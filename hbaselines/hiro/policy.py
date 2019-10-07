@@ -228,9 +228,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         soft target update function
     actor_loss : tf.Operation
         the operation that returns the loss of the actor
-    actor_grads : tf.Operation
-        the operation that returns the gradients of the trainable parameters of
-        the actor
     actor_optimizer : tf.Operation
         the operation that updates the trainable parameters of the actor
     critic_loss : tf.Operation
@@ -486,7 +483,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
+        # compute the actor loss
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
+
         if self.verbose >= 2:
             actor_shapes = [var.get_shape().as_list()
                             for var in get_trainable_vars(scope_name)]
@@ -498,16 +497,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
-        self.q_gradient_input = tf.compat.v1.placeholder(
-            tf.float32, (None,) + self.ac_space.shape)
-
-        self.actor_grads = tf.gradients(
-            self.actor_tf,
-            get_trainable_vars(scope_name),
-            -self.q_gradient_input)
-
-        # self.actor_optimizer = optimizer.apply_gradients(
-        #     zip(self.actor_grads, get_trainable_vars(scope_name)))
         self.actor_optimizer = optimizer.minimize(
             self.actor_loss,
             var_list=get_trainable_vars(scope_name)
@@ -1468,8 +1457,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             np.array(worker_obs0_all), \
             np.array(worker_obs1_all), \
             np.array(worker_act_all), \
-            np.array(worker_rew_all).reshape(-1, 1), \
-            np.array(worker_done_all).reshape(-1, 1)
+            np.array(worker_rew_all), \
+            np.array(worker_done_all)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""

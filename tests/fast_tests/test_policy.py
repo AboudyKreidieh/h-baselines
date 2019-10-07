@@ -400,7 +400,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.896431e-03, -3.923616e-03, -4.361005e-08])
+            error, [-3.906790e-03, -3.907646e-03, -4.087989e-10])
 
         # Test the _sample_best_meta_action method.  FIXME
 
