@@ -329,6 +329,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         super(FeedForwardPolicy, self).__init__(sess,
                                                 ob_space, ac_space, co_space)
 
+        # action magnitudes
+        ac_mag = 0.5 * (ac_space.high - ac_space.low)
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.actor_lr = actor_lr
@@ -338,9 +341,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [256, 256]
         self.tau = tau
         self.gamma = gamma
-        self.noise = noise
-        self.target_policy_noise = target_policy_noise
-        self.target_noise_clip = target_noise_clip
+        self.noise = noise * ac_mag
+        self.target_policy_noise = np.array([ac_mag * target_policy_noise])
+        self.target_noise_clip = np.array([ac_mag * target_noise_clip])
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
