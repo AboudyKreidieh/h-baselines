@@ -1,5 +1,6 @@
 """TD3-compatible policies."""
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 from gym.spaces import Box
@@ -560,12 +561,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the actor
         """
         with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            pi_h = tf.layers.flatten(obs)
+            pi_h = obs
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
+                pi_h = tf.layers.dense(
+                    pi_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     pi_h = tf.contrib.layers.layer_norm(
                         pi_h, center=True, scale=True)
@@ -607,13 +612,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the critic
         """
         with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            qf_h = tf.layers.flatten(obs)
-            qf_h = tf.concat([qf_h, action], axis=-1)
+            # concatenate the observations and actions
+            qf_h = tf.concat([obs, action], axis=-1)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = tf.layers.dense(qf_h, layer_size, name='fc' + str(i))
+                qf_h = tf.layers.dense(
+                    qf_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
