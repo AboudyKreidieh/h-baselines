@@ -194,6 +194,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    zero_obs : bool
+        whether to zero the first and second elements of the observations for
+        the actor and worker computations. Used for the Ant* envs.
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -261,7 +264,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  reuse=False,
-                 scope=None):
+                 scope=None,
+                 zero_obs=False):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -313,6 +317,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
+        zero_obs : bool
+            whether to zero the first and second elements of the observations
+            for the actor and worker computations. Used for the Ant* envs.
 
         Raises
         ------
@@ -337,6 +344,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
+        self.zero_obs = zero_obs
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -563,6 +571,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
+
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
                 pi_h = tf.layers.dense(
@@ -614,6 +626,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
+
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -1178,6 +1194,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=False,
             )
 
         # previous observation by the Manager
@@ -1209,6 +1226,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # done masks at every time step for the worker
         self._dones = []
 
+        # actions performed by the manager during a given meta period. Used by
+        # the replay buffer.
+        self._meta_actions = []
+
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
         # =================================================================== #
@@ -1236,6 +1257,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
             )
 
         # remove the last element to compute the reward FIXME
@@ -1482,12 +1504,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self.worker_reward(obs0, self.meta_action.flatten(), obs1)
         )
 
-        # Add the environmental observations and done masks, and the worker
-        # actions to their respective lists.
+        # Add the environmental observations and done masks, and the manager
+        # and worker actions to their respective lists.
         self._worker_actions.append(action)
+        self._meta_actions.append(self.meta_action.flatten())
         self._observations.append(
             np.concatenate((obs0, self.meta_action.flatten()), axis=0))
         self._dones.append(done)
+
+        # update the meta-action in accordance with HIRO
+        if self.relative_goals:
+            prev_goal = self.meta_action.flatten()
+            self.meta_action = np.array([obs0[:prev_goal.shape[0]] + prev_goal
+                                         - obs1[:prev_goal.shape[0]]])
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
@@ -1516,7 +1545,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             # Store a sample in the Manager policy.
             self.replay_buffer.add(
                 obs_t=self._observations,
-                goal_t=self.meta_action.flatten(),
+                goal_t=self._meta_actions[0],
                 action_t=self._worker_actions,
                 reward_t=self._worker_rewards,
                 done=self._dones,
@@ -1533,6 +1562,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._worker_actions = []
             self._worker_rewards = []
             self._dones = []
+            self._meta_actions = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
