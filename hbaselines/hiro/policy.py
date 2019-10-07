@@ -1519,29 +1519,26 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             else:
                 meta_obs1 = np.copy(obs1)
 
-            # If this is the first time step, do not add the transition to the
-            # meta replay buffer (it is not complete yet).
-            if kwargs["time"] != 0:
-                # Store a sample in the Manager policy.
-                self.replay_buffer.add(
-                    obs_t=self._observations,
-                    goal_t=self.meta_action.flatten(),
-                    action_t=self._worker_actions,
-                    reward_t=self._worker_rewards,
-                    done=self._dones,
-                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=self.meta_reward,
-                )
+            # Store a sample in the Manager policy.
+            self.replay_buffer.add(
+                obs_t=self._observations,
+                goal_t=self.meta_action.flatten(),
+                action_t=self._worker_actions,
+                reward_t=self._worker_rewards,
+                done=self._dones,
+                meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                meta_reward_t=self.meta_reward,
+            )
 
-                # Reset the meta reward.
-                self.meta_reward = 0
+            # Reset the meta reward.
+            self.meta_reward = 0
 
-                # Clear the worker rewards and actions, and the environmental
-                # observation.
-                self._observations = []
-                self._worker_actions = []
-                self._worker_rewards = []
-                self._dones = []
+            # Clear the worker rewards and actions, and the environmental
+            # observation.
+            self._observations = []
+            self._worker_actions = []
+            self._worker_rewards = []
+            self._dones = []
 
     def _sample_best_meta_action(self,
                                  state_reps,

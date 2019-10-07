@@ -312,6 +312,18 @@ class TD3(object):
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose
 
+        # Compute the time horizon, which is used to check if an environment
+        # terminated early and used to compute the done mask as per TD3
+        # implementation (see appendix A of their paper). If the horizon cannot
+        # be found, it is assumed to be 500 (default value for most gym
+        # environments).
+        if hasattr(self.env, "horizon"):
+            self.horizon = self.env.horizon
+        else:
+            print("Warning: self.env.horizon not found. Setting self.horizon "
+                  "in the algorithm class to 500.")
+            self.horizon = 500
+
         # a few algorithm-specific parameters  FIXME: get rid of?
         self.fingerprint_range = self.policy_kwargs.get(
             "fingerprint_range", ([0], [5]))
@@ -819,7 +831,7 @@ class TD3(object):
                 action=action,
                 reward=reward,
                 obs1=new_obs,
-                terminal1=done and self.episode_step < self.env.horizon - 1
+                terminal1=done and self.episode_step < self.horizon - 1
             )
 
             # Book-keeping.
