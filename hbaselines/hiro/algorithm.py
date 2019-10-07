@@ -171,7 +171,7 @@ class TD3(object):
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
         the policy object
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current tensorflow session
     summary : tf.Summary
         tensorboard summary object
@@ -311,6 +311,18 @@ class TD3(object):
 
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose
+
+        # Compute the time horizon, which is used to check if an environment
+        # terminated early and used to compute the done mask as per TD3
+        # implementation (see appendix A of their paper). If the horizon cannot
+        # be found, it is assumed to be 500 (default value for most gym
+        # environments).
+        if hasattr(self.env, "horizon"):
+            self.horizon = self.env.horizon
+        else:
+            print("Warning: self.env.horizon not found. Setting self.horizon "
+                  "in the algorithm class to 500.")
+            self.horizon = 500
 
         # a few algorithm-specific parameters  FIXME: get rid of?
         self.fingerprint_range = self.policy_kwargs.get(
@@ -476,10 +488,10 @@ class TD3(object):
             )
 
             # for tensorboard logging
-            with tf.variable_scope("Train"):
+            with tf.compat.v1.variable_scope("Train"):
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
-            with tf.variable_scope("Evaluate"):
+            with tf.compat.v1.variable_scope("Evaluate"):
                 self.eval_rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.eval_success_ph = tf.compat.v1.placeholder(tf.float32)
 
@@ -542,7 +554,6 @@ class TD3(object):
             apply_noise=apply_noise,
             random_actions=random_actions,
             total_steps=self.total_steps,
-            time=kwargs["episode_step"],
             context_obs=kwargs["context"])
 
         q_value = self.policy_tf.value(
@@ -574,8 +585,7 @@ class TD3(object):
 
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
                                         context_obs0=context,
-                                        context_obs1=context,
-                                        time=self.episode_step)
+                                        context_obs1=context)
 
     def learn(self,
               total_timesteps,
@@ -798,8 +808,7 @@ class TD3(object):
                 apply_noise=True,
                 random_actions=random_actions,
                 compute_q=True,
-                context=[getattr(self.env, "current_context", None)],
-                episode_step=self.episode_step)
+                context=[getattr(self.env, "current_context", None)])
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
@@ -814,14 +823,16 @@ class TD3(object):
                 fp = [self.total_steps / total_timesteps * 5]
                 new_obs = np.concatenate((new_obs, fp), axis=0)
 
-            # Add the contextual reward to the environment reward.
-            if hasattr(self.env, "current_context"):
-                context = getattr(self.env, "current_context")
-                reward_fn = getattr(self.env, "contextual_reward")
-                reward += reward_fn(self.obs, context, new_obs)
-
-            # Store a transition in the replay buffer.
-            self._store_transition(self.obs, action, reward, new_obs, done)
+            # Store a transition in the replay buffer. The terminal flag is
+            # chosen to match the TD3 implementation (see Appendix 1 of their
+            # paper).
+            self._store_transition(
+                obs0=self.obs,
+                action=action,
+                reward=reward,
+                obs1=new_obs,
+                terminal1=done and self.episode_step < self.horizon - 1
+            )
 
             # Book-keeping.
             self.total_steps += 1
@@ -941,22 +952,18 @@ class TD3(object):
                     apply_noise=False,
                     random_actions=False,
                     compute_q=False,
-                    context=[getattr(env, "current_context", None)],
-                    episode_step=eval_episode_step)
+                    context=[getattr(env, "current_context", None)])
 
                 obs, eval_r, done, info = env.step(eval_action)
 
                 if self.render_eval:
                     env.render()
 
-                # Add the contextual reward to the environment reward.
+                # Add the distance to this list for logging purposes (applies
+                # only to the Ant* environments).
                 if hasattr(env, "current_context"):
                     context_obs = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
-                    eval_r += reward_fn(eval_obs, context_obs, obs)
-
-                    # Add the distance to this list for logging purposes
-                    # (applies only to the Ant* environments).
                     rets = np.append(rets,
                                      reward_fn(eval_obs, context_obs, obs))
 

@@ -18,12 +18,12 @@ def make_session(num_cpu=None, make_default=False, graph=None):
 
     Returns
     -------
-    tf.Session
+    tf.compat.v1.Session
         a tensorflow session
     """
     if num_cpu is None:
         num_cpu = int(os.getenv("RCALL_NUM_CPU", multiprocessing.cpu_count()))
-    tf_config = tf.ConfigProto(
+    tf_config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True,
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
@@ -32,7 +32,7 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     if make_default:
         return tf.InteractiveSession(config=tf_config, graph=graph)
     else:
-        return tf.Session(config=tf_config, graph=graph)
+        return tf.compat.v1.Session(config=tf_config, graph=graph)
 
 
 def get_trainable_vars(name=None):

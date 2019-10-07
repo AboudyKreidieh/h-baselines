@@ -16,7 +16,7 @@ class TestActorCriticPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
@@ -50,7 +50,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
@@ -166,7 +166,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
     def setUp(self):
         self.policy_params = {
-            'sess': tf.Session(),
+            'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
@@ -400,7 +400,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.923483e-03, -3.844697e-03, -6.648080e-07])
+            error, [-3.907490e-03, -3.906185e-03, -6.421115e-11])
 
         # Test the _sample_best_meta_action method.  FIXME
 

@@ -1,5 +1,6 @@
 """TD3-compatible policies."""
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 from gym.spaces import Box
@@ -16,7 +17,7 @@ class ActorCriticPolicy(object):
 
     Attributes
     ----------
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current TensorFlow session
     ob_space : gym.space.*
         the observation space of the environment
@@ -31,7 +32,7 @@ class ActorCriticPolicy(object):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -150,7 +151,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current TensorFlow session
     ob_space : gym.space.*
         the observation space of the environment
@@ -265,7 +266,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -355,7 +356,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
-        with tf.variable_scope("input", reuse=False):
+        with tf.compat.v1.variable_scope("input", reuse=False):
             self.critic_target = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
@@ -382,7 +383,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 name='observations')
 
         # logging of rewards to tensorboard
-        with tf.variable_scope("input_info", reuse=False):
+        with tf.compat.v1.variable_scope("input_info", reuse=False):
             tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
 
         # =================================================================== #
@@ -390,7 +391,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # Create networks and core TF parts that are shared across setup parts.
-        with tf.variable_scope("model", reuse=False):
+        with tf.compat.v1.variable_scope("model", reuse=False):
             self.actor_tf = self.make_actor(self.obs_ph)
             self.critic_tf = [
                 self.make_critic(self.obs_ph, self.action_ph,
@@ -403,7 +404,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.variable_scope("target", reuse=False):
+        with tf.compat.v1.variable_scope("target", reuse=False):
             # create the target actor policy
             actor_target = self.make_actor(self.obs1_ph)
 
@@ -427,7 +428,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.variable_scope("loss", reuse=False):
+        with tf.compat.v1.variable_scope("loss", reuse=False):
             q_obs1 = tf.minimum(critic_target[0], critic_target[1])
             self.target_q = tf.stop_gradient(
                 self.rew_ph + (1. - self.terminals1) * gamma * q_obs1)
@@ -452,7 +453,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
-        with tf.variable_scope("Adam_mpi", reuse=False):
+        with tf.compat.v1.variable_scope("Adam_mpi", reuse=False):
             self._setup_actor_optimizer(scope=scope)
             self._setup_critic_optimizer(scope=scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
@@ -559,13 +560,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
-        with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            pi_h = tf.layers.flatten(obs)
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
+                pi_h = tf.layers.dense(
+                    pi_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     pi_h = tf.contrib.layers.layer_norm(
                         pi_h, center=True, scale=True)
@@ -606,14 +611,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the critic
         """
-        with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            qf_h = tf.layers.flatten(obs)
-            qf_h = tf.concat([qf_h, action], axis=-1)
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            # concatenate the observations and actions
+            qf_h = tf.concat([obs, action], axis=-1)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = tf.layers.dense(qf_h, layer_size, name='fc' + str(i))
+                qf_h = tf.layers.dense(
+                    qf_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
@@ -852,16 +861,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             }
 
         feed_dict = {
-            self.action_ph: self.stats_sample['actions']
+            self.action_ph: self.stats_sample['actions'],
+            self.obs_ph: self.stats_sample['obs0'],
+            self.obs1_ph: self.stats_sample['obs1']
         }
-
-        for placeholder in [self.action_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['actions']
-
-        for placeholder in [self.obs_ph, self.obs1_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['obs0']
 
         values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
@@ -1007,7 +1010,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -1153,7 +1156,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 manager_ac_space = ob_space
 
         # Create the Manager policy.
-        with tf.variable_scope("Manager"):
+        with tf.compat.v1.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
                 ob_space=ob_space,
@@ -1211,7 +1214,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # Create the Worker policy.
-        with tf.variable_scope("Worker"):
+        with tf.compat.v1.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
                 ob_space=ob_space,
@@ -1353,6 +1356,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
     def _process_samples(samples):
         """Convert the samples into a form that is usable for an update.
 
+        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
+        the worker batches.
+
         Parameters
         ----------
         samples : list of tuple or Any
@@ -1425,7 +1431,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
             worker_reward = worker_rewards[indx_val]
-            worker_done = worker_dones[indx_val]
+            worker_done = 0  # see docstring
 
             # Add the new sample to the list of returned samples.
             meta_obs0_all.append(np.array(meta_obs0, copy=False))
@@ -1452,9 +1458,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
-        # TODO: looks like this wasn't working originally...
         # Update the meta action, if the time period requires is.
-        if kwargs["time"] % self.meta_period == 0:
+        if len(self._observations) == 0:
             self.meta_action = self.manager.get_action(
                 obs, apply_noise, random_actions, **kwargs)
 
@@ -1488,7 +1493,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward += reward
 
         # Modify the previous meta observation whenever the action has changed.
-        if kwargs["time"] % self.meta_period == 0:
+        if len(self._observations) == 1:
             if kwargs.get("context_obs0") is not None:
                 self.prev_meta_obs = np.concatenate(
                     (obs0, kwargs["context_obs0"].flatten()), axis=0)
@@ -1496,11 +1501,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self.prev_meta_obs = np.copy(obs0)
 
         # Add a sample to the replay buffer.
-        if (kwargs["time"] + 1) % self.meta_period == 0 or done:
-            # Add the last observation if about to reset.
-            if done:
-                self._observations.append(
-                    np.concatenate((obs1, self.meta_action.flatten()), axis=0))
+        if len(self._observations) == self.meta_period or done:
+            # Add the last observation.
+            self._observations.append(
+                np.concatenate((obs1, self.meta_action.flatten()), axis=0))
 
             # Add the contextual observation, if applicable.
             if kwargs.get("context_obs1") is not None:
@@ -1509,29 +1513,26 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             else:
                 meta_obs1 = np.copy(obs1)
 
-            # If this is the first time step, do not add the transition to the
-            # meta replay buffer (it is not complete yet).
-            if kwargs["time"] != 0:
-                # Store a sample in the Manager policy.
-                self.replay_buffer.add(
-                    obs_t=self._observations,
-                    goal_t=self.meta_action.flatten(),
-                    action_t=self._worker_actions,
-                    reward_t=self._worker_rewards,
-                    done=self._dones,
-                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=self.meta_reward,
-                )
+            # Store a sample in the Manager policy.
+            self.replay_buffer.add(
+                obs_t=self._observations,
+                goal_t=self.meta_action.flatten(),
+                action_t=self._worker_actions,
+                reward_t=self._worker_rewards,
+                done=self._dones,
+                meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                meta_reward_t=self.meta_reward,
+            )
 
-                # Reset the meta reward.
-                self.meta_reward = 0
+            # Reset the meta reward.
+            self.meta_reward = 0
 
-                # Clear the worker rewards and actions, and the environmental
-                # observation.
-                self._observations = []
-                self._worker_actions = []
-                self._worker_rewards = []
-                self._dones = []
+            # Clear the worker rewards and actions, and the environmental
+            # observation.
+            self._observations = []
+            self._worker_actions = []
+            self._worker_rewards = []
+            self._dones = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
