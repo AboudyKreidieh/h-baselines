@@ -604,7 +604,6 @@ class TD3(object):
               seed=None,
               log_interval=100,
               eval_interval=5e4,
-              exp_num=None,
               start_timesteps=10000):
         """Return a trained model.
 
@@ -622,18 +621,10 @@ class TD3(object):
         eval_interval : int
             number of simulation steps in the training environment before an
             evaluation is performed
-        exp_num : int, optional
-            an additional experiment number term used by the runner scripts
-            when running multiple experiments simultaneously. If set to None,
-            the train, evaluate, and tensorboard results are stored in log_dir
-            immediately
         start_timesteps : int, optional
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
-        if exp_num is not None:
-            log_dir = os.path.join(log_dir, "trial_{}".format(exp_num))
-
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
         ensure_dir(os.path.join(log_dir, "checkpoints"))
