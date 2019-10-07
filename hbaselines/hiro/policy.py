@@ -1226,6 +1226,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # done masks at every time step for the worker
         self._dones = []
 
+        # actions performed by the manager during a given meta period. Used by
+        # the replay buffer.
+        self._meta_actions = []
+
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
         # =================================================================== #
@@ -1500,12 +1504,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self.worker_reward(obs0, self.meta_action.flatten(), obs1)
         )
 
-        # Add the environmental observations and done masks, and the worker
-        # actions to their respective lists.
+        # Add the environmental observations and done masks, and the manager
+        # and worker actions to their respective lists.
         self._worker_actions.append(action)
+        self._meta_actions.append(self.meta_action.flatten())
         self._observations.append(
             np.concatenate((obs0, self.meta_action.flatten()), axis=0))
         self._dones.append(done)
+
+        # update the meta-action in accordance with HIRO
+        if self.relative_goals:
+            prev_goal = self.meta_action.flatten()
+            self.meta_action = np.array([obs0[:prev_goal.shape[0]] + prev_goal
+                                         - obs1[:prev_goal.shape[0]]])
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
@@ -1534,7 +1545,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             # Store a sample in the Manager policy.
             self.replay_buffer.add(
                 obs_t=self._observations,
-                goal_t=self.meta_action.flatten(),
+                goal_t=self._meta_actions[0],
                 action_t=self._worker_actions,
                 reward_t=self._worker_rewards,
                 done=self._dones,
@@ -1551,6 +1562,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self._worker_actions = []
             self._worker_rewards = []
             self._dones = []
+            self._meta_actions = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
