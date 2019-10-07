@@ -862,15 +862,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         feed_dict = {
             self.action_ph: self.stats_sample['actions']
+            self.obs_ph: self.stats_sample['obs0'],
+            self.obs1_ph: self.stats_sample['obs1']
         }
-
-        for placeholder in [self.action_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['actions']
-
-        for placeholder in [self.obs_ph, self.obs1_ph]:
-            if placeholder is not None:
-                feed_dict[placeholder] = self.stats_sample['obs0']
 
         values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
