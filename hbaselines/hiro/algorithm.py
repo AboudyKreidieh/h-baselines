@@ -542,7 +542,6 @@ class TD3(object):
             apply_noise=apply_noise,
             random_actions=random_actions,
             total_steps=self.total_steps,
-            time=kwargs["episode_step"],
             context_obs=kwargs["context"])
 
         q_value = self.policy_tf.value(
@@ -574,8 +573,7 @@ class TD3(object):
 
         self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
                                         context_obs0=context,
-                                        context_obs1=context,
-                                        time=self.episode_step)
+                                        context_obs1=context)
 
     def learn(self,
               total_timesteps,
@@ -798,8 +796,7 @@ class TD3(object):
                 apply_noise=True,
                 random_actions=random_actions,
                 compute_q=True,
-                context=[getattr(self.env, "current_context", None)],
-                episode_step=self.episode_step)
+                context=[getattr(self.env, "current_context", None)])
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
@@ -935,8 +932,7 @@ class TD3(object):
                     apply_noise=False,
                     random_actions=False,
                     compute_q=False,
-                    context=[getattr(env, "current_context", None)],
-                    episode_step=eval_episode_step)
+                    context=[getattr(env, "current_context", None)])
 
                 obs, eval_r, done, info = env.step(eval_action)
 

@@ -1461,9 +1461,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
-        # TODO: looks like this wasn't working originally...
         # Update the meta action, if the time period requires is.
-        if kwargs["time"] % self.meta_period == 0:
+        if len(self._observations) == 0:
             self.meta_action = self.manager.get_action(
                 obs, apply_noise, random_actions, **kwargs)
 
@@ -1497,7 +1496,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward += reward
 
         # Modify the previous meta observation whenever the action has changed.
-        if kwargs["time"] % self.meta_period == 0:
+        if len(self._observations) == 1:
             if kwargs.get("context_obs0") is not None:
                 self.prev_meta_obs = np.concatenate(
                     (obs0, kwargs["context_obs0"].flatten()), axis=0)
@@ -1505,7 +1504,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self.prev_meta_obs = np.copy(obs0)
 
         # Add a sample to the replay buffer.
-        if (kwargs["time"] + 1) % self.meta_period == 0 or done:
+        if len(self._observations) == self.meta_period or done:
             # Add the last observation if about to reset.
             if done:
                 self._observations.append(
