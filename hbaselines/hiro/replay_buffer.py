@@ -80,8 +80,7 @@ class ReplayBuffer(object):
         done : float
             is the episode done
         """
-        del done  # FIXME: done set to 0 for TD3
-        data = (obs_t, action, reward, obs_tp1, 0)
+        data = (obs_t, action, reward, obs_tp1, done)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -100,11 +99,8 @@ class ReplayBuffer(object):
             obses_tp1.append(np.array(obs_tp1, copy=False))
             dones.append(done)
 
-        return np.array(obses_t), \
-            np.array(actions), \
-            np.array(rewards).reshape(-1, 1), \
-            np.array(obses_tp1), \
-            np.array(dones).reshape(-1, 1)
+        return np.array(obses_t), np.array(actions), np.array(rewards), \
+            np.array(obses_tp1), np.array(dones)
 
     def sample(self, batch_size, **_kwargs):
         """Sample a batch of experiences.

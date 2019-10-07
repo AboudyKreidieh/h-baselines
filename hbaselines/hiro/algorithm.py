@@ -160,8 +160,16 @@ class TD3(object):
         the action space of the training environment
     observation_space : gym.spaces.*
         the observation space of the training environment
+    context_space : gym.spaces.*
+        the context space of the training environment (i.e. the same of the
+        desired environmental goal)
     policy_kwargs : dict
         policy-specific hyperparameters
+    horizon : int
+        time horizon, which is used to check if an environment terminated early
+        and used to compute the done mask as per TD3 implementation (see
+        appendix A of their paper). If the horizon cannot be found, it is
+        assumed to be 500 (default value for most gym environments).
     fingerprint_range : (list of float, list of float)
         the low and high values for each fingerprint element, if they are being
         used

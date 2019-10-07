@@ -232,9 +232,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the operation that updates the trainable parameters of the actor
     critic_loss : tf.Operation
         the operation that returns the loss of the critic
-    critic_grads : tf.Operation
-        the operation that returns the gradients of the trainable parameters of
-        the critic
     critic_optimizer : tf.Operation
         the operation that updates the trainable parameters of the critic
     stats_sample : dict
@@ -612,8 +609,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             whether or not to reuse parameters
         scope : str
             the scope name of the actor
-        zero_obs : bool
-            whether to zero the x,y positions in the observations
 
         Returns
         -------
@@ -1434,7 +1429,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             meta_obs0, meta_obs1 = meta_obs
 
             # The meta done value corresponds to the last done value.
-            meta_done = 0  # worker_dones[-1]  FIXME
+            meta_done = worker_dones[-1]
 
             # Sample one obs0/obs1/action/reward from the list of per-meta-
             # period variables.
@@ -1460,8 +1455,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         return np.array(meta_obs0_all), \
             np.array(meta_obs1_all), \
             np.array(meta_act_all), \
-            np.array(meta_rew_all).reshape(-1, 1), \
-            np.array(meta_done_all).reshape(-1, 1), \
+            np.array(meta_rew_all), \
+            np.array(meta_done_all), \
             np.array(worker_obs0_all), \
             np.array(worker_obs1_all), \
             np.array(worker_act_all), \
@@ -1536,7 +1531,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             # Store a sample in the Manager policy.
             self.replay_buffer.add(
                 obs_t=self._observations,
-                goal_t=self._meta_actions[0],  # TODO: all?
+                goal_t=self._meta_actions[0],
                 action_t=self._worker_actions,
                 reward_t=self._worker_rewards,
                 done=self._dones,
