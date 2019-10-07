@@ -171,7 +171,7 @@ class TD3(object):
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
         the policy object
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current tensorflow session
     summary : tf.Summary
         tensorboard summary object
@@ -476,10 +476,10 @@ class TD3(object):
             )
 
             # for tensorboard logging
-            with tf.variable_scope("Train"):
+            with tf.compat.v1.variable_scope("Train"):
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
-            with tf.variable_scope("Evaluate"):
+            with tf.compat.v1.variable_scope("Evaluate"):
                 self.eval_rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.eval_success_ph = tf.compat.v1.placeholder(tf.float32)
 

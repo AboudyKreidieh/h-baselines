@@ -17,7 +17,7 @@ class ActorCriticPolicy(object):
 
     Attributes
     ----------
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current TensorFlow session
     ob_space : gym.space.*
         the observation space of the environment
@@ -32,7 +32,7 @@ class ActorCriticPolicy(object):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -151,7 +151,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    sess : tf.Session
+    sess : tf.compat.v1.Session
         the current TensorFlow session
     ob_space : gym.space.*
         the observation space of the environment
@@ -266,7 +266,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -356,7 +356,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
 
-        with tf.variable_scope("input", reuse=False):
+        with tf.compat.v1.variable_scope("input", reuse=False):
             self.critic_target = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
@@ -383,7 +383,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 name='observations')
 
         # logging of rewards to tensorboard
-        with tf.variable_scope("input_info", reuse=False):
+        with tf.compat.v1.variable_scope("input_info", reuse=False):
             tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
 
         # =================================================================== #
@@ -391,7 +391,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # Create networks and core TF parts that are shared across setup parts.
-        with tf.variable_scope("model", reuse=False):
+        with tf.compat.v1.variable_scope("model", reuse=False):
             self.actor_tf = self.make_actor(self.obs_ph)
             self.critic_tf = [
                 self.make_critic(self.obs_ph, self.action_ph,
@@ -404,7 +404,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.variable_scope("target", reuse=False):
+        with tf.compat.v1.variable_scope("target", reuse=False):
             # create the target actor policy
             actor_target = self.make_actor(self.obs1_ph)
 
@@ -428,7 +428,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.variable_scope("loss", reuse=False):
+        with tf.compat.v1.variable_scope("loss", reuse=False):
             q_obs1 = tf.minimum(critic_target[0], critic_target[1])
             self.target_q = tf.stop_gradient(
                 self.rew_ph + (1. - self.terminals1) * gamma * q_obs1)
@@ -453,7 +453,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
-        with tf.variable_scope("Adam_mpi", reuse=False):
+        with tf.compat.v1.variable_scope("Adam_mpi", reuse=False):
             self._setup_actor_optimizer(scope=scope)
             self._setup_critic_optimizer(scope=scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
@@ -560,7 +560,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
             # create the hidden layers
@@ -611,7 +611,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the critic
         """
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
 
@@ -1016,7 +1016,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        sess : tf.Session
+        sess : tf.compat.v1.Session
             the current TensorFlow session
         ob_space : gym.space.*
             the observation space of the environment
@@ -1162,7 +1162,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 manager_ac_space = ob_space
 
         # Create the Manager policy.
-        with tf.variable_scope("Manager"):
+        with tf.compat.v1.variable_scope("Manager"):
             self.manager = FeedForwardPolicy(
                 sess=sess,
                 ob_space=ob_space,
@@ -1220,7 +1220,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # Create the Worker policy.
-        with tf.variable_scope("Worker"):
+        with tf.compat.v1.variable_scope("Worker"):
             self.worker = FeedForwardPolicy(
                 sess,
                 ob_space=ob_space,
