@@ -80,7 +80,8 @@ class ReplayBuffer(object):
         done : float
             is the episode done
         """
-        data = (obs_t, action, reward, obs_tp1, done)
+        del done  # FIXME: done set to 0 for TD3
+        data = (obs_t, action, reward, obs_tp1, 0)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)

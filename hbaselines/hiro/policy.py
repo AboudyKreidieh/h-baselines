@@ -1,5 +1,6 @@
 """TD3-compatible policies."""
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 from gym.spaces import Box
@@ -260,7 +261,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  reuse=False,
-                 scope=None):
+                 scope=None,
+                 zero_obs=False):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -339,6 +341,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
+        self.zero_obs = zero_obs
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -561,12 +564,20 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the actor
         """
         with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            pi_h = tf.layers.flatten(obs)
+            pi_h = obs
+
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                obs *= tf.constant([0.0] * 2 + [1.0] * (obs.shape[-1] - 2))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
+                pi_h = tf.layers.dense(
+                    pi_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     pi_h = tf.contrib.layers.layer_norm(
                         pi_h, center=True, scale=True)
@@ -601,6 +612,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             whether or not to reuse parameters
         scope : str
             the scope name of the actor
+        zero_obs : bool
+            whether to zero the x,y positions in the observations
 
         Returns
         -------
@@ -608,13 +621,21 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the critic
         """
         with tf.variable_scope(scope, reuse=reuse):
-            # flatten the input placeholder
-            qf_h = tf.layers.flatten(obs)
-            qf_h = tf.concat([qf_h, action], axis=-1)
+            # concatenate the observations and actions
+            qf_h = tf.concat([obs, action], axis=-1)
+
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = tf.layers.dense(qf_h, layer_size, name='fc' + str(i))
+                qf_h = tf.layers.dense(
+                    qf_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
                 if self.layer_norm:
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
@@ -1165,6 +1186,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=False,
             )
 
         # previous observation by the Manager
@@ -1196,6 +1218,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # done masks at every time step for the worker
         self._dones = []
 
+        self._meta_actions = []
+
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
         # =================================================================== #
@@ -1223,6 +1247,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=True,
             )
 
         # remove the last element to compute the reward FIXME
@@ -1259,7 +1284,6 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
-                reward_scales=50,  # FIXME
                 offset=0.0
             )
         self.worker_reward = worker_reward
@@ -1468,12 +1492,19 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             self.worker_reward(obs0, self.meta_action.flatten(), obs1)
         )
 
-        # Add the environmental observations and done masks, and the worker
-        # actions to their respective lists.
+        # Add the environmental observations and done masks, and the manager
+        # and worker actions to their respective lists.
         self._worker_actions.append(action)
+        self._meta_actions.append(self.meta_action.flatten())
         self._observations.append(
             np.concatenate((obs0, self.meta_action.flatten()), axis=0))
         self._dones.append(done)
+
+        # update the meta-action in accordance with HIRO
+        if self.relative_goals:
+            prev_goal = self.meta_action.flatten()
+            self.meta_action = np.array([obs0[:prev_goal.shape[0]] + prev_goal
+                                         - obs1[:prev_goal.shape[0]]])
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
@@ -1506,7 +1537,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 # Store a sample in the Manager policy.
                 self.replay_buffer.add(
                     obs_t=self._observations,
-                    goal_t=self.meta_action.flatten(),
+                    goal_t=self._meta_actions[0],  # TODO: all?
                     action_t=self._worker_actions,
                     reward_t=self._worker_rewards,
                     done=self._dones,
@@ -1523,6 +1554,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self._worker_actions = []
                 self._worker_rewards = []
                 self._dones = []
+                self._meta_actions = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
