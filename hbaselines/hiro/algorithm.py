@@ -83,7 +83,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
     # used
-    fingerprint_range=([0], [5]),
+    fingerprint_range=([0, 0], [5, 5]),
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
@@ -170,11 +170,6 @@ class TD3(object):
         and used to compute the done mask as per TD3 implementation (see
         appendix A of their paper). If the horizon cannot be found, it is
         assumed to be 500 (default value for most gym environments).
-    fingerprint_range : (list of float, list of float)
-        the low and high values for each fingerprint element, if they are being
-        used
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
@@ -332,11 +327,6 @@ class TD3(object):
                   "in the algorithm class to 500.")
             self.horizon = 500
 
-        # a few algorithm-specific parameters  FIXME: get rid of?
-        self.fingerprint_range = self.policy_kwargs.get(
-            "fingerprint_range", ([0], [5]))
-        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
-
         # init
         self.graph = None
         self.policy_tf = None
@@ -364,10 +354,11 @@ class TD3(object):
         # Append the fingerprint dimension to the observation dimension, if
         # needed.
         if self.policy_kwargs.get("use_fingerprints", False):
+            fingerprint_range = self.policy_kwargs["fingerprint_range"]
             low = np.concatenate(
-                (self.observation_space.low, self.fingerprint_range[0]))
+                (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
-                (self.observation_space.high, self.fingerprint_range[1]))
+                (self.observation_space.high, fingerprint_range[1]))
             self.observation_space = Box(low=low, high=high)
 
         if _init_setup_model:
@@ -665,9 +656,8 @@ class TD3(object):
             # Prepare everything.
             self.obs = self.env.reset()
             # Add the fingerprint term, if needed.
-            if self.policy_kwargs.get("use_fingerprints", False):
-                fp = [self.total_steps / total_timesteps * 5]
-                self.obs = np.concatenate((self.obs, fp), axis=0)
+            self.obs = self._add_fingerprint(
+                self.obs, self.total_steps, total_timesteps)
             start_time = time.time()
 
             # Reset epoch-specific variables. FIXME: hacky
@@ -827,9 +817,8 @@ class TD3(object):
                 self.env.render()
 
             # Add the fingerprint term, if needed.
-            if self.policy_kwargs.get("use_fingerprints", False):
-                fp = [self.total_steps / total_timesteps * 5]
-                new_obs = np.concatenate((new_obs, fp), axis=0)
+            new_obs = self._add_fingerprint(
+                new_obs, self.total_steps, total_timesteps)
 
             # Store a transition in the replay buffer. The terminal flag is
             # chosen to match the TD3 implementation (see Appendix 1 of their
@@ -866,9 +855,8 @@ class TD3(object):
                 self.obs = self.env.reset()
 
                 # Add the fingerprint term, if needed.
-                if self.policy_kwargs.get("use_fingerprints", False):
-                    fp = [self.total_steps / total_timesteps * 5]
-                    self.obs = np.concatenate((self.obs, fp), axis=0)
+                self.obs = self._add_fingerprint(
+                    self.obs, self.total_steps, total_timesteps)
 
     def _train(self):
         """Perform the training operation.
@@ -945,9 +933,8 @@ class TD3(object):
             eval_obs = env.reset()
 
             # Add the fingerprint term, if needed.
-            if self.policy_kwargs.get("use_fingerprints", False):
-                fp = [num_steps / total_timesteps * 5]
-                eval_obs = np.concatenate((eval_obs, fp), axis=0)
+            eval_obs = self._add_fingerprint(
+                eval_obs, self.total_steps, total_timesteps)
 
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
@@ -979,9 +966,8 @@ class TD3(object):
                 eval_obs = obs.copy()
 
                 # Add the fingerprint term, if needed.
-                if self.policy_kwargs.get("use_fingerprints", False):
-                    fp = [num_steps / total_timesteps * 5]
-                    eval_obs = np.concatenate((eval_obs, fp), axis=0)
+                eval_obs = self._add_fingerprint(
+                    eval_obs, self.total_steps, total_timesteps)
 
                 # Increment the reward and step count.
                 num_steps += 1
@@ -1028,6 +1014,51 @@ class TD3(object):
         ret_info['average'] = np.mean(ret_info['average'])
 
         return eval_episode_rewards, eval_episode_successes, ret_info
+
+    def _add_fingerprint(self, obs, steps, total_steps):
+        """Add a fingerprint element to the observation.
+
+        This should be done when setting "use_fingerprints" in policy_kwargs to
+        True. The new observation looks as follows:
+
+                  ---------------------------------------------------
+        new_obs = || obs || 5 * frac_steps || 5 * (1 - frac_steps) ||
+                  ---------------------------------------------------
+
+        where frac_steps is the fraction of the total requested number of
+        training steps that have been performed. Note that the "5" term is a
+        fixed hyperparameter, and can be changed based on its effect on
+        training performance.
+
+        If "use_fingerprints" is set to False in policy_kwargs, or simply not
+        specified, this method returns the current observation without the
+        fingerprint term.
+
+        Parameters
+        ----------
+        obs : array_like
+            the current observation without the fingerprint element
+        steps : int
+            the total number of steps that have been performed
+
+        Returns
+        -------
+        array_like
+            the observation with the fingerprint element
+        """
+        # if the fingerprint element should not be added, simply return the
+        # current observation.
+        if not self.policy_kwargs.get("use_fingerprints", False):
+            return obs
+
+        # compute the fingerprint term
+        frac_steps = steps / total_steps
+        fp = [5 * frac_steps, 5 * (1 - frac_steps)]
+
+        # append the fingerprint term to the current observation
+        new_obs = np.concatenate((obs, fp), axis=0)
+
+        return new_obs
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.

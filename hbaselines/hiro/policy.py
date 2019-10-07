@@ -747,11 +747,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
+                # TODO: add as a feature
                 # # convert noise percentage to absolute value
                 # noise = self.noise * (self.ac_space.high -
                 #                       self.ac_space.low) / 2
                 # # apply Ornstein-Uhlenbeck process
-                # noise *= np.maximum(
+                # noise = self.noise * np.maximum(
                 #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
 
                 # compute noisy action
@@ -1083,9 +1084,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
-        self.fingerprint_dim = (1,)
-        self.fingerprint_range = ([0], [5])
 
+        # create the replay buffer object
         self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
         # =================================================================== #
