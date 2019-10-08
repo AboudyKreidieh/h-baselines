@@ -83,7 +83,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
     # used
-    fingerprint_range=([0], [5]),
+    fingerprint_range=([0, 0], [5, 5]),
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
@@ -1054,7 +1054,7 @@ class TD3(object):
 
         # compute the fingerprint term
         frac_steps = float(steps) / float(total_steps)
-        fp = [5 * frac_steps]
+        fp = [5 * frac_steps, 5 * (1 - frac_steps)]
 
         # append the fingerprint term to the current observation
         new_obs = np.concatenate((obs, fp), axis=0)

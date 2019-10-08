@@ -13,7 +13,7 @@ from hbaselines.common.reward_fns import negative_distance
 
 
 # TODO: add as input
-FINGERPRINT_DIM = 1
+FINGERPRINT_DIM = 2
 
 
 class ActorCriticPolicy(object):
@@ -268,6 +268,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  reuse=False,
                  scope=None,
                  zero_obs=False,
+                 use_fingerprints=False,
                  zero_fingerprint=False):
         """Instantiate the feed-forward neural network policy.
 
@@ -355,6 +356,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.activ = act_fun
         self.use_huber = use_huber
         self.zero_obs = zero_obs
+        self.use_fingerprints = use_fingerprints
         self.zero_fingerprint = zero_fingerprint
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
@@ -577,7 +579,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
 
             # zero out the fingerprint observations for the worker policy
-            if self.zero_fingerprint:
+            if self.use_fingerprints:
                 ob_dim = self.ob_space.shape[0]
                 co_dim = self.co_space.shape[0]
                 pi_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
@@ -1208,6 +1210,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=False,
+                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=False,
             )
 
@@ -1272,6 +1275,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
+                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=self.use_fingerprints,
             )
 
