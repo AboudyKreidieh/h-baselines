@@ -17,7 +17,7 @@ from hbaselines.hiro import TD3, FeedForwardPolicy
 EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
 
 
-def run_exp(env, hp, steps, dir_name, evaluate, seed, i):
+def run_exp(env, hp, steps, dir_name, evaluate, seed):
     """Run a single training procedure.
 
     Parameters
@@ -34,8 +34,6 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed, i):
         whether to include an evaluation environment
     seed : int
         specified the random seed for numpy, tensorflow, and random
-    i : int
-        an increment term, used for logging purposes
     """
     eval_env = env if evaluate else None
     alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
@@ -46,7 +44,6 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed, i):
         log_dir=dir_name,
         log_interval=2000,
         seed=seed,
-        exp_num=i,
     )
 
     return None
@@ -62,13 +59,16 @@ def main(args, base_dir):
     # get the hyperparameters
     hp = get_hyperparameters(args, FeedForwardPolicy)
 
+    # add the seed for logging purposes
+    params_with_seed = hp.copy()
+    params_with_seed['seed'] = args.seed
+
     # add the hyperparameters to the folder
     with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
-        json.dump(hp, f, sort_keys=True, indent=4)
+        json.dump(params_with_seed, f, sort_keys=True, indent=4)
 
-    for i in range(args.n_training):
-        run_exp(args.env_name, hp, args.total_steps, dir_name, args.evaluate,
-                args.seed, i)
+    run_exp(args.env_name, hp, args.total_steps, dir_name, args.evaluate,
+            args.seed)
 
 
 if __name__ == '__main__':
