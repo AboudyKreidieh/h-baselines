@@ -83,7 +83,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
     # used
-    fingerprint_range=([0, 0], [5, 5]),
+    fingerprint_range=([0], [5]),
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
@@ -812,9 +812,13 @@ class TD3(object):
             if self.render:
                 self.env.render()
 
-            # Add the fingerprint term, if needed.
+            # Add the fingerprint term, if needed. When collecting the initial
+            # random actions, we assume the fingerprint does not change from
+            # its initial value.
             new_obs = self._add_fingerprint(
-                new_obs, self.total_steps, total_timesteps)
+                new_obs,
+                0 if random_actions else self.total_steps,
+                total_timesteps)
 
             # Store a transition in the replay buffer. The terminal flag is
             # chosen to match the TD3 implementation (see Appendix 1 of their
@@ -1049,8 +1053,8 @@ class TD3(object):
             return obs
 
         # compute the fingerprint term
-        frac_steps = steps / total_steps
-        fp = [5 * frac_steps, 5 * (1 - frac_steps)]
+        frac_steps = float(steps) / float(total_steps)
+        fp = [5 * frac_steps]
 
         # append the fingerprint term to the current observation
         new_obs = np.concatenate((obs, fp), axis=0)

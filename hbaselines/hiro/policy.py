@@ -12,6 +12,10 @@ from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
 
 
+# TODO: add as input
+FINGERPRINT_DIM = 1
+
+
 class ActorCriticPolicy(object):
     """Base Actor Critic Policy.
 
@@ -574,7 +578,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # zero out the fingerprint observations for the worker policy
             if self.zero_fingerprint:
-                pi_h *= tf.constant([1.0] * (pi_h.shape[-1] - 2) + [0.0] * 2)
+                ob_dim = self.ob_space.shape[0]
+                co_dim = self.co_space.shape[0]
+                pi_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
+                                    + [0.0] * FINGERPRINT_DIM
+                                    + [1.0] * co_dim)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -631,6 +639,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # zero out the first two observations if requested
             if self.zero_obs:
                 qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
+
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                ob_dim = self.ob_space.shape[0]
+                co_dim = self.co_space.shape[0]
+                ac_dim = self.ac_space.shape[0]
+                qf_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
+                                    + [0.0] * FINGERPRINT_DIM
+                                    + [1.0] * (co_dim + ac_dim))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
