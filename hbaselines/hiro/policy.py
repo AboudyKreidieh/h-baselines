@@ -1495,7 +1495,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def value(self, obs, action=None, **kwargs):
         """See parent class."""
-        return 0  # FIXME
+        return 0, 0  # FIXME
 
     def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
         """See parent class."""
