@@ -961,6 +961,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         and Worker critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    cg_weights : float
+        weights for the gradients of the loss of the worker with respect to the
+        parameters of the manager. Only used if `connected_gradients` is set to
+        True.
     prev_meta_obs : array_like
         previous observation by the Manager
     meta_action : array_like
@@ -1002,6 +1006,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  fingerprint_range,
                  centralized_value_functions,
                  connected_gradients,
+                 cg_weights=0.1,
                  reuse=False,
                  env_name=""):
         """Instantiate the goal-directed hierarchical policy.
@@ -1071,6 +1076,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             Manager and Worker critic functions
         connected_gradients : bool
             whether to connect the graph between the manager and worker
+        cg_weights : float
+            weights for the gradients of the loss of the worker with respect to
+            the parameters of the manager. Only used if `connected_gradients`
+            is set to True.
         """
         super(GoalDirectedPolicy, self).__init__(sess,
                                                  ob_space, ac_space, co_space)
@@ -1083,8 +1092,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
         self.connected_gradients = connected_gradients
-        self.fingerprint_dim = (1,)
-        self.fingerprint_range = ([0], [5])
+        self.cg_weights = cg_weights
 
         self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
@@ -1280,6 +1288,9 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             )
         self.worker_reward = worker_reward
 
+        if self.connected_gradients:
+            self._setup_connected_gradients()
+
     def initialize(self):
         """See parent class.
 
@@ -1341,6 +1352,17 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 terminals1=meta_done,
                 update_actor=kwargs['update_meta_actor'],
             )
+
+            # Perform the connected gradients update procedure.
+            if kwargs['update_meta_actor'] and self.connected_gradients:
+                self.sess.run(
+                    self.cg_optimizer,
+                    feed_dict={
+                        self.m_obs_ph: meta_obs0,
+                        self.w_obs_ph: worker_obs0,
+                        self.w_ac_ph: worker_act,
+                    }
+                )
         else:
             m_critic_loss, m_actor_loss = 0, 0
 
@@ -1731,3 +1753,45 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
 
         return td_map
+
+    def _setup_connected_gradients(self):
+        """Create the updated manager optimization with connected gradients."""
+        # create necessary placeholders
+        self.m_obs_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, self.manager.ob_space.shape[0]),
+            name='critic_target')
+        self.w_obs_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, self.worker.ob_space.shape[0]),
+            name='critic_target')
+        self.w_ac_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, self.worker.ac_space.shape[0]),
+            name='critic_target')
+
+        # create a copy of the manager policy
+        with tf.compat.v1.variable_scope("Manager"):
+            manager_tf = self.manager.make_actor(self.m_obs_ph, reuse=True)
+
+        # handle situation of relative goals
+        if self.relative_goals:
+            goal = self.m_obs_ph + manager_tf - self.w_obs_ph
+        else:
+            goal = self.m_obs_ph
+
+        # concatenate the output from the manager with the worker policy.
+        obs = tf.concat([self.w_obs_ph, goal], axis=-1)
+
+        # create the worker policy with inputs directly from the manager
+        with tf.compat.v1.variable_scope("Worker"):
+            worker_with_manager_obs = self.worker.make_critic(
+                obs, self.w_ac_ph, reuse=True)
+
+        # compute the worker loss with respect to the manager actions
+        self.cg_loss = \
+            -self.cg_weights * tf.reduce_mean(worker_with_manager_obs[0])
+
+        # create the optimizer object
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
+        self.cg_optimizer = optimizer.minimize(self.cg_loss)
