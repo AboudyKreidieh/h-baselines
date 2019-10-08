@@ -197,6 +197,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
     zero_obs : bool
         whether to zero the first and second elements of the observations for
         the actor and worker computations. Used for the Ant* envs.
+    zero_fingerprint : bool
+        whether to zero the last two elements of the observations for the actor
+        and worker computations. Used for the worker policy when fingerprints
+        are being implemented.
     replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -259,7 +263,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  reuse=False,
                  scope=None,
-                 zero_obs=False):
+                 zero_obs=False,
+                 zero_fingerprint=False):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -314,6 +319,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         zero_obs : bool
             whether to zero the first and second elements of the observations
             for the actor and worker computations. Used for the Ant* envs.
+        zero_fingerprint : bool
+            whether to zero the last two elements of the observations for the
+            actor and worker computations. Used for the worker policy when
+            fingerprints are being implemented.
 
         Raises
         ------
@@ -342,6 +351,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.activ = act_fun
         self.use_huber = use_huber
         self.zero_obs = zero_obs
+        self.zero_fingerprint = zero_fingerprint
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -561,6 +571,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # zero out the first two observations if requested
             if self.zero_obs:
                 pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
+
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                pi_h *= tf.constant([1.0] * (pi_h.shape[-1] - 2) + [0.0] * 2)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -1177,6 +1191,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=False,
+                zero_fingerprint=False,
             )
 
         # previous observation by the Manager
@@ -1240,6 +1255,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
+                zero_fingerprint=self.use_fingerprints,
             )
 
         # remove the last element to compute the reward FIXME
