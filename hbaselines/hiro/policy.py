@@ -1771,7 +1771,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             name='critic_target')
 
         # create a copy of the manager policy
-        with tf.compat.v1.variable_scope("Manager"):
+        with tf.compat.v1.variable_scope("Manager/model"):
             manager_tf = self.manager.make_actor(self.m_obs_ph, reuse=True)
 
         # handle situation of relative goals
@@ -1784,7 +1784,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         obs = tf.concat([self.w_obs_ph, goal], axis=-1)
 
         # create the worker policy with inputs directly from the manager
-        with tf.compat.v1.variable_scope("Worker"):
+        with tf.compat.v1.variable_scope("Worker/model"):
             worker_with_manager_obs = self.worker.make_critic(
                 obs, self.w_ac_ph, reuse=True)
 
@@ -1794,4 +1794,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # create the optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
-        self.cg_optimizer = optimizer.minimize(self.cg_loss)
+        self.cg_optimizer = optimizer.minimize(
+            self.cg_loss,
+            var_list=get_trainable_vars("Manager/model/pi/"),
+        )
