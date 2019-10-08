@@ -228,16 +228,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         soft target update function
     actor_loss : tf.Operation
         the operation that returns the loss of the actor
-    actor_grads : tf.Operation
-        the operation that returns the gradients of the trainable parameters of
-        the actor
     actor_optimizer : tf.Operation
         the operation that updates the trainable parameters of the actor
     critic_loss : tf.Operation
         the operation that returns the loss of the critic
-    critic_grads : tf.Operation
-        the operation that returns the gradients of the trainable parameters of
-        the critic
     critic_optimizer : tf.Operation
         the operation that updates the trainable parameters of the critic
     stats_sample : dict
@@ -329,6 +323,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         super(FeedForwardPolicy, self).__init__(sess,
                                                 ob_space, ac_space, co_space)
 
+        # action magnitudes
+        ac_mag = 0.5 * (ac_space.high - ac_space.low)
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.actor_lr = actor_lr
@@ -338,9 +335,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layers = layers or [256, 256]
         self.tau = tau
         self.gamma = gamma
-        self.noise = noise
-        self.target_policy_noise = target_policy_noise
-        self.target_noise_clip = target_noise_clip
+        self.noise = noise * ac_mag
+        self.target_policy_noise = np.array([ac_mag * target_policy_noise])
+        self.target_noise_clip = np.array([ac_mag * target_noise_clip])
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
@@ -486,7 +483,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
+        # compute the actor loss
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
+
         if self.verbose >= 2:
             actor_shapes = [var.get_shape().as_list()
                             for var in get_trainable_vars(scope_name)]
@@ -498,16 +497,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
-        self.q_gradient_input = tf.compat.v1.placeholder(
-            tf.float32, (None,) + self.ac_space.shape)
-
-        self.actor_grads = tf.gradients(
-            self.actor_tf,
-            get_trainable_vars(scope_name),
-            -self.q_gradient_input)
-
-        self.actor_optimizer = optimizer.apply_gradients(
-            zip(self.actor_grads, get_trainable_vars(scope_name)))
+        self.actor_optimizer = optimizer.minimize(
+            self.actor_loss,
+            var_list=get_trainable_vars(scope_name)
+        )
 
     def _setup_critic_optimizer(self, scope):
         """Create the critic loss, gradient, and optimizer."""
@@ -524,7 +517,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             loss_fn(self.critic_tf[0], self.target_q) + \
             loss_fn(self.critic_tf[1], self.target_q)
 
-        self.critic_grads = []
         self.critic_optimizer = []
 
         for i in range(2):
@@ -542,11 +534,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
-
-            # add to the critic grads list
-            self.critic_grads.append(
-                tf.gradients(self.critic_tf[i], self.action_ph)
-            )
 
             # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
@@ -722,33 +709,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        # Perform the critic updates.
-        critic_loss, grads0, *_ = self.sess.run(
-            [self.critic_loss, self.critic_grads[0],
-             self.critic_optimizer[0], self.critic_optimizer[1]],
-            feed_dict={
-                self.obs_ph: obs0,
-                self.action_ph: actions,
-                self.rew_ph: rewards,
-                self.obs1_ph: obs1,
-                self.terminals1: terminals1
-            }
-        )
+        # Update operations for the critic networks.
+        step_ops = [self.critic_loss,
+                    self.critic_optimizer[0],
+                    self.critic_optimizer[1]]
 
         if update_actor:
-            # Perform the actor updates.
-            actor_loss, *_ = self.sess.run(
-                [self.actor_loss, self.actor_optimizer],
-                feed_dict={
-                    self.obs_ph: obs0,
-                    self.q_gradient_input: grads0[0]
-                }
-            )
+            # Actor updates and target soft update operation.
+            step_ops += [self.actor_loss,
+                         self.actor_optimizer,
+                         self.target_soft_updates]
 
-            # Run target soft update operation.
-            self.sess.run(self.target_soft_updates)
-        else:
-            actor_loss = 0
+        # Perform the update operations and collect the critic loss.
+        critic_loss, *_vals = self.sess.run(step_ops, feed_dict={
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+            self.rew_ph: rewards,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
+        })
+
+        # Extract the actor loss.
+        actor_loss = _vals[2] if update_actor else 0
 
         return critic_loss, actor_loss
 
