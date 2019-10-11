@@ -1006,7 +1006,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  fingerprint_range,
                  centralized_value_functions,
                  connected_gradients,
-                 cg_weights=0.1,
+                 cg_weights=0.001,
                  reuse=False,
                  env_name=""):
         """Instantiate the goal-directed hierarchical policy.
@@ -1344,24 +1344,27 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # Update the Manager policy.
         if kwargs['update_meta']:
-            m_critic_loss, m_actor_loss = self.manager.update_from_batch(
-                obs0=meta_obs0,
-                actions=meta_act,
-                rewards=meta_rew,
-                obs1=meta_obs1,
-                terminals1=meta_done,
-                update_actor=kwargs['update_meta_actor'],
-            )
-
-            # Perform the connected gradients update procedure.
-            if kwargs['update_meta_actor'] and self.connected_gradients:
-                self.sess.run(
-                    self.cg_optimizer,
-                    feed_dict={
-                        self.m_obs_ph: meta_obs0,
-                        self.w_obs_ph: worker_obs0,
-                        self.w_ac_ph: worker_act,
-                    }
+            if self.connected_gradients:
+                # Perform the connected gradients update procedure.
+                m_critic_loss, m_actor_loss = self._connected_gradients_update(
+                    obs0=meta_obs0,
+                    actions=meta_act,
+                    rewards=meta_rew,
+                    obs1=meta_obs1,
+                    terminals1=meta_done,
+                    update_actor=kwargs['update_meta_actor'],
+                    worker_obs0=worker_obs0,
+                    worker_obs1=worker_obs1,
+                    worker_actions=worker_act,
+                )
+            else:
+                m_critic_loss, m_actor_loss = self.manager.update_from_batch(
+                    obs0=meta_obs0,
+                    actions=meta_act,
+                    rewards=meta_rew,
+                    obs1=meta_obs1,
+                    terminals1=meta_done,
+                    update_actor=kwargs['update_meta_actor'],
                 )
         else:
             m_critic_loss, m_actor_loss = 0, 0
@@ -1759,7 +1762,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # create necessary placeholders
         self.m_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
-            shape=(None, self.manager.ob_space.shape[0]),
+            shape=(None, self.manager.ob_space.shape[0]
+                   + self.manager.co_space.shape[0]),
             name='critic_target')
         self.w_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
@@ -1776,9 +1780,10 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
         # handle situation of relative goals
         if self.relative_goals:
-            goal = self.m_obs_ph + manager_tf - self.w_obs_ph
+            # FIXME
+            goal = self.m_obs_ph[:, :15] + manager_tf - self.w_obs_ph[:, :15]
         else:
-            goal = self.m_obs_ph
+            goal = manager_tf
 
         # concatenate the output from the manager with the worker policy.
         obs = tf.concat([self.w_obs_ph, goal], axis=-1)
@@ -1786,15 +1791,75 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # create the worker policy with inputs directly from the manager
         with tf.compat.v1.variable_scope("Worker/model"):
             worker_with_manager_obs = self.worker.make_critic(
-                obs, self.w_ac_ph, reuse=True)
+                obs, self.w_ac_ph, reuse=True, scope="qf_0")
 
         # compute the worker loss with respect to the manager actions
+        # self.cg_loss = -tf.reduce_mean(worker_with_manager_obs[0])
         self.cg_loss = \
-            -self.cg_weights * tf.reduce_mean(worker_with_manager_obs[0])
+            - tf.reduce_mean(worker_with_manager_obs) \
+            + tf.compat.v1.losses.mean_squared_error(  # minus the loss
+                self.w_obs_ph[:, :15] + goal,
+                self.worker.obs1_ph[:, :15])
+            # - tf.reduce_mean(
+            #     tf.square(
+            #         self.worker.obs_ph[:, :15]
+            #         + manager_tf
+            #         - self.worker.obs1_ph[:, :15]),
+            #     1
+            # )
 
         # create the optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
         self.cg_optimizer = optimizer.minimize(
-            self.cg_loss,
+            self.manager.actor_loss + self.cg_weights * self.cg_loss,
             var_list=get_trainable_vars("Manager/model/pi/"),
         )
+
+    def _connected_gradients_update(self,
+                                    obs0,
+                                    actions,
+                                    rewards,
+                                    obs1,
+                                    terminals1,
+                                    worker_obs0,
+                                    worker_obs1,
+                                    worker_actions,
+                                    update_actor=True):
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        # Update operations for the critic networks.
+        step_ops = [self.manager.critic_loss,
+                    self.manager.critic_optimizer[0],
+                    self.manager.critic_optimizer[1]]
+
+        feed_dict = {
+            self.manager.obs_ph: obs0,
+            self.manager.action_ph: actions,
+            self.manager.rew_ph: rewards,
+            self.manager.obs1_ph: obs1,
+            self.manager.terminals1: terminals1
+        }
+
+        if update_actor:
+            # Actor updates and target soft update operation.
+            step_ops += [self.manager.actor_loss,
+                         self.cg_optimizer,  # This is what's replaced...
+                         self.manager.target_soft_updates]
+
+            feed_dict.update({
+                self.m_obs_ph: obs0,  # TODO: remove?
+                self.w_obs_ph: worker_obs0[:, :30],
+                self.w_ac_ph: worker_actions,
+                # self.worker.obs_ph: worker_obs0,
+                self.worker.obs1_ph: worker_obs1,
+            })
+
+        # Perform the update operations and collect the critic loss.
+        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
+
+        # Extract the actor loss.
+        actor_loss = _vals[2] if update_actor else 0
+
+        return critic_loss, actor_loss
