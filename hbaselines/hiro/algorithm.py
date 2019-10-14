@@ -89,6 +89,10 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     centralized_value_functions=False,
     # whether to connect the graph between the manager and worker
     connected_gradients=False,
+    # weights for the gradients of the loss of the worker with respect to the
+    # parameters of the manager. Only used if `connected_gradients` is set to
+    # True.
+    cg_weights=0.005,
 ))
 
 

@@ -1006,7 +1006,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  fingerprint_range,
                  centralized_value_functions,
                  connected_gradients,
-                 cg_weights=0.001,
+                 cg_weights,
                  reuse=False,
                  env_name=""):
         """Instantiate the goal-directed hierarchical policy.
@@ -1764,15 +1764,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             tf.float32,
             shape=(None, self.manager.ob_space.shape[0]
                    + self.manager.co_space.shape[0]),
-            name='critic_target')
+            name='m_obs_ph')
         self.w_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
             shape=(None, self.worker.ob_space.shape[0]),
-            name='critic_target')
+            name='w_obs_ph')
         self.w_ac_ph = tf.compat.v1.placeholder(
             tf.float32,
             shape=(None, self.worker.ac_space.shape[0]),
-            name='critic_target')
+            name='w_ac_ph')
 
         # create a copy of the manager policy
         with tf.compat.v1.variable_scope("Manager/model"):
@@ -1793,20 +1793,17 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             worker_with_manager_obs = self.worker.make_critic(
                 obs, self.w_ac_ph, reuse=True, scope="qf_0")
 
+        # create a tensorflow operation that mimics the reward function that is
+        # used to provide feedback to the worker
+        if self.relative_goals:
+            reward_fn = -tf.compat.v1.losses.mean_squared_error(
+                self.w_obs_ph[:, :15] + goal, self.worker.obs1_ph[:, :15])
+        else:
+            reward_fn = -tf.compat.v1.losses.mean_squared_error(
+                goal, self.worker.obs1_ph[:, :15])
+
         # compute the worker loss with respect to the manager actions
-        # self.cg_loss = -tf.reduce_mean(worker_with_manager_obs[0])
-        self.cg_loss = \
-            - tf.reduce_mean(worker_with_manager_obs) \
-            + tf.compat.v1.losses.mean_squared_error(  # minus the loss
-                self.w_obs_ph[:, :15] + goal,
-                self.worker.obs1_ph[:, :15])
-            # - tf.reduce_mean(
-            #     tf.square(
-            #         self.worker.obs_ph[:, :15]
-            #         + manager_tf
-            #         - self.worker.obs1_ph[:, :15]),
-            #     1
-            # )
+        self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
 
         # create the optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
@@ -1825,6 +1822,38 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                                     worker_obs1,
                                     worker_actions,
                                     update_actor=True):
+        """Perform the gradient update procedure for the HRL-CG algorithm.
+
+        TODO
+
+        Parameters
+        ----------
+        obs0 : array_like
+            TODO
+        actions : array_like
+            TODO
+        rewards : array_like
+            TODO
+        obs1 : array_like
+            TODO
+        terminals1 : array_like
+            TODO
+        worker_obs0 : array_like
+            TODO
+        worker_obs1 : array_like
+            TODO
+        worker_actions : array_like
+            TODO
+        update_actor : array_like
+            TODO
+
+        Returns
+        -------
+        float
+            manager critic loss
+        float
+            manager actor loss
+        """
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
