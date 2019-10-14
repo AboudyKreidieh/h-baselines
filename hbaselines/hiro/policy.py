@@ -194,6 +194,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    ou_noise : bool
+        specifies whether to use the Ornstein-Uhlenbeck process when computing
+        exploration noise. Note that this will negate the `noise` term.
+    ou_params : dict
+        hyperparameters for the Ornstein-Uhlenbeck process. Only relevant if
+        `ou_noise` is set to True.
     zero_obs : bool
         whether to zero the first and second elements of the observations for
         the actor and worker computations. Used for the Ant* envs.
@@ -257,6 +263,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ou_noise,
+                 ou_params,
                  reuse=False,
                  scope=None,
                  zero_obs=False):
@@ -307,6 +315,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        ou_noise : bool
+            specifies whether to use the Ornstein-Uhlenbeck process when
+            computing exploration noise. Note that this will negate the `noise`
+            term.
+        ou_params : dict
+            hyperparameters for the Ornstein-Uhlenbeck process. Only relevant
+            if `ou_noise` is set to True. Must contain the following terms:
+
+            * mu: TODO
+            * theta: TODO
+            * sigma_max: TODO
+            * sigma_min: TODO
+            * delay_period: TODO
         reuse : bool
             if the policy is reusable or not
         scope : str
@@ -341,6 +362,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
+        self.ou_noise = ou_noise
+        self.ou_params = ou_params
         self.zero_obs = zero_obs
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
@@ -747,12 +770,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
-                # # convert noise percentage to absolute value
-                # noise = self.noise * (self.ac_space.high -
-                #                       self.ac_space.low) / 2
-                # # apply Ornstein-Uhlenbeck process
-                # noise *= np.maximum(
-                #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
+                # apply Ornstein-Uhlenbeck process
+                if self.ou_noise:
+                    # self.noise *= np.maximum(
+                    #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
+                    pass  # FIXME
 
                 # compute noisy action
                 if apply_noise:

@@ -48,6 +48,23 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     # as the standard deviation of Gaussian noise added to the action if
     # `apply_noise` is set to True in `get_action`
     noise=0.1,
+    # specifies whether to use the Ornstein-Uhlenbeck process when computing
+    # exploration noise. Note that this will negate the `noise` term.
+    ou_noise=False,
+    # hyperparameters for the Ornstein-Uhlenbeck process. Only relevant if
+    # `ou_noise` is set to True.
+    ou_params=dict(
+        # TODO
+        mu=0.0,
+        # TODO
+        theta=0.15,
+        # TODO
+        sigma_max=0.3,
+        # TODO
+        sigma_min=0.3,
+        # TODO
+        delay_period=100000,
+    ),
     # standard deviation term to the noise from the output of the target actor
     # policy. See TD3 paper for more.
     target_policy_noise=0.2,
