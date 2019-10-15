@@ -47,7 +47,7 @@ class TestTD3(unittest.TestCase):
             'render_eval': False,
             'verbose': 2,
             'policy_kwargs': None,
-            '_init_setup_model': True
+            '_init_setup_model': True,
         }
 
     def test_init(self):

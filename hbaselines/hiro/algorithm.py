@@ -54,16 +54,16 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     # hyperparameters for the Ornstein-Uhlenbeck process. Only relevant if
     # `ou_noise` is set to True.
     ou_params=dict(
-        # TODO
+        # initial noise term
         mu=0.0,
-        # TODO
+        # theta term in the Ornstein-Uhlenbeck process
         theta=0.15,
-        # TODO
+        # initial scale of the Gaussian noise term
         sigma_max=0.3,
-        # TODO
-        sigma_min=0.3,
-        # TODO
-        delay_period=100000,
+        # scale of the Gaussian noise term as t -> delay_period
+        sigma_min=0.05,
+        # noise decay rate
+        delay_period=1e6,
     ),
     # standard deviation term to the noise from the output of the target actor
     # policy. See TD3 paper for more.

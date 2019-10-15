@@ -323,11 +323,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             hyperparameters for the Ornstein-Uhlenbeck process. Only relevant
             if `ou_noise` is set to True. Must contain the following terms:
 
-            * mu: TODO
-            * theta: TODO
-            * sigma_max: TODO
-            * sigma_min: TODO
-            * delay_period: TODO
+            * mu: initial noise term
+            * theta: theta term in the Ornstein-Uhlenbeck process
+            * sigma_max: initial scale of the Gaussian noise term
+            * sigma_min: scale of the Gaussian noise term as t -> delay_period
+            * delay_period: noise decay rate
         reuse : bool
             if the policy is reusable or not
         scope : str
@@ -367,6 +367,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.zero_obs = zero_obs
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
+
+        # Initialize exploration noise process.
+        if self.ou_noise:
+            self.state = np.ones(ac_space.shape) * self.ou_params['mu']
+            self.sigma = self.ou_params['sigma_max']
 
         # =================================================================== #
         # Step 1: Create a replay buffer object.                              #
@@ -757,6 +762,38 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
+    def _evolve_state(self, total_steps):
+        """Update the noise term based on the Ornstein-Uhlenbeck process.
+
+        Parameters
+        ----------
+        total_steps : int
+            total number of steps during the training procedure
+
+        Returns
+        -------
+        scaled noise term
+        """
+        theta = self.ou_params['theta']
+        mu = self.ou_params['mu']
+        delay_period = self.ou_params['delay_period']
+        ac_dim = self.ac_space.shape[0]
+        ac_range = 0.5 * (self.ac_space.high - self.ac_space.low)
+
+        # update the noise term
+        x = self.state
+        dx = theta * (mu - x) + self.sigma * np.random.randn(ac_dim)
+        self.state = x + dx
+
+        # update the sigma term
+        sigma_max = self.ou_params['sigma_max']
+        sigma_min = self.ou_params['sigma_min']
+        self.sigma = sigma_max \
+            - (sigma_max - sigma_min) * min(1.0, total_steps / delay_period)
+
+        # return the scaled noise
+        return self.state * ac_range
+
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
@@ -770,18 +807,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
-                # apply Ornstein-Uhlenbeck process
                 if self.ou_noise:
-                    # self.noise *= np.maximum(
-                    #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
-                    pass  # FIXME
+                    # apply Ornstein-Uhlenbeck process
+                    noise = self._evolve_state(kwargs['total_steps'])
+                else:
+                    # use Gaussian noise
+                    noise = np.random.normal(0, self.noise, action.shape)
 
                 # compute noisy action
-                if apply_noise:
-                    action += np.random.normal(0, self.noise, action.shape)
+                action += noise
 
-                # clip by bounds
-                action = np.clip(action, self.ac_space.low, self.ac_space.high)
+            # clip by bounds
+            action = np.clip(action, self.ac_space.low, self.ac_space.high)
 
         return action
 
@@ -1017,6 +1054,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ou_noise,
+                 ou_params,
                  meta_period,
                  relative_goals,
                  off_policy_corrections,
@@ -1074,6 +1113,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        ou_params : dict
+            hyperparameters for the Ornstein-Uhlenbeck process. Only relevant
+            if `ou_noise` is set to True. Must contain the following terms:
+
+            * mu: initial noise term
+            * theta: theta term in the Ornstein-Uhlenbeck process
+            * sigma_max: initial scale of the Gaussian noise term
+            * sigma_min: scale of the Gaussian noise term as t -> delay_period
+            * delay_period: noise decay rate
         meta_period : int
             manger action period
         relative_goals : bool
@@ -1199,6 +1247,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=False,
+                ou_noise=ou_noise,
+                ou_params=ou_params,
             )
 
         # previous observation by the Manager
@@ -1262,6 +1312,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
+                ou_noise=ou_noise,
+                ou_params=ou_params,
             )
 
         # remove the last element to compute the reward FIXME
