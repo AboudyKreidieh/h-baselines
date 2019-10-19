@@ -10,6 +10,8 @@ from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 REWARD_SCALE = 0.1
 # threshold after which the agent is considered to have reached its target
 DISTANCE_THRESHOLD = 5
+# penalty for terminating early
+DYING_PENALTY = -10
 
 
 class UniversalAntMazeEnv(AntMazeEnv):
@@ -162,6 +164,10 @@ class UniversalAntMazeEnv(AntMazeEnv):
         self.step_number += 1
         done = done or self.step_number == self.horizon
 
+        # add an early termination / dying penalty
+        if done and self.step_number < self.horizon:
+            rew += DYING_PENALTY
+
         return obs, rew, done, info
 
     def reset(self):
@@ -183,7 +189,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 # In this case, the context range is just the context.
                 self.current_context = self.context_range
             else:
-                # TODO: check for if not an option
                 # In this case, choose random values between the context range.
                 self.current_context = []
                 for range_i in self.context_range:

@@ -25,6 +25,7 @@ except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
+from hbaselines.envs.snn4hrl.envs import AntGatherEnv
 
 
 # =========================================================================== #
@@ -92,7 +93,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
     # True.
-    cg_weights=0.005,
+    cg_weights=1e-4,
 ))
 
 
@@ -331,12 +332,12 @@ class TD3(object):
         # implementation (see appendix A of their paper). If the horizon cannot
         # be found, it is assumed to be 500 (default value for most gym
         # environments).
-        if hasattr(self.env, "horizon"):
-            self.horizon = self.env.horizon
-        else:
-            print("Warning: self.env.horizon not found. Setting self.horizon "
-                  "in the algorithm class to 500.")
-            self.horizon = 500
+        # if hasattr(self.env, "horizon"):
+        #     self.horizon = self.env.horizon
+        # else:
+        #     print("Warning: self.env.horizon not found. Setting self.horizon "
+        #           "in the algorithm class to 500.")
+        self.horizon = 500
 
         # a few algorithm-specific parameters  FIXME: get rid of?
         self.fingerprint_range = self.policy_kwargs.get(
@@ -400,6 +401,9 @@ class TD3(object):
         gym.Env or list of gym.Env
             gym-compatible environment(s)
         """
+        if env == "AntGather":
+            env = AntGatherEnv()
+
         if env == "AntMaze":
             if evaluate:
                 env = [AntMaze(use_contexts=True, context_range=[16, 0]),
@@ -482,10 +486,10 @@ class TD3(object):
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
-        # determine whether the action space is continuous
-        assert isinstance(self.action_space, Box), \
-            "Error: TD3 cannot output a {} action space, only " \
-            "spaces.Box is supported.".format(self.action_space)
+        # # determine whether the action space is continuous
+        # assert isinstance(self.action_space, Box), \
+        #     "Error: TD3 cannot output a {} action space, only " \
+        #     "spaces.Box is supported.".format(self.action_space)
 
         self.graph = tf.Graph()
         with self.graph.as_default():
@@ -853,7 +857,7 @@ class TD3(object):
             # Update the current observation.
             self.obs = new_obs.copy()
 
-            if done:
+            if self.episode_step == self.horizon or done:
                 # Episode done.
                 self.epoch_episode_rewards.append(self.episode_reward)
                 self.episode_rewards_history.append(self.episode_reward)

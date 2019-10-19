@@ -1103,7 +1103,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # Compute the action space for the Manager. If the fingerprint terms
         # are being appended onto the observations, this should be removed from
         # the action space.
-        if env_name in ["AntMaze", "AntPush", "AntFall"]:
+        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
             manager_ac_space = Box(
                 low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                               -0.3, -0.5, -0.3, -0.5, -0.3]),
@@ -1257,7 +1257,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         else:
             state_indices = None
 
-        if env_name in ["AntMaze", "AntPush", "AntFall"]:
+        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
             state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
         elif env_name == "UR5":
             state_indices = None
@@ -1759,11 +1759,15 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""
+        m_ac_size = self.manager.ac_space.shape[0]
+        m_obs_size = self.manager.ob_space.shape[0]
+        if self.manager.co_space is not None:
+            m_obs_size += + self.manager.co_space.shape[0]
+
         # create necessary placeholders
         self.m_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
-            shape=(None, self.manager.ob_space.shape[0]
-                   + self.manager.co_space.shape[0]),
+            shape=(None, m_obs_size),
             name='m_obs_ph')
         self.w_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
@@ -1781,7 +1785,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # handle situation of relative goals
         if self.relative_goals:
             # FIXME
-            goal = self.m_obs_ph[:, :15] + manager_tf - self.w_obs_ph[:, :15]
+            goal = self.m_obs_ph[:, :m_ac_size] + manager_tf \
+                - self.w_obs_ph[:, :m_ac_size]
         else:
             goal = manager_tf
 
@@ -1797,10 +1802,11 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         # used to provide feedback to the worker
         if self.relative_goals:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                self.w_obs_ph[:, :15] + goal, self.worker.obs1_ph[:, :15])
+                self.w_obs_ph[:, :m_ac_size] + goal,
+                self.worker.obs1_ph[:, :m_ac_size])
         else:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, self.worker.obs1_ph[:, :15])
+                goal, self.worker.obs1_ph[:, :m_ac_size])
 
         # compute the worker loss with respect to the manager actions
         self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
@@ -1879,9 +1885,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
             feed_dict.update({
                 self.m_obs_ph: obs0,  # TODO: remove?
-                self.w_obs_ph: worker_obs0[:, :30],
+                self.w_obs_ph: worker_obs0[:, :self.worker.ob_space.shape[0]],
                 self.w_ac_ph: worker_actions,
-                # self.worker.obs_ph: worker_obs0,
                 self.worker.obs1_ph: worker_obs1,
             })
 
