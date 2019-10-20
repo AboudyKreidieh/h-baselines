@@ -38,9 +38,9 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
-    actor_lr=3e-4,
+    actor_lr=3e-3,
     # the critic learning rate
-    critic_lr=3e-4,
+    critic_lr=1e-3,
     # the soft update coefficient (keep old values, between 0 and 1)
     tau=0.005,
     # the discount rate
@@ -93,7 +93,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
     # True.
-    cg_weights=1e-4,
+    cg_weights=1e-3,
 ))
 
 
