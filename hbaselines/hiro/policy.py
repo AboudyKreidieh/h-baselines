@@ -1905,6 +1905,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
                 self.m_obs_ph: obs0,  # TODO: remove?
                 self.w_obs_ph: worker_obs0[:, :self.worker.ob_space.shape[0]],
                 self.w_ac_ph: worker_actions,
+                # self.worker.obs_ph: worker_obs0,
                 self.worker.obs1_ph: worker_obs1,
             })
 
