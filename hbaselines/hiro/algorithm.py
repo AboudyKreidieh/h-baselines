@@ -332,12 +332,15 @@ class TD3(object):
         # implementation (see appendix A of their paper). If the horizon cannot
         # be found, it is assumed to be 500 (default value for most gym
         # environments).
-        # if hasattr(self.env, "horizon"):
-        #     self.horizon = self.env.horizon
-        # else:
-        #     print("Warning: self.env.horizon not found. Setting self.horizon "
-        #           "in the algorithm class to 500.")
-        self.horizon = 500
+        if hasattr(self.env, "horizon"):
+            self.horizon = self.env.horizon
+        elif hasattr(self.env, "env_params"):
+            # for Flow environments
+            self.horizon = self.env.env_params.horizon
+        else:
+            print("Warning: self.env.horizon not found. Setting self.horizon "
+                  "in the algorithm class to 500.")
+            self.horizon = 500
 
         # a few algorithm-specific parameters  FIXME: get rid of?
         self.fingerprint_range = self.policy_kwargs.get(
@@ -486,11 +489,6 @@ class TD3(object):
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
-        # # determine whether the action space is continuous
-        # assert isinstance(self.action_space, Box), \
-        #     "Error: TD3 cannot output a {} action space, only " \
-        #     "spaces.Box is supported.".format(self.action_space)
-
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
