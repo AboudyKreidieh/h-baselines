@@ -38,9 +38,9 @@ FEEDFORWARD_POLICY_KWARGS = dict(
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
-    actor_lr=3e-3,
+    actor_lr=3e-4,
     # the critic learning rate
-    critic_lr=1e-3,
+    critic_lr=3e-4,
     # the soft update coefficient (keep old values, between 0 and 1)
     tau=0.005,
     # the discount rate
@@ -93,7 +93,7 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
     # True.
-    cg_weights=0.005,
+    cg_weights=0.0005,
 ))
 
 
@@ -609,7 +609,7 @@ class TD3(object):
               log_dir=None,
               seed=None,
               log_interval=100,
-              eval_interval=5e4,
+              eval_interval=5e3,
               start_timesteps=10000):
         """Return a trained model.
 
@@ -855,7 +855,7 @@ class TD3(object):
             # Update the current observation.
             self.obs = new_obs.copy()
 
-            if self.episode_step == self.horizon or done:
+            if done:
                 # Episode done.
                 self.epoch_episode_rewards.append(self.episode_reward)
                 self.episode_rewards_history.append(self.episode_reward)
@@ -1029,6 +1029,13 @@ class TD3(object):
         ret_info['initial'] = np.mean(ret_info['initial'])
         ret_info['final'] = np.mean(ret_info['final'])
         ret_info['average'] = np.mean(ret_info['average'])
+
+        # remove certain statistics if they are not available
+        #if not hasattr(env, "current_context"):
+        #    del ret_info['success']
+        #    del ret_info['initial']
+        #    del ret_info['final']
+        #    del ret_info['average']
 
         return eval_episode_rewards, eval_episode_successes, ret_info
 

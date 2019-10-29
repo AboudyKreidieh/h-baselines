@@ -1,6 +1,6 @@
 """A runner script for goal-directed hierarchical models.
 
-This run script used to test the performance of DDPG and DQN with the  neural
+This run script used to test the performance of DDPG and DQN with the neural
 network model "HIRO" on various environments.
 
 See: TODO: add paper

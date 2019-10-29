@@ -10,8 +10,6 @@ from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 REWARD_SCALE = 0.1
 # threshold after which the agent is considered to have reached its target
 DISTANCE_THRESHOLD = 5
-# penalty for terminating early
-DYING_PENALTY = -10
 
 
 class UniversalAntMazeEnv(AntMazeEnv):
@@ -163,10 +161,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Check if the time horizon has been met.
         self.step_number += 1
         done = done or self.step_number == self.horizon
-
-        # add an early termination / dying penalty
-        if done and self.step_number < self.horizon:
-            rew += DYING_PENALTY
 
         return obs, rew, done, info
 
