@@ -46,7 +46,8 @@ class TestTrain(unittest.TestCase):
             'off_policy_corrections': False,
             'use_fingerprints': False,
             'centralized_value_functions': False,
-            'connected_gradients': False
+            'connected_gradients': False,
+            'cg_weights': GOAL_DIRECTED_POLICY_KWARGS['cg_weights'],
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -84,6 +85,7 @@ class TestTrain(unittest.TestCase):
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
+            '--cg_weights', '22',
         ])
         hp = get_hyperparameters(args, GoalDirectedPolicy)
         expected_hp = {
@@ -115,7 +117,8 @@ class TestTrain(unittest.TestCase):
                 'off_policy_corrections': True,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
-                'connected_gradients': True
+                'connected_gradients': True,
+                'cg_weights': 22,
             }
         }
         self.assertDictEqual(hp, expected_hp)
