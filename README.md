@@ -9,13 +9,12 @@ blank
 ## Contents
 
 * [Installation](#installation)
-* [Supported Models/Algorithms](#supported-modelsalgorithms)
-  * [FuN (FeUdal Networks for Hierarchical Reinforcement Learning)](#fun-feudal-networks-for-hierarchical-reinforcement-learning)
+* [Supported Models/Algorithms](#supported-modelsalgorithms) <!--  * [FuN (FeUdal Networks for Hierarchical Reinforcement Learning)](#fun-feudal-networks-for-hierarchical-reinforcement-learning)-->
+  * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HAC (Learning Multi-Level Hierarchies with Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
+  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning) <!--  * [HAC (Learning Multi-Level Hierarchies with Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)-->
 * [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments)
-  * [Mixed Autonomy Traffic](#mixed-autonomy-traffic)
+  * [MuJoCo Environments](#mujoco-environments) <!--  * [Mixed Autonomy Traffic](#mixed-autonomy-traffic)-->
 * [Citing](#citing)
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
@@ -63,20 +62,22 @@ The test should return a message along the lines of:
 
 ## Supported Models/Algorithms
 
-blank
+This repository currently supports the use several algorithms  of 
+*goal-conditioned hierarchical reinforcement learning* models. We begin
+by describing what a goal-conditioned HRL model is, then techniques for 
+mitigating the effects of instabilities in training.
 
-### FuN (FeUdal Networks for Hierarchical Reinforcement Learning)
+### Goal-Conditioned HRL
 
-One of the early works on feudal variants of hierarchical reinforcement 
-learning since the surge of deep neural networks as a viable tool in machine
-learning, this model attempts to adapt more modern machine learning techniques
-to the original model presented by [1].
+Goal-conditioned HRL models, also known as feudal models, are a variant 
+of hierarchical models that have been widely studied in the HRL
+community. **TODO: take from paper**
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 blank
 
-### HAC (Learning Multi-Level Hierarchies with Hindsight)
+### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
 blank
 
@@ -90,13 +91,25 @@ blank
 
 **Pendulum** 
 
+This task was initially provided by [5].
+
 blank
 
 **UR5** 
 
+This task was initially provided by [5].
+
+blank
+
+**AntGather** 
+
+This task was initially provided by [6].
+
 blank
 
 **AntMaze** 
+
+This task was initially provided by [3].
 
 In this task, immovable blocks are placed to confine the agent to a
 U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0), 
@@ -105,6 +118,8 @@ position (0,0) and tasked at reaching a specific target position. "Success" in
 this environment is defined as being within an L2 distance of 5 from the target.
 
 **AntPush** 
+
+This task was initially provided by [3].
 
 In this task, immovable blocks are placed every where except at 
 (0,0), (-8,0), (-8,8), (0,8), (8,8), (16,8), and (0,16), and a movable block is
@@ -116,6 +131,8 @@ distance of 5 from the target.
 
 **AntFall** 
 
+This task was initially provided by [3].
+
 In this task, the agent is initialized on a platform of height 4. 
 Immovable blocks are placed everywhere except at (-8,0), (0,0), (-8,8), (0,8),
 (-8,16), (0,16), (-8,24), and (0,24). The raised platform is absent in the 
@@ -126,11 +143,11 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-### Mixed Autonomy Traffic
+<!--### Mixed Autonomy Traffic-->
 
-**Figure Eight v2** blank
+<!--**Figure Eight v2** blank-->
 
-**Merge v2** blank
+<!--**Merge v2** blank-->
 
 ## Citing
 
@@ -159,8 +176,14 @@ Machine Learning-Volume 70. JMLR. org, 2017.
 [3] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement learning."
 Advances in Neural Information Processing Systems. 2018.
 
-[4] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
+[4] TODO: HRL-CG
+
+[5] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
 (2018).
+
+[6] Florensa, Carlos, Yan Duan, and Pieter Abbeel. "Stochastic neural 
+networks for hierarchical reinforcement learning." arXiv preprint 
+arXiv:1704.03012 (2017).
 
 ## Useful Links
 

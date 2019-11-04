@@ -10,11 +10,11 @@ import json
 from time import strftime
 import sys
 
-from hbaselines.common.utils import ensure_dir
-from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro import TD3, FeedForwardPolicy
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.goal_conditioned import TD3, FeedForwardPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --n_cpus 3'
 
 
 def run_exp(env, hp, steps, dir_name, evaluate, seed):

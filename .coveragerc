@@ -4,6 +4,8 @@ omit =
     */site-packages/nose/*
     *__init__*
     */setup.py
+    */hbaselines/envs/efficient_hrl/ant.py
+    */hbaselines/envs/efficient_hrl/ant_maze_env.py
 
 exclude_lines =
     pragma: no cover

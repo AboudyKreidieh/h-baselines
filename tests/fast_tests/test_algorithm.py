@@ -4,11 +4,12 @@ import numpy as np
 import random
 import shutil
 
-from hbaselines.hiro.algorithm import as_scalar, TD3
-from hbaselines.hiro.tf_util import get_trainable_vars
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import as_scalar, TD3
+from hbaselines.goal_conditioned.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 class TestAuxiliaryMethods(unittest.TestCase):
@@ -133,7 +134,7 @@ class TestTD3(unittest.TestCase):
     def test_setup_model_goal_directed(self):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
 
@@ -228,7 +229,7 @@ class TestTD3(unittest.TestCase):
         """Test the non-loop components of the `learn` method."""
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
 
@@ -285,7 +286,7 @@ class TestTD3(unittest.TestCase):
         """
         # Create the algorithm.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['nb_rollout_steps'] = 1
         policy_params['policy_kwargs'] = {'use_fingerprints': True}
         alg = TD3(**policy_params)
