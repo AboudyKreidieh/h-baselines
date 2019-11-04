@@ -3,7 +3,7 @@ import unittest
 import os
 import shutil
 
-from hbaselines.common.train import parse_options
+from hbaselines.utils.train import parse_options
 from experiments.run_fcnet import main as run_fcnet
 from experiments.run_hrl import main as run_hrl
 

@@ -19,7 +19,7 @@ import tensorflow as tf
 from hbaselines.goal_conditioned.tf_util import make_session
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.common.utils import ensure_dir
+from hbaselines.utils.misc import ensure_dir
 try:
     from flow.utils.registry import make_create_env
 except (ImportError, ModuleNotFoundError):

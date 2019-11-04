@@ -1,4 +1,4 @@
-"""Utility methods for scripts in this repository,"""
+"""Miscellaneous utility methods for this repository,"""
 import os
 import errno
 

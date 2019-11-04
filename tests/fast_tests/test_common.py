@@ -1,6 +1,6 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
-from hbaselines.common.train import parse_options, get_hyperparameters
+from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
 from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS

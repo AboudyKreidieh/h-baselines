@@ -11,7 +11,7 @@ from hbaselines.goal_conditioned.tf_util import get_target_updates
 from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
-from hbaselines.common.reward_fns import negative_distance
+from hbaselines.utils.reward_fns import negative_distance
 
 
 class ActorCriticPolicy(object):

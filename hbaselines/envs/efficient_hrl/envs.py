@@ -3,7 +3,7 @@ import numpy as np
 import random
 from gym.spaces import Box
 
-from hbaselines.common.reward_fns import negative_distance
+from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 
 # scale to the contextual reward. Does not affect the environmental reward.

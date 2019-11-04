@@ -10,8 +10,8 @@ import json
 from time import strftime
 import sys
 
-from hbaselines.common.utils import ensure_dir
-from hbaselines.common.train import parse_options, get_hyperparameters
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
 
 EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --n_cpus 3'
