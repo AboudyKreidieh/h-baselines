@@ -1,6 +1,8 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
+import numpy as np
 from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
 from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
@@ -124,14 +126,14 @@ class TestTrain(unittest.TestCase):
         self.assertDictEqual(hp, expected_hp)
 
 
-class TestStats(unittest.TestCase):
-    """A simple test to get Travis running."""
+class TestRewardFns(unittest.TestCase):
+    """Test the reward_fns method."""
 
-    def test_reduce_var(self):
-        pass
-
-    def test_reduce_std(self):
-        pass
+    def test_negative_distance(self):
+        a = np.array([1, 2, 10])
+        b = np.array([1, 2])
+        c = negative_distance(b, b, a, goal_indices=[1, 2])
+        self.assertEqual(c, -8.062257748304752)
 
 
 if __name__ == '__main__':

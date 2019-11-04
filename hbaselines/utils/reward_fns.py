@@ -14,11 +14,9 @@ def negative_distance(states,
                       state_scales=1.0,
                       goal_scales=1.0,
                       reward_scales=1.0,
-                      weight_vector=None,
                       state_indices=None,
                       goal_indices=None,
                       relative_context=False,
-                      norm='L2',
                       epsilon=1e-10,
                       bonus_epsilon=0.,
                       offset=0.0):
@@ -38,8 +36,6 @@ def negative_distance(states,
         multiplicative scale for goals
     reward_scales : float
         multiplicative scale for rewards
-    weight_vector : float or array_like
-        The weighting vector, broadcastable to `next_states`.
     state_indices : list of int
         list of state indices to select.
     goal_indices : list of int
@@ -47,8 +43,6 @@ def negative_distance(states,
     relative_context : bool
         if True, then the goal is a relative goal, i.e. the requested position
         is the current position plus the requested goal.
-    norm : {"L1", "L2"}
-        specifies whether to use L1 or L2 normalization.
     epsilon : float
         small offset to ensure non-negative/zero distance.
     bonus_epsilon : float
@@ -77,18 +71,9 @@ def negative_distance(states,
 
     sq_dists = np.square(next_states * state_scales - goals * goal_scales)
 
-    if weight_vector is not None:
-        sq_dists *= weight_vector
-
-    # Apply either the L1 or L2 norm.
-    if norm == 'L1':
-        dist = np.sqrt(sq_dists + epsilon)
-        dist = np.sum(dist, -1)
-    elif norm == 'L2':
-        dist = np.sum(sq_dists, -1)
-        dist = np.sqrt(dist + epsilon)
-    else:
-        raise NotImplementedError(norm)
+    # Apply the L2 norm.
+    dist = np.sum(sq_dists, -1)
+    dist = np.sqrt(dist + epsilon)
 
     bonus = float(dist < bonus_epsilon)
     dist *= reward_scales

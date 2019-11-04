@@ -9,5 +9,5 @@ def ensure_dir(path):
         os.makedirs(path)
     except OSError as exception:
         if exception.errno != errno.EEXIST:
-            raise
+            raise  # pragma: no cover
     return path
