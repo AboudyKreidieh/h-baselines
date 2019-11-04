@@ -1,6 +1,7 @@
 """Contains tests for the contained environments."""
 import unittest
 import numpy as np
+import random
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
@@ -68,6 +69,25 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             env.context_space.low, np.array([-4, 4]))
         np.testing.assert_almost_equal(
             env.context_space.high, np.array([5, 20]))
+
+        # test reset for random contexts
+        np.random.seed(0)
+        random.seed(0)
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([3.5997967, 16.1272704]))
+
+        # test non-random context_space
+        env = AntMaze(use_contexts=True, random_contexts=False,
+                      context_range=[-4, 5])
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 5]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([-4, 5]))
+
+        # test reset for non-random contexts
+        env.reset()
+        np.testing.assert_almost_equal(env.current_context, np.array([-4, 5]))
 
         # test context_space without contexts
         env = AntMaze(use_contexts=False)
