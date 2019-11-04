@@ -1,9 +1,9 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
 from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro.algorithm import GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 class TestTrain(unittest.TestCase):
@@ -87,7 +87,7 @@ class TestTrain(unittest.TestCase):
             '--connected_gradients',
             '--cg_weights', '22',
         ])
-        hp = get_hyperparameters(args, GoalDirectedPolicy)
+        hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
             'num_cpus': 4,
             'nb_train_steps': 5,

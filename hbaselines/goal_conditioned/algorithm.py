@@ -16,8 +16,9 @@ from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
+from hbaselines.goal_conditioned.tf_util import make_session
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 from hbaselines.common.utils import ensure_dir
 try:
     from flow.utils.registry import make_create_env
@@ -66,7 +67,7 @@ FEEDFORWARD_POLICY_KWARGS = dict(
 
 
 # =========================================================================== #
-#                  Policy parameters for GoalDirectedPolicy                   #
+#                Policy parameters for GoalConditionedPolicy                  #
 # =========================================================================== #
 
 GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
@@ -127,7 +128,7 @@ class TD3(object):
 
     Attributes
     ----------
-    policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
+    policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the Manager
@@ -151,7 +152,7 @@ class TD3(object):
         number of training steps per meta policy update step. The actor policy
         of the meta-policy is further updated at the frequency provided by the
         actor_update_freq variable. Note that this value is only relevant when
-        using the GoalDirectedPolicy policy.
+        using the GoalConditionedPolicy policy.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -181,7 +182,7 @@ class TD3(object):
         the shape of the fingerprint elements, if they are being used
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
+    policy_tf : hbaselines.goal_conditioned.policy.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -259,7 +260,7 @@ class TD3(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
+        policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
@@ -281,7 +282,7 @@ class TD3(object):
             number of training steps per meta policy update step. The actor
             policy of the meta-policy is further updated at the frequency
             provided by the actor_update_freq variable. Note that this value is
-            only relevant when using the GoalDirectedPolicy policy.
+            only relevant when using the GoalConditionedPolicy policy.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -317,7 +318,7 @@ class TD3(object):
         # add the default policy kwargs to the policy_kwargs term
         if policy == FeedForwardPolicy:
             self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
-        elif policy == GoalDirectedPolicy:
+        elif policy == GoalConditionedPolicy:
             self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
             self.policy_kwargs['env_name'] = self.env_name.__str__()
         else:
@@ -878,7 +879,7 @@ class TD3(object):
         the policy, and the summary information is logged to tensorboard.
         """
         for t_train in range(self.nb_train_steps):
-            if self.policy == GoalDirectedPolicy:
+            if self.policy == GoalConditionedPolicy:
                 # specifies whether to update the meta actor and critic
                 # policies based on the meta and actor update frequencies
                 kwargs = {

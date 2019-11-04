@@ -1,7 +1,8 @@
 import unittest
 import numpy as np
 
-from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
+from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
+from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):
