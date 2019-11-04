@@ -185,6 +185,10 @@ class TestUR5(unittest.TestCase):
         self.assertEqual(self.env.visualize, False)
         self.assertEqual(self.env.viewer, None)
         self.assertEqual(self.env.num_frames_skip, 1)
+        np.testing.assert_array_almost_equal(
+            self.env.context_space.low, [-3.141593, -0.785398, -0.785398])
+        np.testing.assert_array_almost_equal(
+            self.env.context_space.high, [3.141593, 0., 0.785398])
 
     def test_step(self):
         """Ensure the step method is functioning properly.
@@ -248,6 +252,10 @@ class TestPendulum(unittest.TestCase):
         self.assertEqual(self.env.visualize, False)
         self.assertEqual(self.env.viewer, None)
         self.assertEqual(self.env.num_frames_skip, 1)
+        np.testing.assert_array_almost_equal(
+            self.env.context_space.low, [-0.279253, -0.6])
+        np.testing.assert_array_almost_equal(
+            self.env.context_space.high, [0.279253, 0.6])
 
     def test_step(self):
         """Ensure the step method is functioning properly.
