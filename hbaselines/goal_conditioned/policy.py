@@ -1762,48 +1762,41 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""
-        # create necessary placeholders
-        self.m_obs_ph = tf.compat.v1.placeholder(
-            tf.float32,
-            shape=(None, self.manager.ob_space.shape[0]
-                   + self.manager.co_space.shape[0]),
-            name='m_obs_ph')
-        self.w_obs_ph = tf.compat.v1.placeholder(
-            tf.float32,
-            shape=(None, self.worker.ob_space.shape[0]),
-            name='w_obs_ph')
-        self.w_ac_ph = tf.compat.v1.placeholder(
-            tf.float32,
-            shape=(None, self.worker.ac_space.shape[0]),
-            name='w_ac_ph')
+        goal_dim = self.manager.ac_space.shape[0]
 
-        # create a copy of the manager policy
-        with tf.compat.v1.variable_scope("Manager/model"):
-            manager_tf = self.manager.make_actor(self.m_obs_ph, reuse=True)
-
-        # handle situation of relative goals
         if self.relative_goals:
-            # FIXME
-            goal = self.m_obs_ph[:, :15] + manager_tf - self.w_obs_ph[:, :15]
+            # The observation from the perspective of the manager can be
+            # collected from the first goal_dim elements of the observation. We
+            # use goal_dim in case the goal-specific observations are not the
+            # entire observation space.
+            obs_t = self.manager.obs_ph[:, :goal_dim]
+            # We collect the observation of the worker in a similar fashion as
+            # above.
+            obs_tpi = self.worker.obs_ph[:, :goal_dim]
+            # Relative goal formulation as per HIRO.
+            goal = obs_t + self.manager.actor_tf - obs_tpi
         else:
-            goal = manager_tf
+            # Goal is the direct output from the manager in this case.
+            goal = self.manager.actor_tf
 
         # concatenate the output from the manager with the worker policy.
-        obs = tf.concat([self.w_obs_ph, goal], axis=-1)
+        obs_shape = self.worker.ob_space.shape[0]
+        obs = tf.concat([self.worker.obs_ph[:, :obs_shape], goal], axis=-1)
 
         # create the worker policy with inputs directly from the manager
         with tf.compat.v1.variable_scope("Worker/model"):
             worker_with_manager_obs = self.worker.make_critic(
-                obs, self.w_ac_ph, reuse=True, scope="qf_0")
+                obs, self.worker.action_ph, reuse=True, scope="qf_0")
 
         # create a tensorflow operation that mimics the reward function that is
         # used to provide feedback to the worker
         if self.relative_goals:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                self.w_obs_ph[:, :15] + goal, self.worker.obs1_ph[:, :15])
+                self.worker.obs_ph[:, :goal_dim] + goal,
+                self.worker.obs1_ph[:, :goal_dim])
         else:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, self.worker.obs1_ph[:, :15])
+                goal, self.worker.obs1_ph[:, :goal_dim])
 
         # compute the worker loss with respect to the manager actions
         self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
@@ -1827,28 +1820,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
-        TODO
+        This procedure is similar to self.manager.update_from_batch, expect it
+        runs the self.cg_optimizer operation instead of self.manager.optimizer,
+        and utilizes some information from the worker samples as well.
 
         Parameters
         ----------
-        obs0 : array_like
-            TODO
-        actions : array_like
-            TODO
-        rewards : array_like
-            TODO
-        obs1 : array_like
-            TODO
-        terminals1 : array_like
-            TODO
+        obs0 : np.ndarray
+            batch of manager observations
+        actions : numpy float
+            batch of manager actions executed given obs_batch
+        rewards : numpy float
+            manager rewards received as results of executing act_batch
+        obs1 : np.ndarray
+            set of next manager observations seen after executing act_batch
+        terminals1 : numpy bool
+            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
+            an episode and 0 otherwise.
         worker_obs0 : array_like
-            TODO
+            batch of worker observations
         worker_obs1 : array_like
-            TODO
+            batch of next worker observations
         worker_actions : array_like
-            TODO
-        update_actor : array_like
-            TODO
+            batch of worker actions
+        update_actor : bool
+            specifies whether to update the actor policy of the manager. The
+            critic policy is still updated if this value is set to False.
 
         Returns
         -------
@@ -1877,14 +1874,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         if update_actor:
             # Actor updates and target soft update operation.
             step_ops += [self.manager.actor_loss,
-                         self.cg_optimizer,  # This is what's replaced...
+                         self.cg_optimizer,  # This is what's replaced.
                          self.manager.target_soft_updates]
 
             feed_dict.update({
-                self.m_obs_ph: obs0,  # TODO: remove?
-                self.w_obs_ph: worker_obs0[:, :30],
-                self.w_ac_ph: worker_actions,
-                # self.worker.obs_ph: worker_obs0,
+                self.worker.obs_ph: worker_obs0,
+                self.worker.action_ph: worker_actions,
                 self.worker.obs1_ph: worker_obs1,
             })
 
