@@ -179,7 +179,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             self.prev_obs = super(UniversalAntMazeEnv, self).reset()
         except NotImplementedError:
             # for testing purposes
-            self.prev_obs = self.observation_space.sample()
+            self.prev_obs = np.empty(1)
 
         # Reset the step counter.
         self.step_number = 0
