@@ -6,9 +6,11 @@ from functools import reduce
 from gym.spaces import Box
 import random
 
-from hbaselines.hiro.tf_util import get_trainable_vars, get_target_updates
-from hbaselines.hiro.tf_util import reduce_std
-from hbaselines.hiro.replay_buffer import ReplayBuffer, HierReplayBuffer
+from hbaselines.goal_conditioned.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.tf_util import get_target_updates
+from hbaselines.goal_conditioned.tf_util import reduce_std
+from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
+from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.common.reward_fns import negative_distance
 
 
@@ -197,7 +199,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     zero_obs : bool
         whether to zero the first and second elements of the observations for
         the actor and worker computations. Used for the Ant* envs.
-    replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
+    replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
         a placeholder for the current-step estimate of the target Q values
@@ -902,8 +904,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return td_map
 
 
-class GoalDirectedPolicy(ActorCriticPolicy):
-    """Goal-directed hierarchical reinforcement learning model.
+class GoalConditionedPolicy(ActorCriticPolicy):
+    """Goal-conditioned hierarchical reinforcement learning model.
 
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
@@ -938,7 +940,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    manager : hbaselines.hiro.policy.FeedForwardPolicy
+    manager : hbaselines.goal_conditioned.policy.FeedForwardPolicy
         the manager policy
     meta_period : int
         manger action period
@@ -974,7 +976,7 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         during the meta period
     batch_size : int
         SGD batch size
-    worker : hbaselines.hiro.policy.FeedForwardPolicy
+    worker : hbaselines.goal_conditioned.policy.FeedForwardPolicy
         the worker policy
     worker_reward : function
         reward function for the worker
@@ -1081,8 +1083,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
             the parameters of the manager. Only used if `connected_gradients`
             is set to True.
         """
-        super(GoalDirectedPolicy, self).__init__(sess,
-                                                 ob_space, ac_space, co_space)
+        super(GoalConditionedPolicy, self).__init__(
+            sess, ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
         self.relative_goals = relative_goals
@@ -1198,7 +1200,8 @@ class GoalDirectedPolicy(ActorCriticPolicy):
         self.meta_reward = None
 
         # The following is redundant but necessary if the changes to the update
-        # function are to be in the GoalDirected policy and not FeedForward.
+        # function are to be in the GoalConditionedPolicy policy and not
+        # FeedForwardPolicy.
         self.batch_size = batch_size
 
         # Use this to store a list of observations that stretch as long as the

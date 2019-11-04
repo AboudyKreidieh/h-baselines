@@ -12,9 +12,9 @@ import sys
 
 from hbaselines.common.utils import ensure_dir
 from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro import TD3, GoalDirectedPolicy
+from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
 
-EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --n_cpus 3'
 
 
 def run_exp(env, hp, steps, dir_name, evaluate, seed):
@@ -36,7 +36,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed):
         specified the random seed for numpy, tensorflow, and random
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=GoalDirectedPolicy, env=env, eval_env=eval_env, **hp)
+    alg = TD3(policy=GoalConditionedPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
@@ -57,7 +57,7 @@ def main(args, base_dir):
     ensure_dir(dir_name)
 
     # get the hyperparameters
-    hp = get_hyperparameters(args, GoalDirectedPolicy)
+    hp = get_hyperparameters(args, GoalConditionedPolicy)
 
     # add the seed for logging purposes
     params_with_seed = hp.copy()
