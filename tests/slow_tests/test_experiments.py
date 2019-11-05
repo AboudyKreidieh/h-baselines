@@ -15,7 +15,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=["MountainCarContinuous-v0",
                                            "--n_cpus", "1",
-                                           "--total_steps", "1000"])
+                                           "--total_steps", "2000"])
         run_fcnet(args, 'data/fcnet')
 
         # Check that the folders were generated.
@@ -29,7 +29,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=["MountainCarContinuous-v0",
                                            "--n_cpus", "1",
-                                           "--total_steps", "1000"])
+                                           "--total_steps", "2000"])
         run_hrl(args, 'data/goal-conditioned')
 
         # Check that the folders were generated.
