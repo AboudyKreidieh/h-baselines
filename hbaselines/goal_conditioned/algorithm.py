@@ -825,7 +825,7 @@ class TD3(object):
 
             # Visualize the current step.
             if self.render:
-                self.env.render()
+                self.env.render()  # pragma: no cover
 
             # Add the fingerprint term, if needed.
             if self.policy_kwargs.get("use_fingerprints", False):
@@ -967,7 +967,7 @@ class TD3(object):
                 obs, eval_r, done, info = env.step(eval_action)
 
                 if self.render_eval:
-                    env.render()
+                    env.render()  # pragma: no cover
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
