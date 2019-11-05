@@ -4,7 +4,12 @@
 
 # h-baselines
 
-blank
+`h-baselines` is a repository of high-performing and benchmarked 
+hierarchical reinforcement learning models and algorithms.
+
+The models and algorithms supported within this repository can be found 
+[here](#supported-modelsalgorithms), and benchmarking results are 
+available [here](TODO).
 
 ## Contents
 
@@ -103,7 +108,7 @@ description of each of the studied environments can be found below.
 
 <!--blank-->
 
-**AntGather** 
+**AntGather**
 
 This task was initially provided by [6].
 
@@ -112,7 +117,7 @@ with 8 apples and 8 bombs. The agent receives a reward of +1 or
 collecting an apple and -1 for collecting a bomb. All other actions 
 yield a reward of 0.
 
-**AntMaze** 
+**AntMaze**
 
 This task was initially provided by [3].
 
@@ -122,7 +127,7 @@ U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0),
 position (0,0) and tasked at reaching a specific target position. "Success" in 
 this environment is defined as being within an L2 distance of 5 from the target.
 
-**AntPush** 
+**AntPush**
 
 This task was initially provided by [3].
 
@@ -134,7 +139,7 @@ to the left, push the movable block to the right, and then finally navigate to
 the target. "Success" in this environment is defined as being within an L2 
 distance of 5 from the target.
 
-**AntFall** 
+**AntFall**
 
 This task was initially provided by [3].
 
