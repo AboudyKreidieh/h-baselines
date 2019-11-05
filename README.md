@@ -9,12 +9,12 @@ blank
 ## Contents
 
 * [Installation](#installation)
-* [Supported Models/Algorithms](#supported-modelsalgorithms) <!--  * [FuN (FeUdal Networks for Hierarchical Reinforcement Learning)](#fun-feudal-networks-for-hierarchical-reinforcement-learning)-->
+* [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning) <!--  * [HAC (Learning Multi-Level Hierarchies with Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)-->
+  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
 * [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments) <!--  * [Mixed Autonomy Traffic](#mixed-autonomy-traffic)-->
+  * [MuJoCo Environments](#mujoco-environments) <!--  * [Flow Environments](#flow-environments)-->
 * [Citing](#citing)
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
@@ -83,29 +83,34 @@ blank
 
 ## Environments
 
-This repository contains multiple 
+We benchmark the performance of all algorithms on a set of standardized 
+Mujoco (robotics) and Flow (mixed-autonomy traffic) benchmarks. A 
+description of each of the studied environments can be found below.
 
 ### MuJoCo Environments
 
-blank
+<img src="docs/img/mujoco-envs.png"/>
 
-**Pendulum** 
+<!--**Pendulum** -->
 
-This task was initially provided by [5].
+<!--This task was initially provided by [5].-->
 
-blank
+<!--blank-->
 
-**UR5** 
+<!--**UR5** -->
 
-This task was initially provided by [5].
+<!--This task was initially provided by [5].-->
 
-blank
+<!--blank-->
 
 **AntGather** 
 
 This task was initially provided by [6].
 
-blank
+In this task, an quadrupedal (Ant) agent is placed in a 20x20 space 
+with 8 apples and 8 bombs. The agent receives a reward of +1 or 
+collecting an apple and -1 for collecting a bomb. All other actions 
+yield a reward of 0.
 
 **AntMaze** 
 
@@ -143,7 +148,7 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-<!--### Mixed Autonomy Traffic-->
+<!--### Flow Environments-->
 
 <!--**Figure Eight v2** blank-->
 
