@@ -112,7 +112,7 @@ description of each of the studied environments can be found below.
 
 This task was initially provided by [6].
 
-In this task, an quadrupedal (Ant) agent is placed in a 20x20 space 
+In this task, a quadrupedal (Ant) agent is placed in a 20x20 space 
 with 8 apples and 8 bombs. The agent receives a reward of +1 or 
 collecting an apple and -1 for collecting a bomb. All other actions 
 yield a reward of 0.
