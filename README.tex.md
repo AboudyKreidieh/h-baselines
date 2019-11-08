@@ -227,6 +227,10 @@ alg = TD3(
 
 TODO
 
+<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="80%"/></p>
+
+TODO: describe usage
+
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
 
