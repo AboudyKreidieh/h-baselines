@@ -107,7 +107,7 @@ parametrizes the environmental objective (e.g. desired position to move
 to), and consequently is passed both to the manager policy as well as 
 the environmental reward function <p align="center"><img src="/tex/8b496a49331410809fdbb87872a558df.svg?invert_in_darkmode&sanitize=true" align=middle width=60.601373249999995pt height=16.438356pt/></p>.
 
-<img src="docs/img/goal-conditioned.png" width="50%"/>
+<img src="docs/img/goal-conditioned.png" align="center" width="50%"/>
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
