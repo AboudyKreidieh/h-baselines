@@ -123,11 +123,11 @@ significant affect on the training performance of both the Manager and
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-$$r_w(s_t, g_t, s_{t+1}) = ||g_t - s{t+1}||_2$$
+$$r_w(s_t, g_t, s_{t+1}) = ||g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to False, and
 
-$$r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s{t+1}||_2$$
+$$r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.
