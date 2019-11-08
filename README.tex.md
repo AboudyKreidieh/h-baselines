@@ -86,7 +86,24 @@ perform well on `mujoco-py==1.50.1.68`.
 
 ### Importing AntGather
 
-TODO
+To properly import and run the AntGather environment, you will need to 
+first clone and install the `rllab` library. You can do so running the 
+following commands:
+
+```
+git clone https://github.com/rll/rllab.git
+cd rllab
+python setup.py develop
+```
+
+While all other environments run on all version of MuJoCo, this one will 
+require MuJoCo-1.3.1. You may also need to install some missing packages
+as well that are required by rllab. If you're installation is 
+successful, the following command should not fail:
+
+```
+python experiments/run_fcnet.py
+```
 
 ## Supported Models/Algorithms
 
