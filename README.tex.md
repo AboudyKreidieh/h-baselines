@@ -114,13 +114,58 @@ the environmental reward function $r_m(s_t,c)$.
 
 <img src="docs/img/goal-conditioned.png" width="50%"/>
 
+### Intrinsic Rewards
+
+TODO
+
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
-blank
+TODO
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+
+alg = TD3(
+    ...,
+    policy_kwargs={
+        # add this line to include HIRO-style relative goals
+        "relative_goals": True
+    }
+)
+```
+
+TODO
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+
+alg = TD3(
+    ...,
+    policy_kwargs={
+        # add this line to include HIRO-style off policy corrections
+        "off_policy_corrections": True
+    }
+)
+```
 
 ### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-blank
+TODO
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+
+alg = TD3(
+    ...,
+    policy_kwargs={
+        # add this line to include the connected gradient actor update 
+        # procedure to the Manager policy
+        "connected_gradients": True,
+        # specify the connected gradient (lambda) weight
+        "cg_weights": 0.01
+    }
+)
+```
 
 ## Environments
 
