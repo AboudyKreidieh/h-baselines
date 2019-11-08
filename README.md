@@ -4,23 +4,32 @@
 
 # h-baselines
 
-blank
+`h-baselines` is a repository of high-performing and benchmarked 
+hierarchical reinforcement learning models and algorithms.
+
+The models and algorithms supported within this repository can be found 
+[here](#supported-modelsalgorithms), and benchmarking results are 
+available [here](TODO).
 
 ## Contents
 
-* [Installation](#installation)
+* [Setup Instructions](#setup-instructions)
+  * [Basic Installation](#basic-installation)
+  * [Installing MuJoCo](#installing-mujoco)
+  * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
-  * [FuN (FeUdal Networks for Hierarchical Reinforcement Learning)](#fun-feudal-networks-for-hierarchical-reinforcement-learning)
+  * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HAC (Learning Multi-Level Hierarchies with Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
+  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
 * [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments)
-  * [Mixed Autonomy Traffic](#mixed-autonomy-traffic)
+  * [MuJoCo Environments](#mujoco-environments) <!--  * [Flow Environments](#flow-environments)-->
 * [Citing](#citing)
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
 
-## Installation
+## Setup Instructions
+
+### Basic Installation
 
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
@@ -61,42 +70,74 @@ The test should return a message along the lines of:
 
     OK
 
+### Installing MuJoCo
+
+In order to run the MuJoCo environments described within the README, you
+will need to install MuJoCo and the mujoco-py package. To install both
+components follow the setup instructions located [here](). This package 
+should work with all versions of MuJoCo (with some changes likely to the
+version of `gym` provided); however, the algorithms have been benchmarked
+to perform well on `mujoco-py==1.50.1.68`.
+
+### Importing AntGather
+
+TODO
+
 ## Supported Models/Algorithms
 
-blank
+This repository currently supports the use several algorithms  of 
+*goal-conditioned hierarchical reinforcement learning* models. We begin
+by describing what a goal-conditioned HRL model is, then techniques for 
+mitigating the effects of instabilities in training.
 
-### FuN (FeUdal Networks for Hierarchical Reinforcement Learning)
+### Goal-Conditioned HRL
 
-One of the early works on feudal variants of hierarchical reinforcement 
-learning since the surge of deep neural networks as a viable tool in machine
-learning, this model attempts to adapt more modern machine learning techniques
-to the original model presented by [1].
+Goal-conditioned HRL models, also known as feudal models, are a variant 
+of hierarchical models that have been widely studied in the HRL
+community. **TODO: take from paper**
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 blank
 
-### HAC (Learning Multi-Level Hierarchies with Hindsight)
+### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
 blank
 
 ## Environments
 
-This repository contains multiple 
+We benchmark the performance of all algorithms on a set of standardized 
+Mujoco (robotics) and Flow (mixed-autonomy traffic) benchmarks. A 
+description of each of the studied environments can be found below.
 
 ### MuJoCo Environments
 
-blank
+<img src="docs/img/mujoco-envs.png"/>
 
-**Pendulum** 
+<!--**Pendulum** -->
 
-blank
+<!--This task was initially provided by [5].-->
 
-**UR5** 
+<!--blank-->
 
-blank
+<!--**UR5** -->
 
-**AntMaze** 
+<!--This task was initially provided by [5].-->
+
+<!--blank-->
+
+**AntGather**
+
+This task was initially provided by [6].
+
+In this task, a quadrupedal (Ant) agent is placed in a 20x20 space 
+with 8 apples and 8 bombs. The agent receives a reward of +1 or 
+collecting an apple and -1 for collecting a bomb. All other actions 
+yield a reward of 0.
+
+**AntMaze**
+
+This task was initially provided by [3].
 
 In this task, immovable blocks are placed to confine the agent to a
 U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0), 
@@ -104,7 +145,9 @@ U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0),
 position (0,0) and tasked at reaching a specific target position. "Success" in 
 this environment is defined as being within an L2 distance of 5 from the target.
 
-**AntPush** 
+**AntPush**
+
+This task was initially provided by [3].
 
 In this task, immovable blocks are placed every where except at 
 (0,0), (-8,0), (-8,8), (0,8), (8,8), (16,8), and (0,16), and a movable block is
@@ -114,7 +157,9 @@ to the left, push the movable block to the right, and then finally navigate to
 the target. "Success" in this environment is defined as being within an L2 
 distance of 5 from the target.
 
-**AntFall** 
+**AntFall**
+
+This task was initially provided by [3].
 
 In this task, the agent is initialized on a platform of height 4. 
 Immovable blocks are placed everywhere except at (-8,0), (0,0), (-8,8), (0,8),
@@ -126,11 +171,11 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-### Mixed Autonomy Traffic
+<!--### Flow Environments-->
 
-**Figure Eight v2** blank
+<!--**Figure Eight v2** blank-->
 
-**Merge v2** blank
+<!--**Merge v2** blank-->
 
 ## Citing
 
@@ -159,8 +204,14 @@ Machine Learning-Volume 70. JMLR. org, 2017.
 [3] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement learning."
 Advances in Neural Information Processing Systems. 2018.
 
-[4] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
+[4] TODO: HRL-CG
+
+[5] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
 (2018).
+
+[6] Florensa, Carlos, Yan Duan, and Pieter Abbeel. "Stochastic neural 
+networks for hierarchical reinforcement learning." arXiv preprint 
+arXiv:1704.03012 (2017).
 
 ## Useful Links
 

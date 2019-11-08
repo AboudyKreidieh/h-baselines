@@ -1,8 +1,9 @@
 """Utility methods when performing training."""
 import argparse
-from hbaselines.hiro.algorithm import FeedForwardPolicy, GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import FeedForwardPolicy
+from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
 
 
 def get_hyperparameters(args, policy):
@@ -23,7 +24,7 @@ def get_hyperparameters(args, policy):
     policy_kwargs = {}
 
     # add FeedForwardPolicy parameters
-    if policy in [FeedForwardPolicy, GoalDirectedPolicy]:
+    if policy in [FeedForwardPolicy, GoalConditionedPolicy]:
         policy_kwargs.update({
             "buffer_size": args.buffer_size,
             "batch_size": args.batch_size,
@@ -38,8 +39,8 @@ def get_hyperparameters(args, policy):
             "use_huber": args.use_huber,
         })
 
-    # add GoalDirectedPolicy parameters
-    if policy == GoalDirectedPolicy:
+    # add GoalConditionedPolicy parameters
+    if policy == GoalConditionedPolicy:
         policy_kwargs.update({
             "meta_period": args.meta_period,
             "relative_goals": args.relative_goals,
@@ -136,7 +137,7 @@ def create_td3_parser(parser):
         help='number of training steps per meta policy update step. The actor '
              'policy of the meta-policy is further updated at the frequency '
              'provided by the actor_update_freq variable. Note that this value'
-             ' is only relevant when using the GoalDirectedPolicy policy.')
+             ' is only relevant when using the GoalConditionedPolicy policy.')
 
     return parser
 

@@ -1,7 +1,7 @@
-"""A runner script for goal-directed hierarchical models.
+"""A runner script for fcnet models.
 
-This run script used to test the performance of DDPG and DQN with the  neural
-network model "HIRO" on various environments.
+This run script used to test the performance of TD3 with fully connected
+network models on various environments.
 
 See: TODO: add paper
 """
@@ -10,11 +10,11 @@ import json
 from time import strftime
 import sys
 
-from hbaselines.common.utils import ensure_dir
-from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro import TD3, GoalDirectedPolicy
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.goal_conditioned import TD3, FeedForwardPolicy
 
-EXAMPLE_USAGE = 'python hiro_baseline.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --n_cpus 3'
 
 
 def run_exp(env, hp, steps, dir_name, evaluate, seed):
@@ -36,7 +36,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed):
         specified the random seed for numpy, tensorflow, and random
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=GoalDirectedPolicy, env=env, eval_env=eval_env, **hp)
+    alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
@@ -57,7 +57,7 @@ def main(args, base_dir):
     ensure_dir(dir_name)
 
     # get the hyperparameters
-    hp = get_hyperparameters(args, GoalDirectedPolicy)
+    hp = get_hyperparameters(args, FeedForwardPolicy)
 
     # add the seed for logging purposes
     params_with_seed = hp.copy()
@@ -74,11 +74,11 @@ def main(args, base_dir):
 if __name__ == '__main__':
     # collect arguments
     args = parse_options(
-        description='Test the performance of TD3 with goal-directed '
-                    'hierarchical models on various environments.',
+        description='Test the performance of TD3 with fully connected network '
+                    'models on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
 
     # execute the training procedure
-    main(args, 'data/goal-directed')
+    main(args, 'data/fcnet')
