@@ -95,7 +95,12 @@ mitigating the effects of instabilities in training.
 Goal-conditioned HRL models, also known as feudal models, are a variant 
 of hierarchical models that have been widely studied in the HRL
 community. This repository supports a two-level (Manager/Worker) variant
-of this policy, seen in the figure below.
+of this policy, seen in the figure below. The policy can be imported via
+the following command:
+
+```python
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
 computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
