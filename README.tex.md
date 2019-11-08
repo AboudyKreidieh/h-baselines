@@ -99,7 +99,7 @@ of this policy, seen in the figure below.
 
 This network consists of a high-level, or Manager, policy $\pi_m$ that 
 computes and outputs goals $g_t \sim \pi_m(s_t, c)$ every $k$ time 
-steps, and a low-level policy $$\pi_w$$ that takes as inputs the current 
+steps, and a low-level policy $\pi_w$ that takes as inputs the current 
 state and the assigned goals and is encouraged to perform actions 
 $a_t \sim \pi_w(s_t, g_t)$ that satisfy these goals via an intrinsic 
 reward function: $r_w(s_t, g_t, s_{t+1})$. The contextual term, $c$, 
