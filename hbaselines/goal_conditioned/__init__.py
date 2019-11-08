@@ -1,4 +1,4 @@
-"""Init file for goal-directed submodule."""
+"""Init file for goal-conditioned submodule."""
 from hbaselines.goal_conditioned.algorithm import TD3
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy

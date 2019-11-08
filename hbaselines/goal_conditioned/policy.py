@@ -1008,7 +1008,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  cg_weights,
                  reuse=False,
                  env_name=""):
-        """Instantiate the goal-directed hierarchical policy.
+        """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
         ----------

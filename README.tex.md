@@ -144,21 +144,21 @@ the following command:
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 ```
 
-This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
-computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
-steps, and a low-level policy <img src="/tex/51b5a929b95bcaa91a728fbc3c4eb154.svg?invert_in_darkmode&sanitize=true" align=middle width=19.18963529999999pt height=14.15524440000002pt/> that takes as inputs the current 
+This network consists of a high-level, or Manager, policy $\pi_m$ that 
+computes and outputs goals $g_t \sim \pi_m(s_t, c)$ every $k$ time 
+steps, and a low-level policy $\pi_w$ that takes as inputs the current 
 state and the assigned goals and is encouraged to perform actions 
-<img src="/tex/42d35a15bf7f1d9d42240d4dc81b720d.svg?invert_in_darkmode&sanitize=true" align=middle width=103.61875094999998pt height=24.65753399999998pt/> that satisfy these goals via an intrinsic 
-reward function: <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>. The contextual term, <img src="/tex/3e18a4a28fdee1744e5e3f79d13b9ff6.svg?invert_in_darkmode&sanitize=true" align=middle width=7.11380504999999pt height=14.15524440000002pt/>, 
+$a_t \sim \pi_w(s_t, g_t)$ that satisfy these goals via an intrinsic 
+reward function: $r_w(s_t, g_t, s_{t+1})$. The contextual term, $c$, 
 parametrizes the environmental objective (e.g. desired position to move 
 to), and consequently is passed both to the manager policy as well as 
-the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
+the environmental reward function $r_m(s_t,c)$.
 
 <p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
 
 ### Meta Period
 
-The Manager action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
+The Manager action period, $k$, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
@@ -176,16 +176,16 @@ alg = TD3(
 
 ### Intrinsic Rewards
 
-The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, can have a 
+The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, can have a 
 significant affect on the training performance of both the Manager and 
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-<p align="center"><img src="/tex/a8541785fd759e6cec9a0e5b5359007a.svg?invert_in_darkmode&sanitize=true" align=middle width=213.30486045pt height=16.438356pt/></p>
+$$r_w(s_t, g_t, s_{t+1}) = ||g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to False, and
 
-<p align="center"><img src="/tex/218be4e6ecb1a243a922d5779f3c4381.svg?invert_in_darkmode&sanitize=true" align=middle width=246.8892195pt height=16.438356pt/></p>
+$$r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.

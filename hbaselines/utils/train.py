@@ -2,8 +2,8 @@
 import argparse
 from hbaselines.goal_conditioned.algorithm import FeedForwardPolicy
 from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 
 
 def get_hyperparameters(args, policy):
@@ -94,7 +94,7 @@ def parse_options(description, example_usage, args):
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
     parser = create_feedforward_parser(parser)
-    parser = create_goal_directed_parser(parser)
+    parser = create_goal_conditioned_parser(parser)
 
     flags, _ = parser.parse_known_args(args)
 
@@ -143,41 +143,41 @@ def create_td3_parser(parser):
 
 
 def create_feedforward_parser(parser):
-    """Add the TD3 goal-directed policy hyperparameters to the parser."""
+    """Add the TD3 goal-conditioned policy hyperparameters to the parser."""
     parser.add_argument(
         "--buffer_size",
         type=int,
-        default=FEEDFORWARD_POLICY_KWARGS["buffer_size"],
+        default=FEEDFORWARD_PARAMS["buffer_size"],
         help="the max number of transitions to store")
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=FEEDFORWARD_POLICY_KWARGS["batch_size"],
+        default=FEEDFORWARD_PARAMS["batch_size"],
         help="the size of the batch for learning the policy")
     parser.add_argument(
         "--actor_lr",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["actor_lr"],
+        default=FEEDFORWARD_PARAMS["actor_lr"],
         help="the actor learning rate")
     parser.add_argument(
         "--critic_lr",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["critic_lr"],
+        default=FEEDFORWARD_PARAMS["critic_lr"],
         help="the critic learning rate")
     parser.add_argument(
         "--tau",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["tau"],
+        default=FEEDFORWARD_PARAMS["tau"],
         help="the soft update coefficient (keep old values, between 0 and 1)")
     parser.add_argument(
         "--gamma",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["gamma"],
+        default=FEEDFORWARD_PARAMS["gamma"],
         help="the discount rate")
     parser.add_argument(
         "--noise",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["noise"],
+        default=FEEDFORWARD_PARAMS["noise"],
         help="scaling term to the range of the action space, that is "
              "subsequently used as the standard deviation of Gaussian noise "
              "added to the action if `apply_noise` is set to True in "
@@ -185,13 +185,13 @@ def create_feedforward_parser(parser):
     parser.add_argument(
         "--target_policy_noise",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["target_policy_noise"],
+        default=FEEDFORWARD_PARAMS["target_policy_noise"],
         help="standard deviation term to the noise from the output of the "
              "target actor policy. See TD3 paper for more.")
     parser.add_argument(
         "--target_noise_clip",
         type=float,
-        default=FEEDFORWARD_POLICY_KWARGS["target_noise_clip"],
+        default=FEEDFORWARD_PARAMS["target_noise_clip"],
         help="clipping term for the noise injected in the target actor policy")
     parser.add_argument(
         "--layer_norm",
@@ -209,12 +209,12 @@ def create_feedforward_parser(parser):
     return parser
 
 
-def create_goal_directed_parser(parser):
-    """Add the TD3 goal-directed policy hyperparameters to the parser."""
+def create_goal_conditioned_parser(parser):
+    """Add the TD3 goal-conditioned policy hyperparameters to the parser."""
     parser.add_argument(
         "--meta_period",
         type=int,
-        default=GOAL_DIRECTED_POLICY_KWARGS["meta_period"],
+        default=GOAL_CONDITIONED_PARAMS["meta_period"],
         help="manger action period")
     parser.add_argument(
         "--relative_goals",
@@ -240,11 +240,12 @@ def create_goal_directed_parser(parser):
     parser.add_argument(
         "--connected_gradients",
         action="store_true",
-        help="whether to connect the graph between the manager and worker")
+        help="whether to use the connected gradient update actor update "
+             "procedure to the Manager policy. See: TODO")
     parser.add_argument(
         "--cg_weights",
         type=float,
-        default=GOAL_DIRECTED_POLICY_KWARGS["cg_weights"],
+        default=GOAL_CONDITIONED_PARAMS["cg_weights"],
         help="weights for the gradients of the loss of the worker with "
              "respect to the parameters of the manager. Only used if "
              "`connected_gradients` is set to True.")
