@@ -98,16 +98,16 @@ community. This repository supports a two-level (Manager/Worker) variant
 of this policy, seen in the figure below.
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
-computes and outputs goals <p align="center"><img src="/tex/e2bec79cfa1dac33a1638425f1cefb2b.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=16.438356pt/></p> every <p align="center"><img src="/tex/28b0b71e05b371ee11b28542314966d1.svg?invert_in_darkmode&sanitize=true" align=middle width=9.07536795pt height=11.4155283pt/></p> time 
+computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
 steps, and a low-level policy <p align="center"><img src="/tex/4a76a07c15953daf9e8d2292b8822775.svg?invert_in_darkmode&sanitize=true" align=middle width=19.1896353pt height=9.54335085pt/></p> that takes as inputs the current 
 state and the assigned goals and is encouraged to perform actions 
-<p align="center"><img src="/tex/4d4e294c51ad0cfc599be6a67a084453.svg?invert_in_darkmode&sanitize=true" align=middle width=103.61875094999999pt height=16.438356pt/></p> that satisfy these goals via an intrinsic 
-reward function: <p align="center"><img src="/tex/67e5177cfc6600394126397cb5ac1263.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324745pt height=16.438356pt/></p>. The contextual term, <p align="center"><img src="/tex/3e4369eb5baad82d2fe6ee7c7d5c9e4a.svg?invert_in_darkmode&sanitize=true" align=middle width=7.11380505pt height=7.0776222pt/></p>, 
+<img src="/tex/42d35a15bf7f1d9d42240d4dc81b720d.svg?invert_in_darkmode&sanitize=true" align=middle width=103.61875094999998pt height=24.65753399999998pt/> that satisfy these goals via an intrinsic 
+reward function: <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>. The contextual term, <img src="/tex/3e18a4a28fdee1744e5e3f79d13b9ff6.svg?invert_in_darkmode&sanitize=true" align=middle width=7.11380504999999pt height=14.15524440000002pt/>, 
 parametrizes the environmental objective (e.g. desired position to move 
 to), and consequently is passed both to the manager policy as well as 
-the environmental reward function <p align="center"><img src="/tex/8b496a49331410809fdbb87872a558df.svg?invert_in_darkmode&sanitize=true" align=middle width=60.601373249999995pt height=16.438356pt/></p>.
+the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
 
-<img src="docs/img/goal-conditioned.png" align="center" width="50%"/>
+<img style="float: center;" src="docs/img/goal-conditioned.png" width="50%"/>
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
