@@ -114,7 +114,7 @@ parametrizes the environmental objective (e.g. desired position to move
 to), and consequently is passed both to the manager policy as well as 
 the environmental reward function $r_m(s_t,c)$.
 
-<img src="docs/img/goal-conditioned.png" width="50%"/>
+<img src="docs/img/goal-conditioned.png" align="middle" width="50%"/>
 
 ### Intrinsic Rewards
 
@@ -123,15 +123,11 @@ significant affect on the training performance of both the Manager and
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-\begin{equation}
-    r_w(s_t, g_t, s_{t+1}) = ||g_t - s{t+1}||_2
-\end{equation}
+$$r_w(s_t, g_t, s_{t+1}) = ||g_t - s{t+1}||_2$$
 
 if `relative_goals` is set to False, and
 
-\begin{equation}
-    r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s{t+1}||_2
-\end{equation}
+$$r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s{t+1}||_2$$
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.
