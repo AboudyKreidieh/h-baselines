@@ -19,6 +19,7 @@ available [here]().
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
 * [Environments](#environments)
@@ -117,7 +118,22 @@ the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6
 
 ### Intrinsic Rewards
 
-TODO
+The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, can have a 
+significant affect on the training performance of both the Manager and 
+Worker policies. Currently, this repository only support one intrinsic 
+reward function: negative distance. This is of the form:
+
+<p align="center"><img src="/tex/ebf8516bc0cd77dd4f9a0063f41ae922.svg?invert_in_darkmode&sanitize=true" align=middle width=463.10778029999994pt height=16.438356pt/></p>
+
+if `relative_goals` is set to False, and
+
+<p align="center"><img src="/tex/e543720ba92df845442c4628b994adc3.svg?invert_in_darkmode&sanitize=true" align=middle width=479.89995734999997pt height=16.438356pt/></p>
+
+if `relative_goals` is set to True. This attribute is described in the 
+next section.
+
+Other intrinsic rewards will be described here once included in the 
+repository.
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
