@@ -19,6 +19,7 @@ available [here]().
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
@@ -115,6 +116,24 @@ to), and consequently is passed both to the manager policy as well as
 the environmental reward function $r_m(s_t,c)$.
 
 <p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
+
+### Meta Period
+
+The Manager action period, $k$, can be specified to the policy during 
+training by passing the term under the `meta_period` policy parameter. 
+This can be assigned through the algorithm as follows:
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+
+alg = TD3(
+    ...,
+    policy_kwargs={
+        # specify the Manager action period
+        "meta_period": 10
+    }
+)
+```
 
 ### Intrinsic Rewards
 
