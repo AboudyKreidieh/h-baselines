@@ -227,7 +227,7 @@ alg = TD3(
 
 TODO
 
-<img src="docs/img/hrl-cg.png"/>
+<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="80%"/></p>
 
 TODO: describe usage
 
