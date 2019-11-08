@@ -123,11 +123,11 @@ significant affect on the training performance of both the Manager and
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-<p align="center"><img src="/tex/cbb243b2f090b49191f7497e283ac008.svg?invert_in_darkmode&sanitize=true" align=middle width=225.11972834999997pt height=16.438356pt/></p>
+<p align="center"><img src="/tex/a8541785fd759e6cec9a0e5b5359007a.svg?invert_in_darkmode&sanitize=true" align=middle width=213.30486045pt height=16.438356pt/></p>
 
 if `relative_goals` is set to False, and
 
-<p align="center"><img src="/tex/731c1ebaf31974f89f20d4b6b46805ee.svg?invert_in_darkmode&sanitize=true" align=middle width=258.7040874pt height=16.438356pt/></p>
+<p align="center"><img src="/tex/218be4e6ecb1a243a922d5779f3c4381.svg?invert_in_darkmode&sanitize=true" align=middle width=246.8892195pt height=16.438356pt/></p>
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.
