@@ -9,7 +9,7 @@ hierarchical reinforcement learning models and algorithms.
 
 The models and algorithms supported within this repository can be found 
 [here](#supported-modelsalgorithms), and benchmarking results are 
-available [here](TODO).
+available [here](https://github.com/openai/mujoco-py).
 
 ## Contents
 
