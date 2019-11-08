@@ -18,6 +18,8 @@ available [here]().
   * [Installing MuJoCo](#installing-mujoco)
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
+  * [TD3](#td3)
+  * [Fuly Connected Neural Networks](#fully-connected-neural-networks)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
@@ -92,6 +94,26 @@ This repository currently supports the use several algorithms  of
 *goal-conditioned hierarchical reinforcement learning* models. We begin
 by describing what a goal-conditioned HRL model is, then techniques for 
 mitigating the effects of instabilities in training.
+
+### TD3
+
+TODO
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+```
+
+TODO, describe parameters
+
+### Fully Connected Neural Networks
+
+TODO
+
+```python
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+```
+
+TODO, describe parameters
 
 ### Goal-Conditioned HRL
 
