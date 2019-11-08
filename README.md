@@ -9,7 +9,7 @@ hierarchical reinforcement learning models and algorithms.
 
 The models and algorithms supported within this repository can be found 
 [here](#supported-modelsalgorithms), and benchmarking results are 
-available [here](https://github.com/openai/mujoco-py).
+available [here]().
 
 ## Contents
 
@@ -74,10 +74,11 @@ The test should return a message along the lines of:
 
 In order to run the MuJoCo environments described within the README, you
 will need to install MuJoCo and the mujoco-py package. To install both
-components follow the setup instructions located [here](). This package 
-should work with all versions of MuJoCo (with some changes likely to the
-version of `gym` provided); however, the algorithms have been benchmarked
-to perform well on `mujoco-py==1.50.1.68`.
+components follow the setup instructions located 
+[here](https://github.com/openai/mujoco-py). This package should work 
+with all versions of MuJoCo (with some changes likely to the version of 
+`gym` provided); however, the algorithms have been benchmarked to 
+perform well on `mujoco-py==1.50.1.68`.
 
 ### Importing AntGather
 
