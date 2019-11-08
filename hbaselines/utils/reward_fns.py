@@ -1,7 +1,8 @@
 """A compilation of contextual rewards functions.
 
 These reward functions are used either to augment the environment rewards with
-a specific goal-directed reward, or to assign rewards to lower-level policies.
+a specific goal-conditioned reward, or to assign rewards to lower-level
+policies.
 
 All reward functions here return new rewards and discounts.
 """

@@ -1,10 +1,4 @@
-"""A runner script for goal-directed hierarchical models.
-
-This run script used to test the performance of DDPG and DQN with the neural
-network model "HIRO" on various environments.
-
-See: TODO: add paper
-"""
+"""A runner script for goal-conditioned hierarchical models."""
 import os
 import json
 from time import strftime
@@ -74,11 +68,11 @@ def main(args, base_dir):
 if __name__ == '__main__':
     # collect arguments
     args = parse_options(
-        description='Test the performance of TD3 with goal-directed '
+        description='Test the performance of TD3 with goal-conditioned '
                     'hierarchical models on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
 
     # execute the training procedure
-    main(args, 'data/goal-directed')
+    main(args, 'data/goal-conditioned')

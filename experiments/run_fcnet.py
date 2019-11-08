@@ -1,10 +1,4 @@
-"""A runner script for fcnet models.
-
-This run script used to test the performance of TD3 with fully connected
-network models on various environments.
-
-See: TODO: add paper
-"""
+"""A runner script for fcnet models."""
 import os
 import json
 from time import strftime

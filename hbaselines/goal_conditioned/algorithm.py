@@ -36,7 +36,7 @@ except (ImportError, ModuleNotFoundError):
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
-FEEDFORWARD_POLICY_KWARGS = dict(
+FEEDFORWARD_PARAMS = dict(
     # the max number of transitions to store
     buffer_size=200000,
     # the size of the batch for learning the policy
@@ -74,8 +74,8 @@ FEEDFORWARD_POLICY_KWARGS = dict(
 #                Policy parameters for GoalConditionedPolicy                  #
 # =========================================================================== #
 
-GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
-GOAL_DIRECTED_POLICY_KWARGS.update(dict(
+GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
+GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
     # specifies whether the goal issued by the Manager is meant to be a
@@ -321,9 +321,9 @@ class TD3(object):
 
         # add the default policy kwargs to the policy_kwargs term
         if policy == FeedForwardPolicy:
-            self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
+            self.policy_kwargs = FEEDFORWARD_PARAMS.copy()
         elif policy == GoalConditionedPolicy:
-            self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+            self.policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
             self.policy_kwargs['env_name'] = self.env_name.__str__()
         else:
             self.policy_kwargs = {}

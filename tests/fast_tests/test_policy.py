@@ -8,8 +8,8 @@ from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.policy import ActorCriticPolicy
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.goal_conditioned.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -59,7 +59,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'scope': None,
             'verbose': 2,
         }
-        self.policy_params.update(FEEDFORWARD_POLICY_KWARGS.copy())
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -174,7 +174,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
             'layers': None,
             'verbose': 2,
         }
-        self.policy_params.update(GOAL_DIRECTED_POLICY_KWARGS.copy())
+        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
