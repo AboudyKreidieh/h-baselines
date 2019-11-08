@@ -257,7 +257,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  reuse=False,
-                 scope=None):
+                 scope=None,
+                 zero_obs=False):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -309,6 +310,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
+        zero_obs : bool
+            whether to zero the first and second elements of the observations
+            for the actor and worker computations. Used for the Ant* envs.
 
         Raises
         ------
@@ -336,6 +340,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
+        self.zero_obs = zero_obs
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -552,6 +557,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
+
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
                 pi_h = tf.layers.dense(
@@ -603,6 +612,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
+
+            # zero out the first two observations if requested
+            if self.zero_obs:
+                qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -1170,6 +1183,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=False,
             )
 
         # previous observation by the Manager
@@ -1233,6 +1247,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
+                zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
             )
 
         # remove the last element to compute the reward FIXME

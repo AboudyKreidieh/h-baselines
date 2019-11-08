@@ -1031,13 +1031,6 @@ class TD3(object):
         ret_info['final'] = np.mean(ret_info['final'])
         ret_info['average'] = np.mean(ret_info['average'])
 
-        # remove certain statistics if they are not available
-        #if not hasattr(env, "current_context"):
-        #    del ret_info['success']
-        #    del ret_info['initial']
-        #    del ret_info['final']
-        #    del ret_info['average']
-
         return eval_episode_rewards, eval_episode_successes, ret_info
 
     def _log_training(self, file_path, start_time):
