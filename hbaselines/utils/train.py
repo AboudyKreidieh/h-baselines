@@ -240,7 +240,8 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--connected_gradients",
         action="store_true",
-        help="whether to connect the graph between the manager and worker")
+        help="whether to use the connected gradient update actor update "
+             "procedure to the Manager policy. See: TODO")
     parser.add_argument(
         "--cg_weights",
         type=float,

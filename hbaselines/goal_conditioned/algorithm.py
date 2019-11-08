@@ -92,37 +92,14 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
-    # whether to connect the graph between the manager and worker
+    # whether to use the connected gradient update actor update procedure to
+    # the Manager policy. See: TODO
     connected_gradients=False,
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
     # True.
     cg_weights=0.0005,
 ))
-
-
-def as_scalar(scalar):
-    """Check and return the input if it is a scalar.
-
-    If it is not scalar, raise a ValueError.
-
-    Parameters
-    ----------
-    scalar : Any
-        the object to check
-
-    Returns
-    -------
-    float
-        the scalar if x is a scalar
-    """
-    if isinstance(scalar, np.ndarray):
-        assert scalar.size == 1
-        return scalar[0]
-    elif np.isscalar(scalar):
-        return scalar
-    else:
-        raise ValueError('expected scalar, got %s' % scalar)
 
 
 class TD3(object):

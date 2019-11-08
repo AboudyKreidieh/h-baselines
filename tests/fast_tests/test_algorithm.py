@@ -4,29 +4,12 @@ import numpy as np
 import random
 import shutil
 
-from hbaselines.goal_conditioned.algorithm import as_scalar, TD3
+from hbaselines.goal_conditioned.algorithm import TD3
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
 from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
-
-
-class TestAuxiliaryMethods(unittest.TestCase):
-    """Tests the auxiliary methods in algs/ddpg.py"""
-
-    def test_as_scalar(self):
-        # test if input is a single element
-        test_scalar = 3.4
-        self.assertAlmostEqual(test_scalar, as_scalar(test_scalar))
-
-        # test if input is an np.ndarray with a single element
-        test_scalar = np.array([3.4])
-        self.assertAlmostEqual(test_scalar[0], as_scalar(test_scalar))
-
-        # test if input is an np.ndarray with multiple elements
-        test_scalar = [3.4, 1]
-        self.assertRaises(ValueError, as_scalar, scalar=test_scalar)
 
 
 class TestTD3(unittest.TestCase):
