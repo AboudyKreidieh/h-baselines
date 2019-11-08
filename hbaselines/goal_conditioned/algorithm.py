@@ -26,7 +26,10 @@ except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
-from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+try:
+    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+except (ImportError, ModuleNotFoundError):
+    pass
 
 
 # =========================================================================== #

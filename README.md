@@ -13,7 +13,10 @@ available [here](TODO).
 
 ## Contents
 
-* [Installation](#installation)
+* [Setup Instructions](#setup-instructions)
+  * [Basic Installation](#basic-installation)
+  * [Installing MuJoCo](#installing-mujoco)
+  * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
@@ -24,7 +27,9 @@ available [here](TODO).
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
 
-## Installation
+## Setup Instructions
+
+### Basic Installation
 
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
@@ -64,6 +69,19 @@ The test should return a message along the lines of:
     Ran XXX tests in YYYs
 
     OK
+
+### Installing MuJoCo
+
+In order to run the MuJoCo environments described within the README, you
+will need to install MuJoCo and the mujoco-py package. To install both
+components follow the setup instructions located [here](). This package 
+should work with all versions of MuJoCo (with some changes likely to the
+version of `gym` provided); however, the algorithms have been benchmarked
+to perform well on `mujoco-py==1.50.1.68`.
+
+### Importing AntGather
+
+TODO
 
 ## Supported Models/Algorithms
 
