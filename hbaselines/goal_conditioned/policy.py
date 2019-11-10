@@ -200,18 +200,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
-<<<<<<< HEAD:hbaselines/hiro/policy.py
-    zero_obs : bool
-        whether to zero the first and second elements of the observations for
-        the actor and worker computations. Used for the Ant* envs.
     zero_fingerprint : bool
         whether to zero the last two elements of the observations for the actor
         and worker computations. Used for the worker policy when fingerprints
         are being implemented.
-    replay_buffer : hbaselines.hiro.replay_buffer.ReplayBuffer
-=======
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
->>>>>>> eadcadfdf49f732ec9ab7d360151f67d70d9fd10:hbaselines/goal_conditioned/policy.py
         the replay buffer
     critic_target : tf.compat.v1.placeholder
         a placeholder for the current-step estimate of the target Q values
@@ -273,7 +266,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  reuse=False,
                  scope=None,
-                 zero_obs=False,
                  use_fingerprints=False,
                  zero_fingerprint=False):
         """Instantiate the feed-forward neural network policy.
@@ -327,13 +319,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_obs : bool
-            whether to zero the first and second elements of the observations
-            for the actor and worker computations. Used for the Ant* envs.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and worker computations. Used for the worker policy when
-            fingerprints are being implemented.
 
         Raises
         ------
@@ -361,7 +346,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
-        self.zero_obs = zero_obs
         self.use_fingerprints = use_fingerprints
         self.zero_fingerprint = zero_fingerprint
         assert len(self.layers) >= 1, \
@@ -580,12 +564,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
-            # zero out the first two observations if requested
-            if self.zero_obs:
-                pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
-
             # zero out the fingerprint observations for the worker policy
-            if self.use_fingerprints:
+            if self.zero_fingerprint:
                 ob_dim = self.ob_space.shape[0]
                 co_dim = self.co_space.shape[0]
                 pi_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
@@ -643,10 +623,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
-
-            # zero out the first two observations if requested
-            if self.zero_obs:
-                qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
 
             # zero out the fingerprint observations for the worker policy
             if self.zero_fingerprint:
@@ -1225,7 +1201,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                zero_obs=False,
                 use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=False,
             )
@@ -1291,7 +1266,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
                 use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=self.use_fingerprints,
             )
