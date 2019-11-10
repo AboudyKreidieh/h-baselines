@@ -16,22 +16,27 @@ from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.hiro.tf_util import make_session
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
-from hbaselines.common.utils import ensure_dir
+from hbaselines.goal_conditioned.tf_util import make_session
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.utils.misc import ensure_dir
 try:
     from flow.utils.registry import make_create_env
 except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
+try:
+    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+except (ImportError, ModuleNotFoundError):
+    pass
 
 
 # =========================================================================== #
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
-FEEDFORWARD_POLICY_KWARGS = dict(
+FEEDFORWARD_PARAMS = dict(
     # the max number of transitions to store
     buffer_size=200000,
     # the size of the batch for learning the policy
@@ -66,11 +71,11 @@ FEEDFORWARD_POLICY_KWARGS = dict(
 
 
 # =========================================================================== #
-#                  Policy parameters for GoalDirectedPolicy                   #
+#                Policy parameters for GoalConditionedPolicy                  #
 # =========================================================================== #
 
-GOAL_DIRECTED_POLICY_KWARGS = FEEDFORWARD_POLICY_KWARGS.copy()
-GOAL_DIRECTED_POLICY_KWARGS.update(dict(
+GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
+GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
     # specifies whether the goal issued by the Manager is meant to be a
@@ -87,33 +92,14 @@ GOAL_DIRECTED_POLICY_KWARGS.update(dict(
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
-    # whether to connect the graph between the manager and worker
+    # whether to use the connected gradient update actor update procedure to
+    # the Manager policy. See: TODO
     connected_gradients=False,
+    # weights for the gradients of the loss of the worker with respect to the
+    # parameters of the manager. Only used if `connected_gradients` is set to
+    # True.
+    cg_weights=0.0005,
 ))
-
-
-def as_scalar(scalar):
-    """Check and return the input if it is a scalar.
-
-    If it is not scalar, raise a ValueError.
-
-    Parameters
-    ----------
-    scalar : Any
-        the object to check
-
-    Returns
-    -------
-    float
-        the scalar if x is a scalar
-    """
-    if isinstance(scalar, np.ndarray):
-        assert scalar.size == 1
-        return scalar[0]
-    elif np.isscalar(scalar):
-        return scalar
-    else:
-        raise ValueError('expected scalar, got %s' % scalar)
 
 
 class TD3(object):
@@ -123,7 +109,7 @@ class TD3(object):
 
     Attributes
     ----------
-    policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
+    policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the Manager
@@ -147,7 +133,7 @@ class TD3(object):
         number of training steps per meta policy update step. The actor policy
         of the meta-policy is further updated at the frequency provided by the
         actor_update_freq variable. Note that this value is only relevant when
-        using the GoalDirectedPolicy policy.
+        using the GoalConditionedPolicy policy.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -172,7 +158,7 @@ class TD3(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.hiro.policy.ActorCriticPolicy
+    policy_tf : hbaselines.goal_conditioned.policy.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -250,7 +236,7 @@ class TD3(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.hiro.policy.ActorCriticPolicy ]
+        policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
@@ -272,7 +258,7 @@ class TD3(object):
             number of training steps per meta policy update step. The actor
             policy of the meta-policy is further updated at the frequency
             provided by the actor_update_freq variable. Note that this value is
-            only relevant when using the GoalDirectedPolicy policy.
+            only relevant when using the GoalConditionedPolicy policy.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -307,9 +293,9 @@ class TD3(object):
 
         # add the default policy kwargs to the policy_kwargs term
         if policy == FeedForwardPolicy:
-            self.policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
-        elif policy == GoalDirectedPolicy:
-            self.policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+            self.policy_kwargs = FEEDFORWARD_PARAMS.copy()
+        elif policy == GoalConditionedPolicy:
+            self.policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
             self.policy_kwargs['env_name'] = self.env_name.__str__()
         else:
             self.policy_kwargs = {}
@@ -324,6 +310,9 @@ class TD3(object):
         # environments).
         if hasattr(self.env, "horizon"):
             self.horizon = self.env.horizon
+        elif hasattr(self.env, "env_params"):
+            # for Flow environments
+            self.horizon = self.env.env_params.horizon
         else:
             print("Warning: self.env.horizon not found. Setting self.horizon "
                   "in the algorithm class to 500.")
@@ -387,6 +376,9 @@ class TD3(object):
         gym.Env or list of gym.Env
             gym-compatible environment(s)
         """
+        if env == "AntGather":
+            env = AntGatherEnv()
+
         if env == "AntMaze":
             if evaluate:
                 env = [AntMaze(use_contexts=True, context_range=[16, 0]),
@@ -469,11 +461,6 @@ class TD3(object):
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
-        # determine whether the action space is continuous
-        assert isinstance(self.action_space, Box), \
-            "Error: TD3 cannot output a {} action space, only " \
-            "spaces.Box is supported.".format(self.action_space)
-
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
@@ -594,7 +581,7 @@ class TD3(object):
               log_dir=None,
               seed=None,
               log_interval=100,
-              eval_interval=5e4,
+              eval_interval=5e3,
               start_timesteps=10000):
         """Return a trained model.
 
@@ -810,7 +797,7 @@ class TD3(object):
 
             # Visualize the current step.
             if self.render:
-                self.env.render()
+                self.env.render()  # pragma: no cover
 
             # Add the fingerprint term, if needed. When collecting the initial
             # random actions, we assume the fingerprint does not change from
@@ -866,7 +853,7 @@ class TD3(object):
         the policy, and the summary information is logged to tensorboard.
         """
         for t_train in range(self.nb_train_steps):
-            if self.policy == GoalDirectedPolicy:
+            if self.policy == GoalConditionedPolicy:
                 # specifies whether to update the meta actor and critic
                 # policies based on the meta and actor update frequencies
                 kwargs = {
@@ -953,7 +940,7 @@ class TD3(object):
                 obs, eval_r, done, info = env.step(eval_action)
 
                 if self.render_eval:
-                    env.render()
+                    env.render()  # pragma: no cover
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).

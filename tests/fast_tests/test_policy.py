@@ -4,15 +4,16 @@ import numpy as np
 import tensorflow as tf
 import random
 from gym.spaces import Box
-from hbaselines.hiro.tf_util import get_trainable_vars
-from hbaselines.hiro.policy import ActorCriticPolicy, FeedForwardPolicy
-from hbaselines.hiro.policy import GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+from hbaselines.goal_conditioned.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.policy import ActorCriticPolicy
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
-    """Test the FeedForwardPolicy object in hbaselines/hiro/policy.py."""
+    """Test FeedForwardPolicy in hbaselines/goal_conditioned/policy.py."""
 
     def setUp(self):
         self.policy_params = {
@@ -46,7 +47,7 @@ class TestActorCriticPolicy(unittest.TestCase):
 
 
 class TestFeedForwardPolicy(unittest.TestCase):
-    """Test the FeedForwardPolicy object in hbaselines/hiro/policy.py."""
+    """Test FeedForwardPolicy in hbaselines/goal_conditioned/policy.py."""
 
     def setUp(self):
         self.policy_params = {
@@ -58,7 +59,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'scope': None,
             'verbose': 2,
         }
-        self.policy_params.update(FEEDFORWARD_POLICY_KWARGS.copy())
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -161,8 +162,8 @@ class TestFeedForwardPolicy(unittest.TestCase):
         pass
 
 
-class TestGoalDirectedPolicy(unittest.TestCase):
-    """Test the GoalDirectedPolicy object in hbaselines/hiro/policy.py."""
+class TestGoalConditionedPolicy(unittest.TestCase):
+    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/policy.py."""
 
     def setUp(self):
         self.policy_params = {
@@ -173,7 +174,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
             'layers': None,
             'verbose': 2,
         }
-        self.policy_params.update(GOAL_DIRECTED_POLICY_KWARGS.copy())
+        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -184,7 +185,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
 
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
-        policy = GoalDirectedPolicy(**self.policy_params)
+        policy = GoalConditionedPolicy(**self.policy_params)
 
         # Check that the abstract class has all the required attributes.
         self.assertEqual(policy.meta_period,
@@ -300,7 +301,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         # Test for a meta period of 5.
         policy_params = self.policy_params.copy()
         policy_params['meta_period'] = 5
-        policy = GoalDirectedPolicy(**policy_params)
+        policy = GoalConditionedPolicy(**policy_params)
 
         # FIXME: add test
         del policy
@@ -311,7 +312,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         # Test for a meta period of 10.
         policy_params = self.policy_params.copy()
         policy_params['meta_period'] = 10
-        policy = GoalDirectedPolicy(**policy_params)
+        policy = GoalConditionedPolicy(**policy_params)
 
         # FIXME: add test
         del policy
@@ -324,7 +325,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         """
         policy_params = self.policy_params.copy()
         policy_params["relative_goals"] = True
-        policy = GoalDirectedPolicy(**policy_params)
+        policy = GoalConditionedPolicy(**policy_params)
 
         # Test the updated reward function.
         states = np.array([1, 2, 3])
@@ -345,7 +346,7 @@ class TestGoalDirectedPolicy(unittest.TestCase):
         policy_params = self.policy_params.copy()
         policy_params["relative_goals"] = True
         policy_params["off_policy_corrections"] = True
-        policy = GoalDirectedPolicy(**policy_params)
+        policy = GoalConditionedPolicy(**policy_params)
 
         # Initialize the variables of the policy.
         policy.sess.run(tf.global_variables_initializer())

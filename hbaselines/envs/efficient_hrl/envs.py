@@ -3,7 +3,7 @@ import numpy as np
 import random
 from gym.spaces import Box
 
-from hbaselines.common.reward_fns import negative_distance
+from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.envs.efficient_hrl.ant_maze_env import AntMazeEnv
 
 # scale to the contextual reward. Does not affect the environmental reward.
@@ -175,15 +175,20 @@ class UniversalAntMazeEnv(AntMazeEnv):
         array_like
             initial observation
         """
+        try:
+            self.prev_obs = super(UniversalAntMazeEnv, self).reset()
+        except NotImplementedError:
+            # for testing purposes
+            self.prev_obs = np.empty(1)
+
+        # Reset the step counter.
         self.step_number = 0
-        self.prev_obs = super(UniversalAntMazeEnv, self).reset()
 
         if self.use_contexts:
             if not self.random_contexts:
                 # In this case, the context range is just the context.
                 self.current_context = self.context_range
             else:
-                # TODO: check for if not an option
                 # In this case, choose random values between the context range.
                 self.current_context = []
                 for range_i in self.context_range:

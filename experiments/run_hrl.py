@@ -1,20 +1,14 @@
-"""A runner script for fcnet models.
-
-This run script used to test the performance of TD3 with fully connected
-network models on various environments.
-
-See: TODO: add paper
-"""
+"""A runner script for goal-conditioned hierarchical models."""
 import os
 import json
 from time import strftime
 import sys
 
-from hbaselines.common.utils import ensure_dir
-from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro import TD3, FeedForwardPolicy
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
 
-EXAMPLE_USAGE = 'python fcnet_baseline.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --n_cpus 3'
 
 
 def run_exp(env, hp, steps, dir_name, evaluate, seed):
@@ -36,7 +30,7 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed):
         specified the random seed for numpy, tensorflow, and random
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
+    alg = TD3(policy=GoalConditionedPolicy, env=env, eval_env=eval_env, **hp)
 
     # perform training
     alg.learn(
@@ -57,7 +51,7 @@ def main(args, base_dir):
     ensure_dir(dir_name)
 
     # get the hyperparameters
-    hp = get_hyperparameters(args, FeedForwardPolicy)
+    hp = get_hyperparameters(args, GoalConditionedPolicy)
 
     # add the seed for logging purposes
     params_with_seed = hp.copy()
@@ -74,11 +68,11 @@ def main(args, base_dir):
 if __name__ == '__main__':
     # collect arguments
     args = parse_options(
-        description='Test the performance of TD3 with fully connected network '
-                    'models on various environments.',
+        description='Test the performance of TD3 with goal-conditioned '
+                    'hierarchical models on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
 
     # execute the training procedure
-    main(args, 'data/fcnet')
+    main(args, 'data/goal-conditioned')

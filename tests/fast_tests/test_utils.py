@@ -1,9 +1,11 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
-from hbaselines.common.train import parse_options, get_hyperparameters
-from hbaselines.hiro.algorithm import GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
+import numpy as np
+from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestTrain(unittest.TestCase):
@@ -28,25 +30,24 @@ class TestTrain(unittest.TestCase):
             'verbose': 2,
             'actor_update_freq': 2,
             'meta_update_freq': 10,
-            'buffer_size': FEEDFORWARD_POLICY_KWARGS['buffer_size'],
-            'batch_size': FEEDFORWARD_POLICY_KWARGS['batch_size'],
-            'actor_lr': FEEDFORWARD_POLICY_KWARGS['actor_lr'],
-            'critic_lr': FEEDFORWARD_POLICY_KWARGS['critic_lr'],
-            'tau': FEEDFORWARD_POLICY_KWARGS['tau'],
-            'gamma': FEEDFORWARD_POLICY_KWARGS['gamma'],
-            'noise': FEEDFORWARD_POLICY_KWARGS['noise'],
-            'target_policy_noise': FEEDFORWARD_POLICY_KWARGS[
-                'target_policy_noise'],
-            'target_noise_clip': FEEDFORWARD_POLICY_KWARGS[
-                'target_noise_clip'],
+            'buffer_size': FEEDFORWARD_PARAMS['buffer_size'],
+            'batch_size': FEEDFORWARD_PARAMS['batch_size'],
+            'actor_lr': FEEDFORWARD_PARAMS['actor_lr'],
+            'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
+            'tau': FEEDFORWARD_PARAMS['tau'],
+            'gamma': FEEDFORWARD_PARAMS['gamma'],
+            'noise': FEEDFORWARD_PARAMS['noise'],
+            'target_policy_noise': FEEDFORWARD_PARAMS['target_policy_noise'],
+            'target_noise_clip': FEEDFORWARD_PARAMS['target_noise_clip'],
             'layer_norm': False,
             'use_huber': False,
-            'meta_period': GOAL_DIRECTED_POLICY_KWARGS['meta_period'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'use_fingerprints': False,
             'centralized_value_functions': False,
-            'connected_gradients': False
+            'connected_gradients': False,
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -84,8 +85,9 @@ class TestTrain(unittest.TestCase):
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
+            '--cg_weights', '22',
         ])
-        hp = get_hyperparameters(args, GoalDirectedPolicy)
+        hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
             'num_cpus': 4,
             'nb_train_steps': 5,
@@ -115,20 +117,21 @@ class TestTrain(unittest.TestCase):
                 'off_policy_corrections': True,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
-                'connected_gradients': True
+                'connected_gradients': True,
+                'cg_weights': 22,
             }
         }
         self.assertDictEqual(hp, expected_hp)
 
 
-class TestStats(unittest.TestCase):
-    """A simple test to get Travis running."""
+class TestRewardFns(unittest.TestCase):
+    """Test the reward_fns method."""
 
-    def test_reduce_var(self):
-        pass
-
-    def test_reduce_std(self):
-        pass
+    def test_negative_distance(self):
+        a = np.array([1, 2, 10])
+        b = np.array([1, 2])
+        c = negative_distance(b, b, a, goal_indices=[1, 2])
+        self.assertEqual(c, -8.062257748304752)
 
 
 if __name__ == '__main__':

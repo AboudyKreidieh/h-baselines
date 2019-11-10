@@ -3,7 +3,7 @@ import gym
 from gym.spaces import Box
 import os
 from hbaselines.envs.hac.env_utils import check_validity
-from hbaselines.common.reward_fns import negative_distance
+from hbaselines.utils.reward_fns import negative_distance
 
 try:
     import mujoco_py

@@ -4,28 +4,12 @@ import numpy as np
 import random
 import shutil
 
-from hbaselines.hiro.algorithm import as_scalar, TD3
-from hbaselines.hiro.tf_util import get_trainable_vars
-from hbaselines.hiro.policy import FeedForwardPolicy, GoalDirectedPolicy
-from hbaselines.hiro.algorithm import FEEDFORWARD_POLICY_KWARGS
-from hbaselines.hiro.algorithm import GOAL_DIRECTED_POLICY_KWARGS
-
-
-class TestAuxiliaryMethods(unittest.TestCase):
-    """Tests the auxiliary methods in algs/ddpg.py"""
-
-    def test_as_scalar(self):
-        # test if input is a single element
-        test_scalar = 3.4
-        self.assertAlmostEqual(test_scalar, as_scalar(test_scalar))
-
-        # test if input is an np.ndarray with a single element
-        test_scalar = np.array([3.4])
-        self.assertAlmostEqual(test_scalar[0], as_scalar(test_scalar))
-
-        # test if input is an np.ndarray with multiple elements
-        test_scalar = [3.4, 1]
-        self.assertRaises(ValueError, as_scalar, scalar=test_scalar)
+from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestTD3(unittest.TestCase):
@@ -81,7 +65,7 @@ class TestTD3(unittest.TestCase):
         alg = TD3(**policy_params)
 
         # check the policy_kwargs term
-        policy_kwargs = FEEDFORWARD_POLICY_KWARGS.copy()
+        policy_kwargs = FEEDFORWARD_PARAMS.copy()
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
@@ -130,15 +114,15 @@ class TestTD3(unittest.TestCase):
              'target/qf_1/qf_output/kernel:0']
         )
 
-    def test_setup_model_goal_directed(self):
+    def test_setup_model_goal_conditioned(self):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
 
         # check the policy_kwargs term
-        policy_kwargs = GOAL_DIRECTED_POLICY_KWARGS.copy()
+        policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
@@ -228,7 +212,7 @@ class TestTD3(unittest.TestCase):
         """Test the non-loop components of the `learn` method."""
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
         alg = TD3(**policy_params)
 
@@ -285,7 +269,7 @@ class TestTD3(unittest.TestCase):
         """
         # Create the algorithm.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalDirectedPolicy
+        policy_params['policy'] = GoalConditionedPolicy
         policy_params['nb_rollout_steps'] = 1
         policy_params['policy_kwargs'] = {'use_fingerprints': True}
         alg = TD3(**policy_params)
