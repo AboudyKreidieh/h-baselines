@@ -116,8 +116,9 @@ We use TD3 as our base policy optimization algorithm. Details on this
 algorithm can be found in the following article: 
 https://arxiv.org/pdf/1802.09477.pdf.
 
-To train a policy using this algorithm, you can instantiating a `TD3` 
-object and executing the `learn` method, an example of which is:
+To train a policy using this algorithm, create a `TD3` object and 
+execute the `learn` method, providing the algorithm the proper policy 
+along the process:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
@@ -130,10 +131,35 @@ alg = TD3(
     policy_kwargs={"layers": [256, 256]}
 )
 
+# train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
 ```
 
-TODO, describe parameters
+The hyperparameters and modifiable features of this algorithm are as 
+follows:
+
+* **policy** (type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]) : 
+  the policy model to use
+* **env** (gym.Env or str) : the environment to learn from (if 
+  registered in Gym, can be str)
+* **eval_env** (gym.Env or str) : the environment to evaluate from (if 
+  registered in Gym, can be str)
+* **nb_train_steps** (int) : the number of training steps
+* **nb_rollout_steps** (int) : the number of rollout steps
+* **nb_eval_episodes** (int) : the number of evaluation episodes
+* **actor_update_freq** (int) : number of training steps per actor 
+  policy update step. The critic policy is updated every training step.
+* **meta_update_freq** (int) : number of training steps per meta policy 
+  update step. The actor policy of the meta-policy is further updated at
+  the frequency provided by the actor_update_freq variable. Note that 
+  this value is only relevant when using the `GoalConditionedPolicy` 
+  policy.
+* **reward_scale** (float) : the value the reward should be scaled by
+* **render** (bool) : enable rendering of the training environment
+* **render_eval** (bool) : enable rendering of the evaluation environment
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **policy_kwargs** (dict) : policy-specific hyperparameters
 
 ### Fully Connected Neural Networks
 
