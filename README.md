@@ -125,11 +125,7 @@ from hbaselines.goal_conditioned.algorithm import TD3
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 
 # create the algorithm object, 
-alg = TD3(
-    policy=FeedForwardPolicy, 
-    env="AntGather",
-    policy_kwargs={"layers": [256, 256]}
-)
+alg = TD3(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -163,13 +159,82 @@ follows:
 
 ### Fully Connected Neural Networks
 
-TODO
+We include a generic feed-forward neural network within the repository 
+to validate the performance of typically used neural network model on 
+the benchmarked environments. This consists of a pair of actor and 
+critic fully connected networks with a tanh nonlinearity at the output 
+layer of the actor. The output of the actors are also scaled to match 
+the desired action space. 
+
+The feed-forward policy can be imported by including the following 
+script:
 
 ```python
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 ```
 
-TODO, describe parameters
+This model can then be included to the algorithm via the `policy` 
+parameter. The input parameters to this policy are as follows:
+
+The modifiable parameters of this policy are as follows:
+
+* **sess** (tf.compat.v1.Session) : the current TensorFlow session
+* **ob_space** (gym.space.*) : the observation space of the environment
+* **ac_space** (gym.space.*) : the action space of the environment
+* **co_space** (gym.space.*) : the context space of the environment
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **noise** (float) : scaling term to the range of the action space, 
+  that is subsequently used as the standard deviation of Gaussian noise 
+  added to the action if `apply_noise` is set to True in `get_action`
+* **target_policy_noise** (float) : standard deviation term to the noise
+  from the output of the target actor policy. See TD3 paper for more.
+* **target_noise_clip** (float) : clipping term for the noise injected 
+  in the target actor policy
+* **layer_norm** (bool) : enable layer normalisation
+* **layers** (list of int) :the size of the Neural network for the policy
+* **act_fun** (tf.nn.*) : the activation function to use in the neural 
+  network
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
+
+These parameters can be assigned when using the algorithm object by 
+assigning them via the `policy_kwargs` term. For example, if you would 
+like to train a fully connected network with a hidden size of [64, 64], 
+this could be done let so:
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+
+# create the algorithm object, 
+alg = TD3(
+    policy=FeedForwardPolicy, 
+    env="AntGather",
+    policy_kwargs={
+        # modify the network to include a hidden shape of [64, 64]
+        "layers": [64, 64],
+    }
+)
+
+# train the policy for the allotted number of timesteps
+alg.learn(total_timesteps=1000000)
+```
+
+All `policy_kwargs` terms that are no specified are assigned default 
+parameters. These default terms are available via the following command:
+
+```python
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+print(FEEDFORWARD_PARAMS)
+```
 
 ### Goal-Conditioned HRL
 
@@ -194,6 +259,19 @@ to), and consequently is passed both to the manager policy as well as
 the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
 
 <p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
+
+All of the parameters specified within the 
+[Fully Connected Neural Networks](#fully-connected-neural-networks) 
+section are valid for this policy as well. Further parameters are 
+described in the subsequent sections below.
+
+All `policy_kwargs` terms that are no specified are assigned default 
+parameters. These default terms are available via the following command:
+
+```python
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+print(GOAL_CONDITIONED_PARAMS)
+```
 
 ### Meta Period
 
