@@ -228,7 +228,7 @@ alg = TD3(
 alg.learn(total_timesteps=1000000)
 ```
 
-All `policy_kwargs` terms that are no specified are assigned default 
+All `policy_kwargs` terms that are not specified are assigned default 
 parameters. These default terms are available via the following command:
 
 ```python
@@ -265,7 +265,7 @@ All of the parameters specified within the
 section are valid for this policy as well. Further parameters are 
 described in the subsequent sections below.
 
-All `policy_kwargs` terms that are no specified are assigned default 
+All `policy_kwargs` terms that are not specified are assigned default 
 parameters. These default terms are available via the following command:
 
 ```python
