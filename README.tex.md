@@ -108,16 +108,29 @@ python experiments/run_fcnet.py
 ## Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
-*goal-conditioned hierarchical reinforcement learning* models. We begin
-by describing what a goal-conditioned HRL model is, then techniques for 
-mitigating the effects of instabilities in training.
+goal-conditioned hierarchical reinforcement learning models.
 
 ### TD3
 
-TODO
+We use TD3 as our base policy optimization algorithm. Details on this 
+algorithm can be found in the following article: 
+https://arxiv.org/pdf/1802.09477.pdf.
+
+To train a policy using this algorithm, you can instantiating a `TD3` 
+object and executing the `learn` method, an example of which is:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+
+# create the algorithm object, 
+alg = TD3(
+    policy=FeedForwardPolicy, 
+    env="AntGather",
+    policy_kwargs={"layers": [256, 256]}
+)
+
+alg.learn(total_timesteps=1000000)
 ```
 
 TODO, describe parameters
@@ -164,8 +177,10 @@ This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # specify the Manager action period
@@ -199,8 +214,10 @@ TODO
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include HIRO-style relative goals
@@ -213,8 +230,10 @@ TODO
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
@@ -227,14 +246,16 @@ alg = TD3(
 
 TODO
 
-<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="80%"/></p>
+<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
 
 TODO: describe usage
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
