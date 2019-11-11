@@ -307,8 +307,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         layer_norm : bool
             enable layer normalisation
         layers : list of int or None
-            the size of the Neural network for the policy (if None, default to
-            [64, 64])
+            the size of the Neural network for the policy
         act_fun : tf.nn.*
             the activation function to use in the neural network
         use_huber : bool
