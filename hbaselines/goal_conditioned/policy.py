@@ -14,6 +14,10 @@ from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 
 
+# TODO: add as input
+FINGERPRINT_DIM = 2
+
+
 class ActorCriticPolicy(object):
     """Base Actor Critic Policy.
 
@@ -196,6 +200,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    zero_fingerprint : bool
+        whether to zero the last two elements of the observations for the actor
+        and worker computations. Used for the worker policy when fingerprints
+        are being implemented.
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
         the replay buffer
     critic_target : tf.compat.v1.placeholder
@@ -258,7 +266,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  reuse=False,
                  scope=None,
-                 zero_obs=False):
+                 use_fingerprints=False,
+                 zero_fingerprint=False):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -298,8 +307,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         layer_norm : bool
             enable layer normalisation
         layers : list of int or None
-            the size of the Neural network for the policy (if None, default to
-            [64, 64])
+            the size of the Neural network for the policy
         act_fun : tf.nn.*
             the activation function to use in the neural network
         use_huber : bool
@@ -310,9 +318,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_obs : bool
-            whether to zero the first and second elements of the observations
-            for the actor and worker computations. Used for the Ant* envs.
 
         Raises
         ------
@@ -340,7 +345,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.activ = act_fun
         self.use_huber = use_huber
-        self.zero_obs = zero_obs
+        self.use_fingerprints = use_fingerprints
+        self.zero_fingerprint = zero_fingerprint
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -557,9 +563,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
-            # zero out the first two observations if requested
-            if self.zero_obs:
-                pi_h *= tf.constant([0.0] * 2 + [1.0] * (pi_h.shape[-1] - 2))
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                ob_dim = self.ob_space.shape[0]
+                co_dim = self.co_space.shape[0]
+                pi_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
+                                    + [0.0] * FINGERPRINT_DIM
+                                    + [1.0] * co_dim)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -613,9 +623,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
 
-            # zero out the first two observations if requested
-            if self.zero_obs:
-                qf_h *= tf.constant([0.0] * 2 + [1.0] * (qf_h.shape[-1] - 2))
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                ob_dim = self.ob_space.shape[0]
+                co_dim = self.co_space.shape[0]
+                ac_dim = self.ac_space.shape[0]
+                qf_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
+                                    + [0.0] * FINGERPRINT_DIM
+                                    + [1.0] * (co_dim + ac_dim))
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -746,11 +761,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
+                # TODO: add as a feature
                 # # convert noise percentage to absolute value
                 # noise = self.noise * (self.ac_space.high -
                 #                       self.ac_space.low) / 2
                 # # apply Ornstein-Uhlenbeck process
-                # noise *= np.maximum(
+                # noise = self.noise * np.maximum(
                 #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
 
                 # compute noisy action
@@ -1093,6 +1109,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
 
+        # create the replay buffer object
         self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
 
         # =================================================================== #
@@ -1183,7 +1200,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                zero_obs=False,
+                use_fingerprints=self.use_fingerprints,
+                zero_fingerprint=False,
             )
 
         # previous observation by the Manager
@@ -1247,7 +1265,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                zero_obs=env_name in ["AntMaze", "AntPush", "AntFall"],
+                use_fingerprints=self.use_fingerprints,
+                zero_fingerprint=self.use_fingerprints,
             )
 
         # remove the last element to compute the reward FIXME

@@ -276,9 +276,9 @@ class TestTD3(unittest.TestCase):
 
         # Test the observation spaces of the manager and worker, as well as the
         # context space of the worker and action space of the manager.
-        self.assertTupleEqual(alg.policy_tf.manager.ob_space.shape, (3,))
+        self.assertTupleEqual(alg.policy_tf.manager.ob_space.shape, (4,))
         self.assertTupleEqual(alg.policy_tf.manager.ac_space.shape, (2,))
-        self.assertTupleEqual(alg.policy_tf.worker.ob_space.shape, (3,))
+        self.assertTupleEqual(alg.policy_tf.worker.ob_space.shape, (4,))
         self.assertTupleEqual(alg.policy_tf.worker.co_space.shape, (2,))
 
         # Test worker_reward method within the policy.
@@ -295,18 +295,21 @@ class TestTD3(unittest.TestCase):
         alg.learn(1, log_dir='results', log_interval=1, start_timesteps=0)
         self.assertEqual(
             len(alg.obs),
-            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+            alg.env.observation_space.shape[0]
+            + alg.policy_tf.fingerprint_dim[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.fingerprint_dim[0]:], np.array([0]))
+            alg.obs[-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
         alg.learn(500, log_dir='results', log_interval=500, start_timesteps=0)
         self.assertEqual(
             len(alg.obs),
-            alg.env.observation_space.shape[0] + alg.fingerprint_dim[0])
+            alg.env.observation_space.shape[0]
+            + alg.policy_tf.fingerprint_dim[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.fingerprint_dim[0]:], np.array([4.99]))
+            alg.obs[-alg.policy_tf.fingerprint_dim[0]:],
+            np.array([4.99, 0.01]))
 
         # Delete generated files.
         shutil.rmtree('results')

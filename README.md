@@ -108,29 +108,133 @@ python experiments/run_fcnet.py
 ## Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
-*goal-conditioned hierarchical reinforcement learning* models. We begin
-by describing what a goal-conditioned HRL model is, then techniques for 
-mitigating the effects of instabilities in training.
+goal-conditioned hierarchical reinforcement learning models.
 
 ### TD3
 
-TODO
+We use TD3 as our base policy optimization algorithm. Details on this 
+algorithm can be found in the following article: 
+https://arxiv.org/pdf/1802.09477.pdf.
+
+To train a policy using this algorithm, create a `TD3` object and 
+execute the `learn` method, providing the algorithm the proper policy 
+along the process:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+
+# create the algorithm object, 
+alg = TD3(policy=FeedForwardPolicy, env="AntGather")
+
+# train the policy for the allotted number of timesteps
+alg.learn(total_timesteps=1000000)
 ```
 
-TODO, describe parameters
+The hyperparameters and modifiable features of this algorithm are as 
+follows:
+
+* **policy** (type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]) : 
+  the policy model to use
+* **env** (gym.Env or str) : the environment to learn from (if 
+  registered in Gym, can be str)
+* **eval_env** (gym.Env or str) : the environment to evaluate from (if 
+  registered in Gym, can be str)
+* **nb_train_steps** (int) : the number of training steps
+* **nb_rollout_steps** (int) : the number of rollout steps
+* **nb_eval_episodes** (int) : the number of evaluation episodes
+* **actor_update_freq** (int) : number of training steps per actor 
+  policy update step. The critic policy is updated every training step.
+* **meta_update_freq** (int) : number of training steps per meta policy 
+  update step. The actor policy of the meta-policy is further updated at
+  the frequency provided by the actor_update_freq variable. Note that 
+  this value is only relevant when using the `GoalConditionedPolicy` 
+  policy.
+* **reward_scale** (float) : the value the reward should be scaled by
+* **render** (bool) : enable rendering of the training environment
+* **render_eval** (bool) : enable rendering of the evaluation environment
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **policy_kwargs** (dict) : policy-specific hyperparameters
 
 ### Fully Connected Neural Networks
 
-TODO
+We include a generic feed-forward neural network within the repository 
+to validate the performance of typically used neural network model on 
+the benchmarked environments. This consists of a pair of actor and 
+critic fully connected networks with a tanh nonlinearity at the output 
+layer of the actor. The output of the actors are also scaled to match 
+the desired action space. 
+
+The feed-forward policy can be imported by including the following 
+script:
 
 ```python
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 ```
 
-TODO, describe parameters
+This model can then be included to the algorithm via the `policy` 
+parameter. The input parameters to this policy are as follows:
+
+The modifiable parameters of this policy are as follows:
+
+* **sess** (tf.compat.v1.Session) : the current TensorFlow session
+* **ob_space** (gym.space.*) : the observation space of the environment
+* **ac_space** (gym.space.*) : the action space of the environment
+* **co_space** (gym.space.*) : the context space of the environment
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **noise** (float) : scaling term to the range of the action space, 
+  that is subsequently used as the standard deviation of Gaussian noise 
+  added to the action if `apply_noise` is set to True in `get_action`
+* **target_policy_noise** (float) : standard deviation term to the noise
+  from the output of the target actor policy. See TD3 paper for more.
+* **target_noise_clip** (float) : clipping term for the noise injected 
+  in the target actor policy
+* **layer_norm** (bool) : enable layer normalisation
+* **layers** (list of int) :the size of the Neural network for the policy
+* **act_fun** (tf.nn.*) : the activation function to use in the neural 
+  network
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
+
+These parameters can be assigned when using the algorithm object by 
+assigning them via the `policy_kwargs` term. For example, if you would 
+like to train a fully connected network with a hidden size of [64, 64], 
+this could be done let so:
+
+```python
+from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+
+# create the algorithm object, 
+alg = TD3(
+    policy=FeedForwardPolicy, 
+    env="AntGather",
+    policy_kwargs={
+        # modify the network to include a hidden shape of [64, 64]
+        "layers": [64, 64],
+    }
+)
+
+# train the policy for the allotted number of timesteps
+alg.learn(total_timesteps=1000000)
+```
+
+All `policy_kwargs` terms that are not specified are assigned default 
+parameters. These default terms are available via the following command:
+
+```python
+from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+print(FEEDFORWARD_PARAMS)
+```
 
 ### Goal-Conditioned HRL
 
@@ -156,6 +260,19 @@ the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6
 
 <p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
 
+All of the parameters specified within the 
+[Fully Connected Neural Networks](#fully-connected-neural-networks) 
+section are valid for this policy as well. Further parameters are 
+described in the subsequent sections below.
+
+All `policy_kwargs` terms that are not specified are assigned default 
+parameters. These default terms are available via the following command:
+
+```python
+from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+print(GOAL_CONDITIONED_PARAMS)
+```
+
 ### Meta Period
 
 The Manager action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
@@ -164,8 +281,10 @@ This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # specify the Manager action period
@@ -199,8 +318,10 @@ TODO
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include HIRO-style relative goals
@@ -213,8 +334,10 @@ TODO
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
@@ -227,14 +350,16 @@ alg = TD3(
 
 TODO
 
-<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="80%"/></p>
+<p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
 
 TODO: describe usage
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
+    policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
