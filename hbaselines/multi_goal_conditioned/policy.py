@@ -285,15 +285,15 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : array_like
+        obs0 : dict of array_like
             the last observation
-        action : array_like
-            the action
-        reward : float
+        action : dict of array_like
+            the dict of action
+        reward : dict of float
             the reward
-        obs1 : array_like
+        obs1 : dict of array_like
             the current observation
-        done : float
+        done : dict of float
             is the episode done
         """
         for key in obs0.keys():
