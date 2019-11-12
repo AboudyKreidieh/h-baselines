@@ -10,6 +10,7 @@ from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
 from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.multi_goal_conditioned.policy import MultiFeedForwardPolicy
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -418,6 +419,180 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         TODO: describe content
         """
         pass
+
+
+class TestMultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in multi_goal_conditioned/policy.py."""
+
+    def setUp(self):
+        self.sess = tf.compat.v1.Session()
+
+        self.policy_params_shared = {
+            'sess': self.sess,
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'layers': None,
+            'verbose': 2,
+            'shared': True,
+            'centralized_vfs': False,
+        }
+        self.policy_params_shared.update(FEEDFORWARD_PARAMS.copy())
+
+        self.policy_params_nonshared = {
+            'sess': self.sess,
+            'ac_space': {
+                "agent1": Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+                "agent2": Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            },
+            'ob_space': {
+                "agent1": Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+                "agent2": Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+            },
+            'co_space': {
+                "agent1": Box(low=-5, high=5, shape=(5,), dtype=np.float32),
+                "agent2": Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+            },
+            'layers': None,
+            'verbose': 2,
+            'shared': False,
+            'centralized_vfs': False,
+        }
+        self.policy_params_nonshared.update(FEEDFORWARD_PARAMS.copy())
+
+    def tearDown(self):
+        self.sess.close()
+        del self.policy_params_shared
+        del self.policy_params_nonshared
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init_shared(self):
+        _ = MultiFeedForwardPolicy(**self.policy_params_shared)
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['agent/model/pi/fc0/bias:0',
+             'agent/model/pi/fc0/kernel:0',
+             'agent/model/pi/fc1/bias:0',
+             'agent/model/pi/fc1/kernel:0',
+             'agent/model/pi/output/bias:0',
+             'agent/model/pi/output/kernel:0',
+             'agent/model/qf_0/fc0/bias:0',
+             'agent/model/qf_0/fc0/kernel:0',
+             'agent/model/qf_0/fc1/bias:0',
+             'agent/model/qf_0/fc1/kernel:0',
+             'agent/model/qf_0/qf_output/bias:0',
+             'agent/model/qf_0/qf_output/kernel:0',
+             'agent/model/qf_1/fc0/bias:0',
+             'agent/model/qf_1/fc0/kernel:0',
+             'agent/model/qf_1/fc1/bias:0',
+             'agent/model/qf_1/fc1/kernel:0',
+             'agent/model/qf_1/qf_output/bias:0',
+             'agent/model/qf_1/qf_output/kernel:0',
+             'agent/target/pi/fc0/bias:0',
+             'agent/target/pi/fc0/kernel:0',
+             'agent/target/pi/fc1/bias:0',
+             'agent/target/pi/fc1/kernel:0',
+             'agent/target/pi/output/bias:0',
+             'agent/target/pi/output/kernel:0',
+             'agent/target/qf_0/fc0/bias:0',
+             'agent/target/qf_0/fc0/kernel:0',
+             'agent/target/qf_0/fc1/bias:0',
+             'agent/target/qf_0/fc1/kernel:0',
+             'agent/target/qf_0/qf_output/bias:0',
+             'agent/target/qf_0/qf_output/kernel:0',
+             'agent/target/qf_1/fc0/bias:0',
+             'agent/target/qf_1/fc0/kernel:0',
+             'agent/target/qf_1/fc1/bias:0',
+             'agent/target/qf_1/fc1/kernel:0',
+             'agent/target/qf_1/qf_output/bias:0',
+             'agent/target/qf_1/qf_output/kernel:0']
+        )
+
+    def test_init_nonshared(self):
+        _ = MultiFeedForwardPolicy(**self.policy_params_nonshared)
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['agent1/model/pi/fc0/bias:0',
+             'agent1/model/pi/fc0/kernel:0',
+             'agent1/model/pi/fc1/bias:0',
+             'agent1/model/pi/fc1/kernel:0',
+             'agent1/model/pi/output/bias:0',
+             'agent1/model/pi/output/kernel:0',
+             'agent1/model/qf_0/fc0/bias:0',
+             'agent1/model/qf_0/fc0/kernel:0',
+             'agent1/model/qf_0/fc1/bias:0',
+             'agent1/model/qf_0/fc1/kernel:0',
+             'agent1/model/qf_0/qf_output/bias:0',
+             'agent1/model/qf_0/qf_output/kernel:0',
+             'agent1/model/qf_1/fc0/bias:0',
+             'agent1/model/qf_1/fc0/kernel:0',
+             'agent1/model/qf_1/fc1/bias:0',
+             'agent1/model/qf_1/fc1/kernel:0',
+             'agent1/model/qf_1/qf_output/bias:0',
+             'agent1/model/qf_1/qf_output/kernel:0',
+             'agent1/target/pi/fc0/bias:0',
+             'agent1/target/pi/fc0/kernel:0',
+             'agent1/target/pi/fc1/bias:0',
+             'agent1/target/pi/fc1/kernel:0',
+             'agent1/target/pi/output/bias:0',
+             'agent1/target/pi/output/kernel:0',
+             'agent1/target/qf_0/fc0/bias:0',
+             'agent1/target/qf_0/fc0/kernel:0',
+             'agent1/target/qf_0/fc1/bias:0',
+             'agent1/target/qf_0/fc1/kernel:0',
+             'agent1/target/qf_0/qf_output/bias:0',
+             'agent1/target/qf_0/qf_output/kernel:0',
+             'agent1/target/qf_1/fc0/bias:0',
+             'agent1/target/qf_1/fc0/kernel:0',
+             'agent1/target/qf_1/fc1/bias:0',
+             'agent1/target/qf_1/fc1/kernel:0',
+             'agent1/target/qf_1/qf_output/bias:0',
+             'agent1/target/qf_1/qf_output/kernel:0',
+             'agent2/model/pi/fc0/bias:0',
+             'agent2/model/pi/fc0/kernel:0',
+             'agent2/model/pi/fc1/bias:0',
+             'agent2/model/pi/fc1/kernel:0',
+             'agent2/model/pi/output/bias:0',
+             'agent2/model/pi/output/kernel:0',
+             'agent2/model/qf_0/fc0/bias:0',
+             'agent2/model/qf_0/fc0/kernel:0',
+             'agent2/model/qf_0/fc1/bias:0',
+             'agent2/model/qf_0/fc1/kernel:0',
+             'agent2/model/qf_0/qf_output/bias:0',
+             'agent2/model/qf_0/qf_output/kernel:0',
+             'agent2/model/qf_1/fc0/bias:0',
+             'agent2/model/qf_1/fc0/kernel:0',
+             'agent2/model/qf_1/fc1/bias:0',
+             'agent2/model/qf_1/fc1/kernel:0',
+             'agent2/model/qf_1/qf_output/bias:0',
+             'agent2/model/qf_1/qf_output/kernel:0',
+             'agent2/target/pi/fc0/bias:0',
+             'agent2/target/pi/fc0/kernel:0',
+             'agent2/target/pi/fc1/bias:0',
+             'agent2/target/pi/fc1/kernel:0',
+             'agent2/target/pi/output/bias:0',
+             'agent2/target/pi/output/kernel:0',
+             'agent2/target/qf_0/fc0/bias:0',
+             'agent2/target/qf_0/fc0/kernel:0',
+             'agent2/target/qf_0/fc1/bias:0',
+             'agent2/target/qf_0/fc1/kernel:0',
+             'agent2/target/qf_0/qf_output/bias:0',
+             'agent2/target/qf_0/qf_output/kernel:0',
+             'agent2/target/qf_1/fc0/bias:0',
+             'agent2/target/qf_1/fc0/kernel:0',
+             'agent2/target/qf_1/fc1/bias:0',
+             'agent2/target/qf_1/fc1/kernel:0',
+             'agent2/target/qf_1/qf_output/bias:0',
+             'agent2/target/qf_1/qf_output/kernel:0']
+        )
 
 
 if __name__ == '__main__':
