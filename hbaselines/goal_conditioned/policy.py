@@ -3,7 +3,6 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
-from gym.spaces import Box
 import random
 
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
@@ -12,6 +11,7 @@ from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.utils.misc import get_manager_ac_space
 
 
 # TODO: add as input
@@ -25,11 +25,11 @@ class ActorCriticPolicy(object):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     """
 
@@ -40,11 +40,11 @@ class ActorCriticPolicy(object):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         """
         self.sess = sess
@@ -159,11 +159,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     buffer_size : int
         the max number of transitions to store
@@ -274,11 +274,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
@@ -923,7 +923,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
     This network consists of a high-level, or Manager, pi_{\theta_H} that
-    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every meta_period
+    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every `meta_period`
     time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
     current state and the assigned goals and attempts to perform an action
     a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
@@ -937,7 +937,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
-    and the goal observation: r_L (s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||
+    and the goal observation:
+    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2
 
     Bibliography:
 
@@ -973,7 +974,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
-        and Worker critic functions
+        critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
     cg_weights : float
@@ -1030,11 +1031,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
@@ -1116,66 +1117,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
 
-        # Compute the action space for the Manager. If the fingerprint terms
-        # are being appended onto the observations, this should be removed from
-        # the action space.
-        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
-            manager_ac_space = Box(
-                low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                              -0.3, -0.5, -0.3, -0.5, -0.3]),
-                high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3,
-                               0.5, 0.3, 0.5, 0.3]),
-                dtype=np.float32,
-            )
-        elif env_name == "UR5":
-            manager_ac_space = Box(
-                low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
-                high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
-                dtype=np.float32,
-            )
-        elif env_name == "Pendulum":
-            manager_ac_space = Box(
-                low=np.array([-np.pi, -15]),
-                high=np.array([np.pi, 15]),
-                dtype=np.float32
-            )
-        elif env_name == "figureeight0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(1,), dtype=np.float32)
-        elif env_name == "figureeight1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(7,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(7,), dtype=np.float32)
-        elif env_name == "figureeight2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(14,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(14,), dtype=np.float32)
-        elif env_name == "merge0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(5,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(5,), dtype=np.float32)
-        elif env_name == "merge1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(13,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(13,), dtype=np.float32)
-        elif env_name == "merge2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(17,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
-        else:
-            if self.use_fingerprints:
-                low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
-                high = ob_space.high[:-self.fingerprint_dim[0]]
-                manager_ac_space = Box(low=low, high=high, dtype=np.float32)
-            else:
-                manager_ac_space = ob_space
+        # Get the Manager's action space.
+        manager_ac_space = get_manager_ac_space(
+            ob_space, relative_goals, env_name,
+            use_fingerprints, self.fingerprint_dim)
 
         # Create the Manager policy.
         with tf.compat.v1.variable_scope("Manager"):
