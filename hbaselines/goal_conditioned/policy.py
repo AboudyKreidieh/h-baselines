@@ -871,7 +871,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
     This network consists of a high-level, or Manager, pi_{\theta_H} that
-    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every meta_period
+    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every `meta_period`
     time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
     current state and the assigned goals and attempts to perform an action
     a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
@@ -885,7 +885,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
-    and the goal observation: r_L (s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||
+    and the goal observation:
+    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||
 
     Bibliography:
 
@@ -921,7 +922,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
-        and Worker critic functions
+        critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
     cg_weights : float
