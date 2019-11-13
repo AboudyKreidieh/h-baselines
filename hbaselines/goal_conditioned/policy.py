@@ -3,8 +3,6 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
-from gym.spaces import Box
-import random
 
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.tf_util import get_target_updates
@@ -12,6 +10,7 @@ from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.utils.misc import get_manager_ac_space
 
 
 # TODO: add as input
@@ -350,21 +349,26 @@ class FeedForwardPolicy(ActorCriticPolicy):
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
-        # =================================================================== #
-        # Step 1: Create a replay buffer object.                              #
-        # =================================================================== #
-
-        self.replay_buffer = ReplayBuffer(self.buffer_size)
-
-        # =================================================================== #
-        # Step 2: Create input variables.                                     #
-        # =================================================================== #
-
         # Compute the shape of the input observation space, which may include
         # the contextual term.
         ob_dim = ob_space.shape
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
+
+        # =================================================================== #
+        # Step 1: Create a replay buffer object.                              #
+        # =================================================================== #
+
+        self.replay_buffer = ReplayBuffer(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            obs_dim=ob_dim[0],
+            ac_dim=self.ac_space.shape[0],
+        )
+
+        # =================================================================== #
+        # Step 2: Create input variables.                                     #
+        # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
             self.critic_target = tf.compat.v1.placeholder(
@@ -463,7 +467,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
-        with tf.compat.v1.variable_scope("Adam_mpi", reuse=False):
+        with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_actor_optimizer(scope=scope)
             self._setup_critic_optimizer(scope=scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
@@ -675,12 +679,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             actor loss
         """
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size)
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
         return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
                                       update_actor=update_actor)
@@ -864,7 +867,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # This allows us to estimate the change in value for the same set
             # of inputs.
             obs0, actions, rewards, obs1, terminals1 = \
-                self.replay_buffer.sample(batch_size=self.batch_size)
+                self.replay_buffer.sample()
             self.stats_sample = {
                 'obs0': obs0,
                 'actions': actions,
@@ -890,12 +893,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def get_td_map(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size)
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
         return self.get_td_map_from_batch(
             obs0, actions, rewards, obs1, terminals1)
@@ -1109,73 +1111,29 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
 
-        # create the replay buffer object
-        self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
+        # Get the Manager's action space.
+        manager_ac_space = get_manager_ac_space(
+            ob_space, relative_goals, env_name,
+            use_fingerprints, self.fingerprint_dim)
+
+        # Manager observation size
+        meta_ob_dim = ob_space.shape[0]
+        if co_space is not None:
+            meta_ob_dim += co_space.shape[0]
+
+        # Create the replay buffer.
+        self.replay_buffer = HierReplayBuffer(
+            buffer_size=int(buffer_size/meta_period),
+            batch_size=batch_size,
+            meta_obs_dim=meta_ob_dim,
+            meta_ac_dim=manager_ac_space.shape[0],
+            worker_obs_dim=ob_space.shape[0] + manager_ac_space.shape[0],
+            worker_ac_dim=ac_space.shape[0],
+        )
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
-
-        # Compute the action space for the Manager. If the fingerprint terms
-        # are being appended onto the observations, this should be removed from
-        # the action space.
-        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
-            manager_ac_space = Box(
-                low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                              -0.3, -0.5, -0.3, -0.5, -0.3]),
-                high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3,
-                               0.5, 0.3, 0.5, 0.3]),
-                dtype=np.float32,
-            )
-        elif env_name == "UR5":
-            manager_ac_space = Box(
-                low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
-                high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
-                dtype=np.float32,
-            )
-        elif env_name == "Pendulum":
-            manager_ac_space = Box(
-                low=np.array([-np.pi, -15]),
-                high=np.array([np.pi, 15]),
-                dtype=np.float32
-            )
-        elif env_name == "figureeight0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(1,), dtype=np.float32)
-        elif env_name == "figureeight1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(7,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(7,), dtype=np.float32)
-        elif env_name == "figureeight2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(14,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(14,), dtype=np.float32)
-        elif env_name == "merge0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(5,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(5,), dtype=np.float32)
-        elif env_name == "merge1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(13,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(13,), dtype=np.float32)
-        elif env_name == "merge2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(17,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
-        else:
-            if self.use_fingerprints:
-                low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
-                high = ob_space.high[:-self.fingerprint_dim[0]]
-                manager_ac_space = Box(low=low, high=high, dtype=np.float32)
-            else:
-                manager_ac_space = ob_space
 
         # Create the Manager policy.
         with tf.compat.v1.variable_scope("Manager"):
@@ -1350,16 +1308,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             manager actor loss, worker actor loss
         """
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return (0, 0), (0, 0)
 
         # Get a batch.
-        samples = self.replay_buffer.sample(batch_size=self.batch_size)
-
-        # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done = \
-            self._process_samples(samples)
+            self.replay_buffer.sample()
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -1399,110 +1354,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
-
-    @staticmethod
-    def _process_samples(samples):
-        """Convert the samples into a form that is usable for an update.
-
-        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
-        the worker batches.
-
-        Parameters
-        ----------
-        samples : list of tuple or Any
-            each element of the tuples consists of:
-
-            * list of (numpy.ndarray, numpy.ndarray): the previous and next
-              manager observations for each meta period
-            * list of numpy.ndarray: the meta action (goal) for each meta
-              period
-            * list of float: the meta reward for each meta period
-            * list of list of numpy.ndarray: all observations for the worker
-              for each meta period
-            * list of list of numpy.ndarray: all actions for the worker for
-              each meta period
-            * list of list of float: all rewards for the worker for each meta
-              period
-            * list of list of float: all done masks for the worker for each
-              meta period. The last done mask corresponds to the done mask of
-              the manager
-
-        Returns
-        -------
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of meta observations
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of next meta-period meta observations
-        numpy.ndarray
-            (batch_size, meta_ac) matrix of meta actions
-        numpy.ndarray
-            (batch_size,) vector of meta rewards
-        numpy.ndarray
-            (batch_size,) vector of meta done masks
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of worker observations
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of next step worker observations
-        numpy.ndarray
-            (batch_size, worker_ac) matrix of worker actions
-        numpy.ndarray
-            (batch_size,) vector of worker rewards
-        numpy.ndarray
-            (batch_size,) vector of worker done masks
-        """
-        meta_obs0_all = []
-        meta_obs1_all = []
-        meta_act_all = []
-        meta_rew_all = []
-        meta_done_all = []
-        worker_obs0_all = []
-        worker_obs1_all = []
-        worker_act_all = []
-        worker_rew_all = []
-        worker_done_all = []
-
-        for sample in samples:
-            # Extract the elements of the sample.
-            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                worker_rewards, worker_dones = sample
-
-            # Separate the current and next step meta observations.
-            meta_obs0, meta_obs1 = meta_obs
-
-            # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
-
-            # Sample one obs0/obs1/action/reward from the list of per-meta-
-            # period variables.
-            indx_val = random.randint(0, len(worker_obses)-2)
-            worker_obs0 = worker_obses[indx_val]
-            worker_obs1 = worker_obses[indx_val + 1]
-            worker_action = worker_actions[indx_val]
-            worker_reward = worker_rewards[indx_val]
-            worker_done = 0  # see docstring
-
-            # Add the new sample to the list of returned samples.
-            meta_obs0_all.append(np.array(meta_obs0, copy=False))
-            meta_obs1_all.append(np.array(meta_obs1, copy=False))
-            meta_act_all.append(np.array(meta_action, copy=False))
-            meta_rew_all.append(np.array(meta_reward, copy=False))
-            meta_done_all.append(np.array(meta_done, copy=False))
-            worker_obs0_all.append(np.array(worker_obs0, copy=False))
-            worker_obs1_all.append(np.array(worker_obs1, copy=False))
-            worker_act_all.append(np.array(worker_action, copy=False))
-            worker_rew_all.append(np.array(worker_reward, copy=False))
-            worker_done_all.append(np.array(worker_done, copy=False))
-
-        return np.array(meta_obs0_all), \
-            np.array(meta_obs1_all), \
-            np.array(meta_act_all), \
-            np.array(meta_rew_all), \
-            np.array(meta_done_all), \
-            np.array(worker_obs0_all), \
-            np.array(worker_obs1_all), \
-            np.array(worker_act_all), \
-            np.array(worker_rew_all), \
-            np.array(worker_done_all)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
@@ -1757,16 +1608,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_td_map(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return {}
 
         # Get a batch.
-        samples = self.replay_buffer.sample(batch_size=self.batch_size)
-
-        # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done = \
-            self._process_samples(samples)
+            self.replay_buffer.sample()
 
         td_map = {}
         td_map.update(self.manager.get_td_map_from_batch(
