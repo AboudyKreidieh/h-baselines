@@ -2,29 +2,38 @@
 
 This script is adapted largely from: https://github.com/hill-a/stable-baselines
 """
-import random
 import numpy as np
 
 
 class ReplayBuffer(object):
     """Experience replay buffer."""
 
-    def __init__(self, size):
+    def __init__(self, buffer_size, batch_size, obs_dim, ac_dim):
         """Instantiate a ring buffer (FIFO).
 
         Parameters
         ----------
-        size : int
+        buffer_size : int
             Max number of transitions to store in the buffer. When the buffer
             overflows the old memories are dropped.
+        batch_size : int
+            number of elements that are to be returned as a batch
         """
         self._storage = []
-        self._maxsize = size
+        self._maxsize = buffer_size
+        self._size = 0
         self._next_idx = 0
+        self._batch_size = batch_size
+
+        self.obs_t = np.zeros((buffer_size, obs_dim), dtype=np.float32)
+        self.action = np.zeros((buffer_size, ac_dim), dtype=np.float32)
+        self.reward = np.zeros(buffer_size, dtype=np.float32)
+        self.obs_tp1 = np.zeros((buffer_size, obs_dim), dtype=np.float32)
+        self.done = np.zeros(buffer_size, dtype=np.float32)
 
     def __len__(self):
         """Return the number of elements stored."""
-        return len(self._storage)
+        return self._size
 
     @property
     def storage(self):
@@ -39,20 +48,15 @@ class ReplayBuffer(object):
         """Return the (float) max capacity of the buffer."""
         return self._maxsize
 
-    def can_sample(self, n_samples):
+    def can_sample(self):
         """Check if n_samples samples can be sampled from the buffer.
-
-        Parameters
-        ----------
-        n_samples : int
-            number of requested samples
 
         Returns
         -------
         bool
             True if enough sample exist, False otherwise
         """
-        return len(self) >= n_samples
+        return len(self) >= self._batch_size
 
     def is_full(self):
         """Check whether the replay buffer is full or not.
@@ -80,35 +84,23 @@ class ReplayBuffer(object):
         done : float
             is the episode done
         """
-        data = (obs_t, action, reward, obs_tp1, done)
+        self.obs_t[self._next_idx, :] = obs_t
+        self.action[self._next_idx, :] = action
+        self.reward[self._next_idx] = reward
+        self.obs_tp1[self._next_idx, :] = obs_tp1
+        self.done[self._next_idx] = done
 
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-        else:
-            self._storage[self._next_idx] = data
+        # Increment the next index and size terms
         self._next_idx = (self._next_idx + 1) % self._maxsize
+        self._size = min(self._size + 1, self._maxsize)
 
     def _encode_sample(self, idxes):
-        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
-        for i in idxes:
-            data = self._storage[i]
-            obs_t, action, reward, obs_tp1, done = data
-            obses_t.append(np.array(obs_t, copy=False))
-            actions.append(np.array(action, copy=False))
-            rewards.append(reward)
-            obses_tp1.append(np.array(obs_tp1, copy=False))
-            dones.append(done)
+        """Convert the indices to appropriate samples."""
+        return self.obs_t[idxes, :], self.action[idxes, :], \
+            self.reward[idxes], self.obs_tp1[idxes, :], self.done[idxes]
 
-        return np.array(obses_t), np.array(actions), np.array(rewards), \
-            np.array(obses_tp1), np.array(dones)
-
-    def sample(self, batch_size, **_kwargs):
+    def sample(self, **_kwargs):
         """Sample a batch of experiences.
-
-        Parameters
-        ----------
-        batch_size : int
-            How many transitions to sample.
 
         Returns
         -------
@@ -124,8 +116,7 @@ class ReplayBuffer(object):
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
         """
-        indices = [random.randint(0, len(self._storage) - 1)
-                   for _ in range(batch_size)]
+        indices = np.random.randint(0, self._size, size=self._batch_size)
         return self._encode_sample(indices)
 
 

@@ -350,21 +350,26 @@ class FeedForwardPolicy(ActorCriticPolicy):
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
-        # =================================================================== #
-        # Step 1: Create a replay buffer object.                              #
-        # =================================================================== #
-
-        self.replay_buffer = ReplayBuffer(self.buffer_size)
-
-        # =================================================================== #
-        # Step 2: Create input variables.                                     #
-        # =================================================================== #
-
         # Compute the shape of the input observation space, which may include
         # the contextual term.
         ob_dim = ob_space.shape
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
+
+        # =================================================================== #
+        # Step 1: Create a replay buffer object.                              #
+        # =================================================================== #
+
+        self.replay_buffer = ReplayBuffer(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            obs_dim=ob_dim[0],
+            ac_dim=self.ac_space.shape[0],
+        )
+
+        # =================================================================== #
+        # Step 2: Create input variables.                                     #
+        # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
             self.critic_target = tf.compat.v1.placeholder(
@@ -675,12 +680,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             actor loss
         """
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size)
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
         return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
                                       update_actor=update_actor)
@@ -864,7 +868,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # This allows us to estimate the change in value for the same set
             # of inputs.
             obs0, actions, rewards, obs1, terminals1 = \
-                self.replay_buffer.sample(batch_size=self.batch_size)
+                self.replay_buffer.sample()
             self.stats_sample = {
                 'obs0': obs0,
                 'actions': actions,
@@ -890,12 +894,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def get_td_map(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample(
-            batch_size=self.batch_size)
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
         return self.get_td_map_from_batch(
             obs0, actions, rewards, obs1, terminals1)
@@ -1350,11 +1353,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             manager actor loss, worker actor loss
         """
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return (0, 0), (0, 0)
 
         # Get a batch.
-        samples = self.replay_buffer.sample(batch_size=self.batch_size)
+        samples = self.replay_buffer.sample()
 
         # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
@@ -1757,11 +1760,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_td_map(self):
         """See parent class."""
         # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample(self.batch_size):
+        if not self.replay_buffer.can_sample():
             return {}
 
         # Get a batch.
-        samples = self.replay_buffer.sample(batch_size=self.batch_size)
+        samples = self.replay_buffer.sample()
 
         # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
