@@ -43,7 +43,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertTrue(hasattr(policy, "get_action"))
         self.assertTrue(hasattr(policy, "value"))
         self.assertTrue(hasattr(policy, "store_transition"))
-        self.assertTrue(hasattr(policy, "get_stats"))
 
 
 class TestFeedForwardPolicy(unittest.TestCase):

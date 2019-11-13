@@ -1062,27 +1062,28 @@ class TD3(object):
         """
         # Log statistics.
         duration = time.time() - start_time
-        stats = self.policy_tf.get_stats()
-        combined_stats = stats.copy()
-        combined_stats['rollout/return'] = np.mean(self.epoch_episode_rewards)
-        combined_stats['rollout/return_history'] = np.mean(
-            self.episode_rewards_history)
-        combined_stats['rollout/episode_steps'] = np.mean(
-            self.epoch_episode_steps)
-        combined_stats['rollout/actions_mean'] = np.mean(self.epoch_actions)
-        combined_stats['rollout/Q1_mean'] = np.mean(self.epoch_q1s)
-        combined_stats['rollout/Q2_mean'] = np.mean(self.epoch_q2s)
-        combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
-        combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
-        combined_stats['total/duration'] = duration
-        combined_stats['total/steps_per_second'] = self.total_steps / duration
-        combined_stats['total/episodes'] = self.episodes
-        combined_stats['rollout/episodes'] = self.epoch_episodes
-        combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
 
-        # Total statistics.
-        combined_stats['total/epochs'] = self.epoch + 1
-        combined_stats['total/steps'] = self.total_steps
+        combined_stats = {
+            'rollout/return': np.mean(self.epoch_episode_rewards),
+            'rollout/return_history': np.mean(
+                self.episode_rewards_history),
+            'rollout/episode_steps': np.mean(
+                self.epoch_episode_steps),
+            'rollout/actions_mean': np.mean(self.epoch_actions),
+            'rollout/Q1_mean': np.mean(self.epoch_q1s),
+            'rollout/Q2_mean': np.mean(self.epoch_q2s),
+            'train/loss_actor': np.mean(self.epoch_actor_losses),
+            'train/loss_critic': np.mean(self.epoch_critic_losses),
+            'total/duration': duration,
+            'total/steps_per_second': self.total_steps / duration,
+            'total/episodes': self.episodes,
+            'rollout/episodes': self.epoch_episodes,
+            'rollout/actions_std': np.std(self.epoch_actions),
+
+            # Total statistics.
+            'total/epochs': self.epoch + 1,
+            'total/steps': self.total_steps
+        }
 
         # Save combined_stats in a csv file.
         if file_path is not None:
