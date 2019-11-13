@@ -4,7 +4,6 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 from gym.spaces import Box
-import random
 
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.tf_util import get_target_updates
@@ -1112,13 +1111,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
 
-        # create the replay buffer object
-        self.replay_buffer = HierReplayBuffer(int(buffer_size/meta_period))
-
-        # =================================================================== #
-        # Part 1. Setup the Manager                                           #
-        # =================================================================== #
-
         # Compute the action space for the Manager. If the fingerprint terms
         # are being appended onto the observations, this should be removed from
         # the action space.
@@ -1179,6 +1171,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 manager_ac_space = Box(low=low, high=high, dtype=np.float32)
             else:
                 manager_ac_space = ob_space
+
+        # Manager observation size
+        meta_ob_dim = ob_space.shape[0]
+        if co_space is not None:
+            meta_ob_dim += co_space.shape[0]
+
+        # create the replay buffer object
+        self.replay_buffer = HierReplayBuffer(
+            buffer_size=int(buffer_size/meta_period),
+            batch_size=batch_size,
+            meta_obs_dim=meta_ob_dim,
+            meta_ac_dim=manager_ac_space.shape[0],
+            worker_obs_dim=ob_space.shape[0] + manager_ac_space.shape[0],
+            worker_ac_dim=ac_space.shape[0],
+        )
+
+        # =================================================================== #
+        # Part 1. Setup the Manager                                           #
+        # =================================================================== #
 
         # Create the Manager policy.
         with tf.compat.v1.variable_scope("Manager"):
@@ -1357,12 +1368,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             return (0, 0), (0, 0)
 
         # Get a batch.
-        samples = self.replay_buffer.sample()
-
-        # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done = \
-            self._process_samples(samples)
+            self.replay_buffer.sample()
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -1402,110 +1410,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
-
-    @staticmethod
-    def _process_samples(samples):
-        """Convert the samples into a form that is usable for an update.
-
-        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
-        the worker batches.
-
-        Parameters
-        ----------
-        samples : list of tuple or Any
-            each element of the tuples consists of:
-
-            * list of (numpy.ndarray, numpy.ndarray): the previous and next
-              manager observations for each meta period
-            * list of numpy.ndarray: the meta action (goal) for each meta
-              period
-            * list of float: the meta reward for each meta period
-            * list of list of numpy.ndarray: all observations for the worker
-              for each meta period
-            * list of list of numpy.ndarray: all actions for the worker for
-              each meta period
-            * list of list of float: all rewards for the worker for each meta
-              period
-            * list of list of float: all done masks for the worker for each
-              meta period. The last done mask corresponds to the done mask of
-              the manager
-
-        Returns
-        -------
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of meta observations
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of next meta-period meta observations
-        numpy.ndarray
-            (batch_size, meta_ac) matrix of meta actions
-        numpy.ndarray
-            (batch_size,) vector of meta rewards
-        numpy.ndarray
-            (batch_size,) vector of meta done masks
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of worker observations
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of next step worker observations
-        numpy.ndarray
-            (batch_size, worker_ac) matrix of worker actions
-        numpy.ndarray
-            (batch_size,) vector of worker rewards
-        numpy.ndarray
-            (batch_size,) vector of worker done masks
-        """
-        meta_obs0_all = []
-        meta_obs1_all = []
-        meta_act_all = []
-        meta_rew_all = []
-        meta_done_all = []
-        worker_obs0_all = []
-        worker_obs1_all = []
-        worker_act_all = []
-        worker_rew_all = []
-        worker_done_all = []
-
-        for sample in samples:
-            # Extract the elements of the sample.
-            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                worker_rewards, worker_dones = sample
-
-            # Separate the current and next step meta observations.
-            meta_obs0, meta_obs1 = meta_obs
-
-            # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
-
-            # Sample one obs0/obs1/action/reward from the list of per-meta-
-            # period variables.
-            indx_val = random.randint(0, len(worker_obses)-2)
-            worker_obs0 = worker_obses[indx_val]
-            worker_obs1 = worker_obses[indx_val + 1]
-            worker_action = worker_actions[indx_val]
-            worker_reward = worker_rewards[indx_val]
-            worker_done = 0  # see docstring
-
-            # Add the new sample to the list of returned samples.
-            meta_obs0_all.append(np.array(meta_obs0, copy=False))
-            meta_obs1_all.append(np.array(meta_obs1, copy=False))
-            meta_act_all.append(np.array(meta_action, copy=False))
-            meta_rew_all.append(np.array(meta_reward, copy=False))
-            meta_done_all.append(np.array(meta_done, copy=False))
-            worker_obs0_all.append(np.array(worker_obs0, copy=False))
-            worker_obs1_all.append(np.array(worker_obs1, copy=False))
-            worker_act_all.append(np.array(worker_action, copy=False))
-            worker_rew_all.append(np.array(worker_reward, copy=False))
-            worker_done_all.append(np.array(worker_done, copy=False))
-
-        return np.array(meta_obs0_all), \
-            np.array(meta_obs1_all), \
-            np.array(meta_act_all), \
-            np.array(meta_rew_all), \
-            np.array(meta_done_all), \
-            np.array(worker_obs0_all), \
-            np.array(worker_obs1_all), \
-            np.array(worker_act_all), \
-            np.array(worker_rew_all), \
-            np.array(worker_done_all)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """See parent class."""
@@ -1764,12 +1668,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        samples = self.replay_buffer.sample()
-
-        # Collect the relevant components of each sample.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done = \
-            self._process_samples(samples)
+            self.replay_buffer.sample()
 
         td_map = {}
         td_map.update(self.manager.get_td_map_from_batch(

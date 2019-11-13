@@ -2,6 +2,7 @@
 
 This script is adapted largely from: https://github.com/hill-a/stable-baselines
 """
+import random
 import numpy as np
 
 
@@ -18,6 +19,10 @@ class ReplayBuffer(object):
             overflows the old memories are dropped.
         batch_size : int
             number of elements that are to be returned as a batch
+        obs_dim : int
+            TODO
+        ac_dim : int
+            TODO
         """
         self._storage = []
         self._maxsize = buffer_size
@@ -123,6 +128,49 @@ class ReplayBuffer(object):
 class HierReplayBuffer(ReplayBuffer):
     """Hierarchical variant of ReplayBuffer."""
 
+    def __init__(self,
+                 buffer_size,
+                 batch_size,
+                 meta_obs_dim,
+                 meta_ac_dim,
+                 worker_obs_dim,
+                 worker_ac_dim):
+        """Instantiate the hierarchical replay buffer.
+
+        Parameters
+        ----------
+        :param buffer_size:
+        :param batch_size:
+        :param meta_obs_dim:
+        :param meta_ac_dim:
+        :param worker_obs_dim:
+        :param worker_ac_dim:
+        """
+        super(HierReplayBuffer, self).__init__(
+            buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
+
+        # Variables that are used when returning samples
+        self.meta_obs0 = np.zeros(
+            (batch_size, meta_obs_dim), dtype=np.float32)
+        self.meta_obs1 = np.zeros(
+            (batch_size, meta_obs_dim), dtype=np.float32)
+        self.meta_act = np.zeros(
+            (batch_size, meta_ac_dim), dtype=np.float32)
+        self.meta_rew = np.zeros(
+            batch_size, dtype=np.float32)
+        self.meta_done = np.zeros(
+            batch_size, dtype=np.float32)
+        self.worker_obs0 = np.zeros(
+            (batch_size, worker_obs_dim), dtype=np.float32)
+        self.worker_obs1 = np.zeros(
+            (batch_size, worker_obs_dim), dtype=np.float32)
+        self.worker_act = np.zeros(
+            (batch_size, worker_ac_dim), dtype=np.float32)
+        self.worker_rew = np.zeros(
+            batch_size, dtype=np.float32)
+        self.worker_done = np.zeros(
+            batch_size, dtype=np.float32)
+
     def add(self, obs_t, goal_t, action_t, reward_t, done, **kwargs):
         """Add a new transition to the buffer.
 
@@ -156,8 +204,9 @@ class HierReplayBuffer(ReplayBuffer):
         else:
             self._storage[self._next_idx] = data
 
-        # Increment the index of the oldest element.
+        # Increment the next index and size terms
         self._next_idx = (self._next_idx + 1) % self._maxsize
+        self._size = min(self._size + 1, self._maxsize)
 
     def _encode_sample(self, idxes):
         """Return a sample from the replay buffer based on indices.
@@ -187,7 +236,99 @@ class HierReplayBuffer(ReplayBuffer):
               meta period. The last done mask corresponds to the done mask of
               the manager
         """
-        ret = []
+        samples = []
         for i in idxes:
-            ret.append(self._storage[i])
-        return ret
+            samples.append(self._storage[i])
+        return self._process_samples(samples)
+
+    def _process_samples(self, samples):
+        """Convert the samples into a form that is usable for an update.
+
+        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
+        the worker batches.
+
+        Parameters
+        ----------
+        samples : list of tuple or Any
+            each element of the tuples consists of:
+
+            * list of (numpy.ndarray, numpy.ndarray): the previous and next
+              manager observations for each meta period
+            * list of numpy.ndarray: the meta action (goal) for each meta
+              period
+            * list of float: the meta reward for each meta period
+            * list of list of numpy.ndarray: all observations for the worker
+              for each meta period
+            * list of list of numpy.ndarray: all actions for the worker for
+              each meta period
+            * list of list of float: all rewards for the worker for each meta
+              period
+            * list of list of float: all done masks for the worker for each
+              meta period. The last done mask corresponds to the done mask of
+              the manager
+
+        Returns
+        -------
+        numpy.ndarray
+            (batch_size, meta_obs) matrix of meta observations
+        numpy.ndarray
+            (batch_size, meta_obs) matrix of next meta-period meta observations
+        numpy.ndarray
+            (batch_size, meta_ac) matrix of meta actions
+        numpy.ndarray
+            (batch_size,) vector of meta rewards
+        numpy.ndarray
+            (batch_size,) vector of meta done masks
+        numpy.ndarray
+            (batch_size, worker_obs) matrix of worker observations
+        numpy.ndarray
+            (batch_size, worker_obs) matrix of next step worker observations
+        numpy.ndarray
+            (batch_size, worker_ac) matrix of worker actions
+        numpy.ndarray
+            (batch_size,) vector of worker rewards
+        numpy.ndarray
+            (batch_size,) vector of worker done masks
+        """
+        for i, sample in enumerate(samples):
+            # Extract the elements of the sample.
+            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+                worker_rewards, worker_dones = sample
+
+            # Separate the current and next step meta observations.
+            meta_obs0, meta_obs1 = meta_obs
+
+            # The meta done value corresponds to the last done value.
+            meta_done = worker_dones[-1]
+
+            # Sample one obs0/obs1/action/reward from the list of per-meta-
+            # period variables.
+            indx_val = random.randint(0, len(worker_obses)-2)
+            worker_obs0 = worker_obses[indx_val]
+            worker_obs1 = worker_obses[indx_val + 1]
+            worker_action = worker_actions[indx_val]
+            worker_reward = worker_rewards[indx_val]
+            worker_done = 0  # see docstring
+
+            # Add the new sample to the list of returned samples.
+            self.meta_obs0[i, :] = np.array(meta_obs0, copy=False)
+            self.meta_obs1[i, :] = np.array(meta_obs1, copy=False)
+            self.meta_act[i, :] = np.array(meta_action, copy=False)
+            self.meta_rew[i] = np.array(meta_reward, copy=False)
+            self.meta_done[i] = np.array(meta_done, copy=False)
+            self.worker_obs0[i, :] = np.array(worker_obs0, copy=False)
+            self.worker_obs1[i, :] = np.array(worker_obs1, copy=False)
+            self.worker_act[i, :] = np.array(worker_action, copy=False)
+            self.worker_rew[i] = np.array(worker_reward, copy=False)
+            self.worker_done[i] = np.array(worker_done, copy=False)
+
+        return self.meta_obs0, \
+            self.meta_obs1, \
+            self.meta_act, \
+            self.meta_rew, \
+            self.meta_done, \
+            self.worker_obs0, \
+            self.worker_obs1, \
+            self.worker_act, \
+            self.worker_rew, \
+            self.worker_done
