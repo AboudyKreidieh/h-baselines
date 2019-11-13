@@ -79,7 +79,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
         self.assertEqual(policy.reuse, self.policy_params['reuse'])
         self.assertListEqual(policy.layers, [256, 256])
-        self.assertEqual(policy.activ, self.policy_params['act_fun'])
+        self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
 
         # Check that all trainable variables have been created in the
         # TensorFlow graph.
