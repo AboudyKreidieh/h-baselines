@@ -20,9 +20,9 @@ class ReplayBuffer(object):
         batch_size : int
             number of elements that are to be returned as a batch
         obs_dim : int
-            TODO
+            number of elements in the observations
         ac_dim : int
-            TODO
+            number of elements in the actions
         """
         self._maxsize = buffer_size
         self._size = 0
@@ -131,17 +131,18 @@ class HierReplayBuffer(ReplayBuffer):
         Parameters
         ----------
         buffer_size : int
-            TODO
-        batch_size : TODO
-            TODO
-        meta_obs_dim : TODO
-            TODO
-        meta_ac_dim : TODO
-            TODO
-        worker_obs_dim : TODO
-            TODO
-        worker_ac_dim : TODO
-            TODO
+            Max number of transitions to store in the buffer. When the buffer
+            overflows the old memories are dropped.
+        batch_size : int
+            number of elements that are to be returned as a batch
+        meta_obs_dim : int
+            number of elements in the Manager observations
+        meta_ac_dim : int
+            number of elements in the Manager actions
+        worker_obs_dim : int
+            number of elements in the Worker observations
+        worker_ac_dim : int
+            number of elements in the Worker actions
         """
         super(HierReplayBuffer, self).__init__(
             buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
@@ -215,57 +216,6 @@ class HierReplayBuffer(ReplayBuffer):
 
         Returns
         -------
-        list of tuple
-            each element of the tuples consists of:
-
-            * list of (numpy.ndarray, numpy.ndarray): the previous and next
-              manager observations for each meta period
-            * list of numpy.ndarray: the meta action (goal) for each meta
-              period
-            * list of float: the meta reward for each meta period
-            * list of list of numpy.ndarray: all observations for the worker
-              for each meta period
-            * list of list of numpy.ndarray: all actions for the worker for
-              each meta period
-            * list of list of float: all rewards for the worker for each meta
-              period
-            * list of list of float: all done masks for the worker for each
-              meta period. The last done mask corresponds to the done mask of
-              the manager
-        """
-        samples = []
-        for i in idxes:
-            samples.append(self._storage[i])
-        return self._process_samples(samples)
-
-    def _process_samples(self, samples):
-        """Convert the samples into a form that is usable for an update.
-
-        **Note**: We choose to always pass a done mask of 0 (i.e. not done) for
-        the worker batches.
-
-        Parameters
-        ----------
-        samples : list of tuple or Any
-            each element of the tuples consists of:
-
-            * list of (numpy.ndarray, numpy.ndarray): the previous and next
-              manager observations for each meta period
-            * list of numpy.ndarray: the meta action (goal) for each meta
-              period
-            * list of float: the meta reward for each meta period
-            * list of list of numpy.ndarray: all observations for the worker
-              for each meta period
-            * list of list of numpy.ndarray: all actions for the worker for
-              each meta period
-            * list of list of float: all rewards for the worker for each meta
-              period
-            * list of list of float: all done masks for the worker for each
-              meta period. The last done mask corresponds to the done mask of
-              the manager
-
-        Returns
-        -------
         numpy.ndarray
             (batch_size, meta_obs) matrix of meta observations
         numpy.ndarray
@@ -287,10 +237,10 @@ class HierReplayBuffer(ReplayBuffer):
         numpy.ndarray
             (batch_size,) vector of worker done masks
         """
-        for i, sample in enumerate(samples):
+        for i, indx in enumerate(idxes):
             # Extract the elements of the sample.
             meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                worker_rewards, worker_dones = sample
+                worker_rewards, worker_dones = self._storage[indx]
 
             # Separate the current and next step meta observations.
             meta_obs0, meta_obs1 = meta_obs

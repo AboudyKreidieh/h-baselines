@@ -3,7 +3,6 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
-from gym.spaces import Box
 
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.tf_util import get_target_updates
@@ -11,6 +10,7 @@ from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
+from hbaselines.utils.misc import get_manager_ac_space
 
 
 # TODO: add as input
@@ -467,7 +467,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
-        with tf.compat.v1.variable_scope("Adam_mpi", reuse=False):
+        with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_actor_optimizer(scope=scope)
             self._setup_critic_optimizer(scope=scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
@@ -1111,73 +1111,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
 
-        # Compute the action space for the Manager. If the fingerprint terms
-        # are being appended onto the observations, this should be removed from
-        # the action space.
-        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
-            manager_ac_space = Box(
-                low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                              -0.3, -0.5, -0.3, -0.5, -0.3]),
-                high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3,
-                               0.5, 0.3, 0.5, 0.3]),
-                dtype=np.float32,
-            )
-        elif env_name == "UR5":
-            manager_ac_space = Box(
-                low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
-                high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
-                dtype=np.float32,
-            )
-        elif env_name == "Pendulum":
-            manager_ac_space = Box(
-                low=np.array([-np.pi, -15]),
-                high=np.array([np.pi, 15]),
-                dtype=np.float32
-            )
-        elif env_name == "figureeight0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(1,), dtype=np.float32)
-        elif env_name == "figureeight1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(7,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(7,), dtype=np.float32)
-        elif env_name == "figureeight2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(14,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(14,), dtype=np.float32)
-        elif env_name == "merge0":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(5,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(5,), dtype=np.float32)
-        elif env_name == "merge1":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(13,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(13,), dtype=np.float32)
-        elif env_name == "merge2":
-            if self.relative_goals:
-                manager_ac_space = Box(-.5, .5, shape=(17,), dtype=np.float32)
-            else:
-                manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
-        else:
-            if self.use_fingerprints:
-                low = np.array(ob_space.low)[:-self.fingerprint_dim[0]]
-                high = ob_space.high[:-self.fingerprint_dim[0]]
-                manager_ac_space = Box(low=low, high=high, dtype=np.float32)
-            else:
-                manager_ac_space = ob_space
+        # Get the Manager's action space.
+        manager_ac_space = get_manager_ac_space(
+            ob_space, relative_goals, env_name,
+            use_fingerprints, self.fingerprint_dim)
 
         # Manager observation size
         meta_ob_dim = ob_space.shape[0]
         if co_space is not None:
             meta_ob_dim += co_space.shape[0]
 
-        # create the replay buffer object
+        # Create the replay buffer.
         self.replay_buffer = HierReplayBuffer(
             buffer_size=int(buffer_size/meta_period),
             batch_size=batch_size,
