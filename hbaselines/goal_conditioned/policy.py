@@ -134,18 +134,6 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_stats(self):
-        """Return the model statistics.
-
-        This data wil be stored in the training csv file.
-
-        Returns
-        -------
-        dict
-            model statistic
-        """
-        raise NotImplementedError
-
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
@@ -240,8 +228,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the operation that returns the loss of the critic
     critic_optimizer : tf.Operation
         the operation that updates the trainable parameters of the critic
-    stats_sample : dict
-        a batch of samples to compute model means and stds from
     """
 
     def __init__(self,
@@ -476,8 +462,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
         # =================================================================== #
-
-        self.stats_sample = None
 
         # Setup the running means and standard deviations of the model inputs
         # and outputs.
@@ -851,44 +835,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.compat.v1.summary.scalar(name, op)
 
         return ops, names
-
-    def get_stats(self):
-        """See parent class.
-
-        Get the mean and standard dev of the model's inputs and outputs.
-
-        Returns
-        -------
-        dict
-            the means and stds
-        """
-        if self.stats_sample is None:
-            # Get a sample and keep that fixed for all further computations.
-            # This allows us to estimate the change in value for the same set
-            # of inputs.
-            obs0, actions, rewards, obs1, terminals1 = \
-                self.replay_buffer.sample()
-            self.stats_sample = {
-                'obs0': obs0,
-                'actions': actions,
-                'rewards': rewards,
-                'obs1': obs1,
-                'terminals1': terminals1
-            }
-
-        feed_dict = {
-            self.action_ph: self.stats_sample['actions'],
-            self.obs_ph: self.stats_sample['obs0'],
-            self.obs1_ph: self.stats_sample['obs1']
-        }
-
-        values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
-
-        names = self.stats_names[:]
-        assert len(names) == len(values)
-        stats = dict(zip(names, values))
-
-        return stats
 
     def get_td_map(self):
         """See parent class."""
@@ -1596,14 +1542,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         samples = samples.T.reshape((batch_size, goal_dim, num_samples))
 
         return samples
-
-    def get_stats(self):
-        """See parent class."""
-        stats = {}
-        # FIXME
-        # stats.update(self.manager.get_stats())
-        # stats.update(self.worker.get_stats())
-        return stats
 
     def get_td_map(self):
         """See parent class."""
