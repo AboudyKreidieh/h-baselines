@@ -179,9 +179,9 @@ parameter. The input parameters to this policy are as follows:
 The modifiable parameters of this policy are as follows:
 
 * **sess** (tf.compat.v1.Session) : the current TensorFlow session
-* **ob_space** (gym.space.*) : the observation space of the environment
-* **ac_space** (gym.space.*) : the action space of the environment
-* **co_space** (gym.space.*) : the context space of the environment
+* **ob_space** (gym.spaces.*) : the observation space of the environment
+* **ac_space** (gym.spaces.*) : the action space of the environment
+* **co_space** (gym.spaces.*) : the context space of the environment
 * **buffer_size** (int) : the max number of transitions to store
 * **batch_size** (int) : SGD batch size
 * **actor_lr** (float) : actor learning rate

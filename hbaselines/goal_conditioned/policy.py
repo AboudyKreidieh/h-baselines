@@ -24,11 +24,11 @@ class ActorCriticPolicy(object):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     """
 
@@ -39,11 +39,11 @@ class ActorCriticPolicy(object):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         """
         self.sess = sess
@@ -146,11 +146,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     buffer_size : int
         the max number of transitions to store
@@ -259,11 +259,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
@@ -978,11 +978,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
