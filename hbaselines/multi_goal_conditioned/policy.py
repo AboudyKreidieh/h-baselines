@@ -1,10 +1,10 @@
 """Script containing multiagent variants of the policies."""
 import tensorflow as tf
-import numpy as np
 from gym.spaces import Box
 
 from hbaselines.goal_conditioned.policy import ActorCriticPolicy
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.multi_goal_conditioned.replay_buffer import MultiReplayBuffer
 from hbaselines.utils.misc import get_manager_ac_space
 
 # name of Flow environments. Used to assign appropriate Worker ob/ac/co spaces.
@@ -75,10 +75,15 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         * use_huber (bool): specifies whether to use the huber distance
           function as the loss for the critic. If set to False, the
           mean-squared error metric is used instead
-    agents : FeedForwardPolicy or dict of FeedForwardPolicy
-        Policy for each agent in the network. If the policies are shared, this
-        attribute is simply one fully connected networks. Otherwise, it is a
-        dictionary of networks whose keys are the names of the agent.
+    replay_buffer : MultiReplayBuffer
+        a centralized replay buffer object. Used only when `centralized_vfs` is
+        set to True.
+    agents : dict of FeedForwardPolicy
+        Policy for each agent in the network.
+    central_q : TODO
+        TODO
+    optimizer : TODO
+        TODO
     """
 
     def __init__(self,
@@ -102,6 +107,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  shared,
                  centralized_vfs,
+                 all_ob_space,
                  use_fingerprints=False,
                  zero_fingerprint=False):
         """Instantiate the multiagent feed-forward neural network policy.
@@ -160,6 +166,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
               https://arxiv.org/pdf/1705.08926.pdf
             * If shared is set to False, the following technique is followed:
               https://arxiv.org/pdf/1706.02275.pdf
+        all_ob_space : gym.spaces.*
+            the observation space of the full state space. Used for centralized
+            value functions
         """
         super(MultiFeedForwardPolicy, self).__init__(
             sess, ob_space, ac_space, co_space)
@@ -186,9 +195,34 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             reuse=False,
         )
 
-        # Create the actor and critic networks for each agent.
+        # variables that are defined by _setup* procedure
+        self.replay_buffer = None
+        self.agents = None
+        self.central_q = None
+        self.optimizer = None
+
+        # Setup the agents and the necessary objects and operations needed to
+        # support the training procedure.
+        if centralized_vfs:
+            self._setup_centralized_vfs(buffer_size, batch_size, all_ob_space)
+        else:
+            self._setup_independent_learners()
+
+    def _setup_independent_learners(self):
+        """Setup independent learners.
+
+        In this case, the policy consists of separate (or shared) policies for
+        the individual agents that are subsequently trained in a decentralized
+        manner.
+
+        Then agents in this case are created using the `FeedForwardPolicy`
+        class. No separate replay buffers, centralized value functions, or
+        optimization operations are created.
+        """
         self.agents = {}
-        if shared:
+
+        # Create the actor and critic networks for each agent.
+        if self.shared:
             # One policy shared by all agents.
             with tf.compat.v1.variable_scope("agent"):
                 self.agents["agent"] = FeedForwardPolicy(
@@ -211,6 +245,112 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                         scope=key,
                         **self.policy_parameters
                     )
+
+    def _setup_centralized_vfs(self, buffer_size, batch_size, all_ob_space):
+        """Setup centralized value function variants of the policy.
+
+        This method creates a new replay buffer object to store full state
+        observation samples that can be used when training a centralized value
+        functions.
+
+        If the agents utilize a shared policy, the COMA [1] algorithm is used
+        to train the policy; otherwise, a TD3 variant of the MADDPG [2]
+        algorithm is used.
+
+        [1] Foerster, Jakob N., et al. "Counterfactual multi-agent policy
+            gradients." Thirty-Second AAAI Conference on Artificial
+            Intelligence. 2018.
+        [2] Lowe, Ryan, et al. "Multi-agent actor-critic for mixed cooperative-
+            competitive environments." Advances in Neural Information
+            Processing Systems. 2017.
+
+        Parameters
+        ----------
+        buffer_size : int
+            the max number of transitions to store
+        batch_size : int
+            SGD batch size
+        all_ob_space : gym.spaces.*
+            the observation space of the full state space. Used for centralized
+            value functions
+        """
+        # Compute the observation dimensions, taking into account the possible
+        # use of contextual spaces as well.
+        obs_dim = [self.ob_space[key].shape[0]
+                   for key in sorted(self.ob_space.keys())]
+        if self.co_space is not None:
+            obs_dim = [obs_dim_i + self.co_space[key].shape[0]
+                       for obs_dim_i, key
+                       in zip(obs_dim, sorted(self.co_space.keys()))]
+
+        # Create the replay buffer object if centralized value functions are
+        # used. This is to allow the policy to stored relative and full state
+        # information for training the actor and critic networks, respectively.
+        self.replay_buffer = MultiReplayBuffer(
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            obs_dim=obs_dim,
+            ac_dim=[self.ac_space[key].shape[0]
+                    for key in sorted(self.ac_space.keys())],
+            all_obs_dim=all_ob_space.shape[0],
+        )
+
+        # Create the agents and optimization scheme in TensorFlow.
+        if self.shared:
+            self._setup_coma(all_ob_space)
+        else:
+            self._setup_maddpg(all_ob_space)
+
+    def _setup_coma(self, all_ob_space):
+        """Setup Counterfactual Multi-Agent Policy Gradients.
+
+        See: https://arxiv.org/pdf/1705.08926.pdf
+        """
+        with tf.compat.v1.variable_scope("cvf"):
+            # Create the relevant input placeholders
+            with tf.compat.v1.variable_scope("input"):
+                self.obs0_ph = []
+                self.ac_ph = []
+                for i, agent_id in enumerate(sorted(self.ob_space.keys())):
+                    self.obs0_ph.append(tf.compat.v1.placeholder(
+                        (None,) + self.ob_space[i].shape, dtype=tf.float32))
+                    self.ac_ph.append(tf.compat.v1.placeholder(
+                        (None,) + self.ac_space[i].shape, dtype=tf.float32))
+                self.all_obs0_ph = tf.compat.v1.placeholder(
+                    (None,) + all_ob_space.shape, dtype=tf.float32)
+
+            with tf.compat.v1.variable_scope("central_q"):
+                # Create the centralized Q-function.
+                pass  # TODO
+
+                # Create the centralized Q-function with inputs from the
+                # actor policies of the agents.
+                pass  # TODO
+
+            with tf.compat.v1.variable_scope("target_q"):
+                # Create the centralized target Q-function.
+                pass  # TODO
+
+                # Create the centralized Q-function target update procedure.
+                pass  # TODO
+
+            with tf.compat.v1.variable_scope("train"):
+                # Create the centralized loss function.
+                pass  # TODO
+
+                # Create the optimizer object.
+                pass  # TODO
+
+                # Create the tensorflow operation for computing and applying
+                # the gradients to the actor policy.
+                pass  # TODO
+
+    def _setup_maddpg(self, all_ob_space):
+        """Setup TD3-variant of MADDPG.
+
+        See: https://arxiv.org/pdf/1706.02275.pdf
+        """
+        pass  # TODO
 
     def initialize(self):
         """Initialize the policy.
@@ -237,8 +377,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         float
             actor loss
         """
-        for key in self.agents.keys():
-            self.agents[key].update(update_actor, **kwargs)
+        if self.centralized_vfs:
+            pass
+        else:
+            # Perform independent learners training procedure.
+            for key in self.agents.keys():
+                self.agents[key].update(update_actor, **kwargs)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """Call the actor methods to compute policy actions.
@@ -332,24 +476,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 done=done[key],
                 **kwargs
             )
-
-    def get_stats(self):
-        """Return the model statistics.
-
-        This data wil be stored in the training csv file.
-
-        Returns
-        -------
-        dict
-            model statistic
-        """
-        combines_stats = {}
-
-        for key in self.agents.keys():
-            # get the stats of the current agent
-            combines_stats.update(self.agents[key].get_stats())
-
-        return combines_stats
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
