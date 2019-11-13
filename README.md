@@ -179,9 +179,9 @@ parameter. The input parameters to this policy are as follows:
 The modifiable parameters of this policy are as follows:
 
 * **sess** (tf.compat.v1.Session) : the current TensorFlow session
-* **ob_space** (gym.space.*) : the observation space of the environment
-* **ac_space** (gym.space.*) : the action space of the environment
-* **co_space** (gym.space.*) : the context space of the environment
+* **ob_space** (gym.spaces.*) : the observation space of the environment
+* **ac_space** (gym.spaces.*) : the action space of the environment
+* **co_space** (gym.spaces.*) : the context space of the environment
 * **buffer_size** (int) : the max number of transitions to store
 * **batch_size** (int) : SGD batch size
 * **actor_lr** (float) : actor learning rate
@@ -300,11 +300,11 @@ significant affect on the training performance of both the Manager and
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-<p align="center"><img src="/tex/a8541785fd759e6cec9a0e5b5359007a.svg?invert_in_darkmode&sanitize=true" align=middle width=213.30486045pt height=16.438356pt/></p>
+<p align="center"><img src="/tex/1689c3a6f75282843075ef0e3a4e87bb.svg?invert_in_darkmode&sanitize=true" align=middle width=226.09029464999998pt height=16.438356pt/></p>
 
 if `relative_goals` is set to False, and
 
-<p align="center"><img src="/tex/218be4e6ecb1a243a922d5779f3c4381.svg?invert_in_darkmode&sanitize=true" align=middle width=246.8892195pt height=16.438356pt/></p>
+<p align="center"><img src="/tex/fa9c055e86f6927de37a480c240da337.svg?invert_in_darkmode&sanitize=true" align=middle width=259.67465205pt height=16.438356pt/></p>
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.
