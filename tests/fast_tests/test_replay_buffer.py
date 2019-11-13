@@ -2,14 +2,15 @@ import unittest
 import numpy as np
 
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
-from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
+# from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):
     """Tests for the ReplayBuffer object."""
 
     def setUp(self):
-        self.replay_buffer = ReplayBuffer(size=2)
+        self.replay_buffer = ReplayBuffer(
+            buffer_size=2, batch_size=1, obs_dim=1, ac_dim=1)
 
     def tearDown(self):
         del self.replay_buffer
@@ -45,13 +46,10 @@ class TestReplayBuffer(unittest.TestCase):
         self.assertEqual(self.replay_buffer.is_full(), True)
 
         # Check can_sample in the True case.
-        self.assertEqual(self.replay_buffer.can_sample(1), True)
-
-        # Check can_sample in the True case.
-        self.assertEqual(self.replay_buffer.can_sample(3), False)
+        self.assertEqual(self.replay_buffer.can_sample(), True)
 
         # Test the `sample` method.
-        obs_t, actions, rewards, obs_tp1, done = self.replay_buffer.sample(1)
+        obs_t, actions, rewards, obs_tp1, done = self.replay_buffer.sample()
         np.testing.assert_array_almost_equal(obs_t, [[0]])
         np.testing.assert_array_almost_equal(actions, [[1]])
         np.testing.assert_array_almost_equal(rewards, [2])
@@ -59,14 +57,14 @@ class TestReplayBuffer(unittest.TestCase):
         np.testing.assert_array_almost_equal(done, [False])
 
 
-class TestHierReplayBuffer(unittest.TestCase):
-    """Tests for the HierReplayBuffer object."""
-
-    def setUp(self):
-        self.replay_buffer = HierReplayBuffer(size=2)
-
-    def tearDown(self):
-        del self.replay_buffer
+# class TestHierReplayBuffer(unittest.TestCase):
+#     """Tests for the HierReplayBuffer object."""
+#
+#     def setUp(self):
+#         self.replay_buffer = HierReplayBuffer(size=2)
+#
+#     def tearDown(self):
+#         del self.replay_buffer
 
 
 if __name__ == '__main__':
