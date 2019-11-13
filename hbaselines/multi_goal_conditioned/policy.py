@@ -1,5 +1,6 @@
 """Script containing multiagent variants of the policies."""
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 from gym.spaces import Box
 
 from hbaselines.goal_conditioned.policy import ActorCriticPolicy
@@ -50,31 +51,39 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
           https://arxiv.org/pdf/1705.08926.pdf
         * If shared is set to False, the following technique is followed:
           https://arxiv.org/pdf/1706.02275.pdf
-    policy_parameters : dict
-        dictionary of policy-specific parameters. Contains the following terms:
-
-        * buffer_size (int): the max number of transitions to store
-        * batch_size (int): SGD batch size
-        * actor_lr (float): actor learning rate
-        * critic_lr (float): critic learning rate
-        * verbose (int): the verbosity level: 0 none, 1 training information, 2
-          tensorflow debug
-        * tau (float): target update rate
-        * gamma (float): discount factor
-        * noise (float): scaling term to the range of the action space, that is
-          subsequently used as the standard deviation of Gaussian noise added
-          to the action if `apply_noise` is set to True in `get_action`
-        * target_policy_noise (float): standard deviation term to the noise
-          from the output of the target actor policy. See TD3 paper for more.
-        * target_noise_clip (float): clipping term for the noise injected in
-          the target actor policy
-        * layer_norm (bool): enable layer normalisation
-        * layers (list of int): the size of the Neural network for the policy
-        * act_fun (tf.nn.*): the activation function to use in the neural
-          network
-        * use_huber (bool): specifies whether to use the huber distance
-          function as the loss for the critic. If set to False, the
-          mean-squared error metric is used instead
+    buffer_size : int
+        the max number of transitions to store
+    batch_size : int
+        SGD batch size
+    actor_lr : float
+        actor learning rate
+    critic_lr ; float
+        critic learning rate
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    tau : float
+        target update rate
+    gamma : float
+        discount factor
+    noise : float
+        scaling term to the range of the action space, that is subsequently
+        used as the standard deviation of Gaussian noise added to the action if
+        `apply_noise` is set to True in `get_action`
+    target_policy_noise : float
+        standard deviation term to the noise from the output of the target
+        actor policy. See TD3 paper for more.
+    target_noise_clip : float
+        clipping term for the noise injected in the target actor policy
+    layer_norm : bool
+        enable layer normalisation
+    layers : list of int
+        the size of the Neural network for the policy
+    act_fun : tf.nn.*
+        the activation function to use in the neural network
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     replay_buffer : MultiReplayBuffer
         a centralized replay buffer object. Used only when `centralized_vfs` is
         set to True.
@@ -173,29 +182,26 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         super(MultiFeedForwardPolicy, self).__init__(
             sess, ob_space, ac_space, co_space)
 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.verbose = verbose
+        self.tau = tau
+        self.gamma = gamma
+        self.noise = noise
+        self.target_policy_noise = target_policy_noise
+        self.target_noise_clip = target_noise_clip
+        self.layer_norm = layer_norm
+        self.layers = layers
+        self.act_fun = act_fun
+        self.use_huber = use_huber
+        self.use_fingerprints = use_fingerprints
+        self.zero_fingerprint = zero_fingerprint
         self.shared = shared
         self.centralized_vfs = centralized_vfs
-        self.policy_parameters = dict(
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
-            verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            noise=noise,
-            target_policy_noise=target_policy_noise,
-            target_noise_clip=target_noise_clip,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber,
-            use_fingerprints=use_fingerprints,
-            zero_fingerprint=zero_fingerprint,
-            reuse=False,
-        )
 
-        # variables that are defined by _setup* procedure
+        # variables that are defined by the _setup* procedures
         self.replay_buffer = None
         self.agents = None
         self.central_q = None
@@ -219,9 +225,28 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         class. No separate replay buffers, centralized value functions, or
         optimization operations are created.
         """
-        self.agents = {}
+        policy_parameters = dict(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            actor_lr=self.actor_lr,
+            critic_lr=self.critic_lr,
+            verbose=self.verbose,
+            tau=self.tau,
+            gamma=self.gamma,
+            noise=self.noise,
+            target_policy_noise=self.target_policy_noise,
+            target_noise_clip=self.target_noise_clip,
+            layer_norm=self.layer_norm,
+            layers=self.layers,
+            act_fun=self.act_fun,
+            use_huber=self.use_huber,
+            use_fingerprints=self.use_fingerprints,
+            zero_fingerprint=self.zero_fingerprint,
+            reuse=False
+        )
 
         # Create the actor and critic networks for each agent.
+        self.agents = {}
         if self.shared:
             # One policy shared by all agents.
             with tf.compat.v1.variable_scope("agent"):
@@ -231,7 +256,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                     ac_space=self.ac_space,
                     co_space=self.co_space,
                     scope="agent",
-                    **self.policy_parameters
+                    **policy_parameters
                 )
         else:
             # Each agent requires a new feed-forward policy.
@@ -243,7 +268,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                         ac_space=self.ac_space[key],
                         co_space=self.co_space[key],
                         scope=key,
-                        **self.policy_parameters
+                        **policy_parameters
                     )
 
     def _setup_centralized_vfs(self, buffer_size, batch_size, all_ob_space):
@@ -302,7 +327,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             self._setup_maddpg(all_ob_space)
 
     def _setup_coma(self, all_ob_space):
-        """Setup Counterfactual Multi-Agent Policy Gradients.
+        """Setup TD3 variant of Counterfactual Multi-Agent Policy Gradients.
 
         See: https://arxiv.org/pdf/1705.08926.pdf
         """
@@ -313,21 +338,47 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 self.ac_ph = []
                 for i, agent_id in enumerate(sorted(self.ob_space.keys())):
                     self.obs0_ph.append(tf.compat.v1.placeholder(
-                        (None,) + self.ob_space[i].shape, dtype=tf.float32))
+                        (None,) + self.ob_space[i].shape,
+                        dtype=tf.float32))
                     self.ac_ph.append(tf.compat.v1.placeholder(
-                        (None,) + self.ac_space[i].shape, dtype=tf.float32))
+                        (None,) + self.ac_space[i].shape,
+                        dtype=tf.float32))
                 self.all_obs0_ph = tf.compat.v1.placeholder(
-                    (None,) + all_ob_space.shape, dtype=tf.float32)
+                    (None,) + all_ob_space.shape,
+                    dtype=tf.float32)
+                self.all_obs1_ph = tf.compat.v1.placeholder(
+                    (None,) + all_ob_space.shape,
+                    dtype=tf.float32)
 
-            with tf.compat.v1.variable_scope("central_q"):
-                # Create the centralized Q-function.
-                pass  # TODO
+            with tf.compat.v1.variable_scope("model"):
+                # Create the agent policies.
+                self.agents = [
+                    self._make_actor(obs0, self.ac_space[i])
+                    for i, obs0 in enumerate(self.obs0_ph)
+                ]
+
+                # Create the centralized Q-functions.
+                self.central_q1 = self._make_centralized_critic(
+                    self.all_obs0_ph,
+                    self.ac_ph,
+                    scope="qf1"
+                )
+                self.central_q2 = self._make_centralized_critic(
+                    self.all_obs0_ph,
+                    self.ac_ph,
+                    scope="qf2"
+                )
 
                 # Create the centralized Q-function with inputs from the
-                # actor policies of the agents.
-                pass  # TODO
+                # actor policies of the agents. FIXME
+                central_q_with_actors = self._make_centralized_critic(
+                    self.all_obs0_ph,
+                    self.agents,
+                    scope="qf1",
+                    reuse=True
+                )
 
-            with tf.compat.v1.variable_scope("target_q"):
+            with tf.compat.v1.variable_scope("target"):
                 # Create the centralized target Q-function.
                 pass  # TODO
 
@@ -351,6 +402,101 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         See: https://arxiv.org/pdf/1706.02275.pdf
         """
         pass  # TODO
+
+    def _make_actor(self, obs, ac_space, reuse=False, scope="pi"):
+        """Create an actor tensor.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tf.Variable
+            the output from the actor
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                pi_h = tf.layers.dense(
+                    pi_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
+                if self.layer_norm:
+                    pi_h = tf.contrib.layers.layer_norm(
+                        pi_h, center=True, scale=True)
+                pi_h = self.act_fun(pi_h)
+
+            # create the output layer
+            policy = tf.nn.tanh(tf.layers.dense(
+                pi_h,
+                ac_space.shape[0],
+                name='output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)))
+
+            # scaling terms to the output from the policy
+            ac_means = (ac_space.high + ac_space.low) / 2.
+            ac_magnitudes = (ac_space.high - ac_space.low) / 2.
+
+            policy = ac_means + ac_magnitudes * policy
+
+        return policy
+
+    def _make_centralized_critic(self, obs, action, reuse=False, scope="qf"):
+        """Create a critic tensor.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        action : list of tf.compat.v1.placeholder
+            the input action placeholder for each agent
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tf.Variable
+            the output from the critic
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            # concatenate the observations and actions
+            qf_h = tf.concat([obs, action], axis=-1)  # FIXME
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                qf_h = tf.layers.dense(
+                    qf_h,
+                    layer_size,
+                    name='fc' + str(i),
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
+                if self.layer_norm:
+                    qf_h = tf.contrib.layers.layer_norm(
+                        qf_h, center=True, scale=True)
+                qf_h = self.act_fun(qf_h)
+
+            # create the output layer
+            qvalue_fn = tf.layers.dense(
+                qf_h,
+                1,  # TODO: n_agents len(action)?
+                name='qf_output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3))
+
+        return qvalue_fn
 
     def initialize(self):
         """Initialize the policy.
