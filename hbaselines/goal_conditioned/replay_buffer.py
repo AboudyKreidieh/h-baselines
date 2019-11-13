@@ -24,7 +24,6 @@ class ReplayBuffer(object):
         ac_dim : int
             TODO
         """
-        self._storage = []
         self._maxsize = buffer_size
         self._size = 0
         self._next_idx = 0
@@ -39,14 +38,6 @@ class ReplayBuffer(object):
     def __len__(self):
         """Return the number of elements stored."""
         return self._size
-
-    @property
-    def storage(self):
-        """Return the content of the replay buffer.
-
-        Of the form: [(np.ndarray, float, float, np.ndarray, bool)]
-        """
-        return self._storage
 
     @property
     def buffer_size(self):
@@ -139,15 +130,24 @@ class HierReplayBuffer(ReplayBuffer):
 
         Parameters
         ----------
-        :param buffer_size:
-        :param batch_size:
-        :param meta_obs_dim:
-        :param meta_ac_dim:
-        :param worker_obs_dim:
-        :param worker_ac_dim:
+        buffer_size : int
+            TODO
+        batch_size : TODO
+            TODO
+        meta_obs_dim : TODO
+            TODO
+        meta_ac_dim : TODO
+            TODO
+        worker_obs_dim : TODO
+            TODO
+        worker_ac_dim : TODO
+            TODO
         """
         super(HierReplayBuffer, self).__init__(
             buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
+
+        # Used to store buffer data.
+        self._storage = [None for _ in range(buffer_size)]
 
         # Variables that are used when returning samples
         self.meta_obs0 = np.zeros(
@@ -199,10 +199,7 @@ class HierReplayBuffer(ReplayBuffer):
 
         # Add the element to the list. If the list is already the max size of
         # the replay buffer, then replace the oldest sample with this one.
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-        else:
-            self._storage[self._next_idx] = data
+        self._storage[self._next_idx] = data
 
         # Increment the next index and size terms
         self._next_idx = (self._next_idx + 1) % self._maxsize
