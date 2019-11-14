@@ -314,7 +314,31 @@ repository.
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
-TODO
+The HIRO algorithm provides two primary contributions to improve 
+training of generic goal-conditioned hierarchical policies. 
+
+First of all, the HIRO algorithm redefines the assigned goals from 
+absolute desired states to relative changes in states. This is done by 
+redefining the reward intrinsic rewards provided to the Worker policies 
+(see the [Intrinsic Rewards](#intrinsic-rewards) section). In order to 
+maintain the same absolute position of the goal regardless of state 
+change, a fixed goal-transition function 
+$h(s_t,g_t,s_{t+1}) = s_t + g_t - s_{t+1}$ is used in between
+goal-updates by the manager policy. The goal transition function is 
+accordingly defined as:
+
+\begin{equation} \label{eq:goal-transition}
+    g_{t+1} = 
+    \begin{cases}
+        \pi_m(s_t, c) & \text{if } t \text{ mod } k = 0\\
+        s_t + g_t - s_{t+1} & \text{otherwise}
+    \end{cases}
+\end{equation}
+
+where $k$ is the `meta_period`.
+
+In order to use relative goals when training a hierarchical policy, set 
+the `relative_goals` parameter to True:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
