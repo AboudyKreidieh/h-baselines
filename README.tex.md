@@ -314,7 +314,31 @@ repository.
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
-TODO
+The HIRO [3] algorithm provides two primary contributions to improve 
+training of generic goal-conditioned hierarchical policies. 
+
+First of all, the HIRO algorithm redefines the assigned goals from 
+absolute desired states to relative changes in states. This is done by 
+redefining the reward intrinsic rewards provided to the Worker policies 
+(see the [Intrinsic Rewards](#intrinsic-rewards) section). In order to 
+maintain the same absolute position of the goal regardless of state 
+change, a fixed goal-transition function 
+$h(s_t,g_t,s_{t+1}) = s_t + g_t - s_{t+1}$ is used in between
+goal-updates by the manager policy. The goal transition function is 
+accordingly defined as:
+
+\begin{equation*}
+    g_{t+1} = 
+    \begin{cases}
+        \pi_m(s_t, c) & \text{if } t \text{ mod } k = 0\\
+        s_t + g_t - s_{t+1} & \text{otherwise}
+    \end{cases}
+\end{equation*}
+
+where $k$ is the `meta_period`.
+
+In order to use relative goals when training a hierarchical policy, set 
+the `relative_goals` parameter to True:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
@@ -348,11 +372,24 @@ alg = TD3(
 
 ### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-TODO
+The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+and Worker policies in a goal-conditioned hierarchy by including a 
+weighted *connected gradient* term to the Manager's gradient update 
+procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
 
-TODO: describe usage
+Under this formulation, the Manager's update step is defined as:
+
+\begin{aligned}
+    \nabla_{\theta_m} \eta_m' =& \mathbb{E}_{s\sim p_\pi} \big[ \nabla_a Q_m (s,c,a)|_{a=\pi_m(s,c)} \nabla_{\theta_m} \pi_m(s,c)\big] \\
+    & + \lambda \mathbb{E}_{s\sim p_\pi} \bigg[ \nabla_{\theta_m} g_t \nabla_g \big(r(g,s_t,\pi_w(g_t,s_t)) + \pi_w (g,s_t) \nabla_a Q_w(g_t,s_t,a)|_{a=\pi_w(g_t,s_t)}\vphantom{\int} \big) \bigg\rvert_{g=g_t} \bigg]
+\end{aligned}
+
+To use the connected gradient update procedure, set the 
+`connected_gradients` term in `policy_kwargs` to True. The weighting 
+term ($\lambda$ in the above equation), can be modified via the 
+`cg_weights` term (see the example below).
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
