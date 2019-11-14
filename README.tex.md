@@ -351,7 +351,8 @@ alg = TD3(
 The HRL-CG algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
 weighted *connected gradient* term to the Manager's gradient update 
-procedure. Under this formulation, the update step is defined as:
+procedure (see the right figure below). Under this formulation, the 
+update step is defined as:
 
 \begin{aligned}
     \nabla_{\theta_m} \eta_m' =& \mathbb{E}_{s\sim p_\pi} \big[ \nabla_a Q_m (s,c,a)|_{a=\pi_m(s,c)} \nabla_{\theta_m} \pi_m(s,c)\big] \\
