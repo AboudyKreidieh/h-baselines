@@ -355,7 +355,7 @@ procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
 
-Under this formulation, the update step is defined as:
+Under this formulation, the Manager's update step is defined as:
 
 <p align="center"><img src="/tex/ca9860e15619aaa5aa2687a72cf57a75.svg?invert_in_darkmode&sanitize=true" align=middle width=668.9097426pt height=68.9777022pt/></p>
 
