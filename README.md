@@ -351,12 +351,13 @@ alg = TD3(
 The HRL-CG algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
 weighted *connected gradient* term to the Manager's gradient update 
-procedure (see the right figure below). Under this formulation, the 
-update step is defined as:
-
-<p align="center"><img src="/tex/ca9860e15619aaa5aa2687a72cf57a75.svg?invert_in_darkmode&sanitize=true" align=middle width=668.9097426pt height=68.9777022pt/></p>
+procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
+
+Under this formulation, the update step is defined as:
+
+<p align="center"><img src="/tex/ca9860e15619aaa5aa2687a72cf57a75.svg?invert_in_darkmode&sanitize=true" align=middle width=668.9097426pt height=68.9777022pt/></p>
 
 To use the connected gradient update procedure, set the 
 `connected_gradients` term in `policy_kwargs` to True. The weighting 
