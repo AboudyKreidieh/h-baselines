@@ -327,13 +327,13 @@ $h(s_t,g_t,s_{t+1}) = s_t + g_t - s_{t+1}$ is used in between
 goal-updates by the manager policy. The goal transition function is 
 accordingly defined as:
 
-\begin{equation} \label{eq:goal-transition}
+\begin{equation*}
     g_{t+1} = 
     \begin{cases}
         \pi_m(s_t, c) & \text{if } t \text{ mod } k = 0\\
         s_t + g_t - s_{t+1} & \text{otherwise}
     \end{cases}
-\end{equation}
+\end{equation*}
 
 where $k$ is the `meta_period`.
 
