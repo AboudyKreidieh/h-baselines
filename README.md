@@ -348,10 +348,10 @@ alg = TD3(
 
 ### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-The HRL-CG algorithm attempts to promote cooperation between Manager and
-Worker policies in a goal-conditioned hierarchy by including a weighted 
-*connected gradient* term to the Manager's gradient update procedure. 
-Under this formulation, the update step is defined as:
+The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+and Worker policies in a goal-conditioned hierarchy by including a 
+weighted *connected gradient* term to the Manager's gradient update 
+procedure. Under this formulation, the update step is defined as:
 
 <p align="center"><img src="/tex/ca9860e15619aaa5aa2687a72cf57a75.svg?invert_in_darkmode&sanitize=true" align=middle width=668.9097426pt height=68.9777022pt/></p>
 
