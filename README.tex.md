@@ -314,7 +314,7 @@ repository.
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
-The HIRO algorithm provides two primary contributions to improve 
+The HIRO [3] algorithm provides two primary contributions to improve 
 training of generic goal-conditioned hierarchical policies. 
 
 First of all, the HIRO algorithm redefines the assigned goals from 
