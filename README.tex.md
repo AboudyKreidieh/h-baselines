@@ -355,7 +355,7 @@ procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
 
-Under this formulation, the update step is defined as:
+Under this formulation, the Manager's update step is defined as:
 
 \begin{aligned}
     \nabla_{\theta_m} \eta_m' =& \mathbb{E}_{s\sim p_\pi} \big[ \nabla_a Q_m (s,c,a)|_{a=\pi_m(s,c)} \nabla_{\theta_m} \pi_m(s,c)\big] \\
