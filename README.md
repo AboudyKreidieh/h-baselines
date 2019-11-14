@@ -327,7 +327,7 @@ change, a fixed goal-transition function
 goal-updates by the manager policy. The goal transition function is 
 accordingly defined as:
 
-<p align="center"><img src="/tex/654c29af4fa190a68c05b9978154f1d9.svg?invert_in_darkmode&sanitize=true" align=middle width=492.12016424999996pt height=49.315569599999996pt/></p>
+<p align="center"><img src="/tex/30e3cd0420432be1c70aabbcd0ae9dd2.svg?invert_in_darkmode&sanitize=true" align=middle width=281.99380605pt height=49.315569599999996pt/></p>
 
 where <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> is the `meta_period`.
 
