@@ -179,9 +179,9 @@ parameter. The input parameters to this policy are as follows:
 The modifiable parameters of this policy are as follows:
 
 * **sess** (tf.compat.v1.Session) : the current TensorFlow session
-* **ob_space** (gym.space.*) : the observation space of the environment
-* **ac_space** (gym.space.*) : the action space of the environment
-* **co_space** (gym.space.*) : the context space of the environment
+* **ob_space** (gym.spaces.*) : the observation space of the environment
+* **ac_space** (gym.spaces.*) : the action space of the environment
+* **co_space** (gym.spaces.*) : the context space of the environment
 * **buffer_size** (int) : the max number of transitions to store
 * **batch_size** (int) : SGD batch size
 * **actor_lr** (float) : actor learning rate
@@ -300,11 +300,11 @@ significant affect on the training performance of both the Manager and
 Worker policies. Currently, this repository only support one intrinsic 
 reward function: negative distance. This is of the form:
 
-$$r_w(s_t, g_t, s_{t+1}) = ||g_t - s_{t+1}||_2$$
+$$r_w(s_t, g_t, s_{t+1}) = -||g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to False, and
 
-$$r_w(s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||_2$$
+$$r_w(s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2$$
 
 if `relative_goals` is set to True. This attribute is described in the 
 next section.

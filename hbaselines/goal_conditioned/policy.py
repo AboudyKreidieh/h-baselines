@@ -24,11 +24,11 @@ class ActorCriticPolicy(object):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     """
 
@@ -39,11 +39,11 @@ class ActorCriticPolicy(object):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         """
         self.sess = sess
@@ -146,11 +146,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
     ----------
     sess : tf.compat.v1.Session
         the current TensorFlow session
-    ob_space : gym.space.*
+    ob_space : gym.spaces.*
         the observation space of the environment
-    ac_space : gym.space.*
+    ac_space : gym.spaces.*
         the action space of the environment
-    co_space : gym.space.*
+    co_space : gym.spaces.*
         the context space of the environment
     buffer_size : int
         the max number of transitions to store
@@ -181,7 +181,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         clipping term for the noise injected in the target actor policy
     layer_norm : bool
         enable layer normalisation
-    activ : tf.nn.*
+    act_fun : tf.nn.*
         the activation function to use in the neural network
     use_huber : bool
         specifies whether to use the huber distance function as the loss for
@@ -259,11 +259,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
@@ -328,7 +328,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.target_policy_noise = np.array([ac_mag * target_policy_noise])
         self.target_noise_clip = np.array([ac_mag * target_noise_clip])
         self.layer_norm = layer_norm
-        self.activ = act_fun
+        self.act_fun = act_fun
         self.use_huber = use_huber
         self.use_fingerprints = use_fingerprints
         self.zero_fingerprint = zero_fingerprint
@@ -570,7 +570,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 if self.layer_norm:
                     pi_h = tf.contrib.layers.layer_norm(
                         pi_h, center=True, scale=True)
-                pi_h = self.activ(pi_h)
+                pi_h = self.act_fun(pi_h)
 
             # create the output layer
             policy = tf.nn.tanh(tf.layers.dense(
@@ -631,7 +631,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 if self.layer_norm:
                     qf_h = tf.contrib.layers.layer_norm(
                         qf_h, center=True, scale=True)
-                qf_h = self.activ(qf_h)
+                qf_h = self.act_fun(qf_h)
 
             # create the output layer
             qvalue_fn = tf.layers.dense(
@@ -871,7 +871,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
     This network consists of a high-level, or Manager, pi_{\theta_H} that
-    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every meta_period
+    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every `meta_period`
     time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
     current state and the assigned goals and attempts to perform an action
     a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
@@ -885,7 +885,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
-    and the goal observation: r_L (s_t, g_t, s_{t+1}) = ||s_t + g_t - s_{t+1}||
+    and the goal observation:
+    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||
 
     Bibliography:
 
@@ -921,7 +922,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
-        and Worker critic functions
+        critic functions
     connected_gradients : bool
         whether to connect the graph between the manager and worker
     cg_weights : float
@@ -978,11 +979,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.space.*
+        ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.space.*
+        ac_space : gym.spaces.*
             the action space of the environment
-        co_space : gym.space.*
+        co_space : gym.spaces.*
             the context space of the environment
         buffer_size : int
             the max number of transitions to store
