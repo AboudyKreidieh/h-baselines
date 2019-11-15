@@ -9,6 +9,7 @@ from hbaselines.goal_conditioned.policy import ActorCriticPolicy
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.tf_util import get_target_updates
+from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.multi_goal_conditioned.replay_buffer import MultiReplayBuffer
 from hbaselines.utils.misc import get_manager_ac_space
 
@@ -804,9 +805,47 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
 
-    def _setup_stats(self, scope):
-        """TODO."""
-        return None, None  # TODO
+    def _setup_stats(self, base):
+        """Create the running means and std of the model inputs and outputs.
+
+        This method also adds the same running means and stds as scalars to
+        tensorboard for additional storage.
+        """
+        base = base or "Model"
+        ops = []
+        names = []
+
+        ops += [tf.reduce_mean(self.central_q[0])]
+        names += ['{}/reference_Q1_mean'.format(base)]
+        ops += [reduce_std(self.central_q[0])]
+        names += ['{}/reference_Q1_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.central_q[1])]
+        names += ['{}/reference_Q2_mean'.format(base)]
+        ops += [reduce_std(self.central_q[1])]
+        names += ['{}/reference_Q2_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.central_q_with_actors[0])]
+        names += ['{}/reference_actor_Q1_mean'.format(base)]
+        ops += [reduce_std(self.central_q_with_actors[0])]
+        names += ['{}/reference_actor_Q1_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.central_q_with_actors[1])]
+        names += ['{}/reference_actor_Q2_mean'.format(base)]
+        ops += [reduce_std(self.central_q_with_actors[1])]
+        names += ['{}/reference_actor_Q2_std'.format(base)]
+
+        for i, agent in enumerate(self.agents):
+            ops += [tf.reduce_mean(agent)]
+            names += ['{}/reference_action_{}_mean'.format(base, i)]
+            ops += [reduce_std(agent)]
+            names += ['{}/reference_action_{}_std'.format(base, i)]
+
+        # Add all names and ops to the tensorboard summary.
+        for op, name in zip(ops, names):
+            tf.compat.v1.summary.scalar(name, op)
+
+        return ops, names
 
     def initialize(self):
         """Initialize the policy.
