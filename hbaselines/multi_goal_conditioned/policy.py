@@ -43,11 +43,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       trained under this setting.
 
       >>> from hbaselines.goal_conditioned import TD3
-      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
       >>>
       >>> alg = TD3(
       >>>     policy=MultiFeedForwardPolicy,
-      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "centralized_vfs": False,
       >>>     }
@@ -59,11 +58,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       `centralized_vfs` attributes to True:
 
       >>> from hbaselines.goal_conditioned import TD3
-      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
       >>>
       >>> alg = TD3(
       >>>     policy=MultiFeedForwardPolicy,
-      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
       >>>         "centralized_vfs": True,
@@ -76,11 +74,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       False and the `centralized_vfs` attribute to True:
 
       >>> from hbaselines.goal_conditioned import TD3
-      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
       >>>
       >>> alg = TD3(
       >>>     policy=MultiFeedForwardPolicy,
-      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
       >>>         "centralized_vfs": False,
@@ -143,12 +140,69 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     replay_buffer : MultiReplayBuffer
         a centralized replay buffer object. Used only when `centralized_vfs` is
         set to True.
-    agents : dict of FeedForwardPolicy
-        Policy for each agent in the network.
-    central_q : TODO
-        TODO
-    optimizer : TODO
-        TODO
+    obs0_ph : list of tf.compat.v1.placeholder
+        placeholder for the observations. A separate placeholder is stored for
+        all agents, to account for the centralized training procedure. Used
+        only when `centralized_vfs` is set to True.
+    obs1_ph : list of tf.compat.v1.placeholder
+        placeholder for the next step observations. A separate placeholder is
+        stored for all agents, to account for the centralized training
+        procedure. Used only when `centralized_vfs` is set to True.
+    action_ph : tf.compat.v1.placeholder
+        placeholder for the actions. A separate placeholder is stored for all
+        agents, to account for the centralized training procedure. Used only
+        when `centralized_vfs` is set to True.
+    critic_target : tf.compat.v1.placeholder
+        a placeholder for the current-step estimate of the target Q values.
+        Used only when `centralized_vfs` is set to True.
+    terminals1 : tf.compat.v1.placeholder
+        placeholder for the next step terminals. Used only when
+        `centralized_vfs` is set to True.
+    rew_ph : tf.compat.v1.placeholder
+        placeholder for the rewards. Used only when `centralized_vfs` is set to
+        True.
+    all_obs0_ph : tf.compat.v1.placeholder
+        placeholder for the current full-state observations. Used only when
+        `centralized_vfs` is set to True.
+    all_obs1_ph : tf.compat.v1.placeholder
+        placeholder for the next step full-state observations. Used only when
+        `centralized_vfs` is set to True.
+    agents : dict of FeedForwardPolicy or list of tf.Variable
+        Actor policy for each agent in the network. If centralized value
+        functions are being used, these variables are created within the
+        policy. Otherwise the `FeedForwardPolicy` is used and stored here.
+        Under the latter cases, this variable also stores the critics.
+    replay_buffer : MultiReplayBuffer
+        A replay buffer that supports storing full-state observations. Used
+        only when `centralized_vfs` is set to True.
+    central_q : tf.Variable
+        the output from the critic network. Used only when `centralized_vfs` is
+        set to True.
+    central_q_with_actors : tf.Variable
+        the output from the critic network with the action provided directly by
+        the actor policies. Used only when `centralized_vfs` is set to True.
+    target_q : tf.Variable
+        the Q-value as estimated by the current reward and next step estimate
+        by the target Q-value. Used only when `centralized_vfs` is set to True.
+    target_init_updates : tf.Operation
+        an operation that sets the values of the trainable parameters of the
+        target actor/critic to match those actual actor/critic. Used only when
+        `centralized_vfs` is set to True.
+    target_soft_updates : tf.Operation
+        soft target update function. Used only when `centralized_vfs` is set to
+        True.
+    actor_loss : tf.Operation
+        the operation that returns the loss of the actors. Used only when
+        `centralized_vfs` is set to True.
+    actor_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the actors. Used
+        only when `centralized_vfs` is set to True.
+    critic_loss : tf.Operation
+        the operation that returns the loss of the critic. Used only when
+        `centralized_vfs` is set to True.
+    critic_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the critic. Used
+        only when `centralized_vfs` is set to True.
     """
 
     def __init__(self,
@@ -176,7 +230,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  scope=None,
                  use_fingerprints=False,
                  zero_fingerprint=False):
-        """Instantiate the multiagent feed-forward neural network policy.
+        """Instantiate the multi-agent feed-forward neural network policy.
 
         Parameters
         ----------
@@ -259,11 +313,25 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.centralized_vfs = centralized_vfs
 
         # variables that are defined by the _setup* procedures
-        self.replay_buffer = None
+        self.obs0_ph = None
+        self.obs1_ph = None
+        self.action_ph = None
+        self.critic_target = None
+        self.terminals1 = None
+        self.rew_ph = None
+        self.all_obs0_ph = None
+        self.all_obs1_ph = None
         self.agents = None
+        self.replay_buffer = None
         self.central_q = None
-        self.optimizer = None
-        # TODO: add attributes
+        self.central_q_with_actors = None
+        self.target_q = None
+        self.target_init_updates = None
+        self.target_soft_updates = None
+        self.actor_loss = None
+        self.actor_optimizer = None
+        self.critic_loss = None
+        self.critic_optimizer = None
 
         # Setup the agents and the necessary objects and operations needed to
         # support the training procedure.
@@ -402,8 +470,8 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # =============================================================== #
 
             with tf.compat.v1.variable_scope("input", reuse=False):
-                self.obs1_ph = []
                 self.obs0_ph = []
+                self.obs1_ph = []
                 self.action_ph = []
                 for i, agent_id in enumerate(sorted(self.ob_space.keys())):
                     self.obs1_ph.append(tf.compat.v1.placeholder(
@@ -1134,6 +1202,7 @@ class MultiGoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # Create the replay buffer.
+        # TODO
 
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
