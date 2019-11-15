@@ -99,14 +99,14 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, action, **kwargs):
         """Call the critic methods to compute the value.
 
         Parameters
         ----------
         obs : array_like
             the observation
-        action : array_like, optional
+        action : array_like
             the actions performed in the given observation
 
         Returns
@@ -765,7 +765,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, action, **kwargs):
         """See parent class."""
         # Add the contextual observation, if applicable.
         context_obs = kwargs.get("context_obs")
@@ -1317,7 +1317,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return worker_action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, action, **kwargs):
         """See parent class."""
         return 0, 0  # FIXME
 

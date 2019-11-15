@@ -301,7 +301,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.verbose = verbose
         self.tau = tau
         self.gamma = gamma
-        self.noise = noise
         self.target_policy_noise = target_policy_noise
         self.target_noise_clip = target_noise_clip
         self.layer_norm = layer_norm
@@ -312,6 +311,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.zero_fingerprint = zero_fingerprint
         self.shared = shared
         self.centralized_vfs = centralized_vfs
+
+        # Compute the noise term for the individual actors.
+        self.noise = {}
+        for key in ac_space.keys():
+            ac_mag = 0.5 * (ac_space[key].high - ac_space[key].low)
+            self.noise[key] = noise * ac_mag
 
         # variables that are defined by the _setup* procedures
         self.obs0_ph = None
@@ -875,7 +880,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             actor loss
         """
         if self.centralized_vfs:
-            self._update_cent(update_actor, **kwargs)
+            self._update_cent(update_actor)
         else:
             self._update_indp(update_actor, **kwargs)
 
@@ -908,19 +913,18 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             return self._get_action_indp(
                 obs, apply_noise, random_actions, **kwargs)
 
-    def value(self, obs, action=None, all_obs=None, **kwargs):
+    def value(self, obs, action, **kwargs):
         """Call the critic methods to compute the value.
 
         Parameters
         ----------
         obs : dict of array_like
-            the observations of the individual agents
+            the observations of the individual agents. In the case of
+            centralized value functions, this should be the full state
+            information.
         action : dict of array_like, optional
             the actions performed in the given observation for the individual
             agents
-        all_obs : array_like
-            the full state information, used by the centralized critic if
-            centralized value functions are being used
 
         Returns
         -------
@@ -930,7 +934,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             observation of the individual agents
         """
         if self.centralized_vfs:
-            self._value_cent(obs, action, all_obs, **kwargs)
+            self._value_cent(obs, action, **kwargs)
         else:
             self._value_indp(obs, action, **kwargs)
 
@@ -993,7 +997,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return actions
 
-    def _value_indp(self, obs, action=None, **kwargs):
+    def _value_indp(self, obs, action, **kwargs):
         """See value."""
         values = {}
 
@@ -1003,7 +1007,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             agent = self.agents["agent"] if self.shared else self.agents[key]
 
             # Compute the value of the provided observation.
-            values[key] = agent.value(obs[key], action, **kwargs)
+            values[key] = agent.value(obs[key], action[key], **kwargs)
 
         return values
 
@@ -1046,43 +1050,138 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """See initialize."""
         self.sess.run(self.target_init_updates)
 
-    def _update_cent(self, update_actor=True, **kwargs):
+    def _update_cent(self, update_actor=True):
         """See update."""
-        pass  # TODO
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
+            return 0, 0
+
+        # Get a batch
+        td_map = self._get_td_map_cent()
+
+        # Update operations for the critic networks.
+        step_ops = [self.critic_loss,
+                    self.critic_optimizer[0],
+                    self.critic_optimizer[1]]
+
+        if update_actor:
+            # Actor updates and target soft update operation.
+            step_ops += [self.actor_loss,
+                         self.actor_optimizer,
+                         self.target_soft_updates]
+
+        # Perform the update operations and collect the critic loss.
+        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=td_map)
+
+        # Extract the actor loss.
+        actor_loss = _vals[2] if update_actor else 0
+
+        return critic_loss, actor_loss
 
     def _get_action_cent(self, obs, apply_noise, random_actions, **kwargs):
         """See get_action."""
         actions = {}
 
         for i, key in enumerate(sorted(obs.keys())):
-            # TODO: add contextual terms, random actions, and noise
-            actions[key] = self.sess.run(
-                self.agents[i],
-                feed_dict={self.obs0_ph[i]: obs[key]}
-            )
+            if random_actions:
+                actions[key] = np.array([self.ac_space.sample()])
+            else:
+                # Add the contextual observation, if applicable.
+                context_obs = kwargs.get("context_obs")[key]
+                if context_obs[0] is not None:
+                    obs[key] = np.concatenate((obs[key], context_obs), axis=1)
+
+                # Compute the action by the policy
+                actions[key] = self.sess.run(
+                    self.agents[i],
+                    feed_dict={self.obs0_ph[i]: obs[key]}
+                )
+
+                if apply_noise:
+                    # compute noisy action
+                    if apply_noise:
+                        actions[key] += np.random.normal(
+                            0, self.noise[key], actions[key].shape)
+
+                    # clip by bounds
+                    actions[key] = np.clip(actions,
+                                           a_min=self.ac_space[key].low,
+                                           a_max=self.ac_space[key].high)
 
         return actions
 
-    def _value_cent(self, obs, action=None, all_obs=None, **kwargs):
+    def _value_cent(self, obs, action, **kwargs):
         """See value."""
-        # TODO: add contextual terms
-        feed_dict = {self.all_obs0_ph: all_obs}
-        # Add the individual observations, and potentially actions
+        # Add the contextual observation, if applicable.
+        context_obs = kwargs.get("context_obs")
+        if context_obs[0] is not None:
+            obs = np.concatenate((obs, context_obs), axis=1)
+
+        feed_dict = {self.all_obs0_ph: obs}
+        # Add the individual actions
         for i, key in enumerate(sorted(obs.keys())):
-            feed_dict[self.obs0_ph[i]] = obs[key]
-            if action is not None:
-                feed_dict[self.action_ph[i]] = action[key]
+            feed_dict[self.action_ph[i]] = action[key]
 
         return self.sess.run(self.central_q, feed_dict=feed_dict)
 
     def _store_transition_cent(self, obs0, action, reward, obs1, done,
-                               **kwargs):
+                               all_obs0, all_obs1, **kwargs):
         """See store_transition."""
-        pass  # TODO
+        # Add the contextual observation, if applicable.
+        if kwargs.get("context_obs0") is not None:
+            for key in sorted(obs0.keys()):
+                obs0[key] = np.concatenate(
+                    (obs0[key], kwargs["context_obs0"].flatten()), axis=0)
+                all_obs0 = np.concatenate(
+                    (all_obs0, kwargs["context_obs0"].flatten()), axis=0)
+
+                obs1[key] = np.concatenate(
+                    (obs1[key], kwargs["context_obs1"].flatten()), axis=0)
+                all_obs1 = np.concatenate(
+                    (all_obs1, kwargs["context_obs0"].flatten()), axis=0)
+
+        # Convert the dictionaries to lists.
+        list_obs0 = []
+        list_obs1 = []
+        list_actions = []
+        for key in sorted(obs0.keys()):
+            list_obs0.append(obs0[key])
+            list_obs1.append(obs1[key])
+            list_actions.append(action[key])
+
+        self.replay_buffer.add(list_obs0, list_actions, reward, list_obs1,
+                               float(done), all_obs0, all_obs1)
 
     def _get_td_map_cent(self):
         """See get_td_map."""
-        pass  # TODO
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
+            return {}
+
+        # Get a batch.
+        obs0, actions, rewards, obs1, terminals1, all_obs0, all_obs1 = \
+            self.replay_buffer.sample()
+
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        td_map = {
+            self.rew_ph: rewards,
+            self.terminals1: terminals1,
+            self.all_obs0_ph: all_obs0,
+            self.all_obs1_ph: all_obs1
+        }
+
+        # Add individual agent observations/actions.
+        for i in range(len(self.obs0_ph)):
+            td_map.update({
+                self.obs0_ph[i]: obs0[i],
+                self.action_ph[i]: actions[i],
+                self.obs1_ph[i]: obs1[i],
+            })
+
+        return td_map
 
 
 class MultiGoalConditionedPolicy(ActorCriticPolicy):

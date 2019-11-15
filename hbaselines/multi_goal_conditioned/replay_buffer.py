@@ -33,13 +33,14 @@ class MultiReplayBuffer(object):
                       for obs_dim_i in obs_dim]
         self.action = [np.zeros((buffer_size, ac_dim_i), dtype=np.float32)
                        for ac_dim_i in ac_dim]
-        self.reward = [np.zeros(buffer_size, dtype=np.float32)
-                       for _ in obs_dim]
+        self.reward = np.zeros(buffer_size, dtype=np.float32)
         self.obs_tp1 = [np.zeros((buffer_size, obs_dim_i), dtype=np.float32)
                         for obs_dim_i in obs_dim]
-        self.done = [np.zeros(buffer_size, dtype=np.float32)
-                     for _ in obs_dim]
-        self.all_obs_t = np.zeros((buffer_size, all_obs_dim), dtype=np.float32)
+        self.done = np.zeros(buffer_size, dtype=np.float32)
+        self.all_obs_t = np.zeros((buffer_size, all_obs_dim),
+                                  dtype=np.float32)
+        self.all_obs_tp1 = np.zeros((buffer_size, all_obs_dim),
+                                    dtype=np.float32)
 
     def __len__(self):
         """Return the number of elements stored."""
@@ -70,7 +71,14 @@ class MultiReplayBuffer(object):
         """
         return len(self) == self.buffer_size
 
-    def add(self, obs_t, action, reward, obs_tp1, done, all_obs_t):
+    def add(self,
+            obs_t,
+            action,
+            reward,
+            obs_tp1,
+            done,
+            all_obs_t,
+            all_obs_tp1):
         """Add a new transition to the buffer.
 
         Parameters
@@ -79,20 +87,25 @@ class MultiReplayBuffer(object):
             the last observation of each agent
         action : list of array_like
             the action of each agent
-        reward : list of float
-            the reward of the transition of each agent
+        reward : float
+            the shared reward of the transition
         obs_tp1 : list of array_like
             the current observation of each agent
-        done : list of float
-            is the episode done of each agent
+        done : float
+            the shared episode done mask
+        all_obs_t : array_like
+            the last full state observation
+        all_obs_tp1 : array_like
+            the current full state observation
         """
         for i in range(len(obs_t)):
             self.obs_t[i][self._next_idx, :] = obs_t[i]
             self.action[i][self._next_idx, :] = action[i]
-            self.reward[i][self._next_idx] = reward[i]
+            self.reward[self._next_idx] = reward
             self.obs_tp1[i][self._next_idx, :] = obs_tp1[i]
-            self.done[i][self._next_idx] = done[i]
+            self.done[self._next_idx] = done
         self.all_obs_t[self._next_idx, :] = all_obs_t
+        self.all_obs_tp1[self._next_idx, :] = all_obs_tp1
 
         # Increment the next index and size terms
         self._next_idx = (self._next_idx + 1) % self._maxsize
@@ -102,10 +115,11 @@ class MultiReplayBuffer(object):
         """Convert the indices to appropriate samples."""
         return [obs_t[idxes, :] for obs_t in self.obs_t], \
             [action[idxes, :] for action in self.action], \
-            [reward[idxes] for reward in self.reward], \
+            self.reward[idxes], \
             [obs_tp1[idxes, :] for obs_tp1 in self.obs_tp1], \
-            [done[idxes] for done in self.done], \
-            self.all_obs_t[idxes, :]
+            self.done[idxes], \
+            self.all_obs_t[idxes, :], \
+            self.all_obs_tp1[idxes, :]
 
     def sample(self, **_kwargs):
         """Sample a batch of experiences.
