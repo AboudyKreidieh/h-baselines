@@ -1,10 +1,14 @@
 """Script containing multiagent variants of the policies."""
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import numpy as np
+from functools import reduce
 from gym.spaces import Box
 
 from hbaselines.goal_conditioned.policy import ActorCriticPolicy
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.tf_util import get_target_updates
 from hbaselines.multi_goal_conditioned.replay_buffer import MultiReplayBuffer
 from hbaselines.utils.misc import get_manager_ac_space
 
@@ -29,7 +33,59 @@ FLOW_ENV_NAMES = [
 class MultiFeedForwardPolicy(ActorCriticPolicy):
     """Multi-agent fully connected neural network policy.
 
-    TODO: description
+    This policy supports training TD3-variants of three popular multi-agent
+    algorithms:
+
+    * Independent learners: TODO: description
+
+      To train a policy using the COMA algorithm, set the `centralized_vfs`
+      policy parameter to False. Both shared and non-shared policies can be
+      trained under this setting.
+
+      >>> from hbaselines.goal_conditioned import TD3
+      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
+      >>>
+      >>> alg = TD3(
+      >>>     policy=MultiFeedForwardPolicy,
+      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     policy_kwargs={
+      >>>         "centralized_vfs": False,
+      >>>     }
+      >>> )
+
+    * COMA: TODO: description
+
+      To train a policy using the COMA algorithm, set the `shared` and
+      `centralized_vfs` attributes to True:
+
+      >>> from hbaselines.goal_conditioned import TD3
+      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
+      >>>
+      >>> alg = TD3(
+      >>>     policy=MultiFeedForwardPolicy,
+      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     policy_kwargs={
+      >>>         "shared": True,
+      >>>         "centralized_vfs": True,
+      >>>     }
+      >>> )
+
+    * MADDPG: TODO: description
+
+      To train a policy using the COMA algorithm, set the `shared` attribute to
+      False and the `centralized_vfs` attribute to True:
+
+      >>> from hbaselines.goal_conditioned import TD3
+      >>> from hbaselines.multi_goal_conditioned import MultiFeedForwardPolicy
+      >>>
+      >>> alg = TD3(
+      >>>     policy=MultiFeedForwardPolicy,
+      >>>     env="Ant-v2",  # replace with an appropriate environment
+      >>>     policy_kwargs={
+      >>>         "shared": True,
+      >>>         "centralized_vfs": False,
+      >>>     }
+      >>> )
 
     Attributes
     ----------
@@ -117,6 +173,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  shared,
                  centralized_vfs,
                  all_ob_space,
+                 scope=None,
                  use_fingerprints=False,
                  zero_fingerprint=False):
         """Instantiate the multiagent feed-forward neural network policy.
@@ -206,11 +263,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.agents = None
         self.central_q = None
         self.optimizer = None
+        # TODO: add attributes
 
         # Setup the agents and the necessary objects and operations needed to
         # support the training procedure.
         if centralized_vfs:
-            self._setup_centralized_vfs(buffer_size, batch_size, all_ob_space)
+            self._setup_centralized_vfs(buffer_size, batch_size, all_ob_space,
+                                        scope)
         else:
             self._setup_independent_learners()
 
@@ -271,7 +330,11 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                         **policy_parameters
                     )
 
-    def _setup_centralized_vfs(self, buffer_size, batch_size, all_ob_space):
+    def _setup_centralized_vfs(self,
+                               buffer_size,
+                               batch_size,
+                               all_ob_space,
+                               scope):
         """Setup centralized value function variants of the policy.
 
         This method creates a new replay buffer object to store full state
@@ -298,6 +361,8 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         all_ob_space : gym.spaces.*
             the observation space of the full state space. Used for centralized
             value functions
+        scope : str
+            the outer scope of the policy. Used by the hierarchical policy.
         """
         # Compute the observation dimensions, taking into account the possible
         # use of contextual spaces as well.
@@ -322,81 +387,175 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         # Create the agents and optimization scheme in TensorFlow.
         if self.shared:
-            self._setup_coma(all_ob_space)
+            self._setup_coma(all_ob_space, scope)
         else:
-            self._setup_maddpg(all_ob_space)
+            self._setup_maddpg(all_ob_space, scope)
 
-    def _setup_coma(self, all_ob_space):
+    def _setup_coma(self, all_ob_space, scope):
         """Setup TD3 variant of Counterfactual Multi-Agent Policy Gradients.
 
         See: https://arxiv.org/pdf/1705.08926.pdf
         """
         with tf.compat.v1.variable_scope("cvf"):
-            # Create the relevant input placeholders
-            with tf.compat.v1.variable_scope("input"):
+            # =============================================================== #
+            # Step 1: Create input variables.                                 #
+            # =============================================================== #
+
+            with tf.compat.v1.variable_scope("input", reuse=False):
+                self.obs1_ph = []
                 self.obs0_ph = []
-                self.ac_ph = []
+                self.action_ph = []
                 for i, agent_id in enumerate(sorted(self.ob_space.keys())):
+                    self.obs1_ph.append(tf.compat.v1.placeholder(
+                        (None,) + self.ob_space[i].shape,
+                        dtype=tf.float32,
+                        name='obs0_{}'.format(i)))
                     self.obs0_ph.append(tf.compat.v1.placeholder(
                         (None,) + self.ob_space[i].shape,
-                        dtype=tf.float32))
-                    self.ac_ph.append(tf.compat.v1.placeholder(
+                        dtype=tf.float32,
+                        name='obs0_{}'.format(i)))
+                    self.action_ph.append(tf.compat.v1.placeholder(
                         (None,) + self.ac_space[i].shape,
-                        dtype=tf.float32))
+                        dtype=tf.float32,
+                        name='action_{}'.format(i)))
+                self.critic_target = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='critic_target')
+                self.terminals1 = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='terminals1')
+                self.rew_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='rewards')
                 self.all_obs0_ph = tf.compat.v1.placeholder(
                     (None,) + all_ob_space.shape,
-                    dtype=tf.float32)
+                    dtype=tf.float32,
+                    name='all_obs0')
                 self.all_obs1_ph = tf.compat.v1.placeholder(
                     (None,) + all_ob_space.shape,
-                    dtype=tf.float32)
+                    dtype=tf.float32,
+                    name='all_obs1')
+
+                # logging of rewards to tensorboard
+                tf.compat.v1.summary.scalar('rewards',
+                                            tf.reduce_mean(self.rew_ph))
+
+            # =============================================================== #
+            # Step 2: Create the actor and critic networks.                   #
+            # =============================================================== #
 
             with tf.compat.v1.variable_scope("model"):
                 # Create the agent policies.
                 self.agents = [
-                    self._make_actor(obs0, self.ac_space[i])
-                    for i, obs0 in enumerate(self.obs0_ph)
+                    self._make_actor(obs0, ac_space, reuse=tf.AUTO_REUSE)
+                    for obs0, ac_space in zip(self.obs0_ph, self.ac_space)
                 ]
 
                 # Create the centralized Q-functions.
-                self.central_q1 = self._make_centralized_critic(
-                    self.all_obs0_ph,
-                    self.ac_ph,
-                    scope="qf1"
-                )
-                self.central_q2 = self._make_centralized_critic(
-                    self.all_obs0_ph,
-                    self.ac_ph,
-                    scope="qf2"
-                )
+                self.central_q = [
+                    self._make_centralized_critic(
+                        self.all_obs0_ph,
+                        self.action_ph,
+                        scope="qf_{}".format(i)
+                    )
+                    for i in range(2)
+                ]
 
                 # Create the centralized Q-function with inputs from the
-                # actor policies of the agents. FIXME
-                central_q_with_actors = self._make_centralized_critic(
-                    self.all_obs0_ph,
-                    self.agents,
-                    scope="qf1",
-                    reuse=True
-                )
+                # actor policies of the agents.
+                self.central_q_with_actors = [
+                    self._make_centralized_critic(
+                        self.all_obs0_ph,
+                        self.agents,
+                        scope="qf_{}".format(i),
+                        reuse=True
+                    )
+                    for i in range(2)
+                ]
+
+            # =============================================================== #
+            # Step 3: Create the target actor and critic networks.            #
+            # =============================================================== #
 
             with tf.compat.v1.variable_scope("target"):
-                # Create the centralized target Q-function.
-                pass  # TODO
+                noisy_actor_target = []
+                for i in range(len(self.obs1_ph)):  # number of agents
+                    # Create the target actor policy.
+                    actor_target = self._make_actor(self.obs1_ph[i],
+                                                    self.ac_space[i])
 
-                # Create the centralized Q-function target update procedure.
-                pass  # TODO
+                    # Scale the target noise terms to match the action space.
+                    ac_space = self.ac_space[i]
+                    ac_mag = 0.5 * (ac_space.high - ac_space.low)
+                    target_policy_noise = np.array(
+                        [ac_mag * self.target_policy_noise])
+                    target_noise_clip = np.array(
+                        [ac_mag * self.target_noise_clip])
+
+                    # Smooth target policy by adding clipped noise to target
+                    # actions.
+                    target_noise = tf.random_normal(
+                        tf.shape(actor_target), stddev=target_policy_noise)
+                    target_noise = tf.clip_by_value(
+                        target_noise, -target_noise_clip, target_noise_clip)
+
+                    # Clip the noisy action to remain in the bounds and add it
+                    # to the list of target actors.
+                    noisy_actor_target.append(tf.clip_by_value(
+                        actor_target + target_noise,
+                        ac_space.low,
+                        ac_space.high
+                    ))
+
+                # Create the centralized target Q-function.
+                critic_target = [
+                    self._make_centralized_critic(
+                        self.obs1_ph,
+                        noisy_actor_target,
+                        scope="qf_{}".format(i)
+                    )
+                    for i in range(2)
+                ]
+
+                # Compute the estimate for the target centralized Q-function.
+                q_obs1 = tf.minimum(critic_target[0], critic_target[1])
+                self.target_q = tf.stop_gradient(
+                    self.rew_ph + (1. - self.terminals1) * self.gamma * q_obs1)
+
+                tf.compat.v1.summary.scalar('critic_target',
+                                            tf.reduce_mean(self.target_q))
+
+            # =============================================================== #
+            # Step 4: Setup the target updates and the optimizers for the     #
+            #         actors and centralized critic.                          #
+            # =============================================================== #
 
             with tf.compat.v1.variable_scope("train"):
-                # Create the centralized loss function.
-                pass  # TODO
+                # Create the centralized Q-function target update procedure.
+                self._setup_target_update(scope=scope)
 
-                # Create the optimizer object.
-                pass  # TODO
+                # Create the actor loss, gradient, and optimizer.
+                self._setup_actor_optimizer(scope=scope)
 
-                # Create the tensorflow operation for computing and applying
-                # the gradients to the actor policy.
-                pass  # TODO
+                # Create the critic loss, gradient, and optimizer.
+                self._setup_critic_optimizer(scope=scope)
 
-    def _setup_maddpg(self, all_ob_space):
+                # for tensorboard logging purposes
+                tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
+                tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
+
+            # =============================================================== #
+            # Step 5: Setup the operations for computing model statistics.    #
+            # =============================================================== #
+
+            # Setup the running means and standard deviations of the model
+            # inputs and outputs.
+            self.stats_ops, self.stats_names = self._setup_stats(scope)
+
+    def _setup_maddpg(self, all_ob_space, scope):
         """Setup TD3-variant of MADDPG.
 
         See: https://arxiv.org/pdf/1706.02275.pdf
@@ -410,7 +569,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         ----------
         obs : tf.compat.v1.placeholder
             the input observation placeholder
-        reuse : bool
+        reuse : bool or tf.AUTO_REUSE
             whether or not to reuse parameters
         scope : str
             the scope name of the actor
@@ -472,8 +631,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             the output from the critic
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            # concatenate the observations and actions
-            qf_h = tf.concat([obs, action], axis=-1)  # FIXME
+            # Concatenate the observations and actions. Note that, in this
+            # case, the action variable is a list of placeholders.
+            qf_h = tf.concat([obs, tf.concat(action, axis=-1)], axis=-1)
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
@@ -491,12 +651,94 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # create the output layer
             qvalue_fn = tf.layers.dense(
                 qf_h,
-                1,  # TODO: n_agents len(action)?
+                1,
                 name='qf_output',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3))
 
         return qvalue_fn
+
+    def _setup_target_update(self, scope):
+        """Create the centralized Q-function target update procedure."""
+        model_scope = 'model/'
+        target_scope = 'target/'
+        if scope is not None:
+            model_scope = scope + '/' + model_scope
+            target_scope = scope + '/' + target_scope
+        init_updates, soft_updates = get_target_updates(
+            get_trainable_vars(model_scope),
+            get_trainable_vars(target_scope),
+            self.tau, self.verbose)
+        self.target_init_updates = init_updates
+        self.target_soft_updates = soft_updates
+
+    def _setup_actor_optimizer(self, scope):
+        """Create the actor loss, gradient, and optimizer."""
+        if self.verbose >= 2:
+            print('setting up actor optimizer')
+
+        scope_name = 'model/pi/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        # compute the actor loss
+        self.actor_loss = -tf.reduce_mean(self.central_q_with_actors[0])
+
+        if self.verbose >= 2:
+            actor_shapes = [var.get_shape().as_list()
+                            for var in get_trainable_vars(scope_name)]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
+            print('  actor shapes: {}'.format(actor_shapes))
+            print('  actor params: {}'.format(actor_nb_params))
+
+        # create an optimizer object
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+
+        self.actor_optimizer = optimizer.minimize(
+            self.actor_loss,
+            var_list=get_trainable_vars(scope_name)
+        )
+
+    def _setup_critic_optimizer(self, scope):
+        """Create the critic loss, gradient, and optimizer."""
+        if self.verbose >= 2:
+            print('setting up critic optimizer')
+
+        # choose the loss function
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
+        self.critic_loss = \
+            loss_fn(self.central_q[0], self.target_q) + \
+            loss_fn(self.central_q[1], self.target_q)
+
+        self.critic_optimizer = []
+
+        for i in range(2):
+            scope_name = 'model/qf_{}/'.format(i)
+            if scope is not None:
+                scope_name = scope + '/' + scope_name
+
+            if self.verbose >= 2:
+                critic_shapes = [var.get_shape().as_list()
+                                 for var in get_trainable_vars(scope_name)]
+                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                        for shape in critic_shapes])
+                print('  critic shapes: {}'.format(critic_shapes))
+                print('  critic params: {}'.format(critic_nb_params))
+
+            # create an optimizer object
+            optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
+
+            # create the optimizer object
+            self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
+
+    def _setup_stats(self, scope):
+        """TODO."""
+        return None, None  # TODO
 
     def initialize(self):
         """Initialize the policy.
@@ -504,8 +746,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         This is used at the beginning of training by the algorithm, after the
         model parameters have been initialized.
         """
-        for key in self.agents.keys():
-            self.agents[key].initialize()
+        if self.centralized_vfs:
+            self._initialize_cent()
+        else:
+            self._initialize_indp()
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
@@ -524,11 +768,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             actor loss
         """
         if self.centralized_vfs:
-            pass
+            self._update_cent(update_actor, **kwargs)
         else:
-            # Perform independent learners training procedure.
-            for key in self.agents.keys():
-                self.agents[key].update(update_actor, **kwargs)
+            self._update_indp(update_actor, **kwargs)
 
     def get_action(self, obs, apply_noise, random_actions, **kwargs):
         """Call the actor methods to compute policy actions.
@@ -548,10 +790,89 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        dict array_like
+        dict of array_like
             computed action by the policy for each observation. The output key
             match the input keys
         """
+        if self.centralized_vfs:
+            return self._get_action_cent(
+                obs, apply_noise, random_actions, **kwargs)
+        else:
+            return self._get_action_indp(
+                obs, apply_noise, random_actions, **kwargs)
+
+    def value(self, obs, action=None, all_obs=None, **kwargs):
+        """Call the critic methods to compute the value.
+
+        Parameters
+        ----------
+        obs : dict of array_like
+            the observations of the individual agents
+        action : dict of array_like, optional
+            the actions performed in the given observation for the individual
+            agents
+        all_obs : array_like
+            the full state information, used by the centralized critic if
+            centralized value functions are being used
+
+        Returns
+        -------
+        array_like or dict of array_like
+            computed value by the centralized critic if centralized value
+            functions are being used; otherwise the value associated with the
+            observation of the individual agents
+        """
+        if self.centralized_vfs:
+            self._value_cent(obs, action, all_obs, **kwargs)
+        else:
+            self._value_indp(obs, action, **kwargs)
+
+    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+        """Store a transition in the replay buffer.
+
+        Parameters
+        ----------
+        obs0 : dict of array_like
+            the last observation for each agent
+        action : dict of array_like
+            the dict of action for each agent
+        reward : float ro dict of float
+            the reward for each agent. A single reward if the policy is shared.
+        obs1 : dict of array_like
+            the current observation for each agent
+        done : dict of float
+            is the episode done for each agent
+        """
+        if self.centralized_vfs:
+            self._store_transition_cent(
+                obs0, action, reward, obs1, done, **kwargs)
+        else:
+            self._store_transition_indp(
+                obs0, action, reward, obs1, done, **kwargs)
+
+    def get_td_map(self):
+        """Return dict map for the summary (to be run in the algorithm)."""
+        if self.centralized_vfs:
+            return self._get_td_map_cent()
+        else:
+            return self._get_td_map_indp()
+
+    # ======================================================================= #
+    #       Independent learners version of required abstract methods.        #
+    # ======================================================================= #
+
+    def _initialize_indp(self):
+        """See initialize."""
+        for key in self.agents.keys():
+            self.agents[key].initialize()
+
+    def _update_indp(self, update_actor=True, **kwargs):
+        """See update."""
+        for key in self.agents.keys():
+            self.agents[key].update(update_actor, **kwargs)
+
+    def _get_action_indp(self, obs, apply_noise, random_actions, **kwargs):
+        """See get_action."""
         actions = {}
 
         for key in obs.keys():
@@ -565,21 +886,8 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return actions
 
-    def value(self, obs, action=None, **kwargs):
-        """Call the critic methods to compute the value.
-
-        Parameters
-        ----------
-        obs : array_like
-            the observation
-        action : array_like, optional
-            the actions performed in the given observation
-
-        Returns
-        -------
-        array_like
-            computed value by the critic
-        """
+    def _value_indp(self, obs, action=None, **kwargs):
+        """See value."""
         values = {}
 
         for key in obs.keys():
@@ -592,39 +900,29 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return values
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
-        """Store a transition in the replay buffer.
-
-        Parameters
-        ----------
-        obs0 : dict of array_like
-            the last observation
-        action : dict of array_like
-            the dict of action
-        reward : dict of float
-            the reward
-        obs1 : dict of array_like
-            the current observation
-        done : dict of float
-            is the episode done
-        """
+    def _store_transition_indp(self, obs0, action, reward, obs1, done,
+                               **kwargs):
+        """See store_transition."""
         for key in obs0.keys():
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["agent"] if self.shared else self.agents[key]
 
+            # Collect variables that might be shared across agents.
+            agent_reward = reward if self.shared else reward[key]
+
             # Store the individual samples.
             agent.store_transition(
                 obs0=obs0[key],
                 action=action[key],
-                reward=reward[key],
+                reward=agent_reward,
                 obs1=obs1[key],
                 done=done[key],
                 **kwargs
             )
 
-    def get_td_map(self):
-        """Return dict map for the summary (to be run in the algorithm)."""
+    def _get_td_map_indp(self):
+        """See get_td_map."""
         combines_td_maps = {}
 
         for key in self.agents.keys():
@@ -632,6 +930,52 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             combines_td_maps.update(self.agents[key].get_td_map())
 
         return combines_td_maps
+
+    # ======================================================================= #
+    #    Centralized value function version of required abstract methods.     #
+    # ======================================================================= #
+
+    def _initialize_cent(self):
+        """See initialize."""
+        self.sess.run(self.target_init_updates)
+
+    def _update_cent(self, update_actor=True, **kwargs):
+        """See update."""
+        pass  # TODO
+
+    def _get_action_cent(self, obs, apply_noise, random_actions, **kwargs):
+        """See get_action."""
+        actions = {}
+
+        for i, key in enumerate(sorted(obs.keys())):
+            # TODO: add contextual terms, random actions, and noise
+            actions[key] = self.sess.run(
+                self.agents[i],
+                feed_dict={self.obs0_ph[i]: obs[key]}
+            )
+
+        return actions
+
+    def _value_cent(self, obs, action=None, all_obs=None, **kwargs):
+        """See value."""
+        # TODO: add contextual terms
+        feed_dict = {self.all_obs0_ph: all_obs}
+        # Add the individual observations, and potentially actions
+        for i, key in enumerate(sorted(obs.keys())):
+            feed_dict[self.obs0_ph[i]] = obs[key]
+            if action is not None:
+                feed_dict[self.action_ph[i]] = action[key]
+
+        return self.sess.run(self.central_q, feed_dict=feed_dict)
+
+    def _store_transition_cent(self, obs0, action, reward, obs1, done,
+                               **kwargs):
+        """See store_transition."""
+        pass  # TODO
+
+    def _get_td_map_cent(self):
+        """See get_td_map."""
+        pass  # TODO
 
 
 class MultiGoalConditionedPolicy(ActorCriticPolicy):

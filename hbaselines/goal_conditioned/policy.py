@@ -414,7 +414,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target_noise = tf.clip_by_value(
                 target_noise, -self.target_noise_clip, self.target_noise_clip)
 
-            # clip the noisy action to remain in the bounds [-1, 1]
+            # clip the noisy action to remain in the bounds
             noisy_actor_target = tf.clip_by_value(
                 actor_target + target_noise,
                 self.ac_space.low,
