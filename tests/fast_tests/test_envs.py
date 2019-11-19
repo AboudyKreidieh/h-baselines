@@ -315,6 +315,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create the environment with multiple automated vehicles
@@ -329,6 +331,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
     def test_multi_agent_ring(self):
@@ -344,6 +348,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create the environment with multiple automated vehicles
@@ -358,6 +364,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
     def test_single_agent_figure_eight(self):
@@ -373,6 +381,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create the environment with multiple automated vehicles
@@ -387,6 +397,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
     def test_multi_agent_figure_eight(self):
@@ -402,6 +414,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create the environment with multiple automated vehicles
@@ -416,6 +430,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
     def test_single_agent_merge(self):
@@ -431,6 +447,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create version 1 of the environment
@@ -445,6 +463,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
         # create version 2 of the environment
@@ -459,6 +479,8 @@ class TestMixedAutonomy(unittest.TestCase):
         )
         env.reset()
 
+        # kill the environment
+        env.wrapped_env.terminate()
         del env  # TODO
 
     # def test_multi_agent_merge(self):
@@ -474,6 +496,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #     )
     #     env.reset()
     #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
     #     del env  # TODO
     #
     #     # create version 1 of the environment
@@ -488,6 +512,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #     )
     #     env.reset()
     #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
     #     del env  # TODO
     #
     #     # create version 2 of the environment
@@ -502,6 +528,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #     )
     #     env.reset()
     #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
     #     del env  # TODO
 
 

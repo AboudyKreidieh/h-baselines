@@ -118,20 +118,20 @@ def get_flow_params(exp_num=1,
         veh_type="human",
         edge="inflow_highway",
         vehs_per_hour=(1 - rl_penetration) * flow_rate,
-        departLane="free",
-        departSpeed=10)
+        depart_lane="free",
+        depart_speed=10)
     inflow.add(
         veh_type="rl",
         edge="inflow_highway",
         vehs_per_hour=rl_penetration * flow_rate,
-        departLane="free",
-        departSpeed=10)
+        depart_lane="free",
+        depart_speed=10)
     inflow.add(
         veh_type="human",
         edge="inflow_merge",
         vehs_per_hour=100,
-        departLane="free",
-        departSpeed=7.5)
+        depart_lane="free",
+        depart_speed=7.5)
 
     return dict(
         # name of the experiment
