@@ -1,18 +1,14 @@
 """TensorFlow utility methods."""
 import tensorflow as tf
-import os
-import multiprocessing
 
 
-def make_session(num_cpu=None, make_default=False, graph=None):
+def make_session(num_cpu, graph=None):
     """Return a session that will use <num_cpu> CPU's only.
 
     Parameters
     ----------
     num_cpu : int
         number of CPUs to use for TensorFlow
-    make_default : bool
-        if this should return an InteractiveSession or a normal Session
     graph : tf.Graph
         the graph of the session
 
@@ -21,18 +17,13 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     tf.compat.v1.Session
         a tensorflow session
     """
-    if num_cpu is None:
-        num_cpu = int(os.getenv("RCALL_NUM_CPU", multiprocessing.cpu_count()))
     tf_config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True,
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
     # Prevent tensorflow from taking all the gpu memory
     tf_config.gpu_options.allow_growth = True
-    if make_default:
-        return tf.InteractiveSession(config=tf_config, graph=graph)
-    else:
-        return tf.compat.v1.Session(config=tf_config, graph=graph)
+    return tf.compat.v1.Session(config=tf_config, graph=graph)
 
 
 def get_trainable_vars(name=None):
