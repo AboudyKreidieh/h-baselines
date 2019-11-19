@@ -21,8 +21,10 @@ def get_manager_ac_space(ob_space,
                          use_fingerprints,
                          fingerprint_dim):
     """Compute the action space for the Manager.
+
     If the fingerprint terms are being appended onto the observations, this
     should be removed from the action space.
+
     Parameters
     ----------
     ob_space : gym.spaces.*
@@ -38,6 +40,7 @@ def get_manager_ac_space(ob_space,
         observations
     fingerprint_dim : tuple of int
         the shape of the fingerprint elements, if they are being used
+
     Returns
     -------
     gym.spaces.Box
