@@ -32,6 +32,11 @@ def get_flow_params(num_automated=1,
     402m. The network contains a total of 14 vehicles. We study various levels
     of mixed-autonomy.
 
+    This benchmark is adapted from the following article:
+
+    Vinitsky, Eugene, et al. "Benchmarks for reinforcement learning in
+    mixed-autonomy traffic." Conference on Robot Learning. 2018.
+
     Parameters
     ----------
     num_automated : int

@@ -19,7 +19,17 @@ def get_flow_params(num_automated=1,
                     multiagent=False):
     """Return the flow-specific parameters of the ring road network.
 
-    TODO: description
+    This scenario consists of 21 human-driven vehicles and one automated
+    vehicle placed on a sing-lane circular track whose length is varied for
+    values ranging between 220m and 270m (uniformly sampled). In the absence of
+    the automated vehicle, the 22 human-driven vehicles exhibit stop-and-go
+    instabilities brought about by the string-unstable characteristic of human
+    car-following dynamics.
+
+    This benchmark is adapted from the following article:
+
+    Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy in
+    Traffic." arXiv preprint arXiv:1710.05465 (2017).
 
     Parameters
     ----------
