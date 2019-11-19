@@ -1,7 +1,7 @@
 import gym
 from flow.utils.registry import make_create_env
 
-# from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
+from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
 from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
     as figure_eight
