@@ -16,7 +16,8 @@ class FlowEnv(gym.Env):
     """
 
     def __init__(self, env_name, env_params=None):
-        """
+        """Create the environment.
+
         Parameters
         ----------
         env_name : str
