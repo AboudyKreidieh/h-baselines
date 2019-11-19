@@ -25,7 +25,7 @@ install:
   - git clone https://github.com/flow-project/flow
   - pushd flow
   - pip install -e .
-  - .scripts/setup_sumo_ubuntu1604.sh
+  - ./scripts/setup_sumo_ubuntu1604.sh
   - source ~/.bashrc
   - popd
   - popd
