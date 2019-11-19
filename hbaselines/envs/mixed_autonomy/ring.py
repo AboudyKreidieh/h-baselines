@@ -111,14 +111,14 @@ def get_flow_params(num_automated=1,
 
         # sumo-related parameters (see flow.core.params.SumoParams)
         sim=SumoParams(
-            sim_step=0.1,
+            sim_step=0.2,
             render=False,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
             horizon=horizon,
-            warmup_steps=750,
+            warmup_steps=1500,
             clip_actions=False,
             additional_params={
                 "max_accel": MAX_ACCEL,
@@ -135,7 +135,8 @@ def get_flow_params(num_automated=1,
                 "lanes": 1,
                 "speed_limit": 30,
                 "resolution": 40,
-            }, ),
+            },
+        ),
 
         # vehicles to be placed in the network at the start of a rollout (see
         # flow.core.params.VehicleParams)

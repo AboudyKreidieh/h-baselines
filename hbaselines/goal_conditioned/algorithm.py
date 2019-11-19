@@ -22,6 +22,7 @@ from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 from hbaselines.utils.misc import ensure_dir
 try:
     from flow.utils.registry import make_create_env
+    from hbaselines.envs.mixed_autonomy import FlowEnv
 except (ImportError, ModuleNotFoundError):
     pass
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
@@ -61,7 +62,7 @@ FEEDFORWARD_PARAMS = dict(
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
-    layers=None,
+    layers=[256, 256],
     # the activation function to use in the neural network
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
@@ -444,6 +445,15 @@ class TD3(object):
 
             # Create the environment.
             env = create_env()
+
+        elif env == "ring":
+            env = FlowEnv("ring")
+
+        elif env == "merge":
+            env = FlowEnv("merge")
+
+        elif env == "figure_eight":
+            env = FlowEnv("figure_eight")
 
         elif isinstance(env, str):
             # This is assuming the environment is registered with OpenAI gym.
