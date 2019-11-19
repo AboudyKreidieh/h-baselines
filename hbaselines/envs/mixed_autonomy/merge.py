@@ -1,6 +1,9 @@
 """Open merge example."""
 from flow.envs import MergePOEnv
-from flow.envs.multiagent import MultiMergePOEnv
+try:
+    from flow.envs.multiagent import MultiMergePOEnv
+except (ImportError, ModuleNotFoundError):
+    MultiMergePOEnv = object  # TODO: remove once I have an environment
 from flow.networks import MergeNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import InFlows, SumoCarFollowingParams
