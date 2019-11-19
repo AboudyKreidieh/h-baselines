@@ -110,3 +110,61 @@ def get_manager_ac_space(ob_space,
             manager_ac_space = ob_space
 
     return manager_ac_space
+
+
+def get_state_indices(ob_space,
+                      env_name,
+                      use_fingerprints,
+                      fingerprint_dim):
+    """Return the state indices for the worker rewards.
+
+    This assigns the indices of the state that are assigned goals, and
+    subsequently rewarded for performing those goals.
+
+    Parameters
+    ----------
+    ob_space : gym.spaces.*
+        the observation space of the environment
+    env_name : str
+        the name of the environment. Used for special cases to assign the
+        Manager action space to only ego observations in the observation space.
+    use_fingerprints : bool
+        specifies whether to add a time-dependent fingerprint to the
+        observations
+    fingerprint_dim : tuple of int
+        the shape of the fingerprint elements, if they are being used
+
+    Returns
+    -------
+    list of int
+        the state indices that are assigned goals
+    """
+    # remove the last element to compute the reward FIXME
+    if use_fingerprints:
+        state_indices = list(np.arange(
+            0, ob_space.shape[0] - fingerprint_dim[0]))
+    else:
+        state_indices = None
+
+    if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
+        state_indices = list(np.arange(0, 15))
+    elif env_name == "UR5":
+        state_indices = None
+    elif env_name == "Pendulum":
+        state_indices = [0, 2]
+    elif env_name in ["ring0", "ring1"]:
+        state_indices = [0]
+    elif env_name == "figureeight0":
+        state_indices = [13]
+    elif env_name == "figureeight1":
+        state_indices = [i for i in range(1, 14, 2)]
+    elif env_name == "figureeight2":
+        state_indices = [i for i in range(14)]
+    elif env_name == "merge0":
+        state_indices = [5 * i for i in range(5)]
+    elif env_name == "merge1":
+        state_indices = [5 * i for i in range(13)]
+    elif env_name == "merge2":
+        state_indices = [5 * i for i in range(17)]
+
+    return state_indices

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space
+from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
 from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
@@ -366,6 +366,115 @@ class TestMisc(unittest.TestCase):
         # test for bottleneck2
         ac_space = get_manager_ac_space(env_name="bottleneck2", **params)
         del ac_space  # TODO
+
+    def test_state_indices(self):
+        # non-relevant parameters for most tests
+        params = dict(
+            ob_space=None,
+            use_fingerprints=False,
+            fingerprint_dim=1,
+        )
+
+        # test for AntMaze
+        self.assertListEqual(
+            get_state_indices(env_name="AntMaze", **params),
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        )
+
+        # test for AntGather
+        self.assertListEqual(
+            get_state_indices(env_name="AntGather", **params),
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        )
+
+        # test for AntPush
+        self.assertListEqual(
+            get_state_indices(env_name="AntPush", **params),
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        )
+
+        # test for AntFall
+        self.assertListEqual(
+            get_state_indices(env_name="AntFall", **params),
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        )
+
+        # test for UR5
+        self.assertIsNone(get_state_indices(env_name="UR5", **params))
+
+        # test for Pendulum
+        self.assertListEqual(
+            get_state_indices(env_name="Pendulum", **params),
+            [0, 2]
+        )
+
+        # test for ring0
+        self.assertListEqual(
+            get_state_indices(env_name="ring0", **params),
+            [0]
+        )
+
+        # test for ring1
+        self.assertListEqual(
+            get_state_indices(env_name="ring1", **params),
+            [0]
+        )
+
+        # test for merge0
+        self.assertListEqual(
+            get_state_indices(env_name="merge0", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for merge1
+        self.assertListEqual(
+            get_state_indices(env_name="merge1", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]
+        )
+
+        # test for merge2
+        self.assertListEqual(
+            get_state_indices(env_name="merge2", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]
+        )
+
+        # test for figureeight0
+        self.assertListEqual(
+            get_state_indices(env_name="figureeight0", **params),
+            [13]  # FIXME: correct?
+        )
+
+        # test for figureeight1
+        self.assertListEqual(
+            get_state_indices(env_name="figureeight1", **params),
+            [1, 3, 5, 7, 9, 11, 13]  # FIXME: correct?
+        )
+
+        # test for figureeight2
+        self.assertListEqual(
+            get_state_indices(env_name="figureeight2", **params),
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        )
+
+        # test for grid0
+        state_indices = get_state_indices(env_name="grid0", **params)
+        del state_indices  # TODO
+
+        # test for grid1
+        state_indices = get_state_indices(env_name="grid1", **params)
+        del state_indices  # TODO
+
+        # test for bottleneck0
+        state_indices = get_state_indices(env_name="bottleneck0", **params)
+        del state_indices  # TODO
+
+        # test for bottleneck1
+        state_indices = get_state_indices(env_name="bottleneck1", **params)
+        del state_indices  # TODO
+
+        # test for bottleneck2
+        state_indices = get_state_indices(env_name="bottleneck2", **params)
+        del state_indices  # TODO
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):
