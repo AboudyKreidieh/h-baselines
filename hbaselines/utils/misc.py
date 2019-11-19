@@ -63,6 +63,11 @@ def get_manager_ac_space(ob_space,
             high=np.array([np.pi, 15]),
             dtype=np.float32
         )
+    elif env_name in ["ring0", "ring1"]:
+        if relative_goals:
+            manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
+        else:
+            manager_ac_space = Box(0, 1, shape=(1,), dtype=np.float32)
     elif env_name == "figureeight0":
         if relative_goals:
             manager_ac_space = Box(-.5, .5, shape=(1,), dtype=np.float32)
