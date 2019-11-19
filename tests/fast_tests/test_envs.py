@@ -8,6 +8,7 @@ from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
+from hbaselines.envs.mixed_autonomy import FlowEnv
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -296,6 +297,212 @@ class TestPendulum(unittest.TestCase):
 
     def test_display_subgoal(self):
         pass
+
+
+class TestMixedAutonomy(unittest.TestCase):
+    """Test the functionality of features in envs/mixed_autonomy."""
+
+    def test_single_agent_ring(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 4,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+    def test_multi_agent_ring(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 4,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+    def test_single_agent_figure_eight(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 14,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+    def test_multi_agent_figure_eight(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 14,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+    def test_single_agent_merge(self):
+        # create version 0 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 0,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create version 1 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 1,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+        # create version 2 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 2,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            }
+        )
+        env.reset()
+
+        del env  # TODO
+
+    # def test_multi_agent_merge(self):
+    #     # create version 0 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 0,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         }
+    #     )
+    #     env.reset()
+    #
+    #     del env  # TODO
+    #
+    #     # create version 1 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 1,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         }
+    #     )
+    #     env.reset()
+    #
+    #     del env  # TODO
+    #
+    #     # create version 2 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 2,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         }
+    #     )
+    #     env.reset()
+    #
+    #     del env  # TODO
 
 
 if __name__ == '__main__':

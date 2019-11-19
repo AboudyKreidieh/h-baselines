@@ -13,6 +13,14 @@ class FlowEnv(gym.Env):
     The original environments are wrapped by an additional environment that
     accounts for return done values of True when the time horizon is met.
 
+    Attributes
+    ----------
+    wrapped_env : flow.envs.Env
+        the original Flow environment
+    step_number : int
+        number of steps taken in the current rollout
+    horizon : int
+        the environment's time horizon
     """
 
     def __init__(self, env_name, env_params=None):
@@ -80,7 +88,7 @@ class FlowEnv(gym.Env):
 
         return obs, reward, done, info_dict
 
-    def reset(self, also_wrapped=True):
+    def reset(self):
         """Reset the environment."""
         self.step_number = 0
         return self.wrapped_env.reset()

@@ -74,8 +74,10 @@ def get_flow_params(exp_num=1,
     Raises
     ------
     AssertionError
-        if the `exp_num` parameter is a value other than 1, 2, or 3
+        if the `exp_num` parameter is a value other than 0, 1, or 2
     """
+    assert exp_num in [0, 1, 2], "exp_num must be 0, 1, or 2"
+
     # inflow rate at the highway
     flow_rate = 2000
     # percent of autonomous vehicles
