@@ -8,8 +8,8 @@ import gym
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
-except (ImportError, ModuleNotFoundError):
-    pass
+except (ImportError, ModuleNotFoundError):  # pragma: no cover
+    pass  # pragma: no cover
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
 try:
