@@ -486,7 +486,35 @@ of 5 from the target.
 
 This task was initially provided by [7].
 
-blank
+In this network, 22 vehicles are placed in a variable length single lane
+ring road. In the absence of autonomous vehicles, perturbations to the 
+accelerations of individuals vehicles along with the string unstable
+behavior of human driving dynamics leads to the formation and 
+propagation of stop-and-go waves in the network.
+
+In the mixed-autonomy setting, a portion of vehicles are treated as AVs 
+with the objective of regulating the dissipating the prevalence of 
+stop-ang-go waves. The components of the MDP for this benchmark are 
+defined as follows:
+
+* States: The state consists of the relative speed and bumper-to-bumper 
+  gap of the vehicles immediately preceding the AVs, as well as
+  the speed of the AVs, i.e. 
+  $s := (\Delta v_i, h_i, v_i) \in \mathbb{R}^{3k}$, where $k$ is the 
+  number of AVs.
+* Actions: The actions consist of a list of bounded accelerations for 
+  each CAV, i.e. $a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{k}$, 
+  where $a_\text{min}$ and $a_\text{max}$ are the minimum and maximum 
+  accelerations, respectively.
+* Rewards: We choose a reward function that promotes high velocities 
+  while penalizing accelerations which are symptomatic of stop-and-go 
+  behavior. The reward function is accordingly:
+  
+  \begin{equation*}
+    r := \eta_1 v_\text{mean} - \eta_2 * \sum_i |a_i|
+  \end{equation*}
+  
+  where $\eta_1$ and $\eta_2$ are weighting terms.
 
 This benchmark consists of the following variations:
 
