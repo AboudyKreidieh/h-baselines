@@ -534,9 +534,8 @@ This benchmark consists of the following variations:
 
 * figureight0: 13 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{28}$, 
   $\mathcal{A} \in \mathbb{R}^1$, $T=1500$).
-* figureight1: \texttt{figureeight1}: 7 humans, 7 CAVs 
-  ($\mathcal{S} \in \mathbb{R}^{28}$, $\mathcal{A} \in \mathbb{R}^7$, 
-  $T=1500$).
+* figureight1: 7 humans, 7 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
+  $\mathcal{A} \in \mathbb{R}^7$, $T=1500$).
 * figureight2: 0 human, 14 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
   $\mathcal{A} \in \mathbb{R}^{14}$, $T=1500$).
 
@@ -592,11 +591,11 @@ account, we characterize our MDP as follows:
 This benchmark consists of the following variations:
 
 * merge0: 10% CAV penetration rate ($S \in \mathbb{R}^{25}$, 
-  $A \in \mathbb{R}^5$, $T=750$).
+  $A \in \mathbb{R}^5$, $T=6000$).
 * merge1: 25% CAV penetration rate ($S \in \mathbb{R}^{65}$, 
-  $A \in \mathbb{R}^{13}$, $T=750$).
+  $A \in \mathbb{R}^{13}$, $T=6000$).
 * merge2: 33.3% CAV penetration rate ($S \in \mathbb{R}^{85}$, 
-  $A \in \mathbb{R}^{17}$, $T=750$).
+  $A \in \mathbb{R}^{17}$, $T=6000$).
 
 **Highway**
 
