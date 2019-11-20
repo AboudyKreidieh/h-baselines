@@ -3,6 +3,19 @@ import os
 import errno
 import numpy as np
 from gym.spaces import Box
+import gym
+
+try:
+    from flow.utils.registry import make_create_env
+    from hbaselines.envs.mixed_autonomy import FlowEnv
+except (ImportError, ModuleNotFoundError):
+    pass
+from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+from hbaselines.envs.hac.envs import UR5, Pendulum
+try:
+    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+except (ImportError, ModuleNotFoundError):
+    pass
 
 
 def ensure_dir(path):
@@ -168,3 +181,130 @@ def get_state_indices(ob_space,
         state_indices = [5 * i for i in range(17)]
 
     return state_indices
+
+
+def create_env(env, evaluate=False):
+    """Return, and potentially create, the environment.
+
+    Parameters
+    ----------
+    env : str or gym.Env
+        the environment, or the name of a registered environment.
+    evaluate : bool, optional
+        specifies whether this is a training or evaluation environment
+
+    Returns
+    -------
+    gym.Env or list of gym.Env
+        gym-compatible environment(s)
+    """
+    if env == "AntGather":
+        env = AntGatherEnv()
+
+    if env == "AntMaze":
+        if evaluate:
+            env = [AntMaze(use_contexts=True, context_range=[16, 0]),
+                   AntMaze(use_contexts=True, context_range=[16, 16]),
+                   AntMaze(use_contexts=True, context_range=[0, 16])]
+        else:
+            env = AntMaze(use_contexts=True,
+                          random_contexts=True,
+                          context_range=[(-4, 20), (-4, 20)])
+
+    elif env == "AntPush":
+        if evaluate:
+            env = AntPush(use_contexts=True, context_range=[0, 19])
+        else:
+            env = AntPush(use_contexts=True, context_range=[0, 19])
+            # env = AntPush(use_contexts=True,
+            #               random_contexts=True,
+            #               context_range=[(-16, 16), (-4, 20)])
+
+    elif env == "AntFall":
+        if evaluate:
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+        else:
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            # env = AntFall(use_contexts=True,
+            #               random_contexts=True,
+            #               context_range=[(-4, 12), (-4, 28), (0, 5)])
+
+    elif env == "UR5":
+        if evaluate:
+            env = UR5(use_contexts=True,
+                      random_contexts=True,
+                      context_range=[(-np.pi, np.pi),
+                                     (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)])
+        else:
+            env = UR5(use_contexts=True,
+                      random_contexts=True,
+                      context_range=[(-np.pi, np.pi),
+                                     (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)])
+
+    elif env == "Pendulum":
+        if evaluate:
+            env = Pendulum(use_contexts=True, context_range=[0, 0])
+        else:
+            env = Pendulum(use_contexts=True,
+                           random_contexts=True,
+                           context_range=[(np.deg2rad(-16), np.deg2rad(16)),
+                                          (-0.6, 0.6)])
+
+    elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
+                 "grid1"]:
+        # Import the benchmark and fetch its flow_params
+        benchmark = __import__("flow.benchmarks.{}".format(env),
+                               fromlist=["flow_params"])
+        flow_params = benchmark.flow_params
+
+        # Get the env name and a creator for the environment.
+        create_env, _ = make_create_env(flow_params, version=0)
+
+        # Create the environment.
+        env = create_env()
+
+    elif env in ["ring0", "ring1", "multi-ring0", "multi-ring1"]:
+        env = FlowEnv("ring")  # FIXME
+
+    elif env in ["merge0", "merge1", "merge2", "multi-merge0", "multi-merge1",
+                 "multi-merge2"]:
+        env_num = int(env[-1])
+        env = FlowEnv(
+            "merge",
+            env_params={
+                "exp_num": env_num,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": env[:5] == "multi"
+            }
+        )
+
+    elif env in ["figureeight0", "figureeight1", "figureeight02",
+                 "multi-figureeight0", "multi-figureeight1",
+                 "multi-figureeight02"]:
+        env_num = int(env[-1])
+        env = FlowEnv(
+            "figure_eight",
+            env_params={
+                "num_automated": [1, 7, 14][env_num],
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": env[:5] == "multi"
+            }
+        )
+
+    elif isinstance(env, str):
+        # This is assuming the environment is registered with OpenAI gym.
+        env = gym.make(env)
+
+    # Reset the environment.
+    if env is not None:
+        if isinstance(env, list):
+            for next_env in env:
+                next_env.reset()
+        else:
+            env.reset()
+
+    return env
