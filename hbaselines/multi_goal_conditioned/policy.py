@@ -311,14 +311,20 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.zero_fingerprint = zero_fingerprint
         self.shared = shared
         self.centralized_vfs = centralized_vfs
+        self._orig_noise = noise
 
         # Compute the noise term for the individual actors.
         self.noise = {}
-        for key in ac_space.keys():
-            ac_mag = 0.5 * (ac_space[key].high - ac_space[key].low)
-            self.noise[key] = noise * ac_mag
+        if self.shared:
+            ac_mag = 0.5 * (ac_space.high - ac_space.low)
+            self.noise["agent"] = noise * ac_mag
+        else:
+            for key in ac_space.keys():
+                ac_mag = 0.5 * (ac_space[key].high - ac_space[key].low)
+                self.noise[key] = noise * ac_mag
 
         # variables that are defined by the _setup* procedures
+        self.noise = None
         self.obs0_ph = None
         self.obs1_ph = None
         self.action_ph = None
@@ -366,7 +372,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             verbose=self.verbose,
             tau=self.tau,
             gamma=self.gamma,
-            noise=self.noise,
+            noise=self._orig_noise,
             target_policy_noise=self.target_policy_noise,
             target_noise_clip=self.target_noise_clip,
             layer_norm=self.layer_norm,
