@@ -523,9 +523,8 @@ This benchmark consists of the following variations:
 
 * figureight0: 13 humans, 1 CAV (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
   <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-* figureight1: \texttt{figureeight1}: 7 humans, 7 CAVs 
-  (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, <img src="/tex/84f23b52d0365525503d171195ca3de0.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
+* figureight1: 7 humans, 7 CAVs (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
+  <img src="/tex/84f23b52d0365525503d171195ca3de0.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 * figureight2: 0 human, 14 CAVs (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
   <img src="/tex/d8cfe9b481534f4184b5c38ce909440a.svg?invert_in_darkmode&sanitize=true" align=middle width=58.193968799999986pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 
@@ -579,11 +578,11 @@ account, we characterize our MDP as follows:
 This benchmark consists of the following variations:
 
 * merge0: 10% CAV penetration rate (<img src="/tex/24f74001cf2c5eb9e0800be29d569be7.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/217bf6a34638aec8bf0b06e9f8185c5c.svg?invert_in_darkmode&sanitize=true" align=middle width=50.84466254999999pt height=26.76175259999998pt/>, <img src="/tex/869e4c8f6b10db93279564a9c18c11b6.svg?invert_in_darkmode&sanitize=true" align=middle width=58.46457044999998pt height=22.465723500000017pt/>).
+  <img src="/tex/217bf6a34638aec8bf0b06e9f8185c5c.svg?invert_in_darkmode&sanitize=true" align=middle width=50.84466254999999pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 * merge1: 25% CAV penetration rate (<img src="/tex/f4908ab83348f95b3c5302ca4eeb67af.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/f46f2e5d9181f0f67c34aecc27a5b7e8.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/869e4c8f6b10db93279564a9c18c11b6.svg?invert_in_darkmode&sanitize=true" align=middle width=58.46457044999998pt height=22.465723500000017pt/>).
+  <img src="/tex/f46f2e5d9181f0f67c34aecc27a5b7e8.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 * merge2: 33.3% CAV penetration rate (<img src="/tex/24cba9df259d55fd4cc5453ce4582e63.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/83729e9b241ad6a225c7dbfe878296c9.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/869e4c8f6b10db93279564a9c18c11b6.svg?invert_in_darkmode&sanitize=true" align=middle width=58.46457044999998pt height=22.465723500000017pt/>).
+  <img src="/tex/83729e9b241ad6a225c7dbfe878296c9.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 
 **Highway**
 
