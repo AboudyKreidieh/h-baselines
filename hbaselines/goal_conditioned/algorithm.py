@@ -432,9 +432,8 @@ class TD3(object):
                                    (np.deg2rad(-16), np.deg2rad(16)),
                                    (-0.6, 0.6)])
 
-        elif env in ["figureeight0", "figureeight1", "figureeight2", "merge0",
-                     "merge1", "merge2", "bottleneck0", "bottleneck1",
-                     "bottleneck2", "grid0", "grid1"]:
+        elif env in ["bottleneck0", "bottleneck1", "bottleneck2",
+                     "grid0", "grid1"]:
             # Import the benchmark and fetch its flow_params
             benchmark = __import__("flow.benchmarks.{}".format(env),
                                    fromlist=["flow_params"])
@@ -446,14 +445,32 @@ class TD3(object):
             # Create the environment.
             env = create_env()
 
-        elif env == "ring":
-            env = FlowEnv("ring")
+        elif "ring" in env:
+            env = FlowEnv("ring")  # FIXME
 
         elif env == "merge":
-            env = FlowEnv("merge")
+            env_num = int(env[-1])
+            env = FlowEnv(
+                "merge",
+                env_params={
+                    "exp_num": env_num,
+                    "horizon": 6000,
+                    "simulator": "traci",
+                    "multiagent": env[:5] == "multi"
+                }
+            )
 
-        elif env == "figure_eight":
-            env = FlowEnv("figure_eight")
+        elif "figureeight" in env:
+            env_num = int(env[-1])
+            env = FlowEnv(
+                "figure_eight",
+                env_params={
+                    "num_automated": [1, 7, 14][env_num],
+                    "horizon": 1500,
+                    "simulator": "traci",
+                    "multiagent": env[:5] == "multi"
+                }
+            )
 
         elif isinstance(env, str):
             # This is assuming the environment is registered with OpenAI gym.
@@ -490,22 +507,12 @@ class TD3(object):
             with tf.compat.v1.variable_scope("Train"):
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
-            with tf.compat.v1.variable_scope("Evaluate"):
-                self.eval_rew_ph = tf.compat.v1.placeholder(tf.float32)
-                self.eval_success_ph = tf.compat.v1.placeholder(tf.float32)
 
             # Add tensorboard scalars for the return, return history, and
             # success rate.
             tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
             tf.compat.v1.summary.scalar("Train/return_history",
                                         self.rew_history_ph)
-            # FIXME
-            # if self.eval_env is not None:
-            #     eval_success_ph = self.eval_success_ph
-            #     tf.compat.v1.summary.scalar("Evaluate/return",
-            #                                 self.eval_rew_ph)
-            #     tf.compat.v1.summary.scalar("Evaluate/success_rate",
-            #                                 eval_success_ph)
 
             # Create the tensorboard summary.
             self.summary = tf.compat.v1.summary.merge_all()
