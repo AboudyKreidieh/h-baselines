@@ -11,7 +11,6 @@ from collections import deque
 import csv
 import random
 from copy import deepcopy
-import gym
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
