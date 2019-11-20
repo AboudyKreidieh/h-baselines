@@ -6,9 +6,10 @@ omit =
     */setup.py
     */hbaselines/envs/efficient_hrl/ant.py
     */hbaselines/envs/efficient_hrl/ant_maze_env.py
+    */hbaselines/envs/snn4hrl/envs.py
 
 exclude_lines =
     pragma: no cover
     if __name__ == .__main__.:
     raise NotImplementedError
-    def _create_env*
+    def create_env*

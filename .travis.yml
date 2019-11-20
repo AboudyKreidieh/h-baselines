@@ -5,7 +5,7 @@ python:
 
 os: linux
 
-dist: trusty
+dist: xenial
 
 sudo: required
 
@@ -19,6 +19,16 @@ install:
   # Create the h-baselines conda environment.
   - conda env create -f environment.yml
   - source activate h-baselines
+
+  # Install flow and sumo dependencies and binaries.
+  - pushd $HOME
+  - git clone https://github.com/flow-project/flow
+  - pushd flow
+  - pip install -e .
+  - ./scripts/setup_sumo_ubuntu1604.sh
+  - source ~/.bashrc
+  - popd
+  - popd
 
   # other packages to install
   - pip install flake8

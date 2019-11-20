@@ -8,6 +8,7 @@ from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
+from hbaselines.envs.mixed_autonomy import FlowEnv
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -296,6 +297,381 @@ class TestPendulum(unittest.TestCase):
 
     def test_display_subgoal(self):
         pass
+
+
+class TestMixedAutonomy(unittest.TestCase):
+    """Test the functionality of features in envs/mixed_autonomy."""
+
+    def test_single_agent_ring(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=0
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-np.inf for _ in range(3)]),
+            expected_max=np.array([np.inf for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            },
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="ring",
+            env_params={
+                "num_automated": 4,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            }
+        )
+        env.reset()
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_single_agent_figure_eight(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=0
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(28)]),
+            expected_max=np.array([1 for _ in range(28)]),
+            expected_size=28,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-3]),
+            expected_max=np.array([3]),
+            expected_size=1,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 14,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(28)]),
+            expected_max=np.array([1 for _ in range(28)]),
+            expected_size=28,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-3 for _ in range(14)]),
+            expected_max=np.array([3 for _ in range(14)]),
+            expected_size=14,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_figure_eight(self):
+        # create the base environment
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 1,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            },
+            version=0
+        )
+        env.reset()
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+        # create the environment with multiple automated vehicles
+        env = FlowEnv(
+            env_name="figure_eight",
+            env_params={
+                "num_automated": 14,
+                "horizon": 1500,
+                "simulator": "traci",
+                "multiagent": True
+            },
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_single_agent_merge(self):
+        # create version 0 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 0,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=0
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([1 for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(5)]),
+            expected_max=np.array([1.5 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+        # create version 1 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 1,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(65)]),
+            expected_max=np.array([1 for _ in range(65)]),
+            expected_size=65,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(13)]),
+            expected_max=np.array([1.5 for _ in range(13)]),
+            expected_size=13,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+        # create version 2 of the environment
+        env = FlowEnv(
+            env_name="merge",
+            env_params={
+                "exp_num": 2,
+                "horizon": 6000,
+                "simulator": "traci",
+                "multiagent": False
+            },
+            version=2
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(85)]),
+            expected_max=np.array([1 for _ in range(85)]),
+            expected_size=85,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(17)]),
+            expected_max=np.array([1.5 for _ in range(17)]),
+            expected_size=17,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # def test_multi_agent_merge(self):
+    #     # create version 0 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 0,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         },
+    #         version=0
+    #     )
+    #     env.reset()
+    #
+    #     # test observation space
+    #     pass  # TODO
+    #
+    #     # test action space
+    #     pass  # TODO
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+    #
+    #     # create version 1 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 1,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         },
+    #         version=1
+    #     )
+    #     env.reset()
+    #
+    #     # test observation space
+    #     pass  # TODO
+    #
+    #     # test action space
+    #     pass  # TODO
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+    #
+    #     # create version 2 of the environment
+    #     env = FlowEnv(
+    #         env_name="merge",
+    #         env_params={
+    #             "exp_num": 2,
+    #             "horizon": 6000,
+    #             "simulator": "traci",
+    #             "multiagent": True
+    #         },
+    #         version=2
+    #     )
+    #     env.reset()
+    #
+    #     # test observation space
+    #     pass  # TODO
+    #
+    #     # test action space
+    #     pass  # TODO
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+
+
+def test_space(gym_space, expected_size, expected_min, expected_max):
+    """Test the shape and bounds of an action or observation space.
+
+    Parameters
+    ----------
+    gym_space : gym.spaces.Box
+        gym space object to be tested
+    expected_size : int
+        expected size
+    expected_min : float or array_like
+        expected minimum value(s)
+    expected_max : float or array_like
+        expected maximum value(s)
+    """
+    assert gym_space.shape[0] == expected_size, \
+        "{}, {}".format(gym_space.shape[0], expected_size)
+    np.testing.assert_almost_equal(gym_space.high, expected_max, decimal=4)
+    np.testing.assert_almost_equal(gym_space.low, expected_min, decimal=4)
 
 
 if __name__ == '__main__':

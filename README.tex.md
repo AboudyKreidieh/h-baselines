@@ -26,7 +26,8 @@ available [here]().
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
 * [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments) <!--  * [Flow Environments](#flow-environments)-->
+  * [MuJoCo Environments](#mujoco-environments)
+  * [Flow Environments](#flow-environments)
 * [Citing](#citing)
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
@@ -411,8 +412,10 @@ alg = TD3(
 ## Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
-Mujoco (robotics) and Flow (mixed-autonomy traffic) benchmarks. A 
-description of each of the studied environments can be found below.
+[Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
+[Flow](https://github.com/flow-project/flow) (mixed-autonomy traffic) 
+benchmarks. A description of each of the studied environments can be 
+found below.
 
 ### MuJoCo Environments
 
@@ -475,11 +478,162 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-<!--### Flow Environments-->
+### Flow Environments
 
-<!--**Figure Eight v2** blank-->
+<img src="docs/img/flow-envs.png"/>
 
-<!--**Merge v2** blank-->
+**Ring**
+
+This task was initially provided by [7].
+
+In this network, 22 vehicles are placed in a variable length single lane
+ring road. In the absence of autonomous vehicles, perturbations to the 
+accelerations of individuals vehicles along with the string unstable
+behavior of human driving dynamics leads to the formation and 
+propagation of stop-and-go waves in the network.
+
+In the mixed-autonomy setting, a portion of vehicles are treated as AVs 
+with the objective of regulating the dissipating the prevalence of 
+stop-ang-go waves. The components of the MDP for this benchmark are 
+defined as follows:
+
+* States: The state consists of the relative speed and bumper-to-bumper 
+  gap of the vehicles immediately preceding the AVs, as well as
+  the speed of the AVs, i.e. 
+  $s := (\Delta v_i, h_i, v_i) \in \mathbb{R}^{3k}$, where $k$ is the 
+  number of AVs.
+* Actions: The actions consist of a list of bounded accelerations for 
+  each CAV, i.e. $a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{k}$, 
+  where $a_\text{min}$ and $a_\text{max}$ are the minimum and maximum 
+  accelerations, respectively.
+* Rewards: We choose a reward function that promotes high velocities 
+  while penalizing accelerations which are symptomatic of stop-and-go 
+  behavior. The reward function is accordingly:
+  
+  \begin{equation*}
+    r := \eta_1 v_\text{mean} - \eta_2 * \sum_i |a_i|
+  \end{equation*}
+  
+  where $\eta_1$ and $\eta_2$ are weighting terms.
+
+This benchmark consists of the following variations:
+
+* ring0: blank
+* ring1: blank
+
+**Figure Eight**
+
+This task was initially provided by [8].
+
+The figure eight network acts as a closed representation of an 
+intersection. In a figure eight network containing a total of 14 
+vehicles, we witness the formation of queues resulting from vehicles 
+arriving simultaneously at the intersection and slowing down to obey 
+right-of-way rules. This behavior significantly reduces the average 
+speed of vehicles in the network.
+
+In a mixed-autonomy setting, a portion of vehicles are treated as CAVs 
+with the objective of regulating the flow of vehicles through the 
+intersection in order to improve system-level velocities. The components
+of the MDP for this benchmark are defined as follows:
+
+* States: The state consists of a vector of velocities and positions for
+  each vehicle in the network,ordered by the position of each vehicle,
+  $s:= (v_i,x_i)_{i=0:k−1} \in \mathbb{R}^{2k}$, where $k$ is the number
+  of vehicles in the network. Note that the position is defined relative
+  to a pre-specified starting point.
+* Actions: The actions are a list of accelerations for each CAV, 
+  $a \in \mathbb{R}_{[a_\text{min},a_\text{max}]}^n$, where $n$ is the 
+  number of CAVs, and $a_\text{min}$ and $a_\text{max}$ are the minimum
+  and maximum accelerations, respectively.
+* Reward: The objective of the learning agent is to achieve high speeds
+  while penalizing collisions. Accordingly, the reward function is 
+  defined as follows:
+
+  \begin{equation*}
+      r := \max \Big(||v_\text{des}\cdot \mathbbm{1}^k||_2 - ||v_\text{des} - v||_2, \ 0 \Big) \ / \ ||v_\text{des}\cdot \mathbbm{1}^k||_2
+  \end{equation*}
+
+  where $v_\text{des}$ is an arbitrary large velocity used to encourage 
+  high speeds and $v \in \mathbb{R}^k$ is the velocities of all vehicles
+  in the network.
+
+This benchmark consists of the following variations:
+
+* figureight0: 13 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{28}$, 
+  $\mathcal{A} \in \mathbb{R}^1$, $T=1500$).
+* figureight1: 7 humans, 7 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
+  $\mathcal{A} \in \mathbb{R}^7$, $T=1500$).
+* figureight2: 0 human, 14 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
+  $\mathcal{A} \in \mathbb{R}^{14}$, $T=1500$).
+
+**Merge**
+
+This task was initially provided by [8].
+
+The merge network highlights the effect of disturbances on vehicles in a
+single lane highway network. Specifically, perturbations resulting from
+vehicles arriving from the on-merge lead to the formation of backwards 
+propagating stop-and-go waves, thereby reducing the throughput of 
+vehicles in the network. This phenomenon is known as convective 
+instability.
+
+In a mixed-autonomy setting, a percentage of vehicles in the main lane 
+are tasked with the objective of dissipating the formation and 
+propagation of stop-and-go waves from locally observable information. 
+Moreover, given the open nature of the network, the total number of CAVs
+within the network may vary at any given time. Taking these into 
+account, we characterize our MDP as follows:
+
+* States: The state consists of the speeds and bumper-to-bumper gaps of
+  the vehicles immediately preceding and following the CAVs, as well as
+  the speed of the CAVs, i.e. 
+  $s := (v_{i,\text{lead}},v_{i,\text{lag}}, h_{i,\text{lag}}, h_{i,\text{lag}}, v_i) \in \mathbb{R}^{n_\text{RL}}$.
+  In order to account for variability in the number of CAVs 
+  ($n_\text{CAV}$), a constant $n_\text{RL}$ term is defined. When 
+  $n_\text{CAV} > n_\text{RL}$, information from the extra CAVs are not
+  included in the state. Moreover, if $n_\text{CAV} < n_\text{RL}$ the 
+  state is padded with zeros.
+* Actions: The actions consist of a list of bounded accelerations for 
+  each CAV, i.e. 
+  $a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{n_\text{RL}}$. Once 
+  again, an $n_\text{RL}$ term is used to handle variable numbers of 
+  CAVs. If $n_\text{CAV} > n_\text{RL}$ the extra CAVs are treated as
+  human-driven vehicles and their states are updated using human driver
+  models. Moreover, if $n_\text{CAV} < n_\text{RL}$, the extra actions 
+  are ignored.
+* Reward: The objective in this problem is, once again, improving 
+  mobility, either via the speed of vehicles in the network or by 
+  maximizing the number of vehicles that pass through the network.
+  Accordingly, we use an augmented version of the reward function 
+  presented for the figure eight network.
+
+  \begin{equation*}
+      r := \max \Big(||v_\text{des}\cdot \mathbbm{1}^k||_2 - ||v_\text{des} - v||_2, \ 0 \Big) \ / \ ||v_\text{des}\cdot \mathbbm{1}^k||_2 - \alpha \sum_{i \in CAV} \max \big[ h_{\text{max}} - h_i(t), 0 \big]
+  \end{equation*}
+
+  The added term penalizes small headways among the CAVs; it is minimal
+  when all CAVs are spaced at $h_\text{max}$. This discourages dense
+  states that lead to the formation of stop-and-go traffic.
+
+This benchmark consists of the following variations:
+
+* merge0: 10% CAV penetration rate ($S \in \mathbb{R}^{25}$, 
+  $A \in \mathbb{R}^5$, $T=6000$).
+* merge1: 25% CAV penetration rate ($S \in \mathbb{R}^{65}$, 
+  $A \in \mathbb{R}^{13}$, $T=6000$).
+* merge2: 33.3% CAV penetration rate ($S \in \mathbb{R}^{85}$, 
+  $A \in \mathbb{R}^{17}$, $T=6000$).
+
+**Highway**
+
+This task was initially provided by [9].
+
+blank
+
+This benchmark consists of the following variations:
+
+* highway0: blank
 
 ## Citing
 
@@ -516,6 +670,14 @@ Advances in Neural Information Processing Systems. 2018.
 [6] Florensa, Carlos, Yan Duan, and Pieter Abbeel. "Stochastic neural 
 networks for hierarchical reinforcement learning." arXiv preprint 
 arXiv:1704.03012 (2017).
+
+[7] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
+in Traffic." arXiv preprint arXiv:1710.05465 (2017).
+
+[8] Vinitsky, Eugene, et al. "Benchmarks for reinforcement learning in 
+mixed-autonomy traffic." Conference on Robot Learning. 2018.
+
+[9] TODO: highway paper
 
 ## Useful Links
 
