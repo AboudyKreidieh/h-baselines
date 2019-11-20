@@ -67,6 +67,8 @@ GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
+    # the value the intrinsic (Worker) reward should be scaled by
+    worker_reward_scale=1,
     # specifies whether the goal issued by the Manager is meant to be a
     # relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,

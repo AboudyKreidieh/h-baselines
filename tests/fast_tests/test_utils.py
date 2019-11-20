@@ -43,6 +43,8 @@ class TestTrain(unittest.TestCase):
             'layer_norm': False,
             'use_huber': False,
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'worker_reward_scale':
+                GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'use_fingerprints': False,
@@ -81,12 +83,13 @@ class TestTrain(unittest.TestCase):
             '--layer_norm',
             '--use_huber',
             '--meta_period', '21',
+            '--worker_reward_scale', '22',
             '--relative_goals',
             '--off_policy_corrections',
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
-            '--cg_weights', '22',
+            '--cg_weights', '23',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
@@ -114,12 +117,13 @@ class TestTrain(unittest.TestCase):
                 'layer_norm': True,
                 'use_huber': True,
                 'meta_period': 21,
+                'worker_reward_scale': 22.0,
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
                 'connected_gradients': True,
-                'cg_weights': 22,
+                'cg_weights': 23,
             }
         }
         self.assertDictEqual(hp, expected_hp)

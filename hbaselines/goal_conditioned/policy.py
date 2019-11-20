@@ -908,6 +908,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    worker_reward_scale : float
+        the value the intrinsic (Worker) reward should be scaled by
     relative_goals : bool
         specifies whether the goal issued by the Manager is meant to be a
         relative or absolute goal, i.e. specific state or change in state
@@ -942,7 +944,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         SGD batch size
     worker : hbaselines.goal_conditioned.policy.FeedForwardPolicy
         the worker policy
-    worker_reward : function
+    worker_reward_fn : function
         reward function for the worker
     """
 
@@ -966,6 +968,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  meta_period,
+                 worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
                  use_fingerprints,
@@ -1025,6 +1028,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             used instead
         meta_period : int
             manger action period
+        worker_reward_scale : float
+            the value the intrinsic (Worker) reward should be scaled by
         relative_goals : bool
             specifies whether the goal issued by the Manager is meant to be a
             relative or absolute goal, i.e. specific state or change in state
@@ -1051,6 +1056,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             sess, ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
+        self.worker_reward_scale = worker_reward_scale
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
@@ -1181,7 +1187,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space, env_name, use_fingerprints, self.fingerprint_dim)
 
         # reward function for the worker
-        def worker_reward(states, goals, next_states):
+        def worker_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
                 state_indices=state_indices,
@@ -1190,7 +1196,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 relative_context=relative_goals,
                 offset=0.0
             )
-        self.worker_reward = worker_reward
+        self.worker_reward_fn = worker_reward_fn
 
         if self.connected_gradients:
             self._setup_connected_gradients()
@@ -1304,7 +1310,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
-            self.worker_reward(obs0, self.meta_action.flatten(), obs1)
+            self.worker_reward_scale *
+            self.worker_reward_fn(obs0, self.meta_action.flatten(), obs1)
         )
 
         # Add the environmental observations and done masks, and the manager
