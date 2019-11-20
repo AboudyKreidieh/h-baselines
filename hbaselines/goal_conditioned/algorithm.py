@@ -390,16 +390,19 @@ class TD3(object):
 
     def _policy(self,
                 obs,
+                context,
                 apply_noise=True,
                 compute_q=True,
-                random_actions=False,
-                **kwargs):
+                random_actions=False):
         """Get the actions and critic output, from a given observation.
 
         Parameters
         ----------
-        obs : list of float or list of int
+        obs : array_like
             the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         apply_noise : bool
             enable the noise
         compute_q : bool
@@ -419,14 +422,13 @@ class TD3(object):
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         action = self.policy_tf.get_action(
-            obs,
+            obs, context,
             apply_noise=apply_noise,
             random_actions=random_actions,
-            total_steps=self.total_steps,
-            context_obs=kwargs["context"])
+            total_steps=self.total_steps)
 
-        q_value = self.policy_tf.value(
-            obs, action, context_obs=kwargs["context"]) if compute_q else None
+        q_value = self.policy_tf.value(obs, context, action) if compute_q \
+            else None
 
         return action.flatten(), q_value
 
@@ -447,14 +449,13 @@ class TD3(object):
             is the episode done
         """
         # Get the contextual term.
-        context = getattr(self.env, "current_context", None)
+        context0 = context1 = getattr(self.env, "current_context", None)
 
         # Scale the rewards by the provided term.
         reward *= self.reward_scale
 
-        self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
-                                        context_obs0=context,
-                                        context_obs1=context)
+        self.policy_tf.store_transition(
+            obs0, context0, action, reward, obs1, context1, terminal1)
 
     def learn(self,
               total_timesteps,
@@ -945,10 +946,8 @@ class TD3(object):
 
         combined_stats = {
             'rollout/return': np.mean(self.epoch_episode_rewards),
-            'rollout/return_history': np.mean(
-                self.episode_rewards_history),
-            'rollout/episode_steps': np.mean(
-                self.epoch_episode_steps),
+            'rollout/return_history': np.mean(self.episode_rewards_history),
+            'rollout/episode_steps': np.mean(self.epoch_episode_steps),
             'rollout/actions_mean': np.mean(self.epoch_actions),
             'rollout/Q1_mean': np.mean(self.epoch_q1s),
             'rollout/Q2_mean': np.mean(self.epoch_q2s),

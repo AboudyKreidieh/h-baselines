@@ -77,13 +77,16 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """Call the actor methods to compute policy actions.
 
         Parameters
         ----------
         obs : array_like
             the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         apply_noise : bool
             whether to add Gaussian noise to the output of the actor. Defaults
             to False
@@ -99,13 +102,16 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action=None):
         """Call the critic methods to compute the value.
 
         Parameters
         ----------
         obs : array_like
             the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         action : array_like, optional
             the actions performed in the given observation
 
@@ -116,19 +122,26 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done):
         """Store a transition in the replay buffer.
 
         Parameters
         ----------
         obs0 : array_like
             the last observation
+        context0 : array_like or None
+            the last contextual term. Set to None if no context is provided by
+            the environment.
         action : array_like
             the action
         reward : float
             the reward
         obs1 : array_like
             the current observation
+        context1 : array_like or None
+            the current contextual term. Set to None if no context is provided
+            by the environment.
         done : float
             is the episode done
         """
@@ -735,12 +748,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
-        if context_obs[0] is not None:
-            obs = np.concatenate((obs, context_obs), axis=1)
+        if context[0] is not None:
+            obs = np.concatenate((obs, context), axis=1)
 
         if random_actions:
             action = np.array([self.ac_space.sample()])
@@ -748,14 +760,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
-                # TODO: add as a feature
-                # # convert noise percentage to absolute value
-                # noise = self.noise * (self.ac_space.high -
-                #                       self.ac_space.low) / 2
-                # # apply Ornstein-Uhlenbeck process
-                # noise = self.noise * np.maximum(
-                #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
-
                 # compute noisy action
                 if apply_noise:
                     action += np.random.normal(0, self.noise, action.shape)
@@ -765,26 +769,24 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action=None):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
-        if context_obs[0] is not None:
-            obs = np.concatenate((obs, context_obs), axis=1)
+        if context[0] is not None:
+            obs = np.concatenate((obs, context), axis=1)
 
         return self.sess.run(
             self.critic_tf,
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        if kwargs.get("context_obs0") is not None:
-            obs0 = np.concatenate(
-                (obs0, kwargs["context_obs0"].flatten()), axis=0)
-        if kwargs.get("context_obs1") is not None:
-            obs1 = np.concatenate(
-                (obs1, kwargs["context_obs1"].flatten()), axis=0)
+        if context0 is not None:
+            obs0 = np.concatenate((obs0, context0.flatten()), axis=0)
+        if context1 is not None:
+            obs1 = np.concatenate((obs1, context1.flatten()), axis=0)
 
         self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
@@ -1289,17 +1291,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Return the worker action.
         worker_action = self.worker.get_action(
-            obs, apply_noise, random_actions,
-            context_obs=self.meta_action,
-            total_steps=kwargs['total_steps'])
+            obs, self.meta_action, apply_noise, random_actions)
 
         return worker_action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action=None):
         """See parent class."""
         return 0, 0  # FIXME
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
@@ -1325,9 +1326,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Modify the previous meta observation whenever the action has changed.
         if len(self._observations) == 1:
-            if kwargs.get("context_obs0") is not None:
+            if context0 is not None:
                 self.prev_meta_obs = np.concatenate(
-                    (obs0, kwargs["context_obs0"].flatten()), axis=0)
+                    (obs0, context0.flatten()), axis=0)
             else:
                 self.prev_meta_obs = np.copy(obs0)
 
@@ -1338,9 +1339,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 np.concatenate((obs1, self.meta_action.flatten()), axis=0))
 
             # Add the contextual observation, if applicable.
-            if kwargs.get("context_obs1") is not None:
-                meta_obs1 = np.concatenate(
-                    (obs1, kwargs["context_obs1"].flatten()), axis=0)
+            if context1 is not None:
+                meta_obs1 = np.concatenate((obs1, context1.flatten()), axis=0)
             else:
                 meta_obs1 = np.copy(obs1)
 
@@ -1446,11 +1446,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Action a policy would perform given a specific observation / goal.
         pred_actions = self.worker.get_action(
-            worker_obs,
-            context_obs=goals,
+            worker_obs, goals,
             apply_noise=False,
-            random_actions=False,
-        )
+            random_actions=False)
 
         # Normalize the error based on the range of applicable goals.
         goal_space = self.manager.ac_space
