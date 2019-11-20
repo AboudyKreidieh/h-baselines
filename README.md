@@ -26,7 +26,8 @@ available [here]().
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
 * [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments) <!--  * [Flow Environments](#flow-environments)-->
+  * [MuJoCo Environments](#mujoco-environments)
+  * [Flow Environments](#flow-environments)
 * [Citing](#citing)
 * [Bibliography](#bibliography)
 * [Useful Links](#useful-links)
