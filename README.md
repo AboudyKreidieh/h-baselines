@@ -477,7 +477,33 @@ of 5 from the target.
 
 This task was initially provided by [7].
 
-blank
+In this network, 22 vehicles are placed in a variable length single lane
+ring road. In the absence of autonomous vehicles, perturbations to the 
+accelerations of individuals vehicles along with the string unstable
+behavior of human driving dynamics leads to the formation and 
+propagation of stop-and-go waves in the network.
+
+In the mixed-autonomy setting, a portion of vehicles are treated as AVs 
+with the objective of regulating the dissipating the prevalence of 
+stop-ang-go waves. The components of the MDP for this benchmark are 
+defined as follows:
+
+* States: The state consists of the relative speed and bumper-to-bumper 
+  gap of the vehicles immediately preceding the AVs, as well as
+  the speed of the AVs, i.e. 
+  <img src="/tex/7341d329a8a1919bb81a65c79c99b97d.svg?invert_in_darkmode&sanitize=true" align=middle width=162.89273715pt height=27.91243950000002pt/>, where <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> is the 
+  number of AVs.
+* Actions: The actions consist of a list of bounded accelerations for 
+  each CAV, i.e. <img src="/tex/2da368a74e3c93438a7b9a45a0cfd703.svg?invert_in_darkmode&sanitize=true" align=middle width=106.88881004999998pt height=27.91243950000002pt/>, 
+  where <img src="/tex/7de57cd5f7a02a410bbf4ad74bbee46c.svg?invert_in_darkmode&sanitize=true" align=middle width=30.47008964999999pt height=14.15524440000002pt/> and <img src="/tex/274597d9a192abe37c32f87bef1300b6.svg?invert_in_darkmode&sanitize=true" align=middle width=32.947280849999984pt height=14.15524440000002pt/> are the minimum and maximum 
+  accelerations, respectively.
+* Rewards: We choose a reward function that promotes high velocities 
+  while penalizing accelerations which are symptomatic of stop-and-go 
+  behavior. The reward function is accordingly:
+  
+  <p align="center"><img src="/tex/e9c8fa25e85c7f5b9c605efce2fac8cf.svg?invert_in_darkmode&sanitize=true" align=middle width=190.07135234999998pt height=36.6554298pt/></p>
+  
+  where <img src="/tex/99540970492f8b54b28407a609d84199.svg?invert_in_darkmode&sanitize=true" align=middle width=14.714708249999989pt height=14.15524440000002pt/> and <img src="/tex/b669b552ee0e555598229d3096db4479.svg?invert_in_darkmode&sanitize=true" align=middle width=14.714708249999989pt height=14.15524440000002pt/> are weighting terms.
 
 This benchmark consists of the following variations:
 
