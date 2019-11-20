@@ -402,8 +402,10 @@ alg = TD3(
 ## Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
-Mujoco (robotics) and Flow (mixed-autonomy traffic) benchmarks. A 
-description of each of the studied environments can be found below.
+[Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
+[Flow](https://github.com/flow-project/flow) (mixed-autonomy traffic) 
+benchmarks. A description of each of the studied environments can be 
+found below.
 
 ### MuJoCo Environments
 
@@ -466,11 +468,46 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-<!--### Flow Environments-->
+### Flow Environments
 
-<!--**Figure Eight v2** blank-->
+<img src="docs/img/flow-envs.png"/>
 
-<!--**Merge v2** blank-->
+**Ring**
+
+blank
+
+This benchmark consists of the following variations:
+
+* ring0: blank
+* ring1: blank
+
+**Figure Eight**
+
+blank
+
+This benchmark consists of the following variations:
+
+* figureight0: blank
+* figureight1: blank
+* figureight2: blank
+
+**Merge**
+
+blank
+
+This benchmark consists of the following variations:
+
+* merge0: blank
+* merge1: blank
+* merge2: blank
+
+**Highway**
+
+blank
+
+This benchmark consists of the following variations:
+
+* highway0: blank
 
 ## Citing
 
