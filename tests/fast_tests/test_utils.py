@@ -491,7 +491,8 @@ def test_space(gym_space, expected_size, expected_min, expected_max):
     expected_max : float or array_like
         expected maximum value(s)
     """
-    assert gym_space.shape[0] == expected_size
+    assert gym_space.shape[0] == expected_size, \
+        "{}, {}".format(gym_space.shape[0], expected_size)
     np.testing.assert_almost_equal(gym_space.high, expected_max, decimal=4)
     np.testing.assert_almost_equal(gym_space.low, expected_min, decimal=4)
 

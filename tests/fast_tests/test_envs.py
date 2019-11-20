@@ -311,36 +311,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=0
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
-
-        # test action space
-        pass  # TODO
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-        # create the environment with multiple automated vehicles
-        env = FlowEnv(
-            env_name="ring",
-            env_params={
-                "num_automated": 4,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": False
-            }
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-np.inf for _ in range(3)]),
+            expected_max=np.array([np.inf for _ in range(3)]),
+            expected_size=3,
         )
-        env.reset()
-
-        # test observation space
-        pass  # TODO
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -354,7 +344,8 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": True
-            }
+            },
+            version=1
         )
         env.reset()
 
@@ -397,15 +388,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=0
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(28)]),
+            expected_max=np.array([1 for _ in range(28)]),
+            expected_size=28,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-3]),
+            expected_max=np.array([3]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -418,15 +420,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=1
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(28)]),
+            expected_max=np.array([1 for _ in range(28)]),
+            expected_size=28,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-3 for _ in range(14)]),
+            expected_max=np.array([3 for _ in range(14)]),
+            expected_size=14,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -440,7 +453,8 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": True
-            }
+            },
+            version=0
         )
         env.reset()
 
@@ -461,7 +475,8 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": True
-            }
+            },
+            version=1
         )
         env.reset()
 
@@ -483,15 +498,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 6000,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=0
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([1 for _ in range(25)]),
+            expected_size=25,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(5)]),
+            expected_max=np.array([1.5 for _ in range(5)]),
+            expected_size=5,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -504,15 +530,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 6000,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=1
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(65)]),
+            expected_max=np.array([1 for _ in range(65)]),
+            expected_size=65,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(13)]),
+            expected_max=np.array([1.5 for _ in range(13)]),
+            expected_size=13,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -525,15 +562,26 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 6000,
                 "simulator": "traci",
                 "multiagent": False
-            }
+            },
+            version=2
         )
         env.reset()
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(85)]),
+            expected_max=np.array([1 for _ in range(85)]),
+            expected_size=85,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(17)]),
+            expected_max=np.array([1.5 for _ in range(17)]),
+            expected_size=17,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -547,7 +595,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #             "horizon": 6000,
     #             "simulator": "traci",
     #             "multiagent": True
-    #         }
+    #         },
+    #         version=0
     #     )
     #     env.reset()
     #
@@ -568,7 +617,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #             "horizon": 6000,
     #             "simulator": "traci",
     #             "multiagent": True
-    #         }
+    #         },
+    #         version=1
     #     )
     #     env.reset()
     #
@@ -589,7 +639,8 @@ class TestMixedAutonomy(unittest.TestCase):
     #             "horizon": 6000,
     #             "simulator": "traci",
     #             "multiagent": True
-    #         }
+    #         },
+    #         version=2
     #     )
     #     env.reset()
     #
@@ -601,6 +652,26 @@ class TestMixedAutonomy(unittest.TestCase):
     #
     #     # kill the environment
     #     env.wrapped_env.terminate()
+
+
+def test_space(gym_space, expected_size, expected_min, expected_max):
+    """Test the shape and bounds of an action or observation space.
+
+    Parameters
+    ----------
+    gym_space : gym.spaces.Box
+        gym space object to be tested
+    expected_size : int
+        expected size
+    expected_min : float or array_like
+        expected minimum value(s)
+    expected_max : float or array_like
+        expected maximum value(s)
+    """
+    assert gym_space.shape[0] == expected_size, \
+        "{}, {}".format(gym_space.shape[0], expected_size)
+    np.testing.assert_almost_equal(gym_space.high, expected_max, decimal=4)
+    np.testing.assert_almost_equal(gym_space.low, expected_min, decimal=4)
 
 
 if __name__ == '__main__':
