@@ -484,6 +484,8 @@ of 5 from the target.
 
 **Ring**
 
+This task was initially provided by [7].
+
 blank
 
 This benchmark consists of the following variations:
@@ -492,6 +494,8 @@ This benchmark consists of the following variations:
 * ring1: blank
 
 **Figure Eight**
+
+This task was initially provided by [8].
 
 The figure eight network acts as a closed representation of an 
 intersection. In a figure eight network containing a total of 14 
@@ -537,6 +541,8 @@ This benchmark consists of the following variations:
   $\mathcal{A} \in \mathbb{R}^{14}$, $T=1500$).
 
 **Merge**
+
+This task was initially provided by [8].
 
 The merge network highlights the effect of disturbances on vehicles in a
 single lane highway network. Specifically, perturbations resulting from
@@ -594,6 +600,8 @@ This benchmark consists of the following variations:
 
 **Highway**
 
+This task was initially provided by [9].
+
 blank
 
 This benchmark consists of the following variations:
@@ -635,6 +643,14 @@ Advances in Neural Information Processing Systems. 2018.
 [6] Florensa, Carlos, Yan Duan, and Pieter Abbeel. "Stochastic neural 
 networks for hierarchical reinforcement learning." arXiv preprint 
 arXiv:1704.03012 (2017).
+
+[7] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
+in Traffic." arXiv preprint arXiv:1710.05465 (2017).
+
+[8] Vinitsky, Eugene, et al. "Benchmarks for reinforcement learning in 
+mixed-autonomy traffic." Conference on Robot Learning. 2018.
+
+[9] TODO: highway paper
 
 ## Useful Links
 
