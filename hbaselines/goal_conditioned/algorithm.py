@@ -11,7 +11,6 @@ from collections import deque
 import csv
 import random
 from copy import deepcopy
-import gym
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
@@ -19,17 +18,7 @@ import tensorflow as tf
 from hbaselines.goal_conditioned.tf_util import make_session
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.utils.misc import ensure_dir
-try:
-    from flow.utils.registry import make_create_env
-except (ImportError, ModuleNotFoundError):
-    pass
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
-from hbaselines.envs.hac.envs import UR5, Pendulum
-try:
-    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
-except (ImportError, ModuleNotFoundError):
-    pass
+from hbaselines.utils.misc import ensure_dir, create_env
 
 
 # =========================================================================== #
@@ -61,7 +50,7 @@ FEEDFORWARD_PARAMS = dict(
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
-    layers=None,
+    layers=[256, 256],
     # the activation function to use in the neural network
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
@@ -275,9 +264,9 @@ class TD3(object):
         """
         self.policy = policy
         self.env_name = deepcopy(env)
-        self.env = self._create_env(env, evaluate=False)
+        self.env = create_env(env, evaluate=False)
         self.num_cpus = num_cpus
-        self.eval_env = self._create_env(eval_env, evaluate=True)
+        self.eval_env = create_env(eval_env, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -360,105 +349,6 @@ class TD3(object):
             # Create a saver object.
             self.saver = tf.compat.v1.train.Saver(trainable_vars)
 
-    @staticmethod
-    def _create_env(env, evaluate=False):
-        """Return, and potentially create, the environment.
-
-        Parameters
-        ----------
-        env : str or gym.Env
-            the environment, or the name of a registered environment.
-        evaluate : bool, optional
-            specifies whether this is a training or evaluation environment
-
-        Returns
-        -------
-        gym.Env or list of gym.Env
-            gym-compatible environment(s)
-        """
-        if env == "AntGather":
-            env = AntGatherEnv()
-
-        if env == "AntMaze":
-            if evaluate:
-                env = [AntMaze(use_contexts=True, context_range=[16, 0]),
-                       AntMaze(use_contexts=True, context_range=[16, 16]),
-                       AntMaze(use_contexts=True, context_range=[0, 16])]
-            else:
-                env = AntMaze(use_contexts=True,
-                              random_contexts=True,
-                              context_range=[(-4, 20), (-4, 20)])
-
-        elif env == "AntPush":
-            if evaluate:
-                env = AntPush(use_contexts=True, context_range=[0, 19])
-            else:
-                env = AntPush(use_contexts=True, context_range=[0, 19])
-                # env = AntPush(use_contexts=True,
-                #               random_contexts=True,
-                #               context_range=[(-16, 16), (-4, 20)])
-
-        elif env == "AntFall":
-            if evaluate:
-                env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
-            else:
-                env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
-                # env = AntFall(use_contexts=True,
-                #               random_contexts=True,
-                #               context_range=[(-4, 12), (-4, 28), (0, 5)])
-
-        elif env == "UR5":
-            if evaluate:
-                env = UR5(use_contexts=True,
-                          random_contexts=True,
-                          context_range=[(-np.pi, np.pi),
-                                         (-np.pi / 4, 0),
-                                         (-np.pi / 4, np.pi / 4)])
-            else:
-                env = UR5(use_contexts=True,
-                          random_contexts=True,
-                          context_range=[(-np.pi, np.pi),
-                                         (-np.pi / 4, 0),
-                                         (-np.pi / 4, np.pi / 4)])
-
-        elif env == "Pendulum":
-            if evaluate:
-                env = Pendulum(use_contexts=True, context_range=[0, 0])
-            else:
-                env = Pendulum(use_contexts=True,
-                               random_contexts=True,
-                               context_range=[
-                                   (np.deg2rad(-16), np.deg2rad(16)),
-                                   (-0.6, 0.6)])
-
-        elif env in ["figureeight0", "figureeight1", "figureeight2", "merge0",
-                     "merge1", "merge2", "bottleneck0", "bottleneck1",
-                     "bottleneck2", "grid0", "grid1"]:
-            # Import the benchmark and fetch its flow_params
-            benchmark = __import__("flow.benchmarks.{}".format(env),
-                                   fromlist=["flow_params"])
-            flow_params = benchmark.flow_params
-
-            # Get the env name and a creator for the environment.
-            create_env, _ = make_create_env(flow_params, version=0)
-
-            # Create the environment.
-            env = create_env()
-
-        elif isinstance(env, str):
-            # This is assuming the environment is registered with OpenAI gym.
-            env = gym.make(env)
-
-        # Reset the environment.
-        if env is not None:
-            if isinstance(env, list):
-                for next_env in env:
-                    next_env.reset()
-            else:
-                env.reset()
-
-        return env
-
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
         self.graph = tf.Graph()
@@ -480,22 +370,12 @@ class TD3(object):
             with tf.compat.v1.variable_scope("Train"):
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
-            with tf.compat.v1.variable_scope("Evaluate"):
-                self.eval_rew_ph = tf.compat.v1.placeholder(tf.float32)
-                self.eval_success_ph = tf.compat.v1.placeholder(tf.float32)
 
             # Add tensorboard scalars for the return, return history, and
             # success rate.
             tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
             tf.compat.v1.summary.scalar("Train/return_history",
                                         self.rew_history_ph)
-            # FIXME
-            # if self.eval_env is not None:
-            #     eval_success_ph = self.eval_success_ph
-            #     tf.compat.v1.summary.scalar("Evaluate/return",
-            #                                 self.eval_rew_ph)
-            #     tf.compat.v1.summary.scalar("Evaluate/success_rate",
-            #                                 eval_success_ph)
 
             # Create the tensorboard summary.
             self.summary = tf.compat.v1.summary.merge_all()

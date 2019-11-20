@@ -10,7 +10,7 @@ from hbaselines.goal_conditioned.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space
+from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 
 
 # TODO: add as input
@@ -321,7 +321,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.critic_lr = critic_lr
         self.verbose = verbose
         self.reuse = reuse
-        self.layers = layers or [256, 256]
+        self.layers = layers
         self.tau = tau
         self.gamma = gamma
         self.noise = noise * ac_mag
@@ -1174,31 +1174,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 zero_fingerprint=self.use_fingerprints,
             )
 
-        # remove the last element to compute the reward FIXME
-        if self.use_fingerprints:
-            state_indices = list(np.arange(
-                0, self.manager.ob_space.shape[0] - self.fingerprint_dim[0]))
-        else:
-            state_indices = None
-
-        if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
-            state_indices = list(np.arange(0, self.manager.ac_space.shape[0]))
-        elif env_name == "UR5":
-            state_indices = None
-        elif env_name == "Pendulum":
-            state_indices = [0, 2]
-        elif env_name == "figureeight0":
-            state_indices = [13]
-        elif env_name == "figureeight1":
-            state_indices = [i for i in range(1, 14, 2)]
-        elif env_name == "figureeight2":
-            state_indices = [i for i in range(14)]
-        elif env_name == "merge0":
-            state_indices = [5 * i for i in range(5)]
-        elif env_name == "merge1":
-            state_indices = [5 * i for i in range(13)]
-        elif env_name == "merge2":
-            state_indices = [5 * i for i in range(17)]
+        # Collect the state indices for the worker rewards.
+        state_indices = get_state_indices(
+            ob_space, env_name, use_fingerprints, self.fingerprint_dim)
 
         # reward function for the worker
         def worker_reward(states, goals, next_states):
