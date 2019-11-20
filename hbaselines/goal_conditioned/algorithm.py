@@ -426,8 +426,7 @@ class TD3(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions,
-            total_steps=self.total_steps)
+            random_actions=random_actions)
 
         q_value = self.policy_tf.value(obs, context, action) if compute_q \
             else None

@@ -283,9 +283,9 @@ class TestTD3(unittest.TestCase):
 
         # Test worker_reward method within the policy.
         self.assertAlmostEqual(
-            alg.policy_tf.worker_reward(states=np.array([1, 2, 3]),
-                                        goals=np.array([0, 0]),
-                                        next_states=np.array([1, 2, 3])),
+            alg.policy_tf.worker_reward_fn(states=np.array([1, 2, 3]),
+                                           goals=np.array([0, 0]),
+                                           next_states=np.array([1, 2, 3])),
             -np.sqrt(1**2 + 2**2)
         )
 

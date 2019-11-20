@@ -1288,12 +1288,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Update the meta action, if the time period requires is.
         if len(self._observations) == 0:
             self.meta_action = self.manager.get_action(
-                obs, apply_noise, random_actions, **kwargs)
+                obs, context, apply_noise, random_actions)
 
         # Return the worker action.
         worker_action = self.worker.get_action(
