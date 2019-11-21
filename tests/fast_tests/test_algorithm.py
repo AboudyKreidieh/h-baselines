@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import random
 import shutil
+import os
 
 from hbaselines.goal_conditioned.algorithm import TD3
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
@@ -311,6 +312,31 @@ class TestTD3(unittest.TestCase):
 
         # Delete generated files.
         shutil.rmtree('results')
+
+    def test_log_eval(self):
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalConditionedPolicy
+        policy_params['_init_setup_model'] = False
+        alg = TD3(**policy_params)
+
+        # test for one evaluation environment
+        rewards = [0, 1, 2]
+        successes = [True, False, False]
+        info = {"test": [5, 6, 7]}
+        alg._log_eval(
+            file_path="test_eval.csv",
+            start_time=0,
+            rewards=rewards,
+            successes=successes,
+            info=info
+        )
+
+        # check that the file was generated
+        self.assertTrue(os.path.exists('test_eval_0.csv'))
+
+        # Delete generated files.
+        os.remove('test_eval_0.csv')
 
 
 if __name__ == '__main__':
