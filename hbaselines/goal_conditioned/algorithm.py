@@ -315,20 +315,20 @@ class TD3(object):
         self.sess = None
         self.summary = None
         self.obs = None
-        self.episode_step = None
-        self.episodes = None
-        self.total_steps = None
-        self.epoch_episode_rewards = None
-        self.epoch_episode_steps = None
-        self.epoch_actor_losses = None
-        self.epoch_critic_losses = None
-        self.epoch_actions = None
-        self.epoch_q1s = None
-        self.epoch_q2s = None
-        self.epoch_episodes = None
-        self.epoch = None
-        self.episode_rewards_history = None
-        self.episode_reward = None
+        self.episode_step = 0
+        self.episodes = 0
+        self.total_steps = 0
+        self.epoch_episode_rewards = []
+        self.epoch_episode_steps = []
+        self.epoch_actor_losses = []
+        self.epoch_critic_losses = []
+        self.epoch_actions = []
+        self.epoch_q1s = []
+        self.epoch_q2s = []
+        self.epoch_episodes = 0
+        self.epoch = 0
+        self.episode_rewards_history = deque(maxlen=100)
+        self.episode_reward = 0
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -506,14 +506,8 @@ class TD3(object):
             print('Using agent with the following configuration:')
             print(str(self.__dict__.items()))
 
-        # Initialize class variables.
         steps_incr = 0
-        self.episode_reward = 0
-        self.episode_step = 0
-        self.episodes = 0
-        self.total_steps = 0
-        self.epoch = 0
-        self.episode_rewards_history = deque(maxlen=100)
+        start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
@@ -521,28 +515,17 @@ class TD3(object):
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
                 self.obs, self.total_steps, total_timesteps)
-            start_time = time.time()
 
-            # Reset epoch-specific variables. FIXME: hacky
-            self.epoch_episodes = 0
-            self.epoch_actions = []
-            self.epoch_q1s = []
-            self.epoch_q2s = []
-            self.epoch_actor_losses = []
-            self.epoch_critic_losses = []
-            self.epoch_episode_rewards = []
-            self.epoch_episode_steps = []
-            # Perform rollouts.
+            # Collect preliminary random samples.
             print("Collecting pre-samples...")
             self._collect_samples(total_timesteps,
                                   run_steps=start_timesteps,
                                   random_actions=True)
             print("Done!")
-            self.episode_reward = 0
-            self.episode_step = 0
+
+            # Reset total statistics variables.
             self.episodes = 0
             self.total_steps = 0
-            self.epoch = 0
             self.episode_rewards_history = deque(maxlen=100)
 
             while True:
