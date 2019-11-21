@@ -433,7 +433,15 @@ class TD3(object):
 
         return action.flatten(), q_value
 
-    def _store_transition(self, obs0, action, reward, obs1, terminal1):
+    def _store_transition(self,
+                          obs0,
+                          context0,
+                          action,
+                          reward,
+                          obs1,
+                          context1,
+                          terminal1,
+                          evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -448,15 +456,16 @@ class TD3(object):
             the current observation
         terminal1 : bool
             is the episode done
+        evaluate : bool
+            whether the sample is being provided by the evaluation environment.
+            If so, the data is not stored in the replay buffer.
         """
-        # Get the contextual term.
-        context0 = context1 = getattr(self.env, "current_context", None)
-
         # Scale the rewards by the provided term.
         reward *= self.reward_scale
 
         self.policy_tf.store_transition(
-            obs0, context0, action, reward, obs1, context1, terminal1)
+            obs0, context0, action, reward, obs1, context1, terminal1,
+            evaluate)
 
     def learn(self,
               total_timesteps,
@@ -670,14 +679,19 @@ class TD3(object):
                 0 if random_actions else self.total_steps,
                 total_timesteps)
 
+            # Get the contextual term.
+            context0 = context1 = getattr(self.env, "current_context", None)
+
             # Store a transition in the replay buffer. The terminal flag is
             # chosen to match the TD3 implementation (see Appendix 1 of their
             # paper).
             self._store_transition(
                 obs0=self.obs,
+                context0=context0,
                 action=action,
                 reward=reward,
                 obs1=new_obs,
+                context1=context1,
                 terminal1=done and self.episode_step < self.horizon - 1
             )
 
@@ -779,6 +793,11 @@ class TD3(object):
             print("Running evaluation for {} episodes:".format(
                 self.nb_eval_episodes))
 
+        # Clear replay buffer-related memory in the policy to allow for the
+        # meta-actions to properly updated.
+        if isinstance(self.policy_tf, GoalConditionedPolicy):
+            self.policy_tf.clear_memory()
+
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = env.reset()
@@ -808,10 +827,18 @@ class TD3(object):
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
                 if hasattr(env, "current_context"):
-                    context_obs = getattr(env, "current_context")
+                    context = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
-                    rets = np.append(
-                        rets, reward_fn(eval_obs, context_obs, obs))
+                    rets = np.append(rets, reward_fn(eval_obs, context, obs))
+
+                # Get the contextual term.
+                context0 = context1 = getattr(env, "current_context", None)
+
+                # Store a transition in the replay buffer. This is just for the
+                # purposes of calling features in the store_transition method
+                # of the policy.
+                self._store_transition(eval_obs, context0, eval_action, eval_r,
+                                       obs, context1, False, evaluate=True)
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
@@ -863,6 +890,11 @@ class TD3(object):
         ret_info['initial'] = np.mean(ret_info['initial'])
         ret_info['final'] = np.mean(ret_info['final'])
         ret_info['average'] = np.mean(ret_info['average'])
+
+        # Clear replay buffer-related memory in the policy once again so that
+        # it does not affect the training procedure.
+        if isinstance(self.policy_tf, GoalConditionedPolicy):
+            self.policy_tf.clear_memory()
 
         return eval_episode_rewards, eval_episode_successes, ret_info
 

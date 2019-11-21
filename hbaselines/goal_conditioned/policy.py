@@ -123,7 +123,7 @@ class ActorCriticPolicy(object):
         raise NotImplementedError
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done):
+                         done, evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -144,6 +144,9 @@ class ActorCriticPolicy(object):
             by the environment.
         done : float
             is the episode done
+        evaluate : bool
+            whether the sample is being provided by the evaluation environment.
+            If so, the data is not stored in the replay buffer.
         """
         raise NotImplementedError
 
@@ -810,13 +813,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done):
+                         done, evaluate=False):
         """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs0 = self._get_obs(obs0, context0, axis=0)
-        obs1 = self._get_obs(obs1, context1, axis=0)
+        if not evaluate:
+            # Add the contextual observation, if applicable.
+            obs0 = self._get_obs(obs0, context0, axis=0)
+            obs1 = self._get_obs(obs1, context1, axis=0)
 
-        self.replay_buffer.add(obs0, action, reward, obs1, float(done))
+            self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
     def initialize(self):
         """See parent class.
@@ -1329,7 +1333,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
-        if self._update_meta():
+        if self._update_meta:
             # Update the meta action based on the output from the policy if the
             # time period requires is.
             self.meta_action = self.manager.get_action(
@@ -1355,7 +1359,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return 0, 0  # FIXME
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done):
+                         done, evaluate=False):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
@@ -1387,25 +1391,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             meta_obs1 = self._get_obs(obs1, context1, 0)
 
             # Store a sample in the Manager policy.
-            self.replay_buffer.add(
-                obs_t=self._observations,
-                goal_t=self._meta_actions[0],
-                action_t=self._worker_actions,
-                reward_t=self._worker_rewards,
-                done=self._dones,
-                meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                meta_reward_t=self.meta_reward,
-            )
+            if not evaluate:
+                self.replay_buffer.add(
+                    obs_t=self._observations,
+                    goal_t=self._meta_actions[0],
+                    action_t=self._worker_actions,
+                    reward_t=self._worker_rewards,
+                    done=self._dones,
+                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                    meta_reward_t=self.meta_reward,
+                )
 
             # Clear the worker rewards and actions, and the environmental
             # observation and reward.
-            self.meta_reward = 0
-            self._observations = []
-            self._worker_actions = []
-            self._worker_rewards = []
-            self._dones = []
-            self._meta_actions = []
+            self.clear_memory()
 
+    @property
     def _update_meta(self):
         """Return True if the meta-action should be updated by the policy.
 
@@ -1414,6 +1415,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         has been met or the environment has been reset.
         """
         return len(self._observations) == 0
+
+    def clear_memory(self):
+        """Clear internal memory that is used by the replay buffer.
+
+        By clearing memory, the Manager policy is then informed during the
+        `get_action` procedure to update the meta-action.
+        """
+        self.meta_reward = 0
+        self._observations = []
+        self._worker_actions = []
+        self._worker_rewards = []
+        self._dones = []
+        self._meta_actions = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
