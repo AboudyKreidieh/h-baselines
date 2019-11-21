@@ -151,6 +151,38 @@ class ActorCriticPolicy(object):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
 
+    @staticmethod
+    def _get_obs(obs, context, axis=0):
+        """Return the processed observation.
+
+        If the contextual term is not None, this will look as follows:
+
+                                    -----------------
+                    processed_obs = | obs | context |
+                                    -----------------
+
+        Otherwise, this method simply returns the observation.
+
+        Parameters
+        ----------
+        obs : array_like
+            the original observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        axis : int
+            the axis to concatenate the observations and contextual terms by
+
+        Returns
+        -------
+        array_like
+            the processed observation
+        """
+        if context is not None:
+            context = context.flatten() if axis == 0 else context
+            obs = np.concatenate((obs, context), axis=axis)
+        return obs
+
 
 class FeedForwardPolicy(ActorCriticPolicy):
     """Feed-forward neural network actor-critic policy.
@@ -751,8 +783,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        if context[0] is not None:
-            obs = np.concatenate((obs, context), axis=1)
+        obs = self._get_obs(obs, context, axis=1)
 
         if random_actions:
             action = np.array([self.ac_space.sample()])
@@ -772,8 +803,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def value(self, obs, context, action):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        if context[0] is not None:
-            obs = np.concatenate((obs, context), axis=1)
+        obs = self._get_obs(obs, context, axis=1)
 
         return self.sess.run(
             self.critic_tf,
@@ -783,10 +813,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                          done):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        if context0 is not None:
-            obs0 = np.concatenate((obs0, context0.flatten()), axis=0)
-        if context1 is not None:
-            obs1 = np.concatenate((obs1, context1.flatten()), axis=0)
+        obs0 = self._get_obs(obs0, context0, axis=0)
+        obs1 = self._get_obs(obs1, context1, axis=0)
 
         self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
@@ -1117,6 +1145,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 zero_fingerprint=False,
             )
 
+        # a fixed goal transition function for the meta-actions in between meta
+        # periods. This is used when relative_goals is set to True in order to
+        # maintain a fixed absolute position of the goal.
+        if relative_goals:
+            def goal_transition_fn(obs0, goal, obs1):
+                return obs0 + goal - obs1
+        else:
+            def goal_transition_fn(obs0, goal, obs1):
+                return goal
+        self.goal_transition_fn = goal_transition_fn
+
         # previous observation by the Manager
         self.prev_meta_obs = None
 
@@ -1290,10 +1329,20 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
-        # Update the meta action, if the time period requires is.
-        if len(self._observations) == 0:
+        if self._update_meta():
+            # Update the meta action based on the output from the policy if the
+            # time period requires is.
             self.meta_action = self.manager.get_action(
                 obs, context, apply_noise, random_actions)
+        else:
+            # Update the meta-action in accordance with the fixed transition
+            # function.
+            goal_dim = self.meta_action.shape[1]
+            self.meta_action = self.goal_transition_fn(
+                obs0=np.asarray([self._observations[-1][:goal_dim]]),
+                goal=self.meta_action,
+                obs1=obs[:, :goal_dim]
+            )
 
         # Return the worker action.
         worker_action = self.worker.get_action(
@@ -1318,38 +1367,24 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # and worker actions to their respective lists.
         self._worker_actions.append(action)
         self._meta_actions.append(self.meta_action.flatten())
-        self._observations.append(
-            np.concatenate((obs0, self.meta_action.flatten()), axis=0))
+        self._observations.append(self._get_obs(obs0, self.meta_action, 0))
         self._dones.append(done)
-
-        # update the meta-action in accordance with HIRO
-        if self.relative_goals:
-            prev_goal = self.meta_action.flatten()
-            self.meta_action = np.array([obs0[:prev_goal.shape[0]] + prev_goal
-                                         - obs1[:prev_goal.shape[0]]])
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
 
         # Modify the previous meta observation whenever the action has changed.
         if len(self._observations) == 1:
-            if context0 is not None:
-                self.prev_meta_obs = np.concatenate(
-                    (obs0, context0.flatten()), axis=0)
-            else:
-                self.prev_meta_obs = np.copy(obs0)
+            self.prev_meta_obs = self._get_obs(obs0, context0, 0)
 
         # Add a sample to the replay buffer.
         if len(self._observations) == self.meta_period or done:
             # Add the last observation.
-            self._observations.append(
-                np.concatenate((obs1, self.meta_action.flatten()), axis=0))
+            self._observations.append(self._get_obs(obs1, self.meta_action, 0))
 
-            # Add the contextual observation, if applicable.
-            if context1 is not None:
-                meta_obs1 = np.concatenate((obs1, context1.flatten()), axis=0)
-            else:
-                meta_obs1 = np.copy(obs1)
+            # Add the contextual observation to the most recent environmental
+            # observation, if applicable.
+            meta_obs1 = self._get_obs(obs1, context1, 0)
 
             # Store a sample in the Manager policy.
             self.replay_buffer.add(
@@ -1362,16 +1397,23 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 meta_reward_t=self.meta_reward,
             )
 
-            # Reset the meta reward.
-            self.meta_reward = 0
-
             # Clear the worker rewards and actions, and the environmental
-            # observation.
+            # observation and reward.
+            self.meta_reward = 0
             self._observations = []
             self._worker_actions = []
             self._worker_rewards = []
             self._dones = []
             self._meta_actions = []
+
+    def _update_meta(self):
+        """Return True if the meta-action should be updated by the policy.
+
+        This is done by checking the length of the observation lists that are
+        passed to the replay buffer, which are cleared whenever the meta-period
+        has been met or the environment has been reset.
+        """
+        return len(self._observations) == 0
 
     def _sample_best_meta_action(self,
                                  state_reps,

@@ -642,14 +642,17 @@ class TD3(object):
             exploration purposes.
         """
         for _ in range(run_steps or self.nb_rollout_steps):
+            # Collect the contextual term. None if it is not passed.
+            context = self.env.current_context \
+                if hasattr(self.env, "current_context") else None
+
             # Predict next action. Use random actions when initializing the
             # replay buffer.
             action, (q1_value, q2_value) = self._policy(
-                self.obs,
+                self.obs, context,
                 apply_noise=True,
                 random_actions=random_actions,
-                compute_q=True,
-                context=[getattr(self.env, "current_context", None)])
+                compute_q=True)
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
