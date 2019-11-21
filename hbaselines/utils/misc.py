@@ -183,14 +183,16 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env, evaluate=False):
+def create_env(env, render=False, evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
     ----------
     env : str or gym.Env
         the environment, or the name of a registered environment.
-    evaluate : bool, optional
+    render : bool
+        whether to render the environment
+    evaluate : bool
         specifies whether this is a training or evaluation environment
 
     Returns
@@ -260,13 +262,13 @@ def create_env(env, evaluate=False):
         flow_params = benchmark.flow_params
 
         # Get the env name and a creator for the environment.
-        create_env, _ = make_create_env(flow_params, version=0)
+        create_env, _ = make_create_env(flow_params, version=0, render=render)
 
         # Create the environment.
         env = create_env()
 
     elif env in ["ring0", "ring1", "multi-ring0", "multi-ring1"]:
-        env = FlowEnv("ring")  # FIXME
+        env = FlowEnv("ring", render=render)  # FIXME
 
     elif env in ["merge0", "merge1", "merge2", "multi-merge0", "multi-merge1",
                  "multi-merge2"]:
@@ -278,7 +280,8 @@ def create_env(env, evaluate=False):
                 "horizon": 6000,
                 "simulator": "traci",
                 "multiagent": env[:5] == "multi"
-            }
+            },
+            render=render
         )
 
     elif env in ["figureeight0", "figureeight1", "figureeight02",
@@ -292,7 +295,8 @@ def create_env(env, evaluate=False):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": env[:5] == "multi"
-            }
+            },
+            render=render
         )
 
     elif isinstance(env, str):

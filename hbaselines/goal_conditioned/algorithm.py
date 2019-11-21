@@ -266,9 +266,9 @@ class TD3(object):
         """
         self.policy = policy
         self.env_name = deepcopy(env)
-        self.env = create_env(env, evaluate=False)
+        self.env = create_env(env, render, evaluate=False)
         self.num_cpus = num_cpus
-        self.eval_env = create_env(eval_env, evaluate=True)
+        self.eval_env = create_env(eval_env, render_eval, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
