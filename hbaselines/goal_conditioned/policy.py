@@ -102,7 +102,7 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, context, action=None):
+    def value(self, obs, context, action):
         """Call the critic methods to compute the value.
 
         Parameters
@@ -112,7 +112,7 @@ class ActorCriticPolicy(object):
         context : array_like or None
             the contextual term. Set to None if no context is provided by the
             environment.
-        action : array_like, optional
+        action : array_like
             the actions performed in the given observation
 
         Returns
@@ -427,7 +427,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target_noise = tf.clip_by_value(
                 target_noise, -self.target_noise_clip, self.target_noise_clip)
 
-            # clip the noisy action to remain in the bounds [-1, 1]
+            # clip the noisy action to remain in the bounds
             noisy_actor_target = tf.clip_by_value(
                 actor_target + target_noise,
                 self.ac_space.low,
@@ -769,7 +769,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, context, action=None):
+    def value(self, obs, context, action):
         """See parent class."""
         # Add the contextual observation, if applicable.
         if context[0] is not None:
@@ -888,7 +888,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
     and the goal observation:
-    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||
+    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2
 
     Bibliography:
 
@@ -1301,7 +1301,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return worker_action
 
-    def value(self, obs, context, action=None):
+    def value(self, obs, context, action):
         """See parent class."""
         return 0, 0  # FIXME
 
