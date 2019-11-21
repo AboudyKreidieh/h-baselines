@@ -218,8 +218,6 @@ class TestTD3(unittest.TestCase):
 
         # Run the learn operation for zero timesteps.
         alg.learn(0, log_dir='results', start_timesteps=0)
-        self.assertEqual(alg.episode_reward, 0)
-        self.assertEqual(alg.episode_step, 0)
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
         self.assertEqual(alg.epoch, 0)
