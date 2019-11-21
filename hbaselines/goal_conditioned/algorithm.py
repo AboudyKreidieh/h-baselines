@@ -576,13 +576,8 @@ class TD3(object):
                             self._evaluate(total_timesteps, self.eval_env)
 
                     # Log the evaluation statistics.
-                    self._log_eval(
-                        eval_filepath,
-                        start_time,
-                        eval_rewards,
-                        eval_successes,
-                        eval_info,
-                    )
+                    self._log_eval(eval_filepath, start_time, eval_rewards,
+                                   eval_successes, eval_info)
 
                 # Run and store summary.
                 if writer is not None:
@@ -965,12 +960,7 @@ class TD3(object):
         print("-" * 57)
         print('')
 
-    def _log_eval(self,
-                  file_path,
-                  start_time,
-                  eval_episode_rewards,
-                  eval_episode_successes,
-                  eval_info):
+    def _log_eval(self, file_path, start_time, rewards, successes, info):
         """Log evaluation statistics.
 
         Parameters
@@ -980,28 +970,27 @@ class TD3(object):
         start_time : float
             the time when training began. This is used to print the total
             training time.
-        eval_episode_rewards : array_like
+        rewards : array_like
             the list of cumulative rewards from every episode in the evaluation
             phase
-        eval_episode_successes : list of bool
+        successes : list of bool
             a list of boolean terms representing if each episode ended in
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
-        eval_info : dict
+        info : dict
             additional information that is meant to be logged
         """
         duration = time.time() - start_time
 
-        if isinstance(eval_info, dict):
-            eval_episode_rewards = [eval_episode_rewards]
-            eval_episode_successes = [eval_episode_successes]
-            eval_info = [eval_info]
+        if isinstance(info, dict):
+            rewards = [rewards]
+            successes = [successes]
+            info = [info]
 
-        for i, (ep_rewards, ep_success, info) in enumerate(
-                zip(eval_episode_rewards, eval_episode_successes, eval_info)):
-            if len(eval_episode_successes) > 0:
-                success_rate = np.mean(ep_success)
+        for i, (rew, suc, info) in enumerate(zip(rewards, successes, info)):
+            if len(successes) > 0:
+                success_rate = np.mean(suc)
             else:
                 success_rate = 0  # no success rate to log
 
@@ -1009,7 +998,7 @@ class TD3(object):
                 "duration": duration,
                 "total_step": self.total_steps,
                 "success_rate": success_rate,
-                "average_return": np.mean(ep_rewards)
+                "average_return": np.mean(rew)
             }
             # Add additional evaluation information.
             evaluation_stats.update(info)
