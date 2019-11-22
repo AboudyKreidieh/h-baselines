@@ -205,28 +205,36 @@ def create_env(env, render=False, evaluate=False):
 
     if env == "AntMaze":
         if evaluate:
-            env = [AntMaze(use_contexts=True, context_range=[16, 0]),
-                   AntMaze(use_contexts=True, context_range=[16, 16]),
-                   AntMaze(use_contexts=True, context_range=[0, 16])]
+            env = [AntMaze(use_contexts=True, context_range=[16, 0],
+                           show=render),
+                   AntMaze(use_contexts=True, context_range=[16, 16],
+                           show=render),
+                   AntMaze(use_contexts=True, context_range=[0, 16],
+                           show=render)]
         else:
             env = AntMaze(use_contexts=True,
                           random_contexts=True,
-                          context_range=[(-4, 20), (-4, 20)])
+                          context_range=[(-4, 20), (-4, 20)],
+                          show=render)
 
     elif env == "AntPush":
         if evaluate:
-            env = AntPush(use_contexts=True, context_range=[0, 19])
+            env = AntPush(use_contexts=True, context_range=[0, 19],
+                          show=render)
         else:
-            env = AntPush(use_contexts=True, context_range=[0, 19])
+            env = AntPush(use_contexts=True, context_range=[0, 19],
+                          show=render)
             # env = AntPush(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-16, 16), (-4, 20)])
 
     elif env == "AntFall":
         if evaluate:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
+                          show=render)
         else:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
+                          show=render)
             # env = AntFall(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-4, 12), (-4, 28), (0, 5)])
@@ -235,24 +243,26 @@ def create_env(env, render=False, evaluate=False):
         if evaluate:
             env = UR5(use_contexts=True,
                       random_contexts=True,
-                      context_range=[(-np.pi, np.pi),
-                                     (-np.pi / 4, 0),
-                                     (-np.pi / 4, np.pi / 4)])
+                      context_range=[(-np.pi, np.pi), (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)],
+                      show=render)
         else:
             env = UR5(use_contexts=True,
                       random_contexts=True,
-                      context_range=[(-np.pi, np.pi),
-                                     (-np.pi / 4, 0),
-                                     (-np.pi / 4, np.pi / 4)])
+                      context_range=[(-np.pi, np.pi), (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)],
+                      show=render)
 
     elif env == "Pendulum":
         if evaluate:
-            env = Pendulum(use_contexts=True, context_range=[0, 0])
+            env = Pendulum(use_contexts=True, context_range=[0, 0],
+                           show=render)
         else:
             env = Pendulum(use_contexts=True,
                            random_contexts=True,
                            context_range=[(np.deg2rad(-16), np.deg2rad(16)),
-                                          (-0.6, 0.6)])
+                                          (-0.6, 0.6)],
+                           show=render)
 
     elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
                  "grid1"]:

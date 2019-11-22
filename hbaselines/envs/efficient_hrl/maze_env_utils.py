@@ -245,21 +245,21 @@ def ray_segment_intersect(ray, segment):
 
     Parameters
     ----------
-    ray : TODO
-        TODO
-    segment : TODO
-        TODO
+    ray : ((float, float), float)
+        (x,y), theta values
+    segment : ((float, float), (float, float))
+        x, y values of the start and stop points
 
     Returns
     -------
-    TODO
-        TODO
+    (float, float) or None
+        x,y coordinates of the intersection. None if no intersection exists
     """
     (x, y), theta = ray
     # (x1, y1), (x2, y2) = segment
     pt1 = (x, y)
-    len = 1
-    pt2 = (x + len * math.cos(theta), y + len * math.sin(theta))
+    length = 1
+    pt2 = (x + length * math.cos(theta), y + length * math.sin(theta))
     xo, yo, valid, r, s = line_intersect(pt1, pt2, *segment)
     if valid and r >= 0 and 0 <= s <= 1:
         return xo, yo

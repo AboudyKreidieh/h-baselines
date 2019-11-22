@@ -451,13 +451,13 @@ class TestMisc(unittest.TestCase):
         # test for figureeight0
         self.assertListEqual(
             get_state_indices(env_name="figureeight0", **params),
-            [13]  # FIXME: correct?
+            [13]
         )
 
         # test for figureeight1
         self.assertListEqual(
             get_state_indices(env_name="figureeight1", **params),
-            [1, 3, 5, 7, 9, 11, 13]  # FIXME: correct?
+            [1, 3, 5, 7, 9, 11, 13]
         )
 
         # test for figureeight2

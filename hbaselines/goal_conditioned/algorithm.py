@@ -667,10 +667,6 @@ class TD3(object):
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
 
-            # Visualize the current step.
-            if self.render:
-                self.env.render()  # pragma: no cover
-
             # Add the fingerprint term, if needed. When collecting the initial
             # random actions, we assume the fingerprint does not change from
             # its initial value.
@@ -820,9 +816,6 @@ class TD3(object):
                     context=[getattr(env, "current_context", None)])
 
                 obs, eval_r, done, info = env.step(eval_action)
-
-                if self.render_eval:
-                    env.render()  # pragma: no cover
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).

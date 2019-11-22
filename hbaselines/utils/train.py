@@ -211,8 +211,6 @@ def create_feedforward_parser(parser):
         help="specifies whether to use the huber distance function as the "
              "loss for the critic. If set to False, the mean-squared error "
              "metric is used instead")
-    # TODO: layers
-    # TODO: act_fun
 
     return parser
 
