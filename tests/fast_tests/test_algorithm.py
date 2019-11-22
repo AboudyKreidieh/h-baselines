@@ -4,6 +4,7 @@ import numpy as np
 import random
 import shutil
 import os
+import csv
 
 from hbaselines.goal_conditioned.algorithm import TD3
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
@@ -323,7 +324,7 @@ class TestTD3(unittest.TestCase):
         # test for one evaluation environment
         rewards = [0, 1, 2]
         successes = [True, False, False]
-        info = {"test": [5, 6, 7]}
+        info = {"test": 5}
         alg._log_eval(
             file_path="test_eval.csv",
             start_time=0,
@@ -334,6 +335,44 @@ class TestTD3(unittest.TestCase):
 
         # check that the file was generated
         self.assertTrue(os.path.exists('test_eval_0.csv'))
+
+        # import the stored data
+        reader = csv.DictReader(open('test_eval_0.csv', 'r'))
+        results = {"successes": [], "rewards": [], "test": []}
+        for line in reader:
+            results["successes"].append(float(line["success_rate"]))
+            results["rewards"].append(float(line["average_return"]))
+            results["test"].append(float(line["test"]))
+
+        # test that the data matches expected values
+        self.assertListEqual(results["rewards"], [1])
+        self.assertListEqual(results["successes"], [1/3])
+        self.assertListEqual(results["test"], [5])
+
+        # Delete generated files.
+        os.remove('test_eval_0.csv')
+
+        # test for one evaluation environment with no successes
+        successes = []
+        alg._log_eval(
+            file_path="test_eval.csv",
+            start_time=0,
+            rewards=rewards,
+            successes=successes,
+            info=info
+        )
+
+        # check that the file was generated
+        self.assertTrue(os.path.exists('test_eval_0.csv'))
+
+        # import the stored data
+        reader = csv.DictReader(open('test_eval_0.csv', 'r'))
+        results = {"successes": []}
+        for line in reader:
+            results["successes"].append(float(line["success_rate"]))
+
+        # test that the successes are all zero
+        self.assertListEqual(results["successes"], [0])
 
         # Delete generated files.
         os.remove('test_eval_0.csv')

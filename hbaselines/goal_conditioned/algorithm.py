@@ -1023,8 +1023,8 @@ class TD3(object):
             successes = [successes]
             info = [info]
 
-        for i, (rew, suc, info) in enumerate(zip(rewards, successes, info)):
-            if len(successes) > 0:
+        for i, (rew, suc, info_i) in enumerate(zip(rewards, successes, info)):
+            if len(suc) > 0:
                 success_rate = np.mean(suc)
             else:
                 success_rate = 0  # no success rate to log
@@ -1036,7 +1036,7 @@ class TD3(object):
                 "average_return": np.mean(rew)
             }
             # Add additional evaluation information.
-            evaluation_stats.update(info)
+            evaluation_stats.update(info_i)
 
             if file_path is not None:
                 # Add an evaluation number to the csv file in case of multiple
