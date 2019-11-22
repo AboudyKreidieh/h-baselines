@@ -471,8 +471,8 @@ class TD3(object):
               total_timesteps,
               log_dir=None,
               seed=None,
-              log_interval=100,
-              eval_interval=5e3,
+              log_interval=1000,
+              eval_interval=5000,
               start_timesteps=10000):
         """Return a trained model.
 

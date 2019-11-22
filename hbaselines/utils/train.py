@@ -91,6 +91,13 @@ def parse_options(description, example_usage, args):
     parser.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
+    parser.add_argument(
+        '--log_interval', type=int, default=2000,
+        help='the number of training steps before logging training results')
+    parser.add_argument(
+        '--eval_interval', type=int, default=50000,
+        help='number of simulation steps in the training environment before '
+             'an evaluation is performed')
 
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
