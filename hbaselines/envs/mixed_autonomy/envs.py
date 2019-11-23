@@ -23,7 +23,7 @@ class FlowEnv(gym.Env):
         the environment's time horizon
     """
 
-    def __init__(self, env_name, env_params=None, version=0):
+    def __init__(self, env_name, env_params=None, render=False, version=0):
         """Create the environment.
 
         Parameters
@@ -32,6 +32,8 @@ class FlowEnv(gym.Env):
             the name of the environment to create
         env_params : dict
             environment-specific parameters
+        render : bool
+            whether to render the environment
         version : int
             environment version number, needed for testing purposes
 
@@ -60,7 +62,7 @@ class FlowEnv(gym.Env):
             flow_params = figure_eight(**env_params)
 
         # create the wrapped environment
-        create_env, _ = make_create_env(flow_params, version, render=False)
+        create_env, _ = make_create_env(flow_params, version, render)
         self.wrapped_env = create_env()
 
         # for tracking the time horizon

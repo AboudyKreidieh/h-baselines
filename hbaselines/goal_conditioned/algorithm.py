@@ -67,6 +67,8 @@ GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
+    # the value the intrinsic (Worker) reward should be scaled by
+    worker_reward_scale=1,
     # specifies whether the goal issued by the Manager is meant to be a
     # relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -264,9 +266,9 @@ class TD3(object):
         """
         self.policy = policy
         self.env_name = deepcopy(env)
-        self.env = create_env(env, evaluate=False)
+        self.env = create_env(env, render, evaluate=False)
         self.num_cpus = num_cpus
-        self.eval_env = create_env(eval_env, evaluate=True)
+        self.eval_env = create_env(eval_env, render_eval, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -313,20 +315,20 @@ class TD3(object):
         self.sess = None
         self.summary = None
         self.obs = None
-        self.episode_step = None
-        self.episodes = None
-        self.total_steps = None
-        self.epoch_episode_rewards = None
-        self.epoch_episode_steps = None
-        self.epoch_actor_losses = None
-        self.epoch_critic_losses = None
-        self.epoch_actions = None
-        self.epoch_q1s = None
-        self.epoch_q2s = None
-        self.epoch_episodes = None
-        self.epoch = None
-        self.episode_rewards_history = None
-        self.episode_reward = None
+        self.episode_step = 0
+        self.episodes = 0
+        self.total_steps = 0
+        self.epoch_episode_rewards = []
+        self.epoch_episode_steps = []
+        self.epoch_actor_losses = []
+        self.epoch_critic_losses = []
+        self.epoch_actions = []
+        self.epoch_q1s = []
+        self.epoch_q2s = []
+        self.epoch_episodes = 0
+        self.epoch = 0
+        self.episode_rewards_history = deque(maxlen=100)
+        self.episode_reward = 0
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -390,16 +392,19 @@ class TD3(object):
 
     def _policy(self,
                 obs,
+                context,
                 apply_noise=True,
                 compute_q=True,
-                random_actions=False,
-                **kwargs):
+                random_actions=False):
         """Get the actions and critic output, from a given observation.
 
         Parameters
         ----------
-        obs : list of float or list of int
+        obs : array_like
             the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         apply_noise : bool
             enable the noise
         compute_q : bool
@@ -419,18 +424,24 @@ class TD3(object):
         obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         action = self.policy_tf.get_action(
-            obs,
+            obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions,
-            total_steps=self.total_steps,
-            context_obs=kwargs["context"])
+            random_actions=random_actions)
 
-        q_value = self.policy_tf.value(
-            obs, action, context_obs=kwargs["context"]) if compute_q else None
+        q_value = self.policy_tf.value(obs, context, action) if compute_q \
+            else None
 
         return action.flatten(), q_value
 
-    def _store_transition(self, obs0, action, reward, obs1, terminal1):
+    def _store_transition(self,
+                          obs0,
+                          context0,
+                          action,
+                          reward,
+                          obs1,
+                          context1,
+                          terminal1,
+                          evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -445,23 +456,23 @@ class TD3(object):
             the current observation
         terminal1 : bool
             is the episode done
+        evaluate : bool
+            whether the sample is being provided by the evaluation environment.
+            If so, the data is not stored in the replay buffer.
         """
-        # Get the contextual term.
-        context = getattr(self.env, "current_context", None)
-
         # Scale the rewards by the provided term.
         reward *= self.reward_scale
 
-        self.policy_tf.store_transition(obs0, action, reward, obs1, terminal1,
-                                        context_obs0=context,
-                                        context_obs1=context)
+        self.policy_tf.store_transition(
+            obs0, context0, action, reward, obs1, context1, terminal1,
+            evaluate)
 
     def learn(self,
               total_timesteps,
               log_dir=None,
               seed=None,
-              log_interval=100,
-              eval_interval=5e3,
+              log_interval=1000,
+              eval_interval=5000,
               start_timesteps=10000):
         """Return a trained model.
 
@@ -504,14 +515,8 @@ class TD3(object):
             print('Using agent with the following configuration:')
             print(str(self.__dict__.items()))
 
-        # Initialize class variables.
         steps_incr = 0
-        self.episode_reward = 0
-        self.episode_step = 0
-        self.episodes = 0
-        self.total_steps = 0
-        self.epoch = 0
-        self.episode_rewards_history = deque(maxlen=100)
+        start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
@@ -519,28 +524,17 @@ class TD3(object):
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
                 self.obs, self.total_steps, total_timesteps)
-            start_time = time.time()
 
-            # Reset epoch-specific variables. FIXME: hacky
-            self.epoch_episodes = 0
-            self.epoch_actions = []
-            self.epoch_q1s = []
-            self.epoch_q2s = []
-            self.epoch_actor_losses = []
-            self.epoch_critic_losses = []
-            self.epoch_episode_rewards = []
-            self.epoch_episode_steps = []
-            # Perform rollouts.
+            # Collect preliminary random samples.
             print("Collecting pre-samples...")
             self._collect_samples(total_timesteps,
                                   run_steps=start_timesteps,
                                   random_actions=True)
             print("Done!")
-            self.episode_reward = 0
-            self.episode_step = 0
+
+            # Reset total statistics variables.
             self.episodes = 0
             self.total_steps = 0
-            self.epoch = 0
             self.episode_rewards_history = deque(maxlen=100)
 
             while True:
@@ -591,13 +585,8 @@ class TD3(object):
                             self._evaluate(total_timesteps, self.eval_env)
 
                     # Log the evaluation statistics.
-                    self._log_eval(
-                        eval_filepath,
-                        start_time,
-                        eval_rewards,
-                        eval_successes,
-                        eval_info,
-                    )
+                    self._log_eval(eval_filepath, start_time, eval_rewards,
+                                   eval_successes, eval_info)
 
                 # Run and store summary.
                 if writer is not None:
@@ -662,22 +651,21 @@ class TD3(object):
             exploration purposes.
         """
         for _ in range(run_steps or self.nb_rollout_steps):
+            # Collect the contextual term. None if it is not passed.
+            context = [self.env.current_context] \
+                if hasattr(self.env, "current_context") else None
+
             # Predict next action. Use random actions when initializing the
             # replay buffer.
             action, (q1_value, q2_value) = self._policy(
-                self.obs,
+                self.obs, context,
                 apply_noise=True,
                 random_actions=random_actions,
-                compute_q=True,
-                context=[getattr(self.env, "current_context", None)])
+                compute_q=True)
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
-
-            # Visualize the current step.
-            if self.render:
-                self.env.render()  # pragma: no cover
 
             # Add the fingerprint term, if needed. When collecting the initial
             # random actions, we assume the fingerprint does not change from
@@ -687,14 +675,19 @@ class TD3(object):
                 0 if random_actions else self.total_steps,
                 total_timesteps)
 
+            # Get the contextual term.
+            context0 = context1 = getattr(self.env, "current_context", None)
+
             # Store a transition in the replay buffer. The terminal flag is
             # chosen to match the TD3 implementation (see Appendix 1 of their
             # paper).
             self._store_transition(
                 obs0=self.obs,
+                context0=context0,
                 action=action,
                 reward=reward,
                 obs1=new_obs,
+                context1=context1,
                 terminal1=done and self.episode_step < self.horizon - 1
             )
 
@@ -796,6 +789,11 @@ class TD3(object):
             print("Running evaluation for {} episodes:".format(
                 self.nb_eval_episodes))
 
+        # Clear replay buffer-related memory in the policy to allow for the
+        # meta-actions to properly updated.
+        if isinstance(self.policy_tf, GoalConditionedPolicy):
+            self.policy_tf.clear_memory()
+
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = env.reset()
@@ -810,25 +808,31 @@ class TD3(object):
 
             rets = np.array([])
             while True:
+                # Collect the contextual term. None if it is not passed.
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
                 eval_action, _ = self._policy(
-                    eval_obs,
-                    apply_noise=False,
-                    random_actions=False,
-                    compute_q=False,
-                    context=[getattr(env, "current_context", None)])
+                    eval_obs, context,
+                    apply_noise=False, random_actions=False, compute_q=False)
 
                 obs, eval_r, done, info = env.step(eval_action)
-
-                if self.render_eval:
-                    env.render()  # pragma: no cover
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
                 if hasattr(env, "current_context"):
-                    context_obs = getattr(env, "current_context")
+                    context = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
-                    rets = np.append(
-                        rets, reward_fn(eval_obs, context_obs, obs))
+                    rets = np.append(rets, reward_fn(eval_obs, context, obs))
+
+                # Get the contextual term.
+                context0 = context1 = getattr(env, "current_context", None)
+
+                # Store a transition in the replay buffer. This is just for the
+                # purposes of calling features in the store_transition method
+                # of the policy.
+                self._store_transition(eval_obs, context0, eval_action, eval_r,
+                                       obs, context1, False, evaluate=True)
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
@@ -880,6 +884,11 @@ class TD3(object):
         ret_info['initial'] = np.mean(ret_info['initial'])
         ret_info['final'] = np.mean(ret_info['final'])
         ret_info['average'] = np.mean(ret_info['average'])
+
+        # Clear replay buffer-related memory in the policy once again so that
+        # it does not affect the training procedure.
+        if isinstance(self.policy_tf, GoalConditionedPolicy):
+            self.policy_tf.clear_memory()
 
         return eval_episode_rewards, eval_episode_successes, ret_info
 
@@ -945,10 +954,8 @@ class TD3(object):
 
         combined_stats = {
             'rollout/return': np.mean(self.epoch_episode_rewards),
-            'rollout/return_history': np.mean(
-                self.episode_rewards_history),
-            'rollout/episode_steps': np.mean(
-                self.epoch_episode_steps),
+            'rollout/return_history': np.mean(self.episode_rewards_history),
+            'rollout/episode_steps': np.mean(self.epoch_episode_steps),
             'rollout/actions_mean': np.mean(self.epoch_actions),
             'rollout/Q1_mean': np.mean(self.epoch_q1s),
             'rollout/Q2_mean': np.mean(self.epoch_q2s),
@@ -982,12 +989,7 @@ class TD3(object):
         print("-" * 57)
         print('')
 
-    def _log_eval(self,
-                  file_path,
-                  start_time,
-                  eval_episode_rewards,
-                  eval_episode_successes,
-                  eval_info):
+    def _log_eval(self, file_path, start_time, rewards, successes, info):
         """Log evaluation statistics.
 
         Parameters
@@ -997,28 +999,27 @@ class TD3(object):
         start_time : float
             the time when training began. This is used to print the total
             training time.
-        eval_episode_rewards : array_like
+        rewards : array_like
             the list of cumulative rewards from every episode in the evaluation
             phase
-        eval_episode_successes : list of bool
+        successes : list of bool
             a list of boolean terms representing if each episode ended in
             success or not. If the list is empty, then the environment did not
             output successes or failures, and the success rate will be set to
             zero.
-        eval_info : dict
+        info : dict
             additional information that is meant to be logged
         """
         duration = time.time() - start_time
 
-        if isinstance(eval_info, dict):
-            eval_episode_rewards = [eval_episode_rewards]
-            eval_episode_successes = [eval_episode_successes]
-            eval_info = [eval_info]
+        if isinstance(info, dict):
+            rewards = [rewards]
+            successes = [successes]
+            info = [info]
 
-        for i, (ep_rewards, ep_success, info) in enumerate(
-                zip(eval_episode_rewards, eval_episode_successes, eval_info)):
-            if len(eval_episode_successes) > 0:
-                success_rate = np.mean(ep_success)
+        for i, (rew, suc, info_i) in enumerate(zip(rewards, successes, info)):
+            if len(suc) > 0:
+                success_rate = np.mean(suc)
             else:
                 success_rate = 0  # no success rate to log
 
@@ -1026,10 +1027,10 @@ class TD3(object):
                 "duration": duration,
                 "total_step": self.total_steps,
                 "success_rate": success_rate,
-                "average_return": np.mean(ep_rewards)
+                "average_return": np.mean(rew)
             }
             # Add additional evaluation information.
-            evaluation_stats.update(info)
+            evaluation_stats.update(info_i)
 
             if file_path is not None:
                 # Add an evaluation number to the csv file in case of multiple

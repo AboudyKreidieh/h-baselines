@@ -28,7 +28,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 horizon=500):
+                 horizon=500,
+                 show=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -49,6 +50,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             each dimension of the goal
         horizon : float, optional
             time horizon
+        show : bool
+            specifies whether to render the environment
 
         Raises
         ------
@@ -70,6 +73,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             manual_collision=False
         )
 
+        self.show = show
         self.horizon = horizon
         self.step_number = 0
 
@@ -146,6 +150,10 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
+        # Visualize the current step.
+        if self.show:
+            self.render()  # pragma: no cover
+
         if self.use_contexts:
             # Add success to the info dict
             dist = self.contextual_reward(
@@ -215,7 +223,8 @@ class AntMaze(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 show=False):
         """Initialize the Ant Maze environment.
 
         Parameters
@@ -229,6 +238,8 @@ class AntMaze(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        show : bool
+            specifies whether to render the environment
 
         Raises
         ------
@@ -254,7 +265,8 @@ class AntMaze(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
+            show=show
         )
 
 
@@ -273,7 +285,8 @@ class AntPush(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 show=False):
         """Initialize the Ant Push environment.
 
         Parameters
@@ -287,6 +300,8 @@ class AntPush(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        show : bool
+            specifies whether to render the environment
 
         Raises
         ------
@@ -312,7 +327,8 @@ class AntPush(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
+            show=show
         )
 
 
@@ -333,7 +349,8 @@ class AntFall(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 show=False):
         """Initialize the Ant Fall environment.
 
         Parameters
@@ -347,6 +364,8 @@ class AntFall(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        show : bool
+            specifies whether to render the environment
 
         Raises
         ------
@@ -372,5 +391,6 @@ class AntFall(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
+            show=show
         )
