@@ -652,7 +652,7 @@ class TD3(object):
         """
         for _ in range(run_steps or self.nb_rollout_steps):
             # Collect the contextual term. None if it is not passed.
-            context = self.env.current_context \
+            context = [self.env.current_context] \
                 if hasattr(self.env, "current_context") else None
 
             # Predict next action. Use random actions when initializing the
@@ -808,12 +808,13 @@ class TD3(object):
 
             rets = np.array([])
             while True:
+                # Collect the contextual term. None if it is not passed.
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
                 eval_action, _ = self._policy(
-                    eval_obs,
-                    apply_noise=False,
-                    random_actions=False,
-                    compute_q=False,
-                    context=[getattr(env, "current_context", None)])
+                    eval_obs, context,
+                    apply_noise=False, random_actions=False, compute_q=False)
 
                 obs, eval_r, done, info = env.step(eval_action)
 
