@@ -890,7 +890,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         else:
             self._update_indp(update_actor, **kwargs)
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """Call the actor methods to compute policy actions.
 
         Parameters
@@ -898,6 +898,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         obs : dict of array_like
             the observations, with each element corresponding to a unique agent
             (as defined by the key)
+        context : array_like or None
+            the contextual term for each agent. Set to None if no context is
+            provided by the environment.
         apply_noise : bool
             whether to add Gaussian noise to the output of the actor. Defaults
             to False
@@ -914,12 +917,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """
         if self.centralized_vfs:
             return self._get_action_cent(
-                obs, apply_noise, random_actions, **kwargs)
+                obs, context, apply_noise, random_actions)
         else:
             return self._get_action_indp(
-                obs, apply_noise, random_actions, **kwargs)
+                obs, context, apply_noise, random_actions)
 
-    def value(self, obs, action, **kwargs):
+    def value(self, obs, context, action):
         """Call the critic methods to compute the value.
 
         Parameters
@@ -928,6 +931,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             the observations of the individual agents. In the case of
             centralized value functions, this should be the full state
             information.
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         action : dict of array_like, optional
             the actions performed in the given observation for the individual
             agents
@@ -940,32 +946,40 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             observation of the individual agents
         """
         if self.centralized_vfs:
-            self._value_cent(obs, action, **kwargs)
+            self._value_cent(obs, context, action)
         else:
-            self._value_indp(obs, action, **kwargs)
+            self._value_indp(obs, context, action)
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done, all_obs0=None, all_obs1=None, evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
         ----------
         obs0 : dict of array_like
             the last observation for each agent
+        context0 : array_like or None
+            the last contextual term for each agent. Set to None if no context
+            is provided by the environment.
         action : dict of array_like
             the dict of action for each agent
         reward : float ro dict of float
             the reward for each agent. A single reward if the policy is shared.
         obs1 : dict of array_like
             the current observation for each agent
+        context1 : array_like or None
+            the current contextual term for each agent. Set to None if no
+            context is provided by the environment.
         done : dict of float
             is the episode done for each agent
         """
         if self.centralized_vfs:
             self._store_transition_cent(
-                obs0, action, reward, obs1, done, **kwargs)
+                obs0, context0, action, reward, obs1, context1, done, all_obs0,
+                all_obs1, evaluate)
         else:
             self._store_transition_indp(
-                obs0, action, reward, obs1, done, **kwargs)
+                obs0, context0, action, reward, obs1, context1, done, evaluate)
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
@@ -988,7 +1002,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         for key in self.agents.keys():
             self.agents[key].update(update_actor, **kwargs)
 
-    def _get_action_indp(self, obs, apply_noise, random_actions, **kwargs):
+    def _get_action_indp(self, obs, context, apply_noise, random_actions):
         """See get_action."""
         actions = {}
 
@@ -999,11 +1013,11 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs[key], apply_noise, random_actions, **kwargs)
+                obs[key], context[key], apply_noise, random_actions)
 
         return actions
 
-    def _value_indp(self, obs, action, **kwargs):
+    def _value_indp(self, obs, context, action):
         """See value."""
         values = {}
 
@@ -1013,12 +1027,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             agent = self.agents["agent"] if self.shared else self.agents[key]
 
             # Compute the value of the provided observation.
-            values[key] = agent.value(obs[key], action[key], **kwargs)
+            values[key] = agent.value(obs[key], context[key], action[key])
 
         return values
 
-    def _store_transition_indp(self, obs0, action, reward, obs1, done,
-                               **kwargs):
+    def _store_transition_indp(self, obs0, context0, action, reward, obs1,
+                               context1, done, evaluate):
         """See store_transition."""
         for key in obs0.keys():
             # Use the same policy for all operations if shared, and the
@@ -1031,11 +1045,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # Store the individual samples.
             agent.store_transition(
                 obs0=obs0[key],
+                context0=context0[key],
                 action=action[key],
                 reward=agent_reward,
                 obs1=obs1[key],
+                context1=context1[key],
                 done=done[key],
-                **kwargs
+                evaluate=evaluate,
             )
 
     def _get_td_map_indp(self):
@@ -1084,7 +1100,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_cent(self, obs, apply_noise, random_actions, **kwargs):
+    def _get_action_cent(self, obs, context, apply_noise, random_actions):
         """See get_action."""
         actions = {}
 
@@ -1093,9 +1109,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 actions[key] = np.array([self.ac_space.sample()])
             else:
                 # Add the contextual observation, if applicable.
-                context_obs = kwargs.get("context_obs")[key]
-                if context_obs[0] is not None:
-                    obs[key] = np.concatenate((obs[key], context_obs), axis=1)
+                obs[key] = self._get_obs(obs[key], context[key], axis=1)
 
                 # Compute the action by the policy
                 actions[key] = self.sess.run(
@@ -1116,12 +1130,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return actions
 
-    def _value_cent(self, obs, action, **kwargs):
+    def _value_cent(self, obs, context, action):
         """See value."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
-        if context_obs[0] is not None:
-            obs = np.concatenate((obs, context_obs), axis=1)
+        obs = self._get_obs(obs, context, axis=1)
 
         feed_dict = {self.all_obs0_ph: obs}
         # Add the individual actions
@@ -1130,33 +1142,25 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return self.sess.run(self.central_q, feed_dict=feed_dict)
 
-    def _store_transition_cent(self, obs0, action, reward, obs1, done,
-                               all_obs0, all_obs1, **kwargs):
+    def _store_transition_cent(self, obs0, context0, action, reward, obs1,
+                               context1, done, all_obs0, all_obs1, evaluate):
         """See store_transition."""
-        # Add the contextual observation, if applicable.
-        if kwargs.get("context_obs0") is not None:
+        if not evaluate:
+            # Convert the dictionaries to lists.
+            list_obs0 = []
+            list_obs1 = []
+            list_actions = []
             for key in sorted(obs0.keys()):
-                obs0[key] = np.concatenate(
-                    (obs0[key], kwargs["context_obs0"].flatten()), axis=0)
-                all_obs0 = np.concatenate(
-                    (all_obs0, kwargs["context_obs0"].flatten()), axis=0)
+                # Add the contextual observation, if applicable.
+                obs0[key] = self._get_obs(obs0[key], context0[key], axis=0)
+                obs1[key] = self._get_obs(obs1[key], context1[key], axis=0)
 
-                obs1[key] = np.concatenate(
-                    (obs1[key], kwargs["context_obs1"].flatten()), axis=0)
-                all_obs1 = np.concatenate(
-                    (all_obs1, kwargs["context_obs0"].flatten()), axis=0)
+                list_obs0.append(obs0[key])
+                list_obs1.append(obs1[key])
+                list_actions.append(action[key])
 
-        # Convert the dictionaries to lists.
-        list_obs0 = []
-        list_obs1 = []
-        list_actions = []
-        for key in sorted(obs0.keys()):
-            list_obs0.append(obs0[key])
-            list_obs1.append(obs1[key])
-            list_actions.append(action[key])
-
-        self.replay_buffer.add(list_obs0, list_actions, reward, list_obs1,
-                               float(done), all_obs0, all_obs1)
+            self.replay_buffer.add(list_obs0, list_actions, reward, list_obs1,
+                                   float(done), all_obs0, all_obs1)
 
     def _get_td_map_cent(self):
         """See get_td_map."""
