@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
+# =============================================================================
 """Utility methods for the Ant environments.
 
 Adapted from rllab maze_env_utils.py.
@@ -33,81 +33,81 @@ class Move(object):
 
 
 def can_move_x(movable):
-    """TODO.
+    """Return if an object can be moved in the x-direction.
 
     Parameters
     ----------
     movable : int
-        TODO
+        move-ability of the contacting object
 
     Returns
     -------
     bool
-        TODO
+        True if movable, False otherwise
     """
     return movable in [Move.X, Move.XY, Move.XZ, Move.XYZ, Move.SpinXY]
 
 
 def can_move_y(movable):
-    """TODO.
+    """Return if an object can be moved in the y-direction.
 
     Parameters
     ----------
     movable : int
-        TODO
+        move-ability of the contacting object
 
     Returns
     -------
     bool
-        TODO
+        True if movable, False otherwise
     """
     return movable in [Move.Y, Move.XY, Move.YZ, Move.XYZ, Move.SpinXY]
 
 
 def can_move_z(movable):
-    """TODO.
+    """Return if an object can be moved in the z-direction.
 
     Parameters
     ----------
     movable : int
-        TODO
+        move-ability of the contacting object
 
     Returns
     -------
     bool
-        TODO
+        True if movable, False otherwise
     """
     return movable in [Move.Z, Move.XZ, Move.YZ, Move.XYZ]
 
 
 def can_spin(movable):
-    """TODO.
+    """Return if an object can be spun.
 
     Parameters
     ----------
     movable : int
-        TODO
+        move-ability of the contacting object
 
     Returns
     -------
     bool
-        TODO
+        True if spin-able, False otherwise
     """
     return movable in [Move.SpinXY]
 
 
 def can_move(movable):
-    """TODO.
+    """Return if an object can be moved in any direction.
 
     Parameters
     ----------
     movable : int
-        TODO
+        move-ability of the contacting object
 
     Returns
     -------
     bool
-        TODO
+        True if movable, False otherwise
     """
     return can_move_x(movable) or can_move_y(movable) or can_move_z(movable)
 
@@ -173,7 +173,7 @@ def construct_maze(maze_id='Maze'):
     return structure
 
 
-def line_intersect(pt1, pt2, ptA, ptB):
+def line_intersect(pt1, pt2, pta, ptb):
     """Return the intersection of Line(pt1,pt2) and Line(ptA,ptB).
 
     Taken from https://www.cs.hmc.edu/ACM/lectures/intersections.html
@@ -184,9 +184,9 @@ def line_intersect(pt1, pt2, ptA, ptB):
         x,y position of first point in the first line
     pt2 : (float float)
         x,y position of second point in the first line
-    ptA : (float float)
+    pta : (float float)
         x,y position of first point in the second line
-    ptB : (float float)
+    ptb : (float float)
         x,y position of second point in the second line
 
     Returns
@@ -202,7 +202,7 @@ def line_intersect(pt1, pt2, ptA, ptB):
     float
         the scalar amount along the input line
     """
-    DET_TOLERANCE = 0.00000001
+    det_tolerance = 0.00000001
 
     # the first line is pt1 + r*(pt2-pt1) in component form:
     x1, y1 = pt1
@@ -211,24 +211,24 @@ def line_intersect(pt1, pt2, ptA, ptB):
     dy1 = y2 - y1
 
     # the second line is ptA + s*(ptB-ptA)
-    x, y = ptA
-    xB, yB = ptB
-    dx = xB - x
-    dy = yB - y
+    x, y = pta
+    xb, yb = ptb
+    dx = xb - x
+    dy = yb - y
 
-    DET = (-dx1 * dy + dy1 * dx)
+    det = (-dx1 * dy + dy1 * dx)
 
-    if math.fabs(DET) < DET_TOLERANCE:
+    if math.fabs(det) < det_tolerance:
         return 0, 0, 0, 0, 0
 
     # now, the determinant should be OK
-    DETinv = 1.0 / DET
+    det_inv = 1.0 / det
 
     # find the scalar amount along the "self" segment
-    r = DETinv * (-dy * (x - x1) + dx * (y - y1))
+    r = det_inv * (-dy * (x - x1) + dx * (y - y1))
 
     # find the scalar amount along the input line
-    s = DETinv * (-dy1 * (x - x1) + dx1 * (y - y1))
+    s = det_inv * (-dy1 * (x - x1) + dx1 * (y - y1))
 
     # return the average of the two descriptions
     xi = (x1 + r * dx1 + x + s * dx) / 2.0
@@ -245,21 +245,21 @@ def ray_segment_intersect(ray, segment):
 
     Parameters
     ----------
-    ray : TODO
-        TODO
-    segment : TODO
-        TODO
+    ray : ((float, float), float)
+        (x,y), theta values
+    segment : ((float, float), (float, float))
+        x, y values of the start and stop points
 
     Returns
     -------
-    TODO
-        TODO
+    (float, float) or None
+        x,y coordinates of the intersection. None if no intersection exists
     """
     (x, y), theta = ray
     # (x1, y1), (x2, y2) = segment
     pt1 = (x, y)
-    len = 1
-    pt2 = (x + len * math.cos(theta), y + len * math.sin(theta))
+    length = 1
+    pt2 = (x + length * math.cos(theta), y + length * math.sin(theta))
     xo, yo, valid, r, s = line_intersect(pt1, pt2, *segment)
     if valid and r >= 0 and 0 <= s <= 1:
         return xo, yo

@@ -184,7 +184,8 @@ class Environment(gym.Env):
         # If the time horizon is met, set done to True.
         done = self.num_steps >= self.max_actions
 
-        # Success is defined as TODO
+        # Success is defined as getting within a distance threshold from the
+        # target.
         info_dict = {
             'is_success':
                 all(np.absolute(self.project_state_to_end_goal(self.sim, obs)
@@ -259,7 +260,8 @@ class UR5(Environment):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 show=False):
         """Initialize the UR5 environment.
 
         Parameters
@@ -273,6 +275,8 @@ class UR5(Environment):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        show : bool
+            specifies whether to render the environment
 
         Raises
         ------
@@ -335,7 +339,7 @@ class UR5(Environment):
             initial_state_space=initial_state_space,
             max_actions=max_actions,
             num_frames_skip=timesteps_per_action,
-            show=False,  # FIXME
+            show=show,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
@@ -485,7 +489,8 @@ class Pendulum(Environment):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 show=False):
         """Initialize the Pendulum environment.
 
         Parameters
@@ -499,6 +504,8 @@ class Pendulum(Environment):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        show : bool, optional
+            specifies whether to render the environment. Defaults to False.
 
         Raises
         ------
@@ -556,7 +563,7 @@ class Pendulum(Environment):
             initial_state_space=initial_state_space,
             max_actions=max_actions,
             num_frames_skip=timesteps_per_action,
-            show=False,  # FIXME
+            show=show,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,

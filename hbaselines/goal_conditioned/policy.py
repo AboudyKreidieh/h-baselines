@@ -77,13 +77,16 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """Call the actor methods to compute policy actions.
 
         Parameters
         ----------
         obs : array_like
             the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
         apply_noise : bool
             whether to add Gaussian noise to the output of the actor. Defaults
             to False
@@ -99,14 +102,17 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action):
         """Call the critic methods to compute the value.
 
         Parameters
         ----------
         obs : array_like
             the observation
-        action : array_like, optional
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        action : array_like
             the actions performed in the given observation
 
         Returns
@@ -116,27 +122,69 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done, evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
         ----------
         obs0 : array_like
             the last observation
+        context0 : array_like or None
+            the last contextual term. Set to None if no context is provided by
+            the environment.
         action : array_like
             the action
         reward : float
             the reward
         obs1 : array_like
             the current observation
+        context1 : array_like or None
+            the current contextual term. Set to None if no context is provided
+            by the environment.
         done : float
             is the episode done
+        evaluate : bool
+            whether the sample is being provided by the evaluation environment.
+            If so, the data is not stored in the replay buffer.
         """
         raise NotImplementedError
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
+
+    @staticmethod
+    def _get_obs(obs, context, axis=0):
+        """Return the processed observation.
+
+        If the contextual term is not None, this will look as follows:
+
+                                    -----------------
+                    processed_obs = | obs | context |
+                                    -----------------
+
+        Otherwise, this method simply returns the observation.
+
+        Parameters
+        ----------
+        obs : array_like
+            the original observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        axis : int
+            the axis to concatenate the observations and contextual terms by
+
+        Returns
+        -------
+        array_like
+            the processed observation
+        """
+        if context is not None:
+            context = context.flatten() if axis == 0 else context
+            obs = np.concatenate((obs, context), axis=axis)
+        return obs
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
@@ -414,7 +462,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target_noise = tf.clip_by_value(
                 target_noise, -self.target_noise_clip, self.target_noise_clip)
 
-            # clip the noisy action to remain in the bounds [-1, 1]
+            # clip the noisy action to remain in the bounds
             noisy_actor_target = tf.clip_by_value(
                 actor_target + target_noise,
                 self.ac_space.low,
@@ -735,12 +783,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
-        if context_obs[0] is not None:
-            obs = np.concatenate((obs, context_obs), axis=1)
+        obs = self._get_obs(obs, context, axis=1)
 
         if random_actions:
             action = np.array([self.ac_space.sample()])
@@ -748,14 +794,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
 
             if apply_noise:
-                # TODO: add as a feature
-                # # convert noise percentage to absolute value
-                # noise = self.noise * (self.ac_space.high -
-                #                       self.ac_space.low) / 2
-                # # apply Ornstein-Uhlenbeck process
-                # noise = self.noise * np.maximum(
-                #     np.exp(-0.8*kwargs['total_steps']/1e6), 0.5)
-
                 # compute noisy action
                 if apply_noise:
                     action += np.random.normal(0, self.noise, action.shape)
@@ -765,28 +803,24 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        context_obs = kwargs.get("context_obs")
-        if context_obs[0] is not None:
-            obs = np.concatenate((obs, context_obs), axis=1)
+        obs = self._get_obs(obs, context, axis=1)
 
         return self.sess.run(
             self.critic_tf,
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done, evaluate=False):
         """See parent class."""
-        # Add the contextual observation, if applicable.
-        if kwargs.get("context_obs0") is not None:
-            obs0 = np.concatenate(
-                (obs0, kwargs["context_obs0"].flatten()), axis=0)
-        if kwargs.get("context_obs1") is not None:
-            obs1 = np.concatenate(
-                (obs1, kwargs["context_obs1"].flatten()), axis=0)
+        if not evaluate:
+            # Add the contextual observation, if applicable.
+            obs0 = self._get_obs(obs0, context0, axis=0)
+            obs1 = self._get_obs(obs1, context1, axis=0)
 
-        self.replay_buffer.add(obs0, action, reward, obs1, float(done))
+            self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
     def initialize(self):
         """See parent class.
@@ -886,7 +920,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
     and the goal observation:
-    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||
+    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2
 
     Bibliography:
 
@@ -906,6 +940,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    worker_reward_scale : float
+        the value the intrinsic (Worker) reward should be scaled by
     relative_goals : bool
         specifies whether the goal issued by the Manager is meant to be a
         relative or absolute goal, i.e. specific state or change in state
@@ -940,7 +976,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         SGD batch size
     worker : hbaselines.goal_conditioned.policy.FeedForwardPolicy
         the worker policy
-    worker_reward : function
+    worker_reward_fn : function
         reward function for the worker
     """
 
@@ -964,6 +1000,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  meta_period,
+                 worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
                  use_fingerprints,
@@ -1023,6 +1060,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             used instead
         meta_period : int
             manger action period
+        worker_reward_scale : float
+            the value the intrinsic (Worker) reward should be scaled by
         relative_goals : bool
             specifies whether the goal issued by the Manager is meant to be a
             relative or absolute goal, i.e. specific state or change in state
@@ -1049,6 +1088,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             sess, ob_space, ac_space, co_space)
 
         self.meta_period = meta_period
+        self.worker_reward_scale = worker_reward_scale
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
         self.use_fingerprints = use_fingerprints
@@ -1108,6 +1148,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=False,
             )
+
+        # a fixed goal transition function for the meta-actions in between meta
+        # periods. This is used when relative_goals is set to True in order to
+        # maintain a fixed absolute position of the goal.
+        if relative_goals:
+            def goal_transition_fn(obs0, goal, obs1):
+                return obs0 + goal - obs1
+        else:
+            def goal_transition_fn(obs0, goal, obs1):
+                return goal
+        self.goal_transition_fn = goal_transition_fn
 
         # previous observation by the Manager
         self.prev_meta_obs = None
@@ -1179,7 +1230,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space, env_name, use_fingerprints, self.fingerprint_dim)
 
         # reward function for the worker
-        def worker_reward(states, goals, next_states):
+        def worker_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
                 state_indices=state_indices,
@@ -1188,7 +1239,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 relative_context=relative_goals,
                 offset=0.0
             )
-        self.worker_reward = worker_reward
+        self.worker_reward_fn = worker_reward_fn
 
         if self.connected_gradients:
             self._setup_connected_gradients()
@@ -1280,91 +1331,103 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
 
-    def get_action(self, obs, apply_noise, random_actions, **kwargs):
+    def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
-        # Update the meta action, if the time period requires is.
-        if len(self._observations) == 0:
+        if self._update_meta:
+            # Update the meta action based on the output from the policy if the
+            # time period requires is.
             self.meta_action = self.manager.get_action(
-                obs, apply_noise, random_actions, **kwargs)
+                obs, context, apply_noise, random_actions)
+        else:
+            # Update the meta-action in accordance with the fixed transition
+            # function.
+            goal_dim = self.meta_action.shape[1]
+            self.meta_action = self.goal_transition_fn(
+                obs0=np.asarray([self._observations[-1][:goal_dim]]),
+                goal=self.meta_action,
+                obs1=obs[:, :goal_dim]
+            )
 
         # Return the worker action.
         worker_action = self.worker.get_action(
-            obs, apply_noise, random_actions,
-            context_obs=self.meta_action,
-            total_steps=kwargs['total_steps'])
+            obs, self.meta_action, apply_noise, random_actions)
 
         return worker_action
 
-    def value(self, obs, action=None, **kwargs):
+    def value(self, obs, context, action):
         """See parent class."""
         return 0, 0  # FIXME
 
-    def store_transition(self, obs0, action, reward, obs1, done, **kwargs):
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done, evaluate=False):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
-            self.worker_reward(obs0, self.meta_action.flatten(), obs1)
+            self.worker_reward_scale *
+            self.worker_reward_fn(obs0, self.meta_action.flatten(), obs1)
         )
 
         # Add the environmental observations and done masks, and the manager
         # and worker actions to their respective lists.
         self._worker_actions.append(action)
         self._meta_actions.append(self.meta_action.flatten())
-        self._observations.append(
-            np.concatenate((obs0, self.meta_action.flatten()), axis=0))
+        self._observations.append(self._get_obs(obs0, self.meta_action, 0))
         self._dones.append(done)
-
-        # update the meta-action in accordance with HIRO
-        if self.relative_goals:
-            prev_goal = self.meta_action.flatten()
-            self.meta_action = np.array([obs0[:prev_goal.shape[0]] + prev_goal
-                                         - obs1[:prev_goal.shape[0]]])
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
 
         # Modify the previous meta observation whenever the action has changed.
         if len(self._observations) == 1:
-            if kwargs.get("context_obs0") is not None:
-                self.prev_meta_obs = np.concatenate(
-                    (obs0, kwargs["context_obs0"].flatten()), axis=0)
-            else:
-                self.prev_meta_obs = np.copy(obs0)
+            self.prev_meta_obs = self._get_obs(obs0, context0, 0)
 
         # Add a sample to the replay buffer.
         if len(self._observations) == self.meta_period or done:
             # Add the last observation.
-            self._observations.append(
-                np.concatenate((obs1, self.meta_action.flatten()), axis=0))
+            self._observations.append(self._get_obs(obs1, self.meta_action, 0))
 
-            # Add the contextual observation, if applicable.
-            if kwargs.get("context_obs1") is not None:
-                meta_obs1 = np.concatenate(
-                    (obs1, kwargs["context_obs1"].flatten()), axis=0)
-            else:
-                meta_obs1 = np.copy(obs1)
+            # Add the contextual observation to the most recent environmental
+            # observation, if applicable.
+            meta_obs1 = self._get_obs(obs1, context1, 0)
 
             # Store a sample in the Manager policy.
-            self.replay_buffer.add(
-                obs_t=self._observations,
-                goal_t=self._meta_actions[0],
-                action_t=self._worker_actions,
-                reward_t=self._worker_rewards,
-                done=self._dones,
-                meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                meta_reward_t=self.meta_reward,
-            )
-
-            # Reset the meta reward.
-            self.meta_reward = 0
+            if not evaluate:
+                self.replay_buffer.add(
+                    obs_t=self._observations,
+                    goal_t=self._meta_actions[0],
+                    action_t=self._worker_actions,
+                    reward_t=self._worker_rewards,
+                    done=self._dones,
+                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                    meta_reward_t=self.meta_reward,
+                )
 
             # Clear the worker rewards and actions, and the environmental
-            # observation.
-            self._observations = []
-            self._worker_actions = []
-            self._worker_rewards = []
-            self._dones = []
-            self._meta_actions = []
+            # observation and reward.
+            self.clear_memory()
+
+    @property
+    def _update_meta(self):
+        """Return True if the meta-action should be updated by the policy.
+
+        This is done by checking the length of the observation lists that are
+        passed to the replay buffer, which are cleared whenever the meta-period
+        has been met or the environment has been reset.
+        """
+        return len(self._observations) == 0
+
+    def clear_memory(self):
+        """Clear internal memory that is used by the replay buffer.
+
+        By clearing memory, the Manager policy is then informed during the
+        `get_action` procedure to update the meta-action.
+        """
+        self.meta_reward = 0
+        self._observations = []
+        self._worker_actions = []
+        self._worker_rewards = []
+        self._dones = []
+        self._meta_actions = []
 
     def _sample_best_meta_action(self,
                                  state_reps,
@@ -1446,11 +1509,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Action a policy would perform given a specific observation / goal.
         pred_actions = self.worker.get_action(
-            worker_obs,
-            context_obs=goals,
+            worker_obs, goals,
             apply_noise=False,
-            random_actions=False,
-        )
+            random_actions=False)
 
         # Normalize the error based on the range of applicable goals.
         goal_space = self.manager.ac_space

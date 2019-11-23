@@ -43,6 +43,7 @@ def get_hyperparameters(args, policy):
     if policy == GoalConditionedPolicy:
         policy_kwargs.update({
             "meta_period": args.meta_period,
+            "worker_reward_scale": args.worker_reward_scale,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
             "use_fingerprints": args.use_fingerprints,
@@ -90,6 +91,13 @@ def parse_options(description, example_usage, args):
     parser.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
+    parser.add_argument(
+        '--log_interval', type=int, default=2000,
+        help='the number of training steps before logging training results')
+    parser.add_argument(
+        '--eval_interval', type=int, default=50000,
+        help='number of simulation steps in the training environment before '
+             'an evaluation is performed')
 
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
@@ -203,8 +211,6 @@ def create_feedforward_parser(parser):
         help="specifies whether to use the huber distance function as the "
              "loss for the critic. If set to False, the mean-squared error "
              "metric is used instead")
-    # TODO: layers
-    # TODO: act_fun
 
     return parser
 
@@ -216,6 +222,11 @@ def create_goal_conditioned_parser(parser):
         type=int,
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
         help="manger action period")
+    parser.add_argument(
+        "--worker_reward_scale",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["worker_reward_scale"],
+        help="the value the intrinsic (Worker) reward should be scaled by")
     parser.add_argument(
         "--relative_goals",
         action="store_true",

@@ -11,7 +11,14 @@ from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
 EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --n_cpus 3'
 
 
-def run_exp(env, hp, steps, dir_name, evaluate, seed):
+def run_exp(env,
+            hp,
+            steps,
+            dir_name,
+            evaluate,
+            seed,
+            eval_interval,
+            log_interval):
     """Run a single training procedure.
 
     Parameters
@@ -28,6 +35,11 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed):
         whether to include an evaluation environment
     seed : int
         specified the random seed for numpy, tensorflow, and random
+    eval_interval : int
+        number of simulation steps in the training environment before an
+        evaluation is performed
+    log_interval : int
+        the number of training steps before logging training results
     """
     eval_env = env if evaluate else None
     alg = TD3(policy=GoalConditionedPolicy, env=env, eval_env=eval_env, **hp)
@@ -36,11 +48,10 @@ def run_exp(env, hp, steps, dir_name, evaluate, seed):
     alg.learn(
         total_timesteps=steps,
         log_dir=dir_name,
-        log_interval=2000,
+        log_interval=log_interval,
+        eval_interval=eval_interval,
         seed=seed,
     )
-
-    return None
 
 
 def main(args, base_dir):
@@ -62,7 +73,7 @@ def main(args, base_dir):
         json.dump(params_with_seed, f, sort_keys=True, indent=4)
 
     run_exp(args.env_name, hp, args.total_steps, dir_name, args.evaluate,
-            args.seed)
+            args.seed, args.eval_interval, args.log_interval)
 
 
 if __name__ == '__main__':

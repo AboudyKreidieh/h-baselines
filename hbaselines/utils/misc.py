@@ -8,8 +8,8 @@ import gym
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
-except (ImportError, ModuleNotFoundError):
-    pass
+except (ImportError, ModuleNotFoundError):  # pragma: no cover
+    pass  # pragma: no cover
 from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
 from hbaselines.envs.hac.envs import UR5, Pendulum
 try:
@@ -183,14 +183,16 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env, evaluate=False):
+def create_env(env, render=False, evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
     ----------
     env : str or gym.Env
         the environment, or the name of a registered environment.
-    evaluate : bool, optional
+    render : bool
+        whether to render the environment
+    evaluate : bool
         specifies whether this is a training or evaluation environment
 
     Returns
@@ -203,28 +205,36 @@ def create_env(env, evaluate=False):
 
     if env == "AntMaze":
         if evaluate:
-            env = [AntMaze(use_contexts=True, context_range=[16, 0]),
-                   AntMaze(use_contexts=True, context_range=[16, 16]),
-                   AntMaze(use_contexts=True, context_range=[0, 16])]
+            env = [AntMaze(use_contexts=True, context_range=[16, 0],
+                           show=render),
+                   AntMaze(use_contexts=True, context_range=[16, 16],
+                           show=render),
+                   AntMaze(use_contexts=True, context_range=[0, 16],
+                           show=render)]
         else:
             env = AntMaze(use_contexts=True,
                           random_contexts=True,
-                          context_range=[(-4, 20), (-4, 20)])
+                          context_range=[(-4, 20), (-4, 20)],
+                          show=render)
 
     elif env == "AntPush":
         if evaluate:
-            env = AntPush(use_contexts=True, context_range=[0, 19])
+            env = AntPush(use_contexts=True, context_range=[0, 19],
+                          show=render)
         else:
-            env = AntPush(use_contexts=True, context_range=[0, 19])
+            env = AntPush(use_contexts=True, context_range=[0, 19],
+                          show=render)
             # env = AntPush(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-16, 16), (-4, 20)])
 
     elif env == "AntFall":
         if evaluate:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
+                          show=render)
         else:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
+                          show=render)
             # env = AntFall(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-4, 12), (-4, 28), (0, 5)])
@@ -233,24 +243,26 @@ def create_env(env, evaluate=False):
         if evaluate:
             env = UR5(use_contexts=True,
                       random_contexts=True,
-                      context_range=[(-np.pi, np.pi),
-                                     (-np.pi / 4, 0),
-                                     (-np.pi / 4, np.pi / 4)])
+                      context_range=[(-np.pi, np.pi), (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)],
+                      show=render)
         else:
             env = UR5(use_contexts=True,
                       random_contexts=True,
-                      context_range=[(-np.pi, np.pi),
-                                     (-np.pi / 4, 0),
-                                     (-np.pi / 4, np.pi / 4)])
+                      context_range=[(-np.pi, np.pi), (-np.pi / 4, 0),
+                                     (-np.pi / 4, np.pi / 4)],
+                      show=render)
 
     elif env == "Pendulum":
         if evaluate:
-            env = Pendulum(use_contexts=True, context_range=[0, 0])
+            env = Pendulum(use_contexts=True, context_range=[0, 0],
+                           show=render)
         else:
             env = Pendulum(use_contexts=True,
                            random_contexts=True,
                            context_range=[(np.deg2rad(-16), np.deg2rad(16)),
-                                          (-0.6, 0.6)])
+                                          (-0.6, 0.6)],
+                           show=render)
 
     elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
                  "grid1"]:
@@ -260,13 +272,13 @@ def create_env(env, evaluate=False):
         flow_params = benchmark.flow_params
 
         # Get the env name and a creator for the environment.
-        create_env, _ = make_create_env(flow_params, version=0)
+        create_env, _ = make_create_env(flow_params, version=0, render=render)
 
         # Create the environment.
         env = create_env()
 
     elif env in ["ring0", "ring1", "multi-ring0", "multi-ring1"]:
-        env = FlowEnv("ring")  # FIXME
+        env = FlowEnv("ring", render=render)  # FIXME
 
     elif env in ["merge0", "merge1", "merge2", "multi-merge0", "multi-merge1",
                  "multi-merge2"]:
@@ -278,7 +290,8 @@ def create_env(env, evaluate=False):
                 "horizon": 6000,
                 "simulator": "traci",
                 "multiagent": env[:5] == "multi"
-            }
+            },
+            render=render
         )
 
     elif env in ["figureeight0", "figureeight1", "figureeight02",
@@ -292,7 +305,8 @@ def create_env(env, evaluate=False):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": env[:5] == "multi"
-            }
+            },
+            render=render
         )
 
     elif isinstance(env, str):

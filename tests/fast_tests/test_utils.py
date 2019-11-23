@@ -21,6 +21,8 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
             'num_cpus': 1,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
@@ -43,6 +45,8 @@ class TestTrain(unittest.TestCase):
             'layer_norm': False,
             'use_huber': False,
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'worker_reward_scale':
+                GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'use_fingerprints': False,
@@ -59,70 +63,76 @@ class TestTrain(unittest.TestCase):
             '--n_training', '1',
             '--total_steps', '2',
             '--seed', '3',
-            '--num_cpus', '4',
-            '--nb_train_steps', '5',
-            '--nb_rollout_steps', '6',
-            '--nb_eval_episodes', '7',
-            '--reward_scale', '8',
+            '--log_interval', '4',
+            '--eval_interval', '5',
+            '--num_cpus', '6',
+            '--nb_train_steps', '7',
+            '--nb_rollout_steps', '8',
+            '--nb_eval_episodes', '9',
+            '--reward_scale', '10',
             '--render',
             '--render_eval',
-            '--verbose', '9',
-            '--actor_update_freq', '10',
-            '--meta_update_freq', '11',
-            '--buffer_size', '12',
-            '--batch_size', '13',
-            '--actor_lr', '14',
-            '--critic_lr', '15',
-            '--tau', '16',
-            '--gamma', '17',
-            '--noise', '18',
-            '--target_policy_noise', '19',
-            '--target_noise_clip', '20',
+            '--verbose', '11',
+            '--actor_update_freq', '12',
+            '--meta_update_freq', '13',
+            '--buffer_size', '14',
+            '--batch_size', '15',
+            '--actor_lr', '16',
+            '--critic_lr', '17',
+            '--tau', '18',
+            '--gamma', '19',
+            '--noise', '20',
+            '--target_policy_noise', '21',
+            '--target_noise_clip', '22',
             '--layer_norm',
             '--use_huber',
-            '--meta_period', '21',
+            '--meta_period', '23',
+            '--worker_reward_scale', '24',
             '--relative_goals',
             '--off_policy_corrections',
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
-            '--cg_weights', '22',
+            '--cg_weights', '25',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
-            'num_cpus': 4,
-            'nb_train_steps': 5,
-            'nb_rollout_steps': 6,
-            'nb_eval_episodes': 7,
-            'reward_scale': 8.0,
+            'num_cpus': 6,
+            'nb_train_steps': 7,
+            'nb_rollout_steps': 8,
+            'nb_eval_episodes': 9,
+            'reward_scale': 10.0,
             'render': True,
             'render_eval': True,
-            'verbose': 9,
-            'actor_update_freq': 10,
-            'meta_update_freq': 11,
+            'verbose': 11,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
             '_init_setup_model': True,
             'policy_kwargs': {
-                'buffer_size': 12,
-                'batch_size': 13,
-                'actor_lr': 14.0,
-                'critic_lr': 15.0,
-                'tau': 16.0,
-                'gamma': 17.0,
-                'noise': 18.0,
-                'target_policy_noise': 19.0,
-                'target_noise_clip': 20.0,
+                'buffer_size': 14,
+                'batch_size': 15,
+                'actor_lr': 16.0,
+                'critic_lr': 17.0,
+                'tau': 18.0,
+                'gamma': 19.0,
+                'noise': 20.0,
+                'target_policy_noise': 21.0,
+                'target_noise_clip': 22.0,
                 'layer_norm': True,
                 'use_huber': True,
-                'meta_period': 21,
+                'meta_period': 23,
+                'worker_reward_scale': 24.0,
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
                 'connected_gradients': True,
-                'cg_weights': 22,
+                'cg_weights': 25,
             }
         }
         self.assertDictEqual(hp, expected_hp)
+        self.assertEqual(args.log_interval, 4)
+        self.assertEqual(args.eval_interval, 5)
 
 
 class TestRewardFns(unittest.TestCase):
@@ -441,13 +451,13 @@ class TestMisc(unittest.TestCase):
         # test for figureeight0
         self.assertListEqual(
             get_state_indices(env_name="figureeight0", **params),
-            [13]  # FIXME: correct?
+            [13]
         )
 
         # test for figureeight1
         self.assertListEqual(
             get_state_indices(env_name="figureeight1", **params),
-            [1, 3, 5, 7, 9, 11, 13]  # FIXME: correct?
+            [1, 3, 5, 7, 9, 11, 13]
         )
 
         # test for figureeight2
