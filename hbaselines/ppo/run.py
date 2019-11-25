@@ -13,7 +13,7 @@ from hbaselines.ppo.cmd_util import common_arg_parser, parse_unknown_args, \
 from hbaselines.ppo.tf_util import get_session
 from hbaselines.ppo import logger
 from importlib import import_module
-from hbaselines.ppo.algorithm import learn
+from hbaselines.ppo.algorithm import PPO
 
 try:
     from mpi4py import MPI
@@ -68,12 +68,13 @@ def train(args, extra_args):
     print('Training {} on {} with arguments \n{}'.format(
         args.alg, env_id, alg_kwargs))
 
-    model = learn(
-        env=env,
-        seed=seed,
-        total_timesteps=total_timesteps,
-        **alg_kwargs
-    )
+    if "log_interval" in alg_kwargs:
+        log_interval = alg_kwargs.pop("log_interval")
+    if "save_interval" in alg_kwargs:
+        save_interval = alg_kwargs.pop("save_interval")
+
+    alg = PPO(env=env, **alg_kwargs)
+    model = alg.learn(total_timesteps=total_timesteps, seed=seed, log_interval=log_interval)
 
     return model, env
 
