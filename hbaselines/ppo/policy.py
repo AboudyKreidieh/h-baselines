@@ -4,13 +4,6 @@ import functools
 from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.common.tf_util import initialize
 
-try:
-    from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
-    from mpi4py import MPI
-    from baselines.common.mpi_util import sync_from_root
-except ImportError:
-    MPI = None
-
 
 class Model(object):
     """
@@ -36,13 +29,9 @@ class Model(object):
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 mpi_rank_weight=1,
                  comm=None,
                  microbatch_size=None):
         self.sess = sess = get_session()
-
-        if MPI is not None and comm is None:
-            comm = MPI.COMM_WORLD
 
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             # CREATE OUR TWO MODELS
@@ -146,10 +135,6 @@ class Model(object):
         self.load = functools.partial(load_variables, sess=sess)
 
         initialize()  # TODO: replace with mine
-        if MPI is not None:
-            global_variables = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope="")
-            sync_from_root(sess, global_variables, comm=comm)
 
     def train(self,
               lr,

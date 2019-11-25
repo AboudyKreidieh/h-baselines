@@ -5,10 +5,7 @@ import time
 import numpy as np
 import os.path as osp
 from collections import deque
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
+import csv
 
 from hbaselines.ppo import logger  # TODO: remove
 from hbaselines.ppo.util import explained_variance
@@ -35,7 +32,6 @@ class PPO(object):
                  cliprange=0.2,
                  update_fn=None,
                  init_fn=None,
-                 mpi_rank_weight=1,
                  comm=None,
                  **network_kwargs):
         """Instantiate the algorithm object.
@@ -92,8 +88,6 @@ class PPO(object):
             TODO
         init_fn : TODO
             TODO
-        mpi_rank_weight : TODO
-            TODO
         comm : TODO
             TODO
         network_kwargs : dict
@@ -117,7 +111,6 @@ class PPO(object):
         self.cliprange = self._get_function(cliprange)
         self.update_fn = update_fn
         self.init_fn = init_fn
-        self.mpi_rank_weight = mpi_rank_weight
         self.comm = comm
         self.network_kwargs = network_kwargs
 
@@ -151,7 +144,6 @@ class PPO(object):
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
             comm=comm,
-            mpi_rank_weight=mpi_rank_weight
         )
 
         # Instantiate the runner objects
@@ -300,7 +292,8 @@ class PPO(object):
                      tstart,
                      mblossvals,
                      values,
-                     returns):
+                     returns,
+                     file_path=None):
         """Log training and evaluation statistics.
 
         Parameters
@@ -317,6 +310,8 @@ class PPO(object):
             TODO
         returns : TODO
             TODO
+        file_path : TODO
+            TODO
         """
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -324,33 +319,48 @@ class PPO(object):
         tnow = time.perf_counter()
         # Calculate the fps (frame per second)
         fps = int(self.nbatch / (tnow - tstart))
-
-        # Calculates if value function is a good predictor of the
-        # returns (ev > 1) or if it's just worse than predicting
-        # nothing (ev =< 0)
+        # Calculates if value function is a good predictor of the returns
+        # (ev > 1) or if it's just worse than predicting nothing (ev =< 0).
         ev = explained_variance(values, returns)
-        logger.logkv("misc/serial_timesteps", update * self.nsteps)
-        logger.logkv("misc/nupdates", update)
-        logger.logkv("misc/total_timesteps", update * self.nbatch)
-        logger.logkv("fps", fps)
-        logger.logkv("misc/explained_variance", float(ev))
-        logger.logkv('eprewmean',
-                     safemean([epinfo['r']
-                               for epinfo in self.epinfobuf]))
-        logger.logkv('eplenmean',
-                     safemean([epinfo['l']
-                               for epinfo in self.epinfobuf]))
-        if self.eval_env is not None:
-            logger.logkv('eval_eprewmean', safemean(
-                [epinfo['r'] for epinfo in self.eval_epinfobuf]))
-            logger.logkv('eval_eplenmean', safemean(
-                [epinfo['l'] for epinfo in self.eval_epinfobuf]))
-        logger.logkv('misc/time_elapsed', tnow - tfirststart)
-        for (lossval, lossname) in zip(lossvals,
-                                       self.model.loss_names):
-            logger.logkv('loss/' + lossname, lossval)
 
-        logger.dumpkvs()
+        log_statistics = {
+            "misc/serial_timesteps": update * self.nsteps,
+            "misc/nupdates": update,
+            "misc/total_timesteps": update * self.nbatch,
+            "fps": fps,
+            "misc/explained_variance": float(ev),
+            "eprewmean": safemean([epinfo['r'] for epinfo in self.epinfobuf]),
+            'eplenmean': safemean([epinfo['l'] for epinfo in self.epinfobuf]),
+            "misc/time_elapsed": tnow - tfirststart,
+        }
+        # Add evaluation statistics.
+        if self.eval_env is not None:
+            log_statistics.update({
+                'eval_eprewmean': safemean(
+                    [epinfo['r'] for epinfo in self.eval_epinfobuf]),
+                'eval_eplenmean': safemean(
+                    [epinfo['l'] for epinfo in self.eval_epinfobuf])
+            })
+        # Add loss statistics.
+        for (lossval, lossname) in zip(lossvals, self.model.loss_names):
+            log_statistics['loss/' + lossname] = lossval
+
+        # Save statistics in a csv file.
+        if file_path is not None:
+            exists = os.path.exists(file_path)
+            with open(file_path, 'a') as f:
+                w = csv.DictWriter(f, fieldnames=log_statistics.keys())
+                if not exists:
+                    w.writeheader()
+                w.writerow(log_statistics)
+
+        # Print statistics.
+        print("-" * 57)
+        for key in sorted(log_statistics.keys()):
+            val = log_statistics[key]
+            print("| {:<25} | {:<25.3g} |".format(key, float(val)))
+        print("-" * 57)
+        print('')
 
 
 # Avoid division error when calculate the mean (in our case if epinfo is empty

@@ -163,16 +163,11 @@ def main(args):
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
 
-    if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
-        rank = 0
-        configure_logger(args.log_path)
-    else:
-        rank = MPI.COMM_WORLD.Get_rank()
-        configure_logger(args.log_path, format_strs=[])
+    configure_logger(args.log_path)
 
     model, env = train(args, extra_args)
 
-    if args.save_path is not None and rank == 0:
+    if args.save_path is not None:
         save_path = osp.expanduser(args.save_path)
         model.save(save_path)
 

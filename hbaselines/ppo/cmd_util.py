@@ -5,10 +5,6 @@ import random
 import numpy as np
 import tensorflow as tf
 import os
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
 
 import gym
 from gym.wrappers import FlattenObservation, FilterObservation
@@ -31,14 +27,11 @@ def make_vec_env(env_id,
     Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
     """
     env_kwargs = env_kwargs or {}
-    mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
-    seed = seed + 10000 * mpi_rank if seed is not None else None
     logger_dir = logger.get_dir()
 
     def make_thunk(rank, initializer=None):
         return lambda: make_env(
             env_id=env_id,
-            mpi_rank=mpi_rank,
             subrank=rank,
             seed=seed,
             flatten_dict_observations=flatten_dict_observations,
