@@ -11,14 +11,8 @@ from hbaselines.ppo.vec_env.vec_video_recorder import VecVideoRecorder
 from hbaselines.ppo.cmd_util import common_arg_parser, parse_unknown_args, \
     make_vec_env
 from hbaselines.ppo.tf_util import get_session
-from hbaselines.ppo import logger
 from importlib import import_module
 from hbaselines.ppo.algorithm import PPO
-
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
 
 _game_envs = defaultdict(set)
 for env_i in gym.envs.registry.all():
@@ -44,6 +38,8 @@ _game_envs['retro'] = {
 def train(args, extra_args):
     env_id = args.env
 
+    log_dir = ""  # FIXME
+
     total_timesteps = int(args.num_timesteps)
     seed = args.seed
 
@@ -54,7 +50,7 @@ def train(args, extra_args):
     if args.save_video_interval != 0:
         env = VecVideoRecorder(
             env,
-            osp.join(logger.get_dir(), "videos"),
+            osp.join(log_dir, "videos"),
             record_video_trigger=lambda x: x % args.save_video_interval == 0,
             video_length=args.save_video_length
         )
@@ -74,7 +70,9 @@ def train(args, extra_args):
         save_interval = alg_kwargs.pop("save_interval")
 
     alg = PPO(env=env, **alg_kwargs)
-    model = alg.learn(total_timesteps=total_timesteps, seed=seed, log_interval=log_interval)
+    model = alg.learn(total_timesteps=total_timesteps,
+                      seed=seed,
+                      log_interval=log_interval)
 
     return model, env
 
@@ -150,20 +148,10 @@ def parse_cmdline_kwargs(args):
     return {k: parse(v) for k, v in parse_unknown_args(args).items()}
 
 
-def configure_logger(log_path, **kwargs):
-    if log_path is not None:
-        logger.configure(log_path)
-    else:
-        logger.configure(**kwargs)
-
-
 def main(args):
-    # configure logger, disable logging in child MPI processes (with rank > 0)
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
-
-    configure_logger(args.log_path)
 
     model, env = train(args, extra_args)
 
@@ -172,7 +160,7 @@ def main(args):
         model.save(save_path)
 
     if args.play:
-        logger.log("Running trained model")
+        print("Running trained model")
         obs = env.reset()
 
         state = getattr(model, 'initial_state', None)

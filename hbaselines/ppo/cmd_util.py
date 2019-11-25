@@ -8,7 +8,6 @@ import os
 
 import gym
 from gym.wrappers import FlattenObservation, FilterObservation
-from hbaselines.ppo import logger
 from hbaselines.ppo.bench.monitor import Monitor
 from hbaselines.ppo.vec_env.subproc_vec_env import SubprocVecEnv
 from hbaselines.ppo.vec_env.dummy_vec_env import DummyVecEnv
@@ -27,7 +26,7 @@ def make_vec_env(env_id,
     Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
     """
     env_kwargs = env_kwargs or {}
-    logger_dir = logger.get_dir()
+    log_dir = ""  # FIXME
 
     def make_thunk(rank, initializer=None):
         return lambda: make_env(
@@ -36,7 +35,7 @@ def make_vec_env(env_id,
             seed=seed,
             flatten_dict_observations=flatten_dict_observations,
             env_kwargs=env_kwargs,
-            logger_dir=logger_dir,
+            logger_dir=log_dir,
             initializer=initializer
         )
 
@@ -89,17 +88,13 @@ def make_mujoco_env(env_id, seed):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
     """
-    rank = MPI.COMM_WORLD.Get_rank()
-    myseed = seed + 1000 * rank if seed is not None else None
-
     # set global seeds
-    tf.set_random_seed(myseed)
-    np.random.seed(myseed)
-    random.seed(myseed)
+    tf.set_random_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
     env = gym.make(env_id)
-    logger_path = None if logger.get_dir() is None \
-        else os.path.join(logger.get_dir(), str(rank))
+    logger_path = None  # FIXME
     env = Monitor(env, logger_path, allow_early_resets=True)
     env.seed(seed)
     return env
@@ -112,12 +107,12 @@ def make_robotics_env(env_id, seed, rank=0):
     np.random.seed(seed)
     random.seed(seed)
 
+    logger_path = None  # FIXME
+
     env = gym.make(env_id)
     env = FlattenObservation(
         FilterObservation(env, ['observation', 'desired_goal']))
-    env = Monitor(
-        env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
-        info_keywords=('is_success',))
+    env = Monitor(env, logger_path, info_keywords=('is_success',))
     env.seed(seed)
     return env
 

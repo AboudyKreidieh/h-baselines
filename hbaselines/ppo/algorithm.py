@@ -7,7 +7,6 @@ import os.path as osp
 from collections import deque
 import csv
 
-from hbaselines.ppo import logger  # TODO: remove
 from hbaselines.ppo.util import explained_variance
 from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
@@ -253,9 +252,8 @@ class PPO(object):
                                   values, returns)
 
             # Save a checkpoint of the model.
-            if save_interval and (update % save_interval == 0 or update == 1) \
-                    and logger.get_dir():
-                checkdir = osp.join(logger.get_dir(), 'checkpoints')
+            if save_interval and (update % save_interval == 0 or update == 1):
+                checkdir = ""  # FIXME
                 os.makedirs(checkdir, exist_ok=True)
                 savepath = osp.join(checkdir, '%.5i' % update)
                 print('Saving to', savepath)
