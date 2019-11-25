@@ -4,22 +4,17 @@ import os
 import time
 import numpy as np
 import os.path as osp
-from hbaselines.ppo import logger
 from collections import deque
-from hbaselines.ppo.common import explained_variance
-from hbaselines.ppo.common.policies import build_policy
 try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
+
+from hbaselines.ppo import logger  # TODO: remove
+from hbaselines.ppo.util import explained_variance
+from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
-from baselines.ppo2.model import Model
-
-
-def constfn(val):
-    def f(_):
-        return val
-    return f
+from hbaselines.ppo.policy import Model
 
 
 class PPO(object):
@@ -38,8 +33,6 @@ class PPO(object):
                  nminibatches=4,
                  noptepochs=4,
                  cliprange=0.2,
-                 load_path=None,
-                 model_fn=None,
                  update_fn=None,
                  init_fn=None,
                  mpi_rank_weight=1,
@@ -114,35 +107,19 @@ class PPO(object):
         self.eval_env = eval_env
         self.nsteps = nsteps
         self.ent_coef = ent_coef
-        self.lr = lr
+        self.lr = self._get_function(lr)
         self.vf_coef = vf_coef
         self.max_grad_norm = max_grad_norm
         self.gamma = gamma
         self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
-        self.cliprange = cliprange
-        self.load_path = load_path
-        self.model_fn = model_fn or Model
+        self.cliprange = self._get_function(cliprange)
         self.update_fn = update_fn
         self.init_fn = init_fn
         self.mpi_rank_weight = mpi_rank_weight
         self.comm = comm
         self.network_kwargs = network_kwargs
-
-        # TODO: create shared method
-        if isinstance(lr, float):
-            self.lr = constfn(lr)
-        else:
-            assert callable(lr)
-            self.lr = lr
-
-        # TODO: create shared method
-        if isinstance(cliprange, float):
-            self.cliprange = constfn(cliprange)
-        else:
-            assert callable(cliprange)
-            self.cliprange = cliprange
 
         # TODO: see what this is
         if init_fn is not None:
@@ -162,8 +139,8 @@ class PPO(object):
         self.nbatch = nenvs * self.nsteps
         self.nbatch_train = self.nbatch // self.nminibatches
 
-        # instantiate the model object (that creates act_model and train_model)
-        self.model = self.model_fn(
+        # Instantiate the model object (that creates act_model and train_model)
+        self.model = Model(
             policy=self.policy,
             ob_space=ob_space,
             ac_space=ac_space,
@@ -176,10 +153,6 @@ class PPO(object):
             comm=comm,
             mpi_rank_weight=mpi_rank_weight
         )
-
-        # load the pre-defined model parameters, if needed  TODO: remove
-        if load_path is not None:
-            self.model.load(load_path)
 
         # Instantiate the runner objects
         self.runner = Runner(
@@ -227,8 +200,6 @@ class PPO(object):
 
         total_timesteps = int(total_timesteps)
 
-        is_mpi_root = (MPI is None or MPI.COMM_WORLD.Get_rank() == 0)
-
         # Start total timer
         tfirststart = time.perf_counter()
 
@@ -243,8 +214,8 @@ class PPO(object):
             # Calculate the cliprange
             cliprangenow = self.cliprange(frac)
 
-            if update % log_interval == 0 and is_mpi_root:
-                logger.info('Stepping environment...')
+            if update % log_interval == 0:
+                print('Stepping environment...')
 
             # Get minibatch
             obs, returns, masks, actions, values, neglogpacs, states, epinfos \
@@ -260,8 +231,8 @@ class PPO(object):
                 # Add to the episode info buffer.
                 self.eval_epinfobuf.extend(eval_epinfos)
 
-            if update % log_interval == 0 and is_mpi_root:
-                logger.info('Done.')
+            if update % log_interval == 0:
+                print('Done.')
 
             # Here what we're going to do is for each minibatch calculate the
             # loss and append it.
@@ -281,45 +252,17 @@ class PPO(object):
                     mblossvals.append(
                         self.model.train(lrnow, cliprangenow, *slices))
 
-            # Feedforward --> get losses --> update
-            lossvals = np.mean(mblossvals, axis=0)
-            # End timer
-            tnow = time.perf_counter()
-            # Calculate the fps (frame per second)
-            fps = int(self.nbatch / (tnow - tstart))
-
             if self.update_fn is not None:
                 self.update_fn(update)
 
+            # Log training statistics.
             if update % log_interval == 0 or update == 1:
-                # Calculates if value function is a good predictor of the
-                # returns (ev > 1) or if it's just worse than predicting
-                # nothing (ev =< 0)
-                ev = explained_variance(values, returns)
-                logger.logkv("misc/serial_timesteps", update * self.nsteps)
-                logger.logkv("misc/nupdates", update)
-                logger.logkv("misc/total_timesteps", update * self.nbatch)
-                logger.logkv("fps", fps)
-                logger.logkv("misc/explained_variance", float(ev))
-                logger.logkv('eprewmean',
-                             safemean([epinfo['r']
-                                       for epinfo in self.epinfobuf]))
-                logger.logkv('eplenmean',
-                             safemean([epinfo['l']
-                                       for epinfo in self.epinfobuf]))
-                if self.eval_env is not None:
-                    logger.logkv('eval_eprewmean', safemean(
-                        [epinfo['r'] for epinfo in self.eval_epinfobuf]))
-                    logger.logkv('eval_eplenmean', safemean(
-                        [epinfo['l'] for epinfo in self.eval_epinfobuf]))
-                logger.logkv('misc/time_elapsed', tnow - tfirststart)
-                for (lossval, lossname) in zip(lossvals,
-                                               self.model.loss_names):
-                    logger.logkv('loss/' + lossname, lossval)
+                self._log_results(update, tfirststart, tstart, mblossvals,
+                                  values, returns)
 
-                logger.dumpkvs()
+            # Save a checkpoint of the model.
             if save_interval and (update % save_interval == 0 or update == 1) \
-                    and logger.get_dir() and is_mpi_root:
+                    and logger.get_dir():
                 checkdir = osp.join(logger.get_dir(), 'checkpoints')
                 os.makedirs(checkdir, exist_ok=True)
                 savepath = osp.join(checkdir, '%.5i' % update)
@@ -327,6 +270,87 @@ class PPO(object):
                 self.model.save(savepath)
 
         return self.model
+
+    @staticmethod
+    def _get_function(val):
+        """Return a function from a constant or function.
+
+        If `val` is a constant, it is converted to a function that simply
+        returns the value. Otherwise, this method asserts `val` is callable and
+        returns it.
+        """
+        if isinstance(val, float):
+            def constfn(v):
+                def f(_):
+                    return v
+                return f
+
+            val = constfn(val)
+        else:
+            assert callable(val)
+
+        return val
+
+    def _collect_samples(self, env, steps):
+        pass
+
+    def _log_results(self,
+                     update,
+                     tfirststart,
+                     tstart,
+                     mblossvals,
+                     values,
+                     returns):
+        """Log training and evaluation statistics.
+
+        Parameters
+        ----------
+        update : int
+            the training iteration
+        tfirststart : float
+            time when the training procedure started
+        tstart : float
+            time when the current training iteration started
+        mblossvals : TODO
+            TODO
+        values : TODO
+            TODO
+        returns : TODO
+            TODO
+        """
+        # Feedforward --> get losses --> update
+        lossvals = np.mean(mblossvals, axis=0)
+        # End timer
+        tnow = time.perf_counter()
+        # Calculate the fps (frame per second)
+        fps = int(self.nbatch / (tnow - tstart))
+
+        # Calculates if value function is a good predictor of the
+        # returns (ev > 1) or if it's just worse than predicting
+        # nothing (ev =< 0)
+        ev = explained_variance(values, returns)
+        logger.logkv("misc/serial_timesteps", update * self.nsteps)
+        logger.logkv("misc/nupdates", update)
+        logger.logkv("misc/total_timesteps", update * self.nbatch)
+        logger.logkv("fps", fps)
+        logger.logkv("misc/explained_variance", float(ev))
+        logger.logkv('eprewmean',
+                     safemean([epinfo['r']
+                               for epinfo in self.epinfobuf]))
+        logger.logkv('eplenmean',
+                     safemean([epinfo['l']
+                               for epinfo in self.epinfobuf]))
+        if self.eval_env is not None:
+            logger.logkv('eval_eprewmean', safemean(
+                [epinfo['r'] for epinfo in self.eval_epinfobuf]))
+            logger.logkv('eval_eplenmean', safemean(
+                [epinfo['l'] for epinfo in self.eval_epinfobuf]))
+        logger.logkv('misc/time_elapsed', tnow - tfirststart)
+        for (lossval, lossname) in zip(lossvals,
+                                       self.model.loss_names):
+            logger.logkv('loss/' + lossname, lossval)
+
+        logger.dumpkvs()
 
 
 # Avoid division error when calculate the mean (in our case if epinfo is empty

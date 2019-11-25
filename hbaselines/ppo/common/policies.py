@@ -15,9 +15,17 @@ class PolicyWithValue(object):
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
-    def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, **tensors):
-        """
-        Parameters:
+    def __init__(self,
+                 env,
+                 observations,
+                 latent,
+                 estimate_q=False,
+                 vf_latent=None,
+                 sess=None,
+                 **tensors):
+        """TODO
+
+        Parameters
         ----------
         env             RL environment
 
@@ -32,7 +40,6 @@ class PolicyWithValue(object):
         **tensors       tensorflow tensors for additional attributes such as state or mask
 
         """
-
         self.X = observations
         self.state = tf.constant([])
         self.initial_state = None
@@ -62,7 +69,7 @@ class PolicyWithValue(object):
             self.vf = self.q
         else:
             self.vf = fc(vf_latent, 'vf', 1)
-            self.vf = self.vf[:,0]
+            self.vf = self.vf[:, 0]
 
     def _evaluate(self, variables, observation, **extra_feed):
         sess = self.sess
@@ -150,15 +157,16 @@ def build_policy(env,
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         ob_space = env.observation_space
 
-        X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
+        obs_ph = observ_placeholder if observ_placeholder is not None else \
+            observation_placeholder(ob_space, batch_size=nbatch)
 
         extra_tensors = {}
 
-        if normalize_observations and X.dtype == tf.float32:
-            encoded_x, rms = _normalize_clip_observation(X)
+        if normalize_observations and obs_ph.dtype == tf.float32:
+            encoded_x, rms = _normalize_clip_observation(obs_ph)
             extra_tensors['rms'] = rms
         else:
-            encoded_x = X
+            encoded_x = obs_ph
 
         encoded_x = encode_observation(ob_space, encoded_x)
 
@@ -170,8 +178,11 @@ def build_policy(env,
                 if recurrent_tensors is not None:
                     # recurrent architecture, need a few more steps
                     nenv = nbatch // nsteps
-                    assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
-                    policy_latent, recurrent_tensors = policy_network(encoded_x, nenv)
+                    assert nenv > 0, \
+                        'Bad input for recurrent policy: batch size {} ' \
+                        'smaller than nsteps {}'.format(nbatch, nsteps)
+                    policy_latent, recurrent_tensors = policy_network(
+                        encoded_x, nenv)
                     extra_tensors.update(recurrent_tensors)
 
         _v_net = value_network
@@ -185,12 +196,11 @@ def build_policy(env,
                 assert callable(_v_net)
 
             with tf.variable_scope('vf', reuse=tf.AUTO_REUSE):
-                # TODO recurrent architectures are not supported with value_network=copy yet
                 vf_latent = _v_net(encoded_x)
 
         policy = PolicyWithValue(
             env=env,
-            observations=X,
+            observations=obs_ph,
             latent=policy_latent,
             vf_latent=vf_latent,
             sess=sess,
@@ -202,7 +212,10 @@ def build_policy(env,
     return policy_fn
 
 
-def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
+def _normalize_clip_observation(x, clip_range=None):
+    if clip_range is None:
+        clip_range = [-5.0, 5.0]
     rms = RunningMeanStd(shape=x.shape[1:])
-    norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
+    norm_x = tf.clip_by_value((x - rms.mean) / rms.std,
+                              min(clip_range), max(clip_range))
     return norm_x, rms
