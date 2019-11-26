@@ -3,14 +3,14 @@ import random
 import os
 import time
 import numpy as np
-import os.path as osp
 from collections import deque
 import csv
 
-from hbaselines.ppo.util import explained_variance
+from hbaselines.ppo.util import ensure_dir, explained_variance
 from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
 from hbaselines.ppo.policy import Model
+from hbaselines.ppo.tf_util import get_session
 
 
 class PPO(object):
@@ -31,7 +31,6 @@ class PPO(object):
                  cliprange=0.2,
                  update_fn=None,
                  init_fn=None,
-                 comm=None,
                  **network_kwargs):
         """Instantiate the algorithm object.
 
@@ -81,8 +80,6 @@ class PPO(object):
             is beginning of the training and 0 is the end of the training
         load_path : str
             path to load the model from
-        model_fn : TODO
-            TODO
         update_fn : TODO
             TODO
         init_fn : TODO
@@ -110,12 +107,18 @@ class PPO(object):
         self.cliprange = self._get_function(cliprange)
         self.update_fn = update_fn
         self.init_fn = init_fn
-        self.comm = comm
         self.network_kwargs = network_kwargs
 
         # TODO: see what this is
         if init_fn is not None:
             init_fn()
+
+        # Create the tensorflow session.
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                intra_op_parallelism_threads=1,
+                                inter_op_parallelism_threads=1)
+        config.gpu_options.allow_growth = True
+        self.sess = get_session(config)
 
         # create the policy object
         self.policy = build_policy(env, network, **network_kwargs)
@@ -133,6 +136,7 @@ class PPO(object):
 
         # Instantiate the model object (that creates act_model and train_model)
         self.model = Model(
+            sess=self.sess,
             policy=self.policy,
             ob_space=ob_space,
             ac_space=ac_space,
@@ -142,10 +146,9 @@ class PPO(object):
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
-            comm=comm,
         )
 
-        # Instantiate the runner objects
+        # Instantiate the runner objects.
         self.runner = Runner(
             env=self.env,
             model=self.model,
@@ -168,6 +171,7 @@ class PPO(object):
 
     def learn(self,
               total_timesteps,
+              log_dir=None,
               seed=None,
               log_interval=10,
               save_interval=0):
@@ -177,17 +181,31 @@ class PPO(object):
         ----------
         total_timesteps : int
             number of timesteps (number of actions taken in the environment)
-        seed : int
-            TODO
+        log_dir : str
+            the directory where the training and evaluation statistics, as well
+            as the tensorboard log, should be stored
+        seed : int or None
+            the initial seed for training, if None: keep current seed
         log_interval : int
             number of timesteps between logging events
         save_interval : int
             number of timesteps between saving events
         """
-        # set global seeds
-        tf.set_random_seed(seed)
-        np.random.seed(seed)
+        # Make sure that the log directory exists, and if not, make it.
+        ensure_dir(log_dir)
+        ensure_dir(os.path.join(log_dir, "checkpoints"))
+
+        # Create a tensorboard object for logging.
+        # save_path = os.path.join(log_dir, "tb_log")
+        # writer = tf.compat.v1.summary.FileWriter(save_path)
+
+        # file path for training and evaluation results
+        log_filepath = os.path.join(log_dir, "results.csv")
+
+        # Setup the seed value.
         random.seed(seed)
+        np.random.seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
         total_timesteps = int(total_timesteps)
 
@@ -249,15 +267,13 @@ class PPO(object):
             # Log training statistics.
             if update % log_interval == 0 or update == 1:
                 self._log_results(update, tfirststart, tstart, mblossvals,
-                                  values, returns)
+                                  values, returns, log_filepath)
 
             # Save a checkpoint of the model.
             if save_interval and (update % save_interval == 0 or update == 1):
-                checkdir = ""  # FIXME
-                os.makedirs(checkdir, exist_ok=True)
-                savepath = osp.join(checkdir, '%.5i' % update)
-                print('Saving to', savepath)
-                self.model.save(savepath)
+                ckpt_path = os.path.join(log_dir, "checkpoints/itr")
+                print('Saving to {}'.format(ckpt_path))
+                self.model.save(ckpt_path)
 
         return self.model
 
@@ -291,7 +307,7 @@ class PPO(object):
                      mblossvals,
                      values,
                      returns,
-                     file_path=None):
+                     file_path):
         """Log training and evaluation statistics.
 
         Parameters
@@ -317,7 +333,7 @@ class PPO(object):
         tnow = time.perf_counter()
         # Calculate the fps (frame per second)
         fps = int(self.nbatch / (tnow - tstart))
-        # Calculates if value function is a good predictor of the returns
+        # Calculate if value function is a good predictor of the returns
         # (ev > 1) or if it's just worse than predicting nothing (ev =< 0).
         ev = explained_variance(values, returns)
 

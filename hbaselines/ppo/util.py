@@ -1,4 +1,16 @@
+import os
+import errno
 import numpy as np
+
+
+def ensure_dir(path):
+    """Ensure that the directory specified exists, and if not, create it."""
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise  # pragma: no cover
+    return path
 
 
 def explained_variance(ypred, y):

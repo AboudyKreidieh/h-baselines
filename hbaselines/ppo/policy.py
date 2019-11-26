@@ -1,25 +1,36 @@
 import tensorflow as tf
 import functools
 
-from baselines.common.tf_util import get_session, save_variables, load_variables
+from baselines.common.tf_util import save_variables, load_variables
 from baselines.common.tf_util import initialize
 
 
 class Model(object):
-    """
-    We use this object to :
-    __init__:
-    - Creates the step_model
-    - Creates the train_model
+    """TODO
 
-    train():
-    - Make the training part (feedforward and retropropagation of gradients)
-
-    save/load():
-    - Save load the model
+    Attributes
+    ----------
+    sess : tf.compat.v1.Session
+        the tensorflow session
+    ac_ph : tf.compat.v1.placeholder
+        placeholder for the actions
+    adv_ph : tf.compat.v1.placeholder
+        placeholder for the advantages
+    ret_ph : tf.compat.v1.placeholder
+        placeholder for the returns
+    OLDNEGLOGPAC : tf.compat.v1.placeholder
+        placeholder for the negative log-probability of actions in the previous
+        step policy
+    OLDVPRED : tf.compat.v1.placeholder
+        placeholder for the predicted values from the previous step policy
+    learning_rate : tf.compat.v1.placeholder
+        placeholder for the current learning rate
+    clip_range : tf.compat.v1.placeholder
+        placeholder for the current clip range to the gradients
     """
     def __init__(self,
                  *,
+                 sess,
                  policy,
                  ob_space,
                  ac_space,
@@ -29,12 +40,54 @@ class Model(object):
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 comm=None,
                  microbatch_size=None):
-        self.sess = sess = get_session()
+        """TODO
+
+        Parameters
+        ----------
+        policy : TODO
+            TODO
+        ob_space : TODO
+            TODO
+        ac_space : TODO
+            TODO
+        nbatch_act : TODO
+            TODO
+        nbatch_train : TODO
+            TODO
+        nsteps : TODO
+            TODO
+        ent_coef : TODO
+            TODO
+        vf_coef : TODO
+            TODO
+        max_grad_norm : TODO
+            TODO
+        microbatch_size : TODO
+            TODO
+        """
+        self.sess = sess
+
+        # =================================================================== #
+        # Part 1. Create the placeholders.                                    #
+        # =================================================================== #
+
+        self.ac_ph = tf.placeholder(tf.float32, [None, ac_space.shape[0]])
+        self.adv_ph = tf.placeholder(tf.float32, [None])
+        self.ret_ph = tf.placeholder(tf.float32, [None])
+        # Keep track of old actor
+        self.OLDNEGLOGPAC = OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
+        # Keep track of old critic
+        self.OLDVPRED = OLDVPRED = tf.placeholder(tf.float32, [None])
+        self.learning_rate = tf.placeholder(tf.float32, [])
+        # Cliprange
+        self.clip_range = tf.placeholder(tf.float32, [])
+
+        # =================================================================== #
+        # Part 2. Create the policies.                                        #
+        # =================================================================== #
 
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
-            # CREATE OUR TWO MODELS
             # act_model that is used for sampling
             act_model = policy(nbatch_act, 1, sess)
 
@@ -45,28 +98,13 @@ class Model(object):
                 train_model = policy(microbatch_size, nsteps, sess)
 
         # =================================================================== #
-        # Part 1. Create the placeholders.                                    #
-        # =================================================================== #
-
-        self.A = A = train_model.pdtype.sample_placeholder([None])
-        self.ADV = ADV = tf.placeholder(tf.float32, [None])
-        self.R = R = tf.placeholder(tf.float32, [None])
-        # Keep track of old actor
-        self.OLDNEGLOGPAC = OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
-        # Keep track of old critic
-        self.OLDVPRED = OLDVPRED = tf.placeholder(tf.float32, [None])
-        self.LR = LR = tf.placeholder(tf.float32, [])
-        # Cliprange
-        self.clip_range = tf.placeholder(tf.float32, [])
-
-        # =================================================================== #
-        # Part 2. Calculate the loss.                                         #
+        # Part 3. Calculate the loss.                                         #
         # =================================================================== #
         # Total loss = policy gradient loss - entropy * entropy coefficient   #
         #              + Value coefficient * value loss                       #
         # =================================================================== #
 
-        neglogpac = train_model.pd.neglogp(A)
+        neglogpac = train_model.pd.neglogp(self.ac_ph)
 
         # Calculate the entropy. Entropy is used to improve exploration by
         # limiting the premature convergence to suboptimal policy.
@@ -78,9 +116,9 @@ class Model(object):
         vpredclipped = OLDVPRED + tf.clip_by_value(
             train_model.vf - OLDVPRED, - self.clip_range, self.clip_range)
         # Unclipped value
-        vf_losses1 = tf.square(vpred - R)
+        vf_losses1 = tf.square(vpred - self.ret_ph)
         # Clipped value
-        vf_losses2 = tf.square(vpredclipped - R)
+        vf_losses2 = tf.square(vpredclipped - self.ret_ph)
 
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
@@ -88,9 +126,9 @@ class Model(object):
         ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
 
         # Defining Loss = - J is equivalent to max J
-        pg_losses = -ADV * ratio
+        pg_losses = -self.adv_ph * ratio
 
-        pg_losses2 = -ADV * tf.clip_by_value(
+        pg_losses2 = -self.adv_ph * tf.clip_by_value(
             ratio, 1.0 - self.clip_range, 1.0 + self.clip_range)
 
         # Final PG loss
@@ -102,11 +140,17 @@ class Model(object):
         # Total loss
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
-        # UPDATE THE PARAMETERS USING LOSS
+        # =================================================================== #
+        # Part 4. Create the parameter update procedure.                      #
+        # =================================================================== #
+
         # 1. Get the model parameters
         params = tf.trainable_variables('ppo2_model')
+
         # 2. Build our trainer
-        self.trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
+        self.trainer = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate, epsilon=1e-5)
+
         # 3. Calculate the gradients
         grads_and_var = self.trainer.compute_gradients(loss, params)
         grads, var = zip(*grads_and_var)
@@ -134,7 +178,11 @@ class Model(object):
         self.save = functools.partial(save_variables, sess=sess)
         self.load = functools.partial(load_variables, sess=sess)
 
-        initialize()  # TODO: replace with mine
+        # =================================================================== #
+        # Part 5. Initialize all parameter.                                   #
+        # =================================================================== #
+
+        self.sess.run(tf.global_variables_initializer())
 
     def train(self,
               lr,
@@ -183,10 +231,10 @@ class Model(object):
 
         td_map = {
             self.train_model.X: obs,
-            self.A: actions,
-            self.ADV: advs,
-            self.R: returns,
-            self.LR: lr,
+            self.ac_ph: actions,
+            self.adv_ph: advs,
+            self.ret_ph: returns,
+            self.learning_rate: lr,
             self.clip_range: clip_range,
             self.OLDNEGLOGPAC: neglogpacs,
             self.OLDVPRED: values

@@ -1,16 +1,15 @@
 import sys
 import multiprocessing
-import os.path as osp
+import os
+from time import strftime
 import gym
 from collections import defaultdict
-import tensorflow as tf
 import numpy as np
 
 from hbaselines.ppo.vec_env import VecNormalize, VecEnv
 from hbaselines.ppo.vec_env.vec_video_recorder import VecVideoRecorder
 from hbaselines.ppo.cmd_util import common_arg_parser, parse_unknown_args, \
     make_vec_env
-from hbaselines.ppo.tf_util import get_session
 from importlib import import_module
 from hbaselines.ppo.algorithm import PPO
 
@@ -38,7 +37,9 @@ _game_envs['retro'] = {
 def train(args, extra_args):
     env_id = args.env
 
-    log_dir = ""  # FIXME
+    # Define the log directory.
+    dir_name = os.path.join(
+        "results", "{}/{}".format(env_id, strftime("%Y-%m-%d-%H:%M:%S")))
 
     total_timesteps = int(args.num_timesteps)
     seed = args.seed
@@ -50,7 +51,7 @@ def train(args, extra_args):
     if args.save_video_interval != 0:
         env = VecVideoRecorder(
             env,
-            osp.join(log_dir, "videos"),
+            os.path.join(dir_name, "videos"),
             record_video_trigger=lambda x: x % args.save_video_interval == 0,
             video_length=args.save_video_length
         )
@@ -66,13 +67,23 @@ def train(args, extra_args):
 
     if "log_interval" in alg_kwargs:
         log_interval = alg_kwargs.pop("log_interval")
+    else:
+        log_interval = 1000
+
     if "save_interval" in alg_kwargs:
         save_interval = alg_kwargs.pop("save_interval")
+    else:
+        save_interval = 0
 
+    # Perform the training operation.
     alg = PPO(env=env, **alg_kwargs)
-    model = alg.learn(total_timesteps=total_timesteps,
-                      seed=seed,
-                      log_interval=log_interval)
+    model = alg.learn(
+        total_timesteps=total_timesteps,
+        log_dir=dir_name,
+        seed=seed,
+        log_interval=log_interval,
+        save_interval=save_interval
+    )
 
     return model, env
 
@@ -85,12 +96,6 @@ def build_env(args):
     seed = args.seed
 
     env_id = args.env
-
-    config = tf.ConfigProto(allow_soft_placement=True,
-                            intra_op_parallelism_threads=1,
-                            inter_op_parallelism_threads=1)
-    config.gpu_options.allow_growth = True
-    get_session(config=config)
 
     flatten_dict_observations = alg not in {'her'}
     env = make_vec_env(
@@ -156,7 +161,7 @@ def main(args):
     model, env = train(args, extra_args)
 
     if args.save_path is not None:
-        save_path = osp.expanduser(args.save_path)
+        save_path = os.path.expanduser(args.save_path)
         model.save(save_path)
 
     if args.play:
