@@ -7,13 +7,29 @@ from collections import deque
 import csv
 
 from hbaselines.ppo.util import ensure_dir, explained_variance
-from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
-from hbaselines.ppo.policy import Model
+from hbaselines.ppo.policy import FeedForwardPolicy
 from hbaselines.ppo.tf_util import get_session
 
 
+DEFAULT_NETWORK_KWARGS = dict(
+    # The size of the Neural network for the policy
+    layers=[64, 64],
+    # the activation function to use in the neural network.
+    act_fun=tf.nn.tanh,
+    # TODO
+    normalize_observations=False,
+    # TODO
+    layer_norm=False,
+)
+
+
 class PPO(object):
+    """Proximal Policy Optimization algorithm.
+
+    Attributes
+    ----------
+    """
 
     def __init__(self,
                  network,
@@ -29,29 +45,17 @@ class PPO(object):
                  nminibatches=4,
                  noptepochs=4,
                  cliprange=0.2,
-                 update_fn=None,
-                 init_fn=None,
                  **network_kwargs):
         """Instantiate the algorithm object.
 
         Parameters
         ----------
         network : TODO
-            policy network architecture. Either string (mlp, lstm, lnlstm,
-            cnn_lstm, cnn, cnn_small, conv_only, see baselines.common/models.py
-            for full list) specifying the standard network architecture, or a
-            function that takes tensorflow tensor as input and returns tuple
-            (output_tensor, extra_feed) where output tensor is the last network
-            layer output, extra_feed is None for feed-forward neural nets, and
-            extra_feed is a dictionary describing how to feed state into the
-            network for recurrent neural nets. See common/models.py/lstm for
-            more details on using recurrent nets in policies
-        env : baselines.common.vec_env.VecEnv
-            the environment. Needs to be vectorized for parallel environment
-            simulation. The environments produced by gym.make can be wrapped
-            using baselines.common.vec_env.DummyVecEnv class.
-        eval_env : TODO
             TODO
+        env : str or gym.Env
+            the training environment
+        eval_env : str or gym.Env
+            the evaluation environment
         nsteps : int
             number of steps of the vectorized environment per update (i.e.
             batch size is nsteps * nenv where nenv is number of environment
@@ -80,18 +84,13 @@ class PPO(object):
             is beginning of the training and 0 is the end of the training
         load_path : str
             path to load the model from
-        update_fn : TODO
-            TODO
-        init_fn : TODO
-            TODO
-        comm : TODO
-            TODO
         network_kwargs : dict
             keyword arguments to the policy / network builder. See baselines.
             common/policies.py/build_policy and arguments to a particular type
             of network. For instance, 'mlp' network architecture has arguments
             num_hidden and num_layers.
         """
+        print(network)
         self.network = network
         self.env = env
         self.eval_env = eval_env
@@ -105,13 +104,8 @@ class PPO(object):
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
         self.cliprange = self._get_function(cliprange)
-        self.update_fn = update_fn
-        self.init_fn = init_fn
         self.network_kwargs = network_kwargs
-
-        # TODO: see what this is
-        if init_fn is not None:
-            init_fn()
+        self.network_kwargs.update(DEFAULT_NETWORK_KWARGS)
 
         # Create the tensorflow session.
         config = tf.ConfigProto(allow_soft_placement=True,
@@ -119,9 +113,6 @@ class PPO(object):
                                 inter_op_parallelism_threads=1)
         config.gpu_options.allow_growth = True
         self.sess = get_session(config)
-
-        # create the policy object
-        self.policy = build_policy(env, network, **network_kwargs)
 
         # Get the nb of env
         nenvs = self.env.num_envs
@@ -135,23 +126,20 @@ class PPO(object):
         self.nbatch_train = self.nbatch // self.nminibatches
 
         # Instantiate the model object (that creates act_model and train_model)
-        self.model = Model(
+        self.policy_tf = FeedForwardPolicy(
             sess=self.sess,
-            policy=self.policy,
             ob_space=ob_space,
             ac_space=ac_space,
-            nbatch_act=nenvs,
-            nbatch_train=self.nbatch_train,
-            nsteps=nsteps,
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
+            policy_kwargs=network_kwargs
         )
 
         # Instantiate the runner objects.
         self.runner = Runner(
             env=self.env,
-            model=self.model,
+            model=self.policy_tf,
             nsteps=self.nsteps,
             gamma=self.gamma,
             lam=self.lam
@@ -159,7 +147,7 @@ class PPO(object):
         if self.eval_env is not None:
             self.eval_runner = Runner(
                 env=self.eval_env,
-                model=self.model,
+                model=self.policy_tf,
                 nsteps=self.nsteps,
                 gamma=self.gamma,
                 lam=self.lam
@@ -257,12 +245,9 @@ class PPO(object):
                     end = start + self.nbatch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
-                        obs, returns, masks, actions, values, neglogpacs))
+                        obs, returns, actions, values, neglogpacs))
                     mblossvals.append(
-                        self.model.train(lrnow, cliprangenow, *slices))
-
-            if self.update_fn is not None:
-                self.update_fn(update)
+                        self.policy_tf.train(lrnow, cliprangenow, *slices))
 
             # Log training statistics.
             if update % log_interval == 0 or update == 1:
@@ -273,9 +258,9 @@ class PPO(object):
             if save_interval and (update % save_interval == 0 or update == 1):
                 ckpt_path = os.path.join(log_dir, "checkpoints/itr")
                 print('Saving to {}'.format(ckpt_path))
-                self.model.save(ckpt_path)
+                self.policy_tf.save(ckpt_path)
 
-        return self.model
+        return self.policy_tf
 
     @staticmethod
     def _get_function(val):
@@ -318,14 +303,15 @@ class PPO(object):
             time when the training procedure started
         tstart : float
             time when the current training iteration started
-        mblossvals : TODO
-            TODO
-        values : TODO
-            TODO
-        returns : TODO
-            TODO
-        file_path : TODO
-            TODO
+        mblossvals : array_like
+            list of mini-batch losses
+        values : array_like
+            list of training iteration value estimates
+        returns : array_like
+            list of training iteration returns
+        file_path : str
+            the path where the training and evaluation statistics should be
+            stored
         """
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -356,7 +342,7 @@ class PPO(object):
                     [epinfo['l'] for epinfo in self.eval_epinfobuf])
             })
         # Add loss statistics.
-        for (lossval, lossname) in zip(lossvals, self.model.loss_names):
+        for (lossval, lossname) in zip(lossvals, self.policy_tf.loss_names):
             log_statistics['loss/' + lossname] = lossval
 
         # Save statistics in a csv file.

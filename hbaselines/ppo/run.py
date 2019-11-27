@@ -4,9 +4,8 @@ import os
 from time import strftime
 import gym
 from collections import defaultdict
-import numpy as np
 
-from hbaselines.ppo.vec_env import VecNormalize, VecEnv
+from hbaselines.ppo.vec_env import VecNormalize
 from hbaselines.ppo.vec_env.vec_video_recorder import VecVideoRecorder
 from hbaselines.ppo.cmd_util import common_arg_parser, parse_unknown_args, \
     make_vec_env
@@ -142,7 +141,6 @@ def parse_cmdline_kwargs(args):
 
     Evaluate python objects when possible.
     """
-
     def parse(v):
         assert isinstance(v, str)
         try:
@@ -158,39 +156,7 @@ def main(args):
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
 
-    model, env = train(args, extra_args)
-
-    if args.save_path is not None:
-        save_path = os.path.expanduser(args.save_path)
-        model.save(save_path)
-
-    if args.play:
-        print("Running trained model")
-        obs = env.reset()
-
-        state = getattr(model, 'initial_state', None)
-        dones = np.zeros((1,))
-
-        episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) \
-            else np.zeros(1)
-        while True:
-            if state is not None:
-                actions, _, state, _ = model.step(obs, S=state, M=dones)
-            else:
-                actions, _, _, _ = model.step(obs)
-
-            obs, rew, done, _ = env.step(actions)
-            episode_rew += rew
-            env.render()
-            done_any = done.any() if isinstance(done, np.ndarray) else done
-            if done_any:
-                for i in np.nonzero(done)[0]:
-                    print('episode_rew={}'.format(episode_rew[i]))
-                    episode_rew[i] = 0
-
-    env.close()
-
-    return model
+    _, _ = train(args, extra_args)
 
 
 if __name__ == '__main__':
