@@ -278,7 +278,7 @@ class TestPendulum(unittest.TestCase):
     def test_reset(self):
         """Ensure the state initialization is within the expected range."""
         state = self.env.reset()
-        num_obj = int(len(state)/3)
+        num_obj = len(state) // 3
         for i in range(num_obj):
             self.assertTrue(np.arccos(state[i])
                             >= self.env.initial_state_space[i][0])

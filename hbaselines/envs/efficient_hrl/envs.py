@@ -28,8 +28,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 horizon=500,
-                 show=False):
+                 horizon=500):
         """Initialize the Universal environment.
 
         Parameters
@@ -73,7 +72,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
             manual_collision=False
         )
 
-        self.show = show
         self.horizon = horizon
         self.step_number = 0
 
@@ -150,10 +148,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
         # Run environment update.
         obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
 
-        # Visualize the current step.
-        if self.show:
-            self.render()  # pragma: no cover
-
         if self.use_contexts:
             # Add success to the info dict
             dist = self.contextual_reward(
@@ -223,8 +217,7 @@ class AntMaze(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None,
-                 show=False):
+                 context_range=None):
         """Initialize the Ant Maze environment.
 
         Parameters
@@ -238,8 +231,6 @@ class AntMaze(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
-        show : bool
-            specifies whether to render the environment
 
         Raises
         ------
@@ -266,7 +257,6 @@ class AntMaze(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            show=show
         )
 
 
@@ -285,8 +275,7 @@ class AntPush(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None,
-                 show=False):
+                 context_range=None):
         """Initialize the Ant Push environment.
 
         Parameters
@@ -300,8 +289,6 @@ class AntPush(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
-        show : bool
-            specifies whether to render the environment
 
         Raises
         ------
@@ -328,7 +315,6 @@ class AntPush(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            show=show
         )
 
 
@@ -349,8 +335,7 @@ class AntFall(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None,
-                 show=False):
+                 context_range=None):
         """Initialize the Ant Fall environment.
 
         Parameters
@@ -364,8 +349,6 @@ class AntFall(UniversalAntMazeEnv):
         context_range : list of float or list of (float, float)
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
-        show : bool
-            specifies whether to render the environment
 
         Raises
         ------
@@ -392,5 +375,4 @@ class AntFall(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            show=show
         )

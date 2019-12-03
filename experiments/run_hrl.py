@@ -8,7 +8,7 @@ from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
 
-EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --n_cpus 3'
+EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --meta_period 10'
 
 
 def run_exp(env,
@@ -18,7 +18,8 @@ def run_exp(env,
             evaluate,
             seed,
             eval_interval,
-            log_interval):
+            log_interval,
+            save_interval):
     """Run a single training procedure.
 
     Parameters
@@ -40,6 +41,9 @@ def run_exp(env,
         evaluation is performed
     log_interval : int
         the number of training steps before logging training results
+    save_interval : int
+        number of simulation steps in the training environment before the model
+        is saved
     """
     eval_env = env if evaluate else None
     alg = TD3(policy=GoalConditionedPolicy, env=env, eval_env=eval_env, **hp)
@@ -50,6 +54,7 @@ def run_exp(env,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
+        save_interval=save_interval,
         seed=seed,
     )
 
@@ -65,15 +70,24 @@ def main(args, base_dir):
     hp = get_hyperparameters(args, GoalConditionedPolicy)
 
     # add the seed for logging purposes
-    params_with_seed = hp.copy()
-    params_with_seed['seed'] = args.seed
+    params_with_extra = hp.copy()
+    params_with_extra['seed'] = args.seed
+    params_with_extra['env_name'] = args.env_name
+    params_with_extra['policy_name'] = "GoalConditionedPolicy"
 
     # add the hyperparameters to the folder
     with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
-        json.dump(params_with_seed, f, sort_keys=True, indent=4)
+        json.dump(params_with_extra, f, sort_keys=True, indent=4)
 
-    run_exp(args.env_name, hp, args.total_steps, dir_name, args.evaluate,
-            args.seed, args.eval_interval, args.log_interval)
+    run_exp(env=args.env_name,
+            hp=hp,
+            steps=args.total_steps,
+            dir_name=dir_name,
+            evaluate=args.evaluate,
+            seed=args.seed,
+            eval_interval=args.eval_interval,
+            log_interval=args.log_interval,
+            save_interval=args.save_interval)
 
 
 if __name__ == '__main__':

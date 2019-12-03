@@ -205,36 +205,28 @@ def create_env(env, render=False, evaluate=False):
 
     if env == "AntMaze":
         if evaluate:
-            env = [AntMaze(use_contexts=True, context_range=[16, 0],
-                           show=render),
-                   AntMaze(use_contexts=True, context_range=[16, 16],
-                           show=render),
-                   AntMaze(use_contexts=True, context_range=[0, 16],
-                           show=render)]
+            env = [AntMaze(use_contexts=True, context_range=[16, 0]),
+                   AntMaze(use_contexts=True, context_range=[16, 16]),
+                   AntMaze(use_contexts=True, context_range=[0, 16])]
         else:
             env = AntMaze(use_contexts=True,
                           random_contexts=True,
-                          context_range=[(-4, 20), (-4, 20)],
-                          show=render)
+                          context_range=[(-4, 20), (-4, 20)])
 
     elif env == "AntPush":
         if evaluate:
-            env = AntPush(use_contexts=True, context_range=[0, 19],
-                          show=render)
+            env = AntPush(use_contexts=True, context_range=[0, 19])
         else:
-            env = AntPush(use_contexts=True, context_range=[0, 19],
-                          show=render)
+            env = AntPush(use_contexts=True, context_range=[0, 19])
             # env = AntPush(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-16, 16), (-4, 20)])
 
     elif env == "AntFall":
         if evaluate:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
-                          show=render)
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
         else:
-            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5],
-                          show=render)
+            env = AntFall(use_contexts=True, context_range=[0, 27, 4.5])
             # env = AntFall(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-4, 12), (-4, 28), (0, 5)])
@@ -302,7 +294,7 @@ def create_env(env, render=False, evaluate=False):
             "figure_eight",
             env_params={
                 "num_automated": [1, 7, 14][env_num],
-                "horizon": 1500,
+                "horizon": 750,
                 "simulator": "traci",
                 "multiagent": env[:5] == "multi"
             },
