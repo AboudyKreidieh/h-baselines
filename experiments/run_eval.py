@@ -35,10 +35,12 @@ def parse_options(args):
     # required input parameters
     parser.add_argument(
         'dir_name', type=str, help='the path to the checkpoints folder')
-    parser.add_argument(
-        'ckpt_num', type=int, help='the checkpoint number')
 
     # optional arguments
+    parser.add_argument(
+        '--ckpt_num', type=int, default=None,
+        help='the checkpoint number. If not specified, the last checkpoint is '
+             'used.')
     parser.add_argument(
         '--num_rollouts', type=int, default=1, help='number of eval episodes')
     parser.add_argument(
@@ -111,9 +113,17 @@ def main(args):
     np.random.seed(seed)
     tf.compat.v1.set_random_seed(seed)
 
+    # get the checkpoint number
+    if flags.ckpt_num is None:
+        filenames = os.listdir(os.path.join(flags.dir_name, "checkpoints"))
+        metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
+        metanum = [int(f.split("-")[-1]) for f in metafiles]
+        ckpt_num = max(metanum)
+    else:
+        ckpt_num = flags.ckpt_num
+
     # location to the checkpoint
-    dir_name, ckpt_num = flags.dir_name, flags.ckpt_num
-    ckpt = os.path.join(dir_name, "checkpoints/itr-{}".format(ckpt_num))
+    ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
 
     # restore the previous checkpoint
     alg.saver = tf.compat.v1.train.Saver(alg.trainable_vars)
