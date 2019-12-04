@@ -61,33 +61,38 @@ def run_exp(env,
 
 def main(args, base_dir):
     """Execute multiple training operations."""
-    # create a save directory folder (if it doesn't exist)
-    dir_name = os.path.join(
-        base_dir, '{}/{}'.format(args.env_name, strftime("%Y-%m-%d-%H:%M:%S")))
-    ensure_dir(dir_name)
+    for i in range(args.n_training):
+        # value of the next seed
+        seed = args.seed + i
 
-    # get the hyperparameters
-    hp = get_hyperparameters(args, FeedForwardPolicy)
+        # create a save directory folder (if it doesn't exist)
+        dir_name = os.path.join(
+            base_dir,
+            '{}/{}'.format(args.env_name, strftime("%Y-%m-%d-%H:%M:%S")))
+        ensure_dir(dir_name)
 
-    # add the seed for logging purposes
-    params_with_extra = hp.copy()
-    params_with_extra['seed'] = args.seed
-    params_with_extra['env_name'] = args.env_name
-    params_with_extra['policy_name'] = "FeedForwardPolicy"
+        # get the hyperparameters
+        hp = get_hyperparameters(args, FeedForwardPolicy)
 
-    # add the hyperparameters to the folder
-    with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
-        json.dump(params_with_extra, f, sort_keys=True, indent=4)
+        # add the seed for logging purposes
+        params_with_extra = hp.copy()
+        params_with_extra['seed'] = seed
+        params_with_extra['env_name'] = args.env_name
+        params_with_extra['policy_name'] = "FeedForwardPolicy"
 
-    run_exp(env=args.env_name,
-            hp=hp,
-            steps=args.total_steps,
-            dir_name=dir_name,
-            evaluate=args.evaluate,
-            seed=args.seed,
-            eval_interval=args.eval_interval,
-            log_interval=args.log_interval,
-            save_interval=args.save_interval)
+        # add the hyperparameters to the folder
+        with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
+            json.dump(params_with_extra, f, sort_keys=True, indent=4)
+
+        run_exp(env=args.env_name,
+                hp=hp,
+                steps=args.total_steps,
+                dir_name=dir_name,
+                evaluate=args.evaluate,
+                seed=seed,
+                eval_interval=args.eval_interval,
+                log_interval=args.log_interval,
+                save_interval=args.save_interval)
 
 
 if __name__ == '__main__':
