@@ -98,6 +98,10 @@ def parse_options(description, example_usage, args):
         '--eval_interval', type=int, default=50000,
         help='number of simulation steps in the training environment before '
              'an evaluation is performed')
+    parser.add_argument(
+        '--save_interval', type=int, default=50000,
+        help='number of simulation steps in the training environment before '
+             'the model is saved')
 
     # algorithm-specific hyperparameters
     parser = create_td3_parser(parser)
