@@ -193,6 +193,8 @@ class TD3(object):
         the cumulative reward since the most reward began
     saver : tf.compat.v1.train.Saver
         tensorflow saver object
+    trainable_vars : list of str
+        the trainable variables
     rew_ph : tf.compat.v1.placeholder
         a placeholder for the average training return for the last epoch. Used
         for logging purposes.
@@ -333,6 +335,7 @@ class TD3(object):
         self.rew_history_ph = None
         self.eval_rew_ph = None
         self.eval_success_ph = None
+        self.saver = None
 
         # Append the fingerprint dimension to the observation dimension, if
         # needed.
@@ -346,10 +349,7 @@ class TD3(object):
 
         if _init_setup_model:
             # Create the model variables and operations.
-            trainable_vars = self.setup_model()
-
-            # Create a saver object.
-            self.saver = tf.compat.v1.train.Saver(trainable_vars)
+            self.trainable_vars = self.setup_model()
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
@@ -471,9 +471,10 @@ class TD3(object):
               total_timesteps,
               log_dir=None,
               seed=None,
-              log_interval=1000,
-              eval_interval=5000,
-              start_timesteps=10000):
+              log_interval=2000,
+              eval_interval=50000,
+              save_interval=10000,
+              start_timesteps=50000):
         """Return a trained model.
 
         Parameters
@@ -490,10 +491,18 @@ class TD3(object):
         eval_interval : int
             number of simulation steps in the training environment before an
             evaluation is performed
+        save_interval : int
+            number of simulation steps in the training environment before the
+            model is saved
         start_timesteps : int, optional
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
+        # Create a saver object.
+        self.saver = tf.compat.v1.train.Saver(
+            self.trainable_vars,
+            max_to_keep=total_timesteps // save_interval)
+
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
         ensure_dir(os.path.join(log_dir, "checkpoints"))
@@ -515,7 +524,8 @@ class TD3(object):
             print('Using agent with the following configuration:')
             print(str(self.__dict__.items()))
 
-        steps_incr = 0
+        eval_steps_incr = 0
+        save_steps_incr = 0
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
@@ -565,8 +575,8 @@ class TD3(object):
 
                 # Evaluate.
                 if self.eval_env is not None and \
-                        (self.total_steps - steps_incr) >= eval_interval:
-                    steps_incr += eval_interval
+                        (self.total_steps - eval_steps_incr) >= eval_interval:
+                    eval_steps_incr += eval_interval
 
                     # Run the evaluation operations over the evaluation env(s).
                     # Note that multiple evaluation envs can be provided.
@@ -602,7 +612,9 @@ class TD3(object):
                         writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
-                self.save(os.path.join(log_dir, "checkpoints/itr"))
+                if (self.total_steps - save_steps_incr) >= save_interval:
+                    save_steps_incr += save_interval
+                    self.save(os.path.join(log_dir, "checkpoints/itr"))
 
                 # Update the epoch count.
                 self.epoch += 1
@@ -666,6 +678,10 @@ class TD3(object):
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
+
+            # Visualize the current step.
+            if self.render:
+                self.env.render()  # pragma: no cover
 
             # Add the fingerprint term, if needed. When collecting the initial
             # random actions, we assume the fingerprint does not change from
@@ -817,6 +833,10 @@ class TD3(object):
                     apply_noise=False, random_actions=False, compute_q=False)
 
                 obs, eval_r, done, info = env.step(eval_action)
+
+                # Visualize the current step.
+                if self.render_eval:
+                    self.eval_env.render()  # pragma: no cover
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).

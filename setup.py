@@ -13,9 +13,14 @@ def _read_requirements_file():
 
 
 setup(
-    name='hbaselines',
+    name='h-baselines',
     version=__version__,
     packages=find_packages(),
     install_requires=_read_requirements_file(),
+    description='h-baselines: a repository of high-performing and benchmarked '
+                'hierarchical reinforcement learning models and algorithm',
+    author='Aboudy Kreidieh',
+    url='https://github.com/AboudyKreidieh/h-baselines',
+    author_email='aboudy@berkeley.edu',
     zip_safe=False,
 )
