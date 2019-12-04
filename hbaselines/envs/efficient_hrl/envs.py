@@ -254,7 +254,7 @@ class AntMaze(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
         )
 
 
@@ -312,7 +312,7 @@ class AntPush(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
         )
 
 
@@ -372,5 +372,5 @@ class AntFall(UniversalAntMazeEnv):
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
-            context_range=context_range
+            context_range=context_range,
         )

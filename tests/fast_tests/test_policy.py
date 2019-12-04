@@ -280,7 +280,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
 
         # Test the worker_reward function.
         self.assertAlmostEqual(
-            policy.worker_reward(
+            policy.worker_reward_fn(
                 states=np.array([1, 2, 3]),
                 goals=np.array([3, 2, 1]),
                 next_states=np.array([0, 0, 0])
@@ -331,7 +331,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         goals = np.array([4, 5, 6])
         next_states = np.array([7, 8, 9])
         self.assertAlmostEqual(
-            policy.worker_reward(states, goals, next_states),
+            policy.worker_reward_fn(states, goals, next_states),
             -2.2360679775221506
         )
 
