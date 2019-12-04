@@ -49,8 +49,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
             each dimension of the goal
         horizon : float, optional
             time horizon
-        show : bool
-            specifies whether to render the environment
 
         Raises
         ------
