@@ -7,7 +7,6 @@ from collections import deque
 import csv
 
 from hbaselines.ppo.util import ensure_dir, explained_variance
-from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
 from hbaselines.ppo.policy import Model
 from hbaselines.ppo.tf_util import get_session
@@ -33,7 +32,6 @@ class PPO(object):
     """
 
     def __init__(self,
-                 network,
                  env,
                  eval_env=None,
                  nsteps=2048,
@@ -91,7 +89,19 @@ class PPO(object):
             of network. For instance, 'mlp' network architecture has arguments
             num_hidden and num_layers.
         """
-        self.network = network
+        print([env,
+               eval_env,
+               nsteps,
+               ent_coef,
+               lr,
+               vf_coef,
+               max_grad_norm,
+               gamma,
+               lam,
+               nminibatches,
+               noptepochs,
+               cliprange,
+               network_kwargs])
         self.env = env
         self.eval_env = eval_env
         self.nsteps = nsteps
@@ -114,33 +124,20 @@ class PPO(object):
         config.gpu_options.allow_growth = True
         self.sess = get_session(config)
 
-        # create the policy object
-        self.policy = build_policy(env, network, **network_kwargs)
-
-        # Get the nb of env
-        nenvs = self.env.num_envs
-
-        # Get state_space and action_space
-        ob_space = self.env.observation_space
-        ac_space = self.env.action_space
-
         # Calculate the batch_size
-        self.nbatch = nenvs * self.nsteps
+        self.nbatch = self.nsteps
         self.nbatch_train = self.nbatch // self.nminibatches
 
         # Instantiate the model object (that creates act_model and train_model)
         self.policy_tf = Model(
             sess=self.sess,
-            policy=self.policy,
-            ob_space=ob_space,
-            ac_space=ac_space,
-            nbatch_act=nenvs,
+            env=env,
             nbatch_train=self.nbatch_train,
             nsteps=nsteps,
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
-            # policy_kwargs=network_kwargs
+            network_kwargs=network_kwargs
         )
 
         # Instantiate the runner objects.

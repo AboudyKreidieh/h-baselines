@@ -1,8 +1,6 @@
 import tensorflow as tf
-import functools
 
-from baselines.common.tf_util import save_variables, load_variables
-from baselines.common.tf_util import initialize
+from hbaselines.ppo.common.policies import build_policy
 
 
 class Model(object):
@@ -18,10 +16,10 @@ class Model(object):
         placeholder for the advantages
     ret_ph : tf.compat.v1.placeholder
         placeholder for the returns
-    OLDNEGLOGPAC : tf.compat.v1.placeholder
+    old_neglogpac : tf.compat.v1.placeholder
         placeholder for the negative log-probability of actions in the previous
         step policy
-    OLDVPRED : tf.compat.v1.placeholder
+    old_vpred : tf.compat.v1.placeholder
         placeholder for the predicted values from the previous step policy
     learning_rate : tf.compat.v1.placeholder
         placeholder for the current learning rate
@@ -31,27 +29,21 @@ class Model(object):
     def __init__(self,
                  *,
                  sess,
-                 policy,
-                 ob_space,
-                 ac_space,
-                 nbatch_act,
+                 env,
                  nbatch_train,
                  nsteps,
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 microbatch_size=None):
+                 microbatch_size=None,
+                 network_kwargs=None):
         """TODO
 
         Parameters
         ----------
-        policy : TODO
+        sess : TODO
             TODO
-        ob_space : TODO
-            TODO
-        ac_space : TODO
-            TODO
-        nbatch_act : TODO
+        env : TODO
             TODO
         nbatch_train : TODO
             TODO
@@ -65,20 +57,30 @@ class Model(object):
             TODO
         microbatch_size : TODO
             TODO
+        network_kwargs : TODO
+            TODO
         """
         self.sess = sess
+
+        # create the policy builder object
+        policy = build_policy(env, 'mlp', **network_kwargs)
+
+        # Get state_space and action_space
+        ob_space = env.observation_space
+        ac_space = env.action_space
 
         # =================================================================== #
         # Part 1. Create the placeholders.                                    #
         # =================================================================== #
 
+        self.ob_ph = tf.placeholder(tf.float32, [None, ob_space.shape[0]])
         self.ac_ph = tf.placeholder(tf.float32, [None, ac_space.shape[0]])
         self.adv_ph = tf.placeholder(tf.float32, [None])
         self.ret_ph = tf.placeholder(tf.float32, [None])
         # Keep track of old actor
-        self.OLDNEGLOGPAC = OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
+        self.old_neglogpac = old_neglogpac = tf.placeholder(tf.float32, [None])
         # Keep track of old critic
-        self.OLDVPRED = OLDVPRED = tf.placeholder(tf.float32, [None])
+        self.old_vpred = old_vpred = tf.placeholder(tf.float32, [None])
         self.learning_rate = tf.placeholder(tf.float32, [])
         # Cliprange
         self.clip_range = tf.placeholder(tf.float32, [])
@@ -89,13 +91,13 @@ class Model(object):
 
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             # act_model that is used for sampling
-            act_model = policy(nbatch_act, 1, sess)
+            act_model = policy(1, 1, sess)
 
             # Train model for training
             if microbatch_size is None:
-                train_model = policy(nbatch_train, nsteps, sess)
+                train_model = policy(nbatch_train, nsteps, sess, self.ob_ph)
             else:
-                train_model = policy(microbatch_size, nsteps, sess)
+                train_model = policy(microbatch_size, nsteps, sess, self.ob_ph)
 
         # =================================================================== #
         # Part 3. Calculate the loss.                                         #
@@ -113,8 +115,8 @@ class Model(object):
         # Clip the value to reduce variability during Critic training
         # Get the predicted value
         vpred = train_model.vf
-        vpredclipped = OLDVPRED + tf.clip_by_value(
-            train_model.vf - OLDVPRED, - self.clip_range, self.clip_range)
+        vpredclipped = old_vpred + tf.clip_by_value(
+            train_model.vf - old_vpred, - self.clip_range, self.clip_range)
         # Unclipped value
         vf_losses1 = tf.square(vpred - self.ret_ph)
         # Clipped value
@@ -123,7 +125,7 @@ class Model(object):
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
         # Calculate ratio (pi current policy / pi old policy)
-        ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
+        ratio = tf.exp(old_neglogpac - neglogpac)
 
         # Defining Loss = - J is equivalent to max J
         pg_losses = -self.adv_ph * ratio
@@ -133,7 +135,7 @@ class Model(object):
 
         # Final PG loss
         pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-        approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
+        approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - old_neglogpac))
         clipfrac = tf.reduce_mean(
             tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range)))
 
@@ -175,8 +177,8 @@ class Model(object):
         self.value = act_model.value
         self.initial_state = act_model.initial_state
 
-        self.save = functools.partial(save_variables, sess=sess)
-        self.load = functools.partial(load_variables, sess=sess)
+        # Create a saver object.
+        self.saver = tf.compat.v1.train.Saver(params)
 
         # =================================================================== #
         # Part 5. Initialize all parameter.                                   #
@@ -230,14 +232,14 @@ class Model(object):
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         td_map = {
-            self.train_model.X: obs,
+            self.ob_ph: obs,
             self.ac_ph: actions,
             self.adv_ph: advs,
             self.ret_ph: returns,
             self.learning_rate: lr,
             self.clip_range: clip_range,
-            self.OLDNEGLOGPAC: neglogpacs,
-            self.OLDVPRED: values
+            self.old_neglogpac: neglogpacs,
+            self.old_vpred: values
         }
         if states is not None:
             td_map[self.train_model.S] = states
@@ -247,3 +249,23 @@ class Model(object):
             self.stats_list + [self._train_op],
             td_map
         )[:-1]
+
+    def save(self, save_path):
+        """Save the parameters of a tensorflow model.
+
+        Parameters
+        ----------
+        save_path : str
+            Prefix of filenames created for the checkpoint
+        """
+        self.saver.save(self.sess, save_path)
+
+    def load(self, load_path):
+        """Load model parameters from a checkpoint.
+
+        Parameters
+        ----------
+        load_path : str
+            location of the checkpoint
+        """
+        self.saver.restore(self.sess, load_path)

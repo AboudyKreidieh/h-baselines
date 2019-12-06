@@ -55,11 +55,8 @@ def train(args, extra_args):
             video_length=args.save_video_length
         )
 
-    if args.network:
-        alg_kwargs['network'] = args.network
-    else:
-        if alg_kwargs.get('network') is None:
-            alg_kwargs['network'] = get_default_network()
+    if alg_kwargs.get('network') is not None:
+        alg_kwargs.pop('network')
 
     print('Training {} on {} with arguments \n{}'.format(
         args.alg, env_id, alg_kwargs))
