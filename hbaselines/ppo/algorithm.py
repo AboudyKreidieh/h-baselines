@@ -89,19 +89,6 @@ class PPO(object):
             of network. For instance, 'mlp' network architecture has arguments
             num_hidden and num_layers.
         """
-        print([env,
-               eval_env,
-               nsteps,
-               ent_coef,
-               lr,
-               vf_coef,
-               max_grad_norm,
-               gamma,
-               lam,
-               nminibatches,
-               noptepochs,
-               cliprange,
-               network_kwargs])
         self.env = env
         self.eval_env = eval_env
         self.nsteps = nsteps
@@ -114,8 +101,8 @@ class PPO(object):
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
         self.cliprange = self._get_function(cliprange)
-        self.network_kwargs = network_kwargs
-        # self.network_kwargs.update(DEFAULT_NETWORK_KWARGS)
+        self.network_kwargs = DEFAULT_NETWORK_KWARGS.copy()
+        self.network_kwargs.update(network_kwargs or {})
 
         # Create the tensorflow session.
         config = tf.compat.v1.ConfigProto(
@@ -250,7 +237,7 @@ class PPO(object):
                     end = start + self.nbatch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
-                        obs, returns, masks, actions, values, neglogpacs))
+                        obs, returns, actions, values, neglogpacs))
                     mblossvals.append(
                         self.policy_tf.train(lrnow, cliprangenow, *slices))
 

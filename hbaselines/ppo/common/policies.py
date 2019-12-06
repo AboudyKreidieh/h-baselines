@@ -4,9 +4,7 @@ import gym
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
-from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.tf_util import adjust_shape
-from baselines.common.models import get_network_builder
 
 
 class PolicyWithValue(object):
@@ -131,58 +129,3 @@ class PolicyWithValue(object):
 
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
-
-
-def build_policy(env,
-                 policy_network,
-                 value_network=None,
-                 estimate_q=False,
-                 **policy_kwargs):
-    """TODO
-
-    :param env:
-    :param policy_network:
-    :param value_network:
-    :param estimate_q:
-    :param policy_kwargs:
-    :return:
-    """
-    print(env,
-                 policy_network,
-                 value_network,
-                 estimate_q,
-                 policy_kwargs)
-    if isinstance(policy_network, str):
-        network_type = policy_network
-        policy_network = get_network_builder(network_type)(**policy_kwargs)
-
-    def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
-        ob_space = env.observation_space
-
-        obs_ph = observ_placeholder if observ_placeholder is not None else \
-            observation_placeholder(ob_space, batch_size=nbatch)
-
-        extra_tensors = {}
-
-        encoded_x = encode_observation(ob_space, obs_ph)
-
-        # Create the actor network.
-        with tf.compat.v1.variable_scope('pi', reuse=tf.compat.v1.AUTO_REUSE):
-            policy_latent = policy_network(encoded_x)
-
-        # Create a separate value function.
-        with tf.compat.v1.variable_scope('vf', reuse=tf.compat.v1.AUTO_REUSE):
-            vf_latent = policy_network(encoded_x)
-
-        policy = PolicyWithValue(
-            env=env,
-            observations=obs_ph,
-            latent=policy_latent,
-            vf_latent=vf_latent,
-            sess=sess,
-            estimate_q=estimate_q,
-            **extra_tensors
-        )
-        return policy
-
-    return policy_fn

@@ -1,7 +1,8 @@
 import tensorflow as tf
 
-from hbaselines.ppo.common.policies import build_policy
+from hbaselines.ppo.common.policies import PolicyWithValue
 from baselines.common.models import get_network_builder
+from baselines.common.input import encode_observation
 
 
 class Model(object):
@@ -62,9 +63,7 @@ class Model(object):
             TODO
         """
         self.sess = sess
-
-        # create the policy builder object
-        policy = build_policy(env, 'mlp', **network_kwargs)
+        self.env = env
 
         # Get state_space and action_space
         ob_space = env.observation_space
@@ -75,6 +74,8 @@ class Model(object):
         # =================================================================== #
 
         self.ob_ph = tf.compat.v1.placeholder(
+            tf.float32, [None, ob_space.shape[0]])
+        self.act_ob_ph = tf.compat.v1.placeholder(
             tf.float32, [None, ob_space.shape[0]])
         self.ac_ph = tf.compat.v1.placeholder(
             tf.float32, [None, ac_space.shape[0]])
@@ -96,13 +97,10 @@ class Model(object):
 
         with tf.compat.v1.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             # act_model that is used for sampling
-            act_model = policy(1, 1, sess)
+            act_model = self._policy(self.act_ob_ph, **network_kwargs)
 
             # Train model for training
-            if microbatch_size is None:
-                train_model = policy(nbatch_train, nsteps, sess, self.ob_ph)
-            else:
-                train_model = policy(microbatch_size, nsteps, sess, self.ob_ph)
+            train_model = self._policy(self.ob_ph, **network_kwargs)
 
         # =================================================================== #
         # Part 3. Calculate the loss.                                         #
@@ -196,11 +194,9 @@ class Model(object):
               clip_range,
               obs,
               returns,
-              masks,
               actions,
               values,
-              neglogpacs,
-              states=None):
+              neglogpacs):
         """TODO
 
         Parameters
@@ -213,15 +209,11 @@ class Model(object):
             (batch_size, obs_dim) matrix of observations
         returns : array_like
             (batch_size,) vector of returns
-        masks : TODO
-            TODO
         actions : TODO
             (batch_size, ac_dim) matrix of actions
         values : array_like
             (batch_size,) vector of values
         neglogpacs : TODO
-            TODO
-        states : TODO
             TODO
 
         Returns
@@ -246,9 +238,6 @@ class Model(object):
             self.old_neglogpac: neglogpacs,
             self.old_vpred: values
         }
-        if states is not None:
-            td_map[self.train_model.S] = states
-            td_map[self.train_model.M] = masks
 
         return self.sess.run(
             self.stats_list + [self._train_op],
@@ -275,7 +264,32 @@ class Model(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    @staticmethod
-    def _policy(self):
+    def _policy(self, obs_ph, **network_kwargs):
         policy_network = get_network_builder('mlp')()
 
+        ob_space = self.env.observation_space
+
+        encoded_x = encode_observation(ob_space, obs_ph)
+
+        # Create the actor network.
+        with tf.compat.v1.variable_scope('pi', reuse=False):
+            policy_latent = policy_network(encoded_x)  # , 'pi', **network_kwargs)
+        # policy_latent = self._create_latent(encoded_x, 'pi', **network_kwargs)
+
+        # Create a separate value function.
+        with tf.compat.v1.variable_scope('vf', reuse=False):
+            vf_latent = policy_network(encoded_x)  # , 'vf', **network_kwargs)
+        # vf_latent = self._create_latent(encoded_x, 'vf', **network_kwargs)
+
+        policy = PolicyWithValue(
+            env=self.env,
+            observations=obs_ph,
+            latent=policy_latent,
+            vf_latent=vf_latent,
+            sess=self.sess,
+            estimate_q=False,
+        )
+        return policy
+
+    def _create_latent(self, obs_ph, scope, **network_kwargs):
+        pass
