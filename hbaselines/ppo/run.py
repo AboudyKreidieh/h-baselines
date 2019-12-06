@@ -91,17 +91,15 @@ def build_env(args):
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin':
         ncpu //= 2
-    alg = args.alg
     seed = args.seed
 
     env_id = args.env
 
-    flatten_dict_observations = alg not in {'her'}
     env = make_vec_env(
         env_id,
         args.num_env or 1,
         seed,
-        flatten_dict_observations=flatten_dict_observations
+        flatten_dict_observations=True
     )
 
     env_type = 'mujoco'  # FIXME

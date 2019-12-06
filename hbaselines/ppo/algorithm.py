@@ -7,8 +7,9 @@ from collections import deque
 import csv
 
 from hbaselines.ppo.util import ensure_dir, explained_variance
+from hbaselines.ppo.common.policies import build_policy
 from hbaselines.ppo.runner import Runner
-from hbaselines.ppo.policy import FeedForwardPolicy
+from hbaselines.ppo.policy import Model
 from hbaselines.ppo.tf_util import get_session
 
 
@@ -90,7 +91,6 @@ class PPO(object):
             of network. For instance, 'mlp' network architecture has arguments
             num_hidden and num_layers.
         """
-        print(network)
         self.network = network
         self.env = env
         self.eval_env = eval_env
@@ -105,7 +105,7 @@ class PPO(object):
         self.noptepochs = noptepochs
         self.cliprange = self._get_function(cliprange)
         self.network_kwargs = network_kwargs
-        self.network_kwargs.update(DEFAULT_NETWORK_KWARGS)
+        # self.network_kwargs.update(DEFAULT_NETWORK_KWARGS)
 
         # Create the tensorflow session.
         config = tf.ConfigProto(allow_soft_placement=True,
@@ -113,6 +113,9 @@ class PPO(object):
                                 inter_op_parallelism_threads=1)
         config.gpu_options.allow_growth = True
         self.sess = get_session(config)
+
+        # create the policy object
+        self.policy = build_policy(env, network, **network_kwargs)
 
         # Get the nb of env
         nenvs = self.env.num_envs
@@ -126,14 +129,18 @@ class PPO(object):
         self.nbatch_train = self.nbatch // self.nminibatches
 
         # Instantiate the model object (that creates act_model and train_model)
-        self.policy_tf = FeedForwardPolicy(
+        self.policy_tf = Model(
             sess=self.sess,
+            policy=self.policy,
             ob_space=ob_space,
             ac_space=ac_space,
+            nbatch_act=nenvs,
+            nbatch_train=self.nbatch_train,
+            nsteps=nsteps,
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
-            policy_kwargs=network_kwargs
+            # policy_kwargs=network_kwargs
         )
 
         # Instantiate the runner objects.
@@ -245,7 +252,7 @@ class PPO(object):
                     end = start + self.nbatch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
-                        obs, returns, actions, values, neglogpacs))
+                        obs, returns, masks, actions, values, neglogpacs))
                     mblossvals.append(
                         self.policy_tf.train(lrnow, cliprangenow, *slices))
 
