@@ -40,7 +40,7 @@ def make_vec_env(env_id,
         )
 
     # set global seeds
-    tf.set_random_seed(seed)
+    tf.compat.v1.set_random_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
@@ -89,7 +89,7 @@ def make_mujoco_env(env_id, seed):
     Create a wrapped, monitored gym.Env for MuJoCo.
     """
     # set global seeds
-    tf.set_random_seed(seed)
+    tf.compat.v1.set_random_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
@@ -103,7 +103,7 @@ def make_mujoco_env(env_id, seed):
 def make_robotics_env(env_id, seed, rank=0):
     """Create a wrapped, monitored gym.Env for MuJoCo."""
     # set global seeds
-    tf.set_random_seed(seed)
+    tf.compat.v1.set_random_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 

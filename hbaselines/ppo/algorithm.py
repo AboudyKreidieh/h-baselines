@@ -118,9 +118,10 @@ class PPO(object):
         # self.network_kwargs.update(DEFAULT_NETWORK_KWARGS)
 
         # Create the tensorflow session.
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=1,
-                                inter_op_parallelism_threads=1)
+        config = tf.compat.v1.ConfigProto(
+            allow_soft_placement=True,
+            intra_op_parallelism_threads=1,
+            inter_op_parallelism_threads=1)
         config.gpu_options.allow_growth = True
         self.sess = get_session(config)
 

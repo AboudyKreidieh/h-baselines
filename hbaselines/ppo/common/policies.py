@@ -170,7 +170,7 @@ def build_policy(env,
 
         encoded_x = encode_observation(ob_space, encoded_x)
 
-        with tf.variable_scope('pi', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('pi', reuse=tf.compat.v1.AUTO_REUSE):
             policy_latent = policy_network(encoded_x)
             if isinstance(policy_latent, tuple):
                 policy_latent, recurrent_tensors = policy_latent
@@ -195,7 +195,8 @@ def build_policy(env,
             else:
                 assert callable(_v_net)
 
-            with tf.variable_scope('vf', reuse=tf.AUTO_REUSE):
+            with tf.compat.v1.variable_scope(
+                    'vf', reuse=tf.compat.v1.AUTO_REUSE):
                 vf_latent = _v_net(encoded_x)
 
         policy = PolicyWithValue(

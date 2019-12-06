@@ -73,23 +73,27 @@ class Model(object):
         # Part 1. Create the placeholders.                                    #
         # =================================================================== #
 
-        self.ob_ph = tf.placeholder(tf.float32, [None, ob_space.shape[0]])
-        self.ac_ph = tf.placeholder(tf.float32, [None, ac_space.shape[0]])
-        self.adv_ph = tf.placeholder(tf.float32, [None])
-        self.ret_ph = tf.placeholder(tf.float32, [None])
+        self.ob_ph = tf.compat.v1.placeholder(
+            tf.float32, [None, ob_space.shape[0]])
+        self.ac_ph = tf.compat.v1.placeholder(
+            tf.float32, [None, ac_space.shape[0]])
+        self.adv_ph = tf.compat.v1.placeholder(tf.float32, [None])
+        self.ret_ph = tf.compat.v1.placeholder(tf.float32, [None])
         # Keep track of old actor
-        self.old_neglogpac = old_neglogpac = tf.placeholder(tf.float32, [None])
+        self.old_neglogpac = old_neglogpac = tf.compat.v1.placeholder(
+            tf.float32, [None])
         # Keep track of old critic
-        self.old_vpred = old_vpred = tf.placeholder(tf.float32, [None])
-        self.learning_rate = tf.placeholder(tf.float32, [])
+        self.old_vpred = old_vpred = tf.compat.v1.placeholder(
+            tf.float32, [None])
+        self.learning_rate = tf.compat.v1.placeholder(tf.float32, [])
         # Cliprange
-        self.clip_range = tf.placeholder(tf.float32, [])
+        self.clip_range = tf.compat.v1.placeholder(tf.float32, [])
 
         # =================================================================== #
         # Part 2. Create the policies.                                        #
         # =================================================================== #
 
-        with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             # act_model that is used for sampling
             act_model = policy(1, 1, sess)
 
@@ -150,7 +154,7 @@ class Model(object):
         params = tf.trainable_variables('ppo2_model')
 
         # 2. Build our trainer
-        self.trainer = tf.train.AdamOptimizer(
+        self.trainer = tf.compat.v1.train.AdamOptimizer(
             learning_rate=self.learning_rate, epsilon=1e-5)
 
         # 3. Calculate the gradients

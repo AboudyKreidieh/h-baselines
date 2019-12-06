@@ -47,21 +47,26 @@ class TfRunningMeanStd(object):
     def __init__(self, epsilon=1e-4, shape=(), scope=''):
         sess = get_session()
 
-        self._new_mean = tf.placeholder(shape=shape, dtype=tf.float64)
-        self._new_var = tf.placeholder(shape=shape, dtype=tf.float64)
-        self._new_count = tf.placeholder(shape=(), dtype=tf.float64)
+        self._new_mean = tf.compat.v1.placeholder(
+            shape=shape, dtype=tf.float64)
+        self._new_var = tf.compat.v1.placeholder(
+            shape=shape, dtype=tf.float64)
+        self._new_count = tf.compat.v1.placeholder(
+            shape=(), dtype=tf.float64)
 
-        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-            self._mean = tf.get_variable('mean', initializer=np.zeros(shape,
-                                                                      'float64'),
-                                         dtype=tf.float64)
-            self._var = tf.get_variable('std',
-                                        initializer=np.ones(shape, 'float64'),
-                                        dtype=tf.float64)
-            self._count = tf.get_variable('count',
-                                          initializer=np.full((), epsilon,
-                                                              'float64'),
-                                          dtype=tf.float64)
+        with tf.compat.v1.variable_scope(scope, reuse=tf.compat.v1.AUTO_REUSE):
+            self._mean = tf.compat.v1.get_variable(
+                'mean',
+                initializer=np.zeros(shape, 'float64'),
+                dtype=tf.float64)
+            self._var = tf.compat.v1.get_variable(
+                'std',
+                initializer=np.ones(shape, 'float64'),
+                dtype=tf.float64)
+            self._count = tf.compat.v1.get_variable(
+                'count',
+                initializer=np.full((), epsilon, 'float64'),
+                dtype=tf.float64)
 
         self.update_ops = tf.group([
             self._var.assign(self._new_var),
@@ -69,8 +74,8 @@ class TfRunningMeanStd(object):
             self._count.assign(self._new_count)
         ])
 
-        sess.run(
-            tf.variables_initializer([self._mean, self._var, self._count]))
+        sess.run(tf.compat.v1.variables_initializer(
+            [self._mean, self._var, self._count]))
         self.sess = sess
         self._set_mean_var_count()
 
@@ -139,7 +144,7 @@ def profile_tf_runningmeanstd():
     from hbaselines.ppo import tf_util
 
     tf_util.get_session(
-        config=tf.ConfigProto(
+        config=tf.compat.v1.ConfigProto(
             inter_op_parallelism_threads=1,
             intra_op_parallelism_threads=1,
             allow_soft_placement=True

@@ -55,9 +55,6 @@ def train(args, extra_args):
             video_length=args.save_video_length
         )
 
-    if alg_kwargs.get('network') is not None:
-        alg_kwargs.pop('network')
-
     print('Training {} on {} with arguments \n{}'.format(
         args.alg, env_id, alg_kwargs))
 
@@ -104,10 +101,6 @@ def build_env(args):
         env = VecNormalize(env, use_tf=True)
 
     return env
-
-
-def get_default_network():
-    return 'mlp'
 
 
 def get_alg_module(alg, submodule=None):
