@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from hbaselines.ppo.common.policies import build_policy
+from baselines.common.models import get_network_builder
 
 
 class Model(object):
@@ -273,3 +274,8 @@ class Model(object):
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
+
+    @staticmethod
+    def _policy(self):
+        policy_network = get_network_builder('mlp')()
+

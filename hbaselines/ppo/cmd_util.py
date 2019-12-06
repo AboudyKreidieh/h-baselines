@@ -130,26 +130,13 @@ def common_arg_parser():
     parser.add_argument('--env', help='environment ID', type=str,
                         default='Reacher-v2')
     parser.add_argument('--seed', help='RNG seed', type=int, default=None)
-    parser.add_argument('--alg', help='Algorithm', type=str, default='ppo2')
     parser.add_argument('--num_timesteps', type=float, default=1e6),
-    parser.add_argument('--network', default=None,
-                        help='network type (mlp, cnn, lstm, cnn_lstm, conv_'
-                             'only)')
     parser.add_argument('--num_env', default=None, type=int,
                         help='Number of environment copies being run in '
                              'parallel. When not specified, set to number of '
                              'cpus for Atari, and to 1 for Mujoco')
     parser.add_argument('--reward_scale', default=1.0, type=float,
                         help='Reward scale factor. Default: 1.0')
-    parser.add_argument('--save_path', default=None, type=str,
-                        help='Path to save trained model to')
-    parser.add_argument('--save_video_interval', default=0, type=int,
-                        help='Save video every x steps (0 = disabled)')
-    parser.add_argument('--save_video_length', default=200, type=int,
-                        help='Length of recorded video. Default: 200')
-    parser.add_argument('--log_path', default=None, type=str,
-                        help='Directory to save learning curve data.')
-    parser.add_argument('--play', default=False, action='store_true')
     return parser
 
 
@@ -161,23 +148,3 @@ def robotics_arg_parser():
     parser.add_argument('--seed', help='RNG seed', type=int, default=None)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     return parser
-
-
-def parse_unknown_args(args):
-    """Parse arguments not consumed by arg parser into a dictionary."""
-    retval = {}
-    preceded_by_key = False
-    for arg in args:
-        if arg.startswith('--'):
-            if '=' in arg:
-                key = arg.split('=')[0][2:]
-                value = arg.split('=')[1]
-                retval[key] = value
-            else:
-                key = arg[2:]
-                preceded_by_key = True
-        elif preceded_by_key:
-            retval[key] = arg
-            preceded_by_key = False
-
-    return retval

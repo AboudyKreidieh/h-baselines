@@ -6,7 +6,6 @@ from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.tf_util import adjust_shape
-from baselines.common.running_mean_std import RunningMeanStd
 from baselines.common.models import get_network_builder
 
 
@@ -137,7 +136,6 @@ class PolicyWithValue(object):
 def build_policy(env,
                  policy_network,
                  value_network=None,
-                 normalize_observations=False,
                  estimate_q=False,
                  **policy_kwargs):
     """TODO
@@ -145,11 +143,15 @@ def build_policy(env,
     :param env:
     :param policy_network:
     :param value_network:
-    :param normalize_observations:
     :param estimate_q:
     :param policy_kwargs:
     :return:
     """
+    print(env,
+                 policy_network,
+                 value_network,
+                 estimate_q,
+                 policy_kwargs)
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
@@ -162,42 +164,15 @@ def build_policy(env,
 
         extra_tensors = {}
 
-        if normalize_observations and obs_ph.dtype == tf.float32:
-            encoded_x, rms = _normalize_clip_observation(obs_ph)
-            extra_tensors['rms'] = rms
-        else:
-            encoded_x = obs_ph
+        encoded_x = encode_observation(ob_space, obs_ph)
 
-        encoded_x = encode_observation(ob_space, encoded_x)
-
+        # Create the actor network.
         with tf.compat.v1.variable_scope('pi', reuse=tf.compat.v1.AUTO_REUSE):
             policy_latent = policy_network(encoded_x)
-            if isinstance(policy_latent, tuple):
-                policy_latent, recurrent_tensors = policy_latent
 
-                if recurrent_tensors is not None:
-                    # recurrent architecture, need a few more steps
-                    nenv = nbatch // nsteps
-                    assert nenv > 0, \
-                        'Bad input for recurrent policy: batch size {} ' \
-                        'smaller than nsteps {}'.format(nbatch, nsteps)
-                    policy_latent, recurrent_tensors = policy_network(
-                        encoded_x, nenv)
-                    extra_tensors.update(recurrent_tensors)
-
-        _v_net = value_network
-
-        if _v_net is None or _v_net == 'shared':
-            vf_latent = policy_latent
-        else:
-            if _v_net == 'copy':
-                _v_net = policy_network
-            else:
-                assert callable(_v_net)
-
-            with tf.compat.v1.variable_scope(
-                    'vf', reuse=tf.compat.v1.AUTO_REUSE):
-                vf_latent = _v_net(encoded_x)
+        # Create a separate value function.
+        with tf.compat.v1.variable_scope('vf', reuse=tf.compat.v1.AUTO_REUSE):
+            vf_latent = policy_network(encoded_x)
 
         policy = PolicyWithValue(
             env=env,
@@ -211,12 +186,3 @@ def build_policy(env,
         return policy
 
     return policy_fn
-
-
-def _normalize_clip_observation(x, clip_range=None):
-    if clip_range is None:
-        clip_range = [-5.0, 5.0]
-    rms = RunningMeanStd(shape=x.shape[1:])
-    norm_x = tf.clip_by_value((x - rms.mean) / rms.std,
-                              min(clip_range), max(clip_range))
-    return norm_x, rms
