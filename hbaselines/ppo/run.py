@@ -34,16 +34,14 @@ def train(args):
         save_interval = 0
 
     # Perform the training operation.
-    for i in range(10):
-        alg = PPO(env=env, **alg_kwargs)
-        model = alg.learn(
-            total_timesteps=total_timesteps,
-            log_dir=dir_name,
-            seed=seed + i,
-            log_interval=log_interval,
-            save_interval=save_interval
-        )
-        del alg
+    alg = PPO(env=env, **alg_kwargs)
+    model = alg.learn(
+        total_timesteps=total_timesteps,
+        log_dir=dir_name,
+        seed=seed + i,
+        log_interval=log_interval,
+        save_interval=save_interval
+    )
 
     return model, env
 
