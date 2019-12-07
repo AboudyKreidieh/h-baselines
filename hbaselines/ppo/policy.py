@@ -79,8 +79,8 @@ class Model(object):
         self.old_vpred = old_vpred = tf.compat.v1.placeholder(
             tf.float32, [None])
         self.learning_rate = tf.compat.v1.placeholder(tf.float32, [])
-        # Cliprange
         self.clip_range = tf.compat.v1.placeholder(tf.float32, [])
+        self.update_actor_ph = tf.compat.v1.placeholder(tf.float32, [])
 
         # =================================================================== #
         # Part 2. Create the policies.                                        #
@@ -136,7 +136,8 @@ class Model(object):
             tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range)))
 
         # Total loss
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+        loss = self.update_actor_ph * (pg_loss - entropy * ent_coef) \
+            + vf_loss * vf_coef
 
         # =================================================================== #
         # Part 4. Create the parameter update procedure.                      #
@@ -232,7 +233,8 @@ class Model(object):
               returns,
               actions,
               values,
-              neglogpacs):
+              neglogpacs,
+              update_actor=1):
         """Perform the training operation.
 
         Parameters
@@ -251,6 +253,8 @@ class Model(object):
             (batch_size,) vector of values
         neglogpacs : array_like
             TODO
+        update_actor : float
+            whether to update the actor policy
 
         Returns
         -------
@@ -272,7 +276,8 @@ class Model(object):
             self.learning_rate: lr,
             self.clip_range: clip_range,
             self.old_neglogpac: neglogpacs,
-            self.old_vpred: values
+            self.old_vpred: values,
+            self.update_actor_ph: update_actor,
         }
 
         return self.sess.run(

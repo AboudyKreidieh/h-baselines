@@ -3,7 +3,7 @@ import numpy as np
 
 class Runner(object):
 
-    def __init__(self, *, env, model, nsteps, gamma, lam):
+    def __init__(self, env, model, nsteps, gamma, lam, lam0=1):
         self.env = env
         self.model = model
         self.nenv = nenv = env.num_envs if hasattr(env, 'num_envs') else 1
@@ -18,6 +18,8 @@ class Runner(object):
         self.lam = lam
         # Discount rate
         self.gamma = gamma
+        # a lamba term to the returns (to enable actor-crtic methods)
+        self.lam0 = lam0
 
     # TODO: add duel vf
     def run(self):
@@ -57,21 +59,24 @@ class Runner(object):
 
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
+        mb_vactual = np.zeros_like(mb_rewards)
         lastgaelam = 0
         for t in reversed(range(self.nsteps)):
             if t == self.nsteps - 1:
                 nextnonterminal = 1.0 - self.dones
                 nextvalues = last_values
+                mb_vactual[t] = mb_rewards[t]
             else:
                 nextnonterminal = 1.0 - mb_dones[t+1]
                 nextvalues = mb_values[t+1]
+                mb_vactual[t] = mb_rewards[t] + self.gamma * nextnonterminal * nextvalues
             delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
             mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
         mb_returns = mb_advs + mb_values
 
         return (*map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions,
                             mb_values, mb_neglogpacs)),
-                epinfos)
+                mb_vactual.flatten(), epinfos)
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()

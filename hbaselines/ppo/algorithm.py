@@ -35,13 +35,15 @@ class PPO(object):
                  ent_coef=0.0,
                  lr=3e-4,
                  vf_coef=0.5,
-                 max_grad_norm=0.5,
+                 # max_grad_norm=0.5,
+                 max_grad_norm=None,
                  gamma=0.99,
                  lam=0.95,
                  nminibatches=4,
                  noptepochs=4,
                  cliprange=0.2,
                  duel_vf=False,
+                 actor_update_freq=1,
                  **network_kwargs):
         """Instantiate the algorithm object.
 
@@ -97,6 +99,7 @@ class PPO(object):
         self.noptepochs = noptepochs
         self.cliprange = self._get_function(cliprange)
         self.duel_vf = duel_vf
+        self.actor_update_freq = actor_update_freq
         self.network_kwargs = DEFAULT_NETWORK_KWARGS.copy()
         self.network_kwargs.update(network_kwargs or {})
 
@@ -193,8 +196,8 @@ class PPO(object):
                 print('Stepping environment...')
 
             # Get minibatch
-            obs, returns, masks, actions, values, neglogpacs, epinfos \
-                = self.runner.run()
+            obs, returns, masks, actions, values, neglogpacs, vactual, \
+                epinfos = self.runner.run()
             # Add to the episode info buffer.
             self.epinfobuf.extend(epinfos)
 
@@ -217,12 +220,17 @@ class PPO(object):
                     slices = (arr[mbinds] for arr in (
                         obs, returns, actions, values, neglogpacs))
                     mblossvals.append(
-                        self.policy_tf.train(lrnow, cliprangenow, *slices))
+                        self.policy_tf.train(
+                            lrnow, cliprangenow, *slices,
+                            update_actor=update % self.actor_update_freq == 0,
+                        )
+                    )
 
             # Log training statistics.
             if update % log_interval == 0 or update == 1:
                 self._log_results(update, tfirststart, tstart, mblossvals,
-                                  values, returns, log_filepath)
+                                  values, returns, log_filepath,
+                                  verror=np.mean(values - vactual))
 
             # Save a checkpoint of the model.
             if save_interval and (update % save_interval == 0 or update == 1):
@@ -262,7 +270,8 @@ class PPO(object):
                      mblossvals,
                      values,
                      returns,
-                     file_path):
+                     file_path,
+                     verror):
         """Log training and evaluation statistics.
 
         Parameters
@@ -302,6 +311,7 @@ class PPO(object):
             "eprewmean": safemean([epinfo['r'] for epinfo in self.epinfobuf]),
             'eplenmean': safemean([epinfo['l'] for epinfo in self.epinfobuf]),
             "misc/time_elapsed": tnow - tfirststart,
+            "verror": verror,
         }
         # Add loss statistics.
         for (lossval, lossname) in zip(lossvals, self.policy_tf.loss_names):
