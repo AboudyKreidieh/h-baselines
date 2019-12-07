@@ -2,8 +2,6 @@ import tensorflow as tf
 import numpy as np
 
 from hbaselines.ppo.common.policies import PolicyWithValue
-from baselines.a2c.utils import fc
-from baselines.common.models import get_network_builder
 
 
 class Model(object):
@@ -87,12 +85,22 @@ class Model(object):
         # Part 2. Create the policies.                                        #
         # =================================================================== #
 
-        with tf.compat.v1.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('ppo_model', reuse=tf.AUTO_REUSE):
             # act_model that is used for sampling
-            act_model = self._policy(self.act_ob_ph, **network_kwargs)
+            act_model = PolicyWithValue(
+                env=self.env,
+                obs_ph=self.act_ob_ph,
+                sess=self.sess,
+                **network_kwargs,
+            )
 
             # Train model for training
-            train_model = self._policy(self.ob_ph, **network_kwargs)
+            train_model = PolicyWithValue(
+                env=self.env,
+                obs_ph=self.ob_ph,
+                sess=self.sess,
+                **network_kwargs,
+            )
 
         # =================================================================== #
         # Part 3. Calculate the loss.                                         #
@@ -142,7 +150,7 @@ class Model(object):
         # =================================================================== #
 
         # 1. Get the model parameters
-        params = tf.trainable_variables('ppo2_model')
+        params = tf.trainable_variables('ppo_model')
 
         # 2. Build our trainer
         self.trainer = tf.compat.v1.train.AdamOptimizer(
@@ -168,9 +176,6 @@ class Model(object):
 
         self.train_model = train_model
         self.act_model = act_model
-        self.step = act_model.step  # TODO: delete
-        self.value = act_model.value  # TODO: delete
-        self.initial_state = act_model.initial_state  # TODO: delete
 
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(params)
@@ -181,6 +186,52 @@ class Model(object):
 
         self.sess.run(tf.global_variables_initializer())
 
+    def step(self, obs):
+        """Compute next action(s) given the observation(s).
+
+        Parameters
+        ----------
+        obs : array_like
+            observation data (either single or a batch)
+
+        Returns
+        -------
+        array_like
+            action
+        array_like
+            value estimate
+        array_like
+            next state
+        array_like
+            negative log likelihood of the action under current policy
+            parameters) tuple
+        """
+        if len(obs.shape) == 1:
+            obs = np.array([obs])
+
+        return self.sess.run(
+            [self.act_model.action, self.act_model.vf, self.act_model.neglogp],
+            feed_dict={self.act_model.obs_ph: obs}
+        )
+
+    def value(self, obs):
+        """Compute value estimate(s) given the observation(s).
+
+        Parameters
+        ----------
+        obs : array_like
+            observation data (either single or a batch)
+
+        Returns
+        -------
+        array_like
+            value estimate
+        """
+        if len(obs.shape) == 1:
+            obs = np.array([obs])
+
+        return self.sess.run(self.act_model.vf, {self.act_model.obs_ph: obs})
+
     def train(self,
               lr,
               clip_range,
@@ -189,7 +240,7 @@ class Model(object):
               actions,
               values,
               neglogpacs):
-        """TODO
+        """Perform the training operation.
 
         Parameters
         ----------
@@ -205,7 +256,7 @@ class Model(object):
             (batch_size, ac_dim) matrix of actions
         values : array_like
             (batch_size,) vector of values
-        neglogpacs : TODO
+        neglogpacs : array_like
             TODO
 
         Returns
@@ -255,43 +306,3 @@ class Model(object):
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
-
-    def _policy(self, obs_ph, **network_kwargs):
-        # Create the actor network.
-        policy_latent = self._create_latent(obs_ph, 'pi', **network_kwargs)
-
-        # Create a separate value function.
-        vf_latent = self._create_latent(obs_ph, 'vf', **network_kwargs)
-
-        policy = PolicyWithValue(
-            env=self.env,
-            observations=obs_ph,
-            latent=policy_latent,
-            vf_latent=vf_latent,
-            sess=self.sess,
-        )
-        return policy
-
-    @staticmethod
-    def _create_latent(obs_ph, scope, **network_kwargs):
-        layers = network_kwargs['layers']
-        act_fun = network_kwargs['act_fun']
-        layer_norm = network_kwargs['layer_norm']
-
-        with tf.compat.v1.variable_scope(scope, reuse=False):
-            latent = tf.layers.flatten(obs_ph)
-
-            # Create the hidden layers.
-            for i, layer_size in enumerate(layers):
-                latent = fc(
-                    latent,
-                    scope='fc' + str(i),
-                    nh=layer_size,
-                    init_scale=np.sqrt(2)
-                )
-                if layer_norm:
-                    latent = tf.contrib.layers.layer_norm(
-                        latent, center=True, scale=True)
-                latent = act_fun(latent)
-
-        return latent

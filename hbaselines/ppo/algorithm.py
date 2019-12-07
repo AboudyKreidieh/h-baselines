@@ -201,7 +201,7 @@ class PPO(object):
                 print('Stepping environment...')
 
             # Get minibatch
-            obs, returns, masks, actions, values, neglogpacs, states, epinfos \
+            obs, returns, masks, actions, values, neglogpacs, epinfos \
                 = self.runner.run()
             # Add to the episode info buffer.
             self.epinfobuf.extend(epinfos)
