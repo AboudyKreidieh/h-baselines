@@ -17,9 +17,7 @@ DEFAULT_NETWORK_KWARGS = dict(
     layers=[64, 64],
     # the activation function to use in the neural network.
     act_fun=tf.nn.tanh,
-    # TODO
-    normalize_observations=False,
-    # TODO
+    # enable layer normalisation
     layer_norm=False,
 )
 
@@ -49,8 +47,6 @@ class PPO(object):
 
         Parameters
         ----------
-        network : TODO
-            TODO
         env : str or gym.Env
             the training environment
         eval_env : str or gym.Env
@@ -120,12 +116,10 @@ class PPO(object):
         self.policy_tf = Model(
             sess=self.sess,
             env=env,
-            nbatch_train=self.nbatch_train,
-            nsteps=nsteps,
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
-            network_kwargs=network_kwargs
+            network_kwargs=self.network_kwargs
         )
 
         # Instantiate the runner objects.

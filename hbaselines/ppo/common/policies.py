@@ -1,48 +1,16 @@
 import tensorflow as tf
-import gym
 
-from baselines.common import tf_util
 from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
 from baselines.common.tf_util import adjust_shape
 
 
 class PolicyWithValue(object):
-    """
-    Encapsulates fields and methods for RL policy and value function estimation with shared parameters
-    """
 
-    def __init__(self,
-                 env,
-                 observations,
-                 latent,
-                 estimate_q=False,
-                 vf_latent=None,
-                 sess=None,
-                 **tensors):
-        """TODO
-
-        Parameters
-        ----------
-        env             RL environment
-
-        observations    tensorflow placeholder in which the observations will be fed
-
-        latent          latent state from which policy distribution parameters should be inferred
-
-        vf_latent       latent state from which value function should be inferred (if None, then latent is used)
-
-        sess            tensorflow session to run calculations in (if None, default session is used)
-
-        **tensors       tensorflow tensors for additional attributes such as state or mask
-
-        """
+    def __init__(self, env, observations, latent, vf_latent, sess=None):
         self.X = observations
         self.state = tf.constant([])
         self.initial_state = None
-        self.__dict__.update(tensors)
-
-        vf_latent = vf_latent if vf_latent is not None else latent
 
         vf_latent = tf.layers.flatten(vf_latent)
         latent = tf.layers.flatten(latent)
@@ -60,13 +28,8 @@ class PolicyWithValue(object):
         self.neglogp = self.pd.neglogp(self.action)
         self.sess = sess or tf.get_default_session()
 
-        if estimate_q:
-            assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latent, 'q', env.action_space.n)
-            self.vf = self.q
-        else:
-            self.vf = fc(vf_latent, 'vf', 1)
-            self.vf = self.vf[:, 0]
+        self.vf = fc(vf_latent, 'vf', 1)
+        self.vf = self.vf[:, 0]
 
     def _evaluate(self, variables, observation, **extra_feed):
         sess = self.sess
@@ -123,9 +86,3 @@ class PolicyWithValue(object):
             value estimate
         """
         return self._evaluate(self.vf, obs, *args, **kwargs)
-
-    def save(self, save_path):
-        tf_util.save_state(save_path, sess=self.sess)
-
-    def load(self, load_path):
-        tf_util.load_state(load_path, sess=self.sess)

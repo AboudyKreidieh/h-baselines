@@ -1,8 +1,9 @@
 import tensorflow as tf
+import numpy as np
 
 from hbaselines.ppo.common.policies import PolicyWithValue
+from baselines.a2c.utils import fc
 from baselines.common.models import get_network_builder
-from baselines.common.input import encode_observation
 
 
 class Model(object):
@@ -32,12 +33,9 @@ class Model(object):
                  *,
                  sess,
                  env,
-                 nbatch_train,
-                 nsteps,
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 microbatch_size=None,
                  network_kwargs=None):
         """TODO
 
@@ -47,17 +45,11 @@ class Model(object):
             TODO
         env : TODO
             TODO
-        nbatch_train : TODO
-            TODO
-        nsteps : TODO
-            TODO
         ent_coef : TODO
             TODO
         vf_coef : TODO
             TODO
         max_grad_norm : TODO
-            TODO
-        microbatch_size : TODO
             TODO
         network_kwargs : TODO
             TODO
@@ -163,9 +155,9 @@ class Model(object):
         if max_grad_norm is not None:
             # Clip the gradients (normalize)
             grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
-        grads_and_var = list(zip(grads, var))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
+        grads_and_var = list(zip(grads, var))
 
         self.grads = grads
         self.var = var
@@ -176,9 +168,9 @@ class Model(object):
 
         self.train_model = train_model
         self.act_model = act_model
-        self.step = act_model.step
-        self.value = act_model.value
-        self.initial_state = act_model.initial_state
+        self.step = act_model.step  # TODO: delete
+        self.value = act_model.value  # TODO: delete
+        self.initial_state = act_model.initial_state  # TODO: delete
 
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(params)
@@ -209,7 +201,7 @@ class Model(object):
             (batch_size, obs_dim) matrix of observations
         returns : array_like
             (batch_size,) vector of returns
-        actions : TODO
+        actions : array_like
             (batch_size, ac_dim) matrix of actions
         values : array_like
             (batch_size,) vector of values
@@ -265,21 +257,11 @@ class Model(object):
         self.saver.restore(self.sess, load_path)
 
     def _policy(self, obs_ph, **network_kwargs):
-        policy_network = get_network_builder('mlp')()
-
-        ob_space = self.env.observation_space
-
-        encoded_x = encode_observation(ob_space, obs_ph)
-
         # Create the actor network.
-        with tf.compat.v1.variable_scope('pi', reuse=False):
-            policy_latent = policy_network(encoded_x)  # , 'pi', **network_kwargs)
-        # policy_latent = self._create_latent(encoded_x, 'pi', **network_kwargs)
+        policy_latent = self._create_latent(obs_ph, 'pi', **network_kwargs)
 
         # Create a separate value function.
-        with tf.compat.v1.variable_scope('vf', reuse=False):
-            vf_latent = policy_network(encoded_x)  # , 'vf', **network_kwargs)
-        # vf_latent = self._create_latent(encoded_x, 'vf', **network_kwargs)
+        vf_latent = self._create_latent(obs_ph, 'vf', **network_kwargs)
 
         policy = PolicyWithValue(
             env=self.env,
@@ -287,9 +269,29 @@ class Model(object):
             latent=policy_latent,
             vf_latent=vf_latent,
             sess=self.sess,
-            estimate_q=False,
         )
         return policy
 
-    def _create_latent(self, obs_ph, scope, **network_kwargs):
-        pass
+    @staticmethod
+    def _create_latent(obs_ph, scope, **network_kwargs):
+        layers = network_kwargs['layers']
+        act_fun = network_kwargs['act_fun']
+        layer_norm = network_kwargs['layer_norm']
+
+        with tf.compat.v1.variable_scope(scope, reuse=False):
+            latent = tf.layers.flatten(obs_ph)
+
+            # Create the hidden layers.
+            for i, layer_size in enumerate(layers):
+                latent = fc(
+                    latent,
+                    scope='fc' + str(i),
+                    nh=layer_size,
+                    init_scale=np.sqrt(2)
+                )
+                if layer_norm:
+                    latent = tf.contrib.layers.layer_norm(
+                        latent, center=True, scale=True)
+                latent = act_fun(latent)
+
+        return latent
