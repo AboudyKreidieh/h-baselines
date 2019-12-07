@@ -31,7 +31,6 @@ class PPO(object):
 
     def __init__(self,
                  env,
-                 eval_env=None,
                  nsteps=2048,
                  ent_coef=0.0,
                  lr=3e-4,
@@ -42,6 +41,7 @@ class PPO(object):
                  nminibatches=4,
                  noptepochs=4,
                  cliprange=0.2,
+                 duel_vf=False,
                  **network_kwargs):
         """Instantiate the algorithm object.
 
@@ -49,8 +49,6 @@ class PPO(object):
         ----------
         env : str or gym.Env
             the training environment
-        eval_env : str or gym.Env
-            the evaluation environment
         nsteps : int
             number of steps of the vectorized environment per update (i.e.
             batch size is nsteps * nenv where nenv is number of environment
@@ -79,6 +77,8 @@ class PPO(object):
             is beginning of the training and 0 is the end of the training
         load_path : str
             path to load the model from
+        duel_vf : bool
+            whether to use duel value functions for the value estimates
         network_kwargs : dict
             keyword arguments to the policy / network builder. See baselines.
             common/policies.py/build_policy and arguments to a particular type
@@ -86,7 +86,6 @@ class PPO(object):
             num_hidden and num_layers.
         """
         self.env = env
-        self.eval_env = eval_env
         self.nsteps = nsteps
         self.ent_coef = ent_coef
         self.lr = self._get_function(lr)
@@ -97,6 +96,7 @@ class PPO(object):
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
         self.cliprange = self._get_function(cliprange)
+        self.duel_vf = duel_vf
         self.network_kwargs = DEFAULT_NETWORK_KWARGS.copy()
         self.network_kwargs.update(network_kwargs or {})
 
@@ -119,7 +119,8 @@ class PPO(object):
             ent_coef=ent_coef,
             vf_coef=vf_coef,
             max_grad_norm=max_grad_norm,
-            network_kwargs=self.network_kwargs
+            duel_vf=duel_vf,
+            **self.network_kwargs,
         )
 
         # Instantiate the runner objects.
@@ -130,18 +131,9 @@ class PPO(object):
             gamma=self.gamma,
             lam=self.lam
         )
-        if self.eval_env is not None:
-            self.eval_runner = Runner(
-                env=self.eval_env,
-                model=self.policy_tf,
-                nsteps=self.nsteps,
-                gamma=self.gamma,
-                lam=self.lam
-            )
 
         # additional attributes
         self.epinfobuf = deque(maxlen=100)
-        self.eval_epinfobuf = deque(maxlen=100)
 
     def learn(self,
               total_timesteps,
@@ -205,14 +197,6 @@ class PPO(object):
                 = self.runner.run()
             # Add to the episode info buffer.
             self.epinfobuf.extend(epinfos)
-
-            # Run the evaluation procedure, if needed.
-            if self.eval_env is not None:
-                eval_obs, eval_returns, eval_masks, eval_actions, \
-                    eval_values, eval_neglogpacs, eval_states, eval_epinfos \
-                    = self.eval_runner.run()
-                # Add to the episode info buffer.
-                self.eval_epinfobuf.extend(eval_epinfos)
 
             if update % log_interval == 0:
                 print('Done.')
@@ -319,14 +303,6 @@ class PPO(object):
             'eplenmean': safemean([epinfo['l'] for epinfo in self.epinfobuf]),
             "misc/time_elapsed": tnow - tfirststart,
         }
-        # Add evaluation statistics.
-        if self.eval_env is not None:
-            log_statistics.update({
-                'eval_eprewmean': safemean(
-                    [epinfo['r'] for epinfo in self.eval_epinfobuf]),
-                'eval_eplenmean': safemean(
-                    [epinfo['l'] for epinfo in self.eval_epinfobuf])
-            })
         # Add loss statistics.
         for (lossval, lossname) in zip(lossvals, self.policy_tf.loss_names):
             log_statistics['loss/' + lossname] = lossval

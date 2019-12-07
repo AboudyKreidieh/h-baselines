@@ -5,7 +5,9 @@ from hbaselines.ppo.common.policies import PolicyWithValue
 
 
 class Model(object):
-    """TODO
+    """PPO policy model.
+
+    Performs the step, value, and training operations.
 
     Attributes
     ----------
@@ -28,34 +30,33 @@ class Model(object):
         placeholder for the current clip range to the gradients
     """
     def __init__(self,
-                 *,
                  sess,
                  env,
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 network_kwargs=None):
-        """TODO
+                 duel_vf,
+                 **network_kwargs):
+        """Instantiate the model object.
 
         Parameters
         ----------
-        sess : TODO
-            TODO
-        env : TODO
-            TODO
-        ent_coef : TODO
-            TODO
-        vf_coef : TODO
-            TODO
-        max_grad_norm : TODO
-            TODO
-        network_kwargs : TODO
-            TODO
+        sess : tf.compat.v1.Session
+            the tensorflow session
+        env : gym.Env
+            the training environment
+        ent_coef : float
+            policy entropy coefficient in the optimization objective
+        vf_coef : float
+            value function loss coefficient in the optimization objective
+        max_grad_norm : float or None
+            gradient norm clipping coefficient
+        duel_vf : bool
+            whether to use duel value functions for the value estimates
         """
         self.sess = sess
-        self.env = env
 
-        # Get state_space and action_space
+        # Get state space and action space
         ob_space = env.observation_space
         ac_space = env.action_space
 
@@ -88,19 +89,11 @@ class Model(object):
         with tf.compat.v1.variable_scope('ppo_model', reuse=tf.AUTO_REUSE):
             # act_model that is used for sampling
             act_model = PolicyWithValue(
-                env=self.env,
-                obs_ph=self.act_ob_ph,
-                sess=self.sess,
-                **network_kwargs,
-            )
+                ac_space, self.act_ob_ph, duel_vf, **network_kwargs)
 
             # Train model for training
             train_model = PolicyWithValue(
-                env=self.env,
-                obs_ph=self.ob_ph,
-                sess=self.sess,
-                **network_kwargs,
-            )
+                ac_space, self.ob_ph, duel_vf, **network_kwargs)
 
         # =================================================================== #
         # Part 3. Calculate the loss.                                         #
