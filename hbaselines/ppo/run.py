@@ -38,7 +38,7 @@ def train(args):
     model = alg.learn(
         total_timesteps=total_timesteps,
         log_dir=dir_name,
-        seed=seed + i,
+        seed=seed,
         log_interval=log_interval,
         save_interval=save_interval
     )

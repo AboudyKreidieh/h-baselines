@@ -35,7 +35,6 @@ class PPO(object):
                  ent_coef=0.0,
                  lr=3e-4,
                  vf_coef=0.5,
-                 # max_grad_norm=0.5,
                  max_grad_norm=None,
                  gamma=0.99,
                  lam=0.95,
