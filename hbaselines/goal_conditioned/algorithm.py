@@ -16,8 +16,8 @@ import numpy as np
 import tensorflow as tf
 
 from hbaselines.goal_conditioned.tf_util import make_session
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 from hbaselines.utils.misc import ensure_dir, create_env
 
 

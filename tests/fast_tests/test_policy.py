@@ -5,9 +5,9 @@ import tensorflow as tf
 import random
 from gym.spaces import Box
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.policy import ActorCriticPolicy
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import ActorCriticPolicy
+from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
 from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 

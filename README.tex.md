@@ -123,7 +123,7 @@ along the process:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
 alg = TD3(policy=FeedForwardPolicy, env="AntGather")
@@ -171,7 +171,7 @@ The feed-forward policy can be imported by including the following
 script:
 
 ```python
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -213,7 +213,7 @@ this could be done let so:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
 alg = TD3(
@@ -246,7 +246,7 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy $\pi_m$ that 
@@ -282,7 +282,7 @@ This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -343,7 +343,7 @@ the `relative_goals` parameter to True:
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -359,7 +359,7 @@ TODO
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -394,7 +394,7 @@ term ($\lambda$ in the above equation), can be modified via the
 
 ```python
 from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
