@@ -107,8 +107,6 @@ class TD3(object):
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
-    num_cpus : int
-        number of CPUs to be used during the training procedure
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -212,7 +210,6 @@ class TD3(object):
     def __init__(self,
                  policy,
                  env,
-                 num_cpus=1,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -233,9 +230,6 @@ class TD3(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
-        num_cpus : int, optional
-            number of CPUs to be used during the training procedure. Defaults
-            to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -269,7 +263,6 @@ class TD3(object):
         self.policy = policy
         self.env_name = deepcopy(env)
         self.env = create_env(env, render, evaluate=False)
-        self.num_cpus = num_cpus
         self.eval_env = create_env(eval_env, render_eval, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -356,7 +349,6 @@ class TD3(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            # self.sess = make_session(num_cpu=self.num_cpus, graph=self.graph)
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Create the policy.

@@ -9,7 +9,6 @@ from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
 def get_hyperparameters(args, policy):
     """Return the hyperparameters of a training algorithm from the parser."""
     algorithm_params = {
-        "num_cpus": args.num_cpus,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
@@ -115,9 +114,6 @@ def parse_options(description, example_usage, args):
 
 def create_td3_parser(parser):
     """Add the TD3 hyperparameters to the parser."""
-    parser.add_argument(
-        '--num_cpus', type=int, default=1,
-        help='Number CPUs to distribute experiments over. Defaults to 1.')
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')
