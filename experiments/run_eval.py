@@ -7,9 +7,9 @@ import numpy as np
 import tensorflow as tf
 import json
 
-from hbaselines.goal_conditioned import TD3
-from hbaselines.goal_conditioned import FeedForwardPolicy
-from hbaselines.goal_conditioned import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 
 # dictionary that maps policy names to policy objects
@@ -101,7 +101,7 @@ def main(args):
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = TD3(
+    alg = OffPolicyRLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,

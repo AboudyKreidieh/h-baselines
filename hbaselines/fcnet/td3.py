@@ -4,10 +4,10 @@ import numpy as np
 from functools import reduce
 
 from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import get_target_updates
 from hbaselines.utils.tf_util import reduce_std
-from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 
 
 # TODO: add as input
