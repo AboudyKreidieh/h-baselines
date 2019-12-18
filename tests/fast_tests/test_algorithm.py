@@ -6,12 +6,12 @@ import shutil
 import os
 import csv
 
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestTD3(unittest.TestCase):

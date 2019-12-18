@@ -122,8 +122,8 @@ execute the `learn` method, providing the algorithm the proper policy
 along the process:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
 alg = TD3(policy=FeedForwardPolicy, env="AntGather")
@@ -171,7 +171,7 @@ The feed-forward policy can be imported by including the following
 script:
 
 ```python
-from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -212,8 +212,8 @@ like to train a fully connected network with a hidden size of [64, 64],
 this could be done let so:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import FeedForwardPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
 alg = TD3(
@@ -233,7 +233,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -246,7 +246,7 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
@@ -270,7 +270,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -281,8 +281,8 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -336,8 +336,8 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -352,8 +352,8 @@ alg = TD3(
 TODO
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,
@@ -384,8 +384,8 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policies.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = TD3(
     policy=GoalConditionedPolicy,

@@ -1,9 +1,9 @@
 """Utility methods when performing training."""
 import argparse
-from hbaselines.goal_conditioned.algorithm import FeedForwardPolicy
-from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 def get_hyperparameters(args, policy):
