@@ -122,11 +122,11 @@ execute the `learn` method, providing the algorithm the proper policy
 along the process:
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
-alg = TD3(policy=FeedForwardPolicy, env="AntGather")
+alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -135,7 +135,7 @@ alg.learn(total_timesteps=1000000)
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.fcnet.base.ActorCriticPolicy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
@@ -212,11 +212,11 @@ like to train a fully connected network with a hidden size of [64, 64],
 this could be done let so:
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
     policy_kwargs={
@@ -281,10 +281,10 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -336,10 +336,10 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -352,10 +352,10 @@ alg = TD3(
 TODO
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -384,10 +384,10 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.algorithms.off_policy import TD3
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
