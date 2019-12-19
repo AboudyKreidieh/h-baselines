@@ -1,4 +1,4 @@
-"""TD3-compatible policies."""
+"""TD3-compatible goal-conditioned policy."""
 import tensorflow as tf
 import numpy as np
 
@@ -271,7 +271,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             def goal_transition_fn(obs0, goal, obs1):
                 return obs0 + goal - obs1
         else:
-            def goal_transition_fn(_, goal, __):
+            def goal_transition_fn(obs0, goal, obs1):
                 return goal
         self.goal_transition_fn = goal_transition_fn
 

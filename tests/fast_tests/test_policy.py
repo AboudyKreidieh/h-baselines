@@ -59,6 +59,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'scope': None,
             'verbose': 2,
         }
+        self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
@@ -174,8 +175,8 @@ class TestGoalConditionedPolicy(unittest.TestCase):
             'layers': None,
             'verbose': 2,
         }
-        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
         self.policy_params.update(TD3_PARAMS.copy())
+        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
