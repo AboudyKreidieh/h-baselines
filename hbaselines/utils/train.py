@@ -252,7 +252,8 @@ def create_goal_conditioned_parser(parser):
         "--connected_gradients",
         action="store_true",
         help="whether to use the connected gradient update actor update "
-             "procedure to the Manager policy. See: TODO")
+             "procedure to the Manager policy. See: "
+             "https://arxiv.org/abs/1912.02368v1")
     parser.add_argument(
         "--cg_weights",
         type=float,

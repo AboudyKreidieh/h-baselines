@@ -56,13 +56,13 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         Parameters
         ----------
-        file_path : str, optional
+        file_path : str
+            path to the xml file
+        expose_all_qpos : bool
             TODO
-        expose_all_qpos : bool, optional
+        expose_body_coms : list of str
             TODO
-        expose_body_coms : TODO, optional
-            TODO
-        expose_body_comvels : TODO, optional
+        expose_body_comvels : list of str
             TODO
         """
         self._expose_all_qpos = expose_all_qpos
