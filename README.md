@@ -135,7 +135,7 @@ alg.learn(total_timesteps=1000000)
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.fcnet.base.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
