@@ -13,6 +13,7 @@ import numpy as np
 
 
 def load_model_from_path(path):
+    """Return the name of the model from the path to model."""
     if "pendulum" in path:
         model_name = "pendulum"
     elif "ur5" in path:
@@ -24,28 +25,45 @@ def load_model_from_path(path):
 
 
 class MjViewer(object):
+    """Dummy MuJoCo viewer object.
+
+    Used for testing purposes.
+    """
 
     def __init__(self, *_):
         pass  # pragma: no cover
 
 
 class MjSim(object):
+    """Dummy MuJoCo simulator object.
+
+    Used for testing purposes.
+    """
 
     def __init__(self, model_name):
         self.data = DummyData(model_name)
         self.model = DummyData(model_name)
 
     def step(self, *_):
+        """Perform a dummy step method."""
         pass
 
 
 class DummyModel(object):
+    """Dummy MuJoCo model object.
+
+    Used for testing purposes.
+    """
 
     def __init__(self, model_name):
         pass  # pragma: no cover
 
 
 class DummyData(object):
+    """Dummy MuJoCo data object.
+
+    Used for testing purposes.
+    """
 
     def __init__(self, model_name):
         # variables that need to be defined for any mujoco data object

@@ -25,6 +25,7 @@ except ModuleNotFoundError:
     mujoco_py = object()
 
     def mujoco_env():
+        """Create a dummy environment for testing purposes."""
         return None
     setattr(mujoco_env, "MujocoEnv", gym.Env)
 
@@ -94,6 +95,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.step(a)
 
     def step(self, a):
+        """Advance the simulation by one step."""
         xposbefore = self.get_body_com("torso")[0]
         self.do_simulation(a, self.frame_skip)
         xposafter = self.get_body_com("torso")[0]

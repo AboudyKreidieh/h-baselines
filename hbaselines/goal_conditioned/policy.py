@@ -900,7 +900,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):
-    """Goal-conditioned hierarchical reinforcement learning model.
+    r"""Goal-conditioned hierarchical reinforcement learning model.
 
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
