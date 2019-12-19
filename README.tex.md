@@ -421,18 +421,6 @@ found below.
 
 <img src="docs/img/mujoco-envs.png"/>
 
-<!--**Pendulum** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--TODO-->
-
-<!--**UR5** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--TODO-->
-
 **AntGather**
 
 This task was initially provided by [6].
