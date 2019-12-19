@@ -405,17 +405,11 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         # Test the _sample_best_meta_action method.  FIXME
 
     def test_centralized_value_functions(self):
-        """Validate the functionality of the centralized value function.
-
-        TODO: describe content
-        """
+        """Validate the functionality of the centralized value function."""
         pass
 
     def test_connected_gradients(self):
-        """Validate the functionality of the connected-gradients feature.
-
-        TODO: describe content
-        """
+        """Validate the functionality of the connected-gradients feature."""
         pass
 
 

@@ -59,11 +59,11 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         file_path : str
             path to the xml file
         expose_all_qpos : bool
-            TODO
+            whether to provide all qpos values via the observation
         expose_body_coms : list of str
-            TODO
+            whether to provide all body_coms values via the observation
         expose_body_comvels : list of str
-            TODO
+            whether to provide all body_comvels values via the observation
         """
         self._expose_all_qpos = expose_all_qpos
         self._expose_body_coms = expose_body_coms

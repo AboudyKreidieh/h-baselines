@@ -25,10 +25,11 @@ class Environment(gym.Env):
     ----------
     name : str
         name of the environment; adopted from the name of the model
-    model : TODO
+    model : object
         the imported MuJoCo model
     sim : mujoco_py.MjSim
-        TODO
+        the MuJoCo simulator object, used to interact with and advance the
+        simulation
     end_goal_thresholds : array_like
         goal achievement thresholds. If the agent is within the threshold for
         each dimension, the end goal has been achieved and the reward of 0 is
