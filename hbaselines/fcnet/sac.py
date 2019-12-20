@@ -340,18 +340,17 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Create the optimizer for the alpha term.
         self.alpha_optimizer = optimizer.minimize(
             loss=self.alpha_loss,
-            var_list=[log_alpha]
-        )
+            var_list=[log_alpha])
 
         # Compute the actor loss.
-        self.actor_loss = self.alpha * self.log_pi \
-            - tf.reduce_mean(self.critic_with_actor_tf[0])  # FIXME
+        self.actor_loss = tf.reduce_mean(
+            self.alpha * self.log_pi
+            - tf.minimum(self.critic_tf[0], self.critic_tf[1]))
 
         # Create the optimizer for the actor.
         self.actor_optimizer = optimizer.minimize(
             self.actor_loss,
-            var_list=get_trainable_vars(scope_name)
-        )
+            var_list=get_trainable_vars(scope_name))
 
     def _setup_critic_optimizer(self, critic_target, scope):
         """Create the critic loss, gradient, and optimizer."""
