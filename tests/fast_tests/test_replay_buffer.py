@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
+from hbaselines.fcnet.replay_buffer import ReplayBuffer
 # from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 
 

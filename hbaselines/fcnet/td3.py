@@ -61,7 +61,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     fingerprint_dim : bool
         the number of fingerprint elements in the observation. Used when trying
         to zero the fingerprint elements.
-    replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
+    replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
         the replay buffer
     terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals
@@ -75,11 +75,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the next step observations
     actor_tf : tf.Variable
         the output from the actor network
-    critic_tf : tf.Variable
-        the output from the critic network
-    critic_with_actor_tf : tf.Variable
-        the output from the critic network with the action provided directly by
-        the actor policy
+    critic_tf : list of tf.Variable
+        the output from the critic networks. Two networks are used to stabilize
+        training.
+    critic_with_actor_tf : list of tf.Variable
+        the output from the critic networks with the action provided directly
+        by the actor policy
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -304,7 +305,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
-            self._setup_actor_optimizer(scope=scope)
+            self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(critic_target, scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
             tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
