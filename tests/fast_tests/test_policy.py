@@ -76,7 +76,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.tau,  self.policy_params['tau'])
         self.assertEqual(policy.gamma,  self.policy_params['gamma'])
         self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
-        self.assertEqual(policy.reuse, self.policy_params['reuse'])
         self.assertListEqual(policy.layers, [256, 256])
         self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
 
@@ -123,9 +122,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check that all the input placeholders were properly created.
-        self.assertEqual(
-            tuple(v.__int__() for v in policy.critic_target.shape),
-            (None, 1))
         self.assertEqual(
             tuple(v.__int__() for v in policy.terminals1.shape),
             (None, 1))
