@@ -1,3 +1,4 @@
+"""Script containing environment generator for modified Flow benchmarks."""
 import gym
 from flow.utils.registry import make_create_env
 

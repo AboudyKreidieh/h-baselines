@@ -421,18 +421,6 @@ found below.
 
 <img src="docs/img/mujoco-envs.png"/>
 
-<!--**Pendulum** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
-
-<!--**UR5** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
-
 **AntGather**
 
 This task was initially provided by [6].
@@ -518,8 +506,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: blank
-* ring1: blank
+* ring0: TODO
 
 **Figure Eight**
 
@@ -629,11 +616,11 @@ This benchmark consists of the following variations:
 
 This task was initially provided by [9].
 
-blank
+TODO
 
 This benchmark consists of the following variations:
 
-* highway0: blank
+* highway0: TODO
 
 ## Citing
 
@@ -662,7 +649,8 @@ Machine Learning-Volume 70. JMLR. org, 2017.
 [3] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement learning."
 Advances in Neural Information Processing Systems. 2018.
 
-[4] TODO: HRL-CG
+[4] Kreidieh, Abdul Rahmnan, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 
 [5] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
 (2018).

@@ -41,7 +41,7 @@ install:
 
 before_script:
   - flake8 --show-source
-#  - pydocstyle . --convention=numpy
+  - pydocstyle . --convention=numpy
 
 script:
   - pip install -e .

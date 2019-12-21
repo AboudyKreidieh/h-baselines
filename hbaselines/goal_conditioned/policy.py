@@ -13,10 +13,6 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 
 
-# TODO: add as input
-FINGERPRINT_DIM = 2
-
-
 class ActorCriticPolicy(object):
     """Base Actor Critic Policy.
 
@@ -210,8 +206,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         critic learning rate
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    reuse : bool
-        if the policy is reusable or not
     layers : list of int
         the size of the Neural network for the policy
     tau : float
@@ -239,10 +233,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         whether to zero the last two elements of the observations for the actor
         and worker computations. Used for the worker policy when fingerprints
         are being implemented.
+    fingerprint_dim : int
+        the number of fingerprint elements in the observation. Used when trying
+        to zero the fingerprint elements.
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
         the replay buffer
-    critic_target : tf.compat.v1.placeholder
-        a placeholder for the current-step estimate of the target Q values
     terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals
     rew_ph : tf.compat.v1.placeholder
@@ -297,10 +292,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
-                 reuse=False,
                  scope=None,
-                 use_fingerprints=False,
-                 zero_fingerprint=False):
+                 zero_fingerprint=False,
+                 fingerprint_dim=2):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -347,10 +341,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
-        reuse : bool
-            if the policy is reusable or not
         scope : str
             an upper-level scope term. Used by policies that call this one.
+        zero_fingerprint : bool
+            whether to zero the last two elements of the observations for the
+            actor and critic computations. Used for the worker policy when
+            fingerprints are being implemented.
+        fingerprint_dim : int
+            the number of fingerprint elements in the observation. Used when
+            trying to zero the fingerprint elements.
 
         Raises
         ------
@@ -368,7 +367,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.verbose = verbose
-        self.reuse = reuse
         self.layers = layers
         self.tau = tau
         self.gamma = gamma
@@ -378,8 +376,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.layer_norm = layer_norm
         self.act_fun = act_fun
         self.use_huber = use_huber
-        self.use_fingerprints = use_fingerprints
         self.zero_fingerprint = zero_fingerprint
+        self.fingerprint_dim = fingerprint_dim
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -405,10 +403,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
-            self.critic_target = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='critic_target')
             self.terminals1 = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
@@ -424,11 +418,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.obs_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ob_dim,
-                name='observations')
+                name='obs0')
             self.obs1_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ob_dim,
-                name='observations')
+                name='obs1')
 
         # logging of rewards to tensorboard
         with tf.compat.v1.variable_scope("input_info", reuse=False):
@@ -603,8 +597,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if self.zero_fingerprint:
                 ob_dim = self.ob_space.shape[0]
                 co_dim = self.co_space.shape[0]
-                pi_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
-                                    + [0.0] * FINGERPRINT_DIM
+                pi_h *= tf.constant([1.0] * (ob_dim - self.fingerprint_dim)
+                                    + [0.0] * self.fingerprint_dim
                                     + [1.0] * co_dim)
 
             # create the hidden layers
@@ -664,8 +658,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 ob_dim = self.ob_space.shape[0]
                 co_dim = self.co_space.shape[0]
                 ac_dim = self.ac_space.shape[0]
-                qf_h *= tf.constant([1.0] * (ob_dim - FINGERPRINT_DIM)
-                                    + [0.0] * FINGERPRINT_DIM
+                qf_h *= tf.constant([1.0] * (ob_dim - self.fingerprint_dim)
+                                    + [0.0] * self.fingerprint_dim
                                     + [1.0] * (co_dim + ac_dim))
 
             # create the hidden layers
@@ -900,7 +894,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):
-    """Goal-conditioned hierarchical reinforcement learning model.
+    r"""Goal-conditioned hierarchical reinforcement learning model.
 
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
@@ -1008,7 +1002,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  centralized_value_functions,
                  connected_gradients,
                  cg_weights,
-                 reuse=False,
                  env_name=""):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -1048,8 +1041,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             clipping term for the noise injected in the target actor policy
         layer_norm : bool
             enable layer normalisation
-        reuse : bool
-            if the policy is reusable or not
         layers : list of int or None
             the size of the neural network for the policy
         act_fun : tf.nn.*
@@ -1137,7 +1128,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 layer_norm=layer_norm,
-                reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
                 use_huber=use_huber,
@@ -1145,8 +1135,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=False,
+                fingerprint_dim=self.fingerprint_dim[0],
             )
 
         # a fixed goal transition function for the meta-actions in between meta
@@ -1213,7 +1203,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 layer_norm=layer_norm,
-                reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
                 use_huber=use_huber,
@@ -1221,8 +1210,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=self.use_fingerprints,
+                fingerprint_dim=self.fingerprint_dim[0],
             )
 
         # Collect the state indices for the worker rewards.

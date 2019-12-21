@@ -24,7 +24,6 @@ class TestTD3(unittest.TestCase):
             'policy': None,
             'env': 'MountainCarContinuous-v0',
             'eval_env': None,
-            'num_cpus': 1,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -46,7 +45,6 @@ class TestTD3(unittest.TestCase):
         # Test the attribute values.
         self.assertEqual(alg.policy, self.init_parameters['policy'])
         self.assertEqual(alg.eval_env, self.init_parameters['eval_env'])
-        self.assertEqual(alg.num_cpus, self.init_parameters['num_cpus'])
         self.assertEqual(alg.nb_train_steps,
                          self.init_parameters['nb_train_steps'])
         self.assertEqual(alg.nb_rollout_steps,
