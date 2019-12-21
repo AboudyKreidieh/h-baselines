@@ -188,7 +188,7 @@ class ActorCriticPolicy(object):
         raise NotImplementedError
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -209,6 +209,10 @@ class ActorCriticPolicy(object):
             by the environment.
         done : float
             is the episode done
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.

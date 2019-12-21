@@ -478,7 +478,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return 0, 0  # FIXME
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
@@ -491,7 +491,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._worker_actions.append(action)
         self._meta_actions.append(self.meta_action.flatten())
         self._observations.append(self._get_obs(obs0, self.meta_action, 0))
-        self._dones.append(done)
+
+        # Modify the done mask in accordance with the TD3 algorithm. Done
+        # masks that correspond to the final step are set to False.
+        self._dones.append(done and not is_final_step)
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward
