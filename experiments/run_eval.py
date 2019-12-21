@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 import json
 
-from hbaselines.goal_conditioned import TD3
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned import FeedForwardPolicy
 from hbaselines.goal_conditioned import GoalConditionedPolicy
 
@@ -101,7 +101,7 @@ def main(args):
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = TD3(
+    alg = OffPolicyRLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,

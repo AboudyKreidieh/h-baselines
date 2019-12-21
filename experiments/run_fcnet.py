@@ -6,7 +6,8 @@ import sys
 
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
-from hbaselines.goal_conditioned import TD3, FeedForwardPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned import FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 
@@ -46,7 +47,13 @@ def run_exp(env,
         is saved
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=FeedForwardPolicy, env=env, eval_env=eval_env, **hp)
+
+    alg = OffPolicyRLAlgorithm(
+        policy=FeedForwardPolicy,
+        env=env,
+        eval_env=eval_env,
+        **hp
+    )
 
     # perform training
     alg.learn(

@@ -6,7 +6,8 @@ import sys
 
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
-from hbaselines.goal_conditioned import TD3, GoalConditionedPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned import GoalConditionedPolicy
 
 EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --meta_period 10'
 
@@ -46,7 +47,13 @@ def run_exp(env,
         is saved
     """
     eval_env = env if evaluate else None
-    alg = TD3(policy=GoalConditionedPolicy, env=env, eval_env=eval_env, **hp)
+
+    alg = OffPolicyRLAlgorithm(
+        policy=GoalConditionedPolicy,
+        env=env,
+        eval_env=eval_env,
+        **hp
+    )
 
     # perform training
     alg.learn(
