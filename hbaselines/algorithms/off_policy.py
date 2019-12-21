@@ -107,7 +107,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # Worker critic functions
     centralized_value_functions=False,
     # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: TODO
+    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
@@ -130,8 +130,6 @@ class OffPolicyRLAlgorithm(object):
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
-    num_cpus : int
-        number of CPUs to be used during the training procedure
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -235,7 +233,6 @@ class OffPolicyRLAlgorithm(object):
     def __init__(self,
                  policy,
                  env,
-                 num_cpus=1,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -256,9 +253,6 @@ class OffPolicyRLAlgorithm(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
-        num_cpus : int, optional
-            number of CPUs to be used during the training procedure. Defaults
-            to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -292,7 +286,6 @@ class OffPolicyRLAlgorithm(object):
         self.policy = policy
         self.env_name = deepcopy(env)
         self.env = create_env(env, render, evaluate=False)
-        self.num_cpus = num_cpus
         self.eval_env = create_env(eval_env, render_eval, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -382,7 +375,6 @@ class OffPolicyRLAlgorithm(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            # self.sess = make_session(num_cpu=self.num_cpus, graph=self.graph)
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Create the policy.

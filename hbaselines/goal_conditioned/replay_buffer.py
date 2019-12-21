@@ -1,4 +1,4 @@
-"""Script contain the hierarchical ReplayBuffer object."""
+"""Script containing the HierReplayBuffer object."""
 import random
 import numpy as np
 

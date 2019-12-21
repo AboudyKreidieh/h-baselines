@@ -122,7 +122,7 @@ execute the `learn` method, providing the algorithm the proper policy
 along the process:
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
@@ -212,7 +212,7 @@ like to train a fully connected network with a hidden size of [64, 64],
 this could be done let so:
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
@@ -281,7 +281,7 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = OffPolicyRLAlgorithm(
@@ -336,7 +336,7 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = OffPolicyRLAlgorithm(
@@ -352,7 +352,7 @@ alg = OffPolicyRLAlgorithm(
 TODO
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = OffPolicyRLAlgorithm(
@@ -384,7 +384,7 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 alg = OffPolicyRLAlgorithm(
@@ -411,18 +411,6 @@ found below.
 ### MuJoCo Environments
 
 <img src="docs/img/mujoco-envs.png"/>
-
-<!--**Pendulum** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
-
-<!--**UR5** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
 
 **AntGather**
 
@@ -507,8 +495,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: blank
-* ring1: blank
+* ring0: TODO
 
 **Figure Eight**
 
@@ -614,11 +601,11 @@ This benchmark consists of the following variations:
 
 This task was initially provided by [9].
 
-blank
+TODO
 
 This benchmark consists of the following variations:
 
-* highway0: blank
+* highway0: TODO
 
 ## Citing
 
@@ -647,7 +634,8 @@ Machine Learning-Volume 70. JMLR. org, 2017.
 [3] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement learning."
 Advances in Neural Information Processing Systems. 2018.
 
-[4] TODO: HRL-CG
+[4] Kreidieh, Abdul Rahmnan, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 
 [5] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
 (2018).

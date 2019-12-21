@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 import json
 
-from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 

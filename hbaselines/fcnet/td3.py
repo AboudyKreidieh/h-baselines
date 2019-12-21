@@ -1,3 +1,4 @@
+"""TD3-compatible feedforward policy."""
 import tensorflow as tf
 import numpy as np
 from functools import reduce
@@ -170,7 +171,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             whether to zero the last two elements of the observations for the
             actor and critic computations. Used for the worker policy when
             fingerprints are being implemented.
-        fingerprint_dim : bool
+        fingerprint_dim : int
             the number of fingerprint elements in the observation. Used when
             trying to zero the fingerprint elements.
 

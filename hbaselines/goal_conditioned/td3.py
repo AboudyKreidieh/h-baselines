@@ -10,10 +10,6 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 
 
-# TODO: add as input
-FINGERPRINT_DIM = 2
-
-
 class GoalConditionedPolicy(ActorCriticPolicy):
     """Goal-conditioned hierarchical reinforcement learning model.
 
@@ -123,7 +119,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  centralized_value_functions,
                  connected_gradients,
                  cg_weights,
-                 reuse=False,
                  env_name=""):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -200,7 +195,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             is set to True.
         """
         super(GoalConditionedPolicy, self).__init__(
-            sess, ob_space, ac_space, co_space)
+            sess=sess,
+            ob_space=ob_space,
+            ac_space=ac_space,
+            co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            verbose=verbose,
+            tau=tau,
+            gamma=gamma,
+            layer_norm=layer_norm,
+            layers=layers,
+            act_fun=act_fun,
+            use_huber=use_huber
+        )
 
         self.meta_period = meta_period
         self.worker_reward_scale = worker_reward_scale
@@ -252,7 +262,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 layer_norm=layer_norm,
-                reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
                 use_huber=use_huber,
@@ -260,7 +269,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=False,
             )
 
@@ -328,7 +336,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 tau=tau,
                 gamma=gamma,
                 layer_norm=layer_norm,
-                reuse=reuse,
                 layers=layers,
                 act_fun=act_fun,
                 use_huber=use_huber,
@@ -336,7 +343,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
-                use_fingerprints=self.use_fingerprints,
                 zero_fingerprint=self.use_fingerprints,
             )
 

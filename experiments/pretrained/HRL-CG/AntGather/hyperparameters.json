@@ -6,7 +6,6 @@
     "nb_eval_episodes": 50,
     "nb_rollout_steps": 1,
     "nb_train_steps": 1,
-    "num_cpus": 1,
     "policy_kwargs": {
         "actor_lr": 0.0003,
         "batch_size": 128,
