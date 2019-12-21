@@ -22,6 +22,7 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
         }
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
