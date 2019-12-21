@@ -246,7 +246,7 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
-from hbaselines.fcnet.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
