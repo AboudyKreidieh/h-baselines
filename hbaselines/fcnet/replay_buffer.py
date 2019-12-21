@@ -1,4 +1,4 @@
-"""Script contain the ReplayBuffer object."""
+"""Script containing the ReplayBuffer object."""
 import numpy as np
 
 

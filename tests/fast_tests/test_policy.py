@@ -13,7 +13,7 @@ from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
-    """Test ActorCriticPolicy in hbaselines/fcnet.base.py."""
+    """Test ActorCriticPolicy in hbaselines/fcnet/base.py."""
 
     def setUp(self):
         self.policy_params = {
