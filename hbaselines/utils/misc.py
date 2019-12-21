@@ -1,4 +1,4 @@
-"""Miscellaneous utility methods for this repository,"""
+"""Miscellaneous utility methods for this repository."""
 import os
 import errno
 import numpy as np
@@ -269,7 +269,7 @@ def create_env(env, render=False, evaluate=False):
         # Create the environment.
         env = create_env()
 
-    elif env in ["ring0", "ring1", "multi-ring0", "multi-ring1"]:
+    elif env in ["ring0", "multi-ring0"]:
         env = FlowEnv("ring", render=render)  # FIXME
 
     elif env in ["merge0", "merge1", "merge2", "multi-merge0", "multi-merge1",

@@ -25,6 +25,7 @@ except ModuleNotFoundError:
     mujoco_py = object()
 
     def mujoco_env():
+        """Create a dummy environment for testing purposes."""
         return None
     setattr(mujoco_env, "MujocoEnv", gym.Env)
 
@@ -55,14 +56,14 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         Parameters
         ----------
-        file_path : str, optional
-            TODO
-        expose_all_qpos : bool, optional
-            TODO
-        expose_body_coms : TODO, optional
-            TODO
-        expose_body_comvels : TODO, optional
-            TODO
+        file_path : str
+            path to the xml file
+        expose_all_qpos : bool
+            whether to provide all qpos values via the observation
+        expose_body_coms : list of str
+            whether to provide all body_coms values via the observation
+        expose_body_comvels : list of str
+            whether to provide all body_comvels values via the observation
         """
         self._expose_all_qpos = expose_all_qpos
         self._expose_body_coms = expose_body_coms
@@ -94,6 +95,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.step(a)
 
     def step(self, a):
+        """Advance the simulation by one step."""
         xposbefore = self.get_body_com("torso")[0]
         self.do_simulation(a, self.frame_skip)
         xposafter = self.get_body_com("torso")[0]

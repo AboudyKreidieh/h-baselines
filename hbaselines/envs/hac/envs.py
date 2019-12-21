@@ -1,3 +1,4 @@
+"""Script containing the UR5 and Pendulum environments."""
 import numpy as np
 import gym
 from gym.spaces import Box
@@ -15,16 +16,20 @@ except ImportError:
 class Environment(gym.Env):
     """Base environment class.
 
-    TODO
+    Supports the UR5 and Pendulum environments from:
+
+    Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight."
+    (2018).
 
     Attributes
     ----------
     name : str
         name of the environment; adopted from the name of the model
-    model : TODO
+    model : object
         the imported MuJoCo model
     sim : mujoco_py.MjSim
-        TODO
+        the MuJoCo simulator object, used to interact with and advance the
+        simulation
     end_goal_thresholds : array_like
         goal achievement thresholds. If the agent is within the threshold for
         each dimension, the end goal has been achieved and the reward of 0 is
@@ -219,6 +224,7 @@ class Environment(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='human'):
+        """Render the environment."""
         self.viewer.render()  # pragma: no cover
 
     @property
@@ -249,12 +255,12 @@ class Environment(gym.Env):
 
 
 class UR5(Environment):
-    """TODO
+    """UR5 environment class.
 
         # In the UR5 reacher environment, the end goal will be the desired
         # joint positions for the 3 main joints.
 
-    TODO
+    TODO: document
     """
 
     def __init__(self,
@@ -348,6 +354,7 @@ class UR5(Environment):
 
     @property
     def observation_space(self):
+        """Return the observation space."""
         return gym.spaces.Box(
             low=-1, high=1,  # TODO: bounds?
             shape=(len(self.sim.data.qpos) + len(self.sim.data.qvel),),
@@ -356,6 +363,7 @@ class UR5(Environment):
 
     @property
     def action_space(self):
+        """Return the action space."""
         return gym.spaces.Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
@@ -478,12 +486,12 @@ class UR5(Environment):
 
 
 class Pendulum(Environment):
-    """TODO
+    """Pendulum environment class.
 
         # In the inverted pendulum environment, the end goal will be the
         # desired joint angle and joint velocity for the pendulum.
 
-    TODO
+    TODO: document
     """
 
     def __init__(self,
@@ -572,6 +580,7 @@ class Pendulum(Environment):
 
     @property
     def observation_space(self):
+        """Return the observation space."""
         # State will include (i) joint angles and (ii) joint velocities
         return gym.spaces.Box(
             low=0, high=1,  # TODO: bounds?
@@ -581,6 +590,7 @@ class Pendulum(Environment):
 
     @property
     def action_space(self):
+        """Return the action space."""
         return gym.spaces.Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],

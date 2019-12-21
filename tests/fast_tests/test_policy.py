@@ -54,7 +54,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'reuse': False,
             'scope': None,
             'verbose': 2,
         }
@@ -77,7 +76,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.tau,  self.policy_params['tau'])
         self.assertEqual(policy.gamma,  self.policy_params['gamma'])
         self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
-        self.assertEqual(policy.reuse, self.policy_params['reuse'])
         self.assertListEqual(policy.layers, [256, 256])
         self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
 
@@ -124,9 +122,6 @@ class TestFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check that all the input placeholders were properly created.
-        self.assertEqual(
-            tuple(v.__int__() for v in policy.critic_target.shape),
-            (None, 1))
         self.assertEqual(
             tuple(v.__int__() for v in policy.terminals1.shape),
             (None, 1))
@@ -400,22 +395,16 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.907490e-03, -3.906185e-03, -6.421115e-11])
+            error, [-3.890966e-03, -3.893214e-03, -1.082069e-07])
 
         # Test the _sample_best_meta_action method.  FIXME
 
     def test_centralized_value_functions(self):
-        """Validate the functionality of the centralized value function.
-
-        TODO: describe content
-        """
+        """Validate the functionality of the centralized value function."""
         pass
 
     def test_connected_gradients(self):
-        """Validate the functionality of the connected-gradients feature.
-
-        TODO: describe content
-        """
+        """Validate the functionality of the connected-gradients feature."""
         pass
 
 
