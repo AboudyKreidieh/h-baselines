@@ -122,7 +122,7 @@ execute the `learn` method, providing the algorithm the proper policy
 along the process:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 
 # create the algorithm object, 
@@ -212,7 +212,7 @@ like to train a fully connected network with a hidden size of [64, 64],
 this could be done let so:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 
 # create the algorithm object, 
@@ -233,7 +233,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -270,7 +270,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -281,7 +281,7 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
@@ -342,7 +342,7 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
@@ -358,7 +358,7 @@ alg = TD3(
 TODO
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
@@ -393,7 +393,7 @@ term ($\lambda$ in the above equation), can be modified via the
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms.off_policy import TD3
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
 
 alg = TD3(
