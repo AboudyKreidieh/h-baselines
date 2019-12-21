@@ -117,8 +117,8 @@ We use TD3 as our base policy optimization algorithm. Details on this
 algorithm can be found in the following article: 
 https://arxiv.org/pdf/1802.09477.pdf.
 
-To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object
-and execute the `learn` method, providing the algorithm the proper policy 
+To train a policy using this algorithm, create a `TD3` object and 
+execute the `learn` method, providing the algorithm the proper policy 
 along the process:
 
 ```python
