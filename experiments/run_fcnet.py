@@ -7,7 +7,7 @@ import sys
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 

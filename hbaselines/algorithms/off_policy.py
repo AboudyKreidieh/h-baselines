@@ -15,9 +15,9 @@ from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.goal_conditioned.tf_util import make_session
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.utils.tf_util import make_session
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.utils.misc import ensure_dir, create_env
 
 
@@ -100,7 +100,7 @@ class OffPolicyRLAlgorithm(object):
 
     Attributes
     ----------
-    policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
+    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the Manager
@@ -147,7 +147,7 @@ class OffPolicyRLAlgorithm(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.goal_conditioned.policy.ActorCriticPolicy
+    policy_tf : hbaselines.fcnet.base.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -226,7 +226,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
+        policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)

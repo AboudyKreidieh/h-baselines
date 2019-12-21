@@ -8,8 +8,8 @@ import tensorflow as tf
 import json
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned import FeedForwardPolicy
-from hbaselines.goal_conditioned import GoalConditionedPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 
 # dictionary that maps policy names to policy objects

@@ -4,16 +4,16 @@ import numpy as np
 import tensorflow as tf
 import random
 from gym.spaces import Box
-from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.policy import ActorCriticPolicy
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
-    """Test FeedForwardPolicy in hbaselines/goal_conditioned/policy.py."""
+    """Test ActorCriticPolicy in hbaselines/fcnet/base.py."""
 
     def setUp(self):
         self.policy_params = {
@@ -46,7 +46,7 @@ class TestActorCriticPolicy(unittest.TestCase):
 
 
 class TestFeedForwardPolicy(unittest.TestCase):
-    """Test FeedForwardPolicy in hbaselines/goal_conditioned/policy.py."""
+    """Test FeedForwardPolicy in hbaselines/fcnet/td3.py."""
 
     def setUp(self):
         self.policy_params = {
@@ -157,7 +157,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
 
 
 class TestGoalConditionedPolicy(unittest.TestCase):
-    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/policy.py."""
+    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
 
     def setUp(self):
         self.policy_params = {
