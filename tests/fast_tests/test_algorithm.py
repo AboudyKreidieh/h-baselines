@@ -6,12 +6,12 @@ import shutil
 import os
 import csv
 
-from hbaselines.goal_conditioned.algorithm import TD3
+from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.tf_util import get_trainable_vars
 from hbaselines.goal_conditioned.policy import FeedForwardPolicy
 from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestTD3(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestTD3(unittest.TestCase):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Test the attribute values.
         self.assertEqual(alg.policy, self.init_parameters['policy'])
@@ -62,7 +62,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
@@ -119,7 +119,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
@@ -214,7 +214,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Run the learn operation for zero timesteps.
         alg.learn(0, log_dir='results', start_timesteps=0)
@@ -270,7 +270,7 @@ class TestTD3(unittest.TestCase):
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['nb_rollout_steps'] = 1
         policy_params['policy_kwargs'] = {'use_fingerprints': True}
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Test the observation spaces of the manager and worker, as well as the
         # context space of the worker and action space of the manager.
@@ -317,7 +317,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # test for one evaluation environment
         rewards = [0, 1, 2]

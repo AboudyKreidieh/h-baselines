@@ -93,7 +93,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 ))
 
 
-class TD3(object):
+class OffPolicyRLAlgorithm(object):
     """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
     See: https://arxiv.org/pdf/1802.09477.pdf
