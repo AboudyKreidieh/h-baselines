@@ -4,7 +4,8 @@ import numpy as np
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
-from hbaselines.algorithms.off_policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -39,9 +40,9 @@ class TestTrain(unittest.TestCase):
             'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
             'tau': FEEDFORWARD_PARAMS['tau'],
             'gamma': FEEDFORWARD_PARAMS['gamma'],
-            'noise': FEEDFORWARD_PARAMS['noise'],
-            'target_policy_noise': FEEDFORWARD_PARAMS['target_policy_noise'],
-            'target_noise_clip': FEEDFORWARD_PARAMS['target_noise_clip'],
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
             'layer_norm': False,
             'use_huber': False,
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],

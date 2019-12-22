@@ -22,6 +22,23 @@ from hbaselines.utils.misc import ensure_dir, create_env
 
 
 # =========================================================================== #
+#                          Policy parameters for TD3                          #
+# =========================================================================== #
+
+TD3_PARAMS = dict(
+    # scaling term to the range of the action space, that is subsequently used
+    # as the standard deviation of Gaussian noise added to the action if
+    # `apply_noise` is set to True in `get_action`
+    noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
+)
+
+
+# =========================================================================== #
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
@@ -38,15 +55,6 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # scaling term to the range of the action space, that is subsequently used
-    # as the standard deviation of Gaussian noise added to the action if
-    # `apply_noise` is set to True in `get_action`
-    noise=0.1,
-    # standard deviation term to the noise from the output of the target actor
-    # policy. See TD3 paper for more.
-    target_policy_noise=0.2,
-    # clipping term for the noise injected in the target actor policy
-    target_noise_clip=0.5,
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
@@ -286,6 +294,7 @@ class OffPolicyRLAlgorithm(object):
         else:
             self.policy_kwargs = {}
 
+        self.policy_kwargs.update(TD3_PARAMS)
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose
 
@@ -296,13 +305,13 @@ class OffPolicyRLAlgorithm(object):
         # environments).
         if hasattr(self.env, "horizon"):
             self.horizon = self.env.horizon
+        elif hasattr(self.env, "_max_episode_steps"):
+            self.horizon = self.env._max_episode_steps
         elif hasattr(self.env, "env_params"):
             # for Flow environments
             self.horizon = self.env.env_params.horizon
         else:
-            print("Warning: self.env.horizon not found. Setting self.horizon "
-                  "in the algorithm class to 500.")
-            self.horizon = 500
+            raise ValueError("Environment has not attribute env.horizon")
 
         # init
         self.graph = None
@@ -418,7 +427,8 @@ class OffPolicyRLAlgorithm(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions)
+            random_actions=random_actions
+        )
 
         q_value = self.policy_tf.value(obs, context, action) if compute_q \
             else None
@@ -433,6 +443,7 @@ class OffPolicyRLAlgorithm(object):
                           obs1,
                           context1,
                           terminal1,
+                          is_final_step,
                           evaluate=False):
         """Store a transition in the replay buffer.
 
@@ -448,6 +459,10 @@ class OffPolicyRLAlgorithm(object):
             the current observation
         terminal1 : bool
             is the episode done
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
@@ -457,7 +472,7 @@ class OffPolicyRLAlgorithm(object):
 
         self.policy_tf.store_transition(
             obs0, context0, action, reward, obs1, context1, terminal1,
-            evaluate)
+            is_final_step, evaluate)
 
     def learn(self,
               total_timesteps,
@@ -493,7 +508,8 @@ class OffPolicyRLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval)
+            max_to_keep=total_timesteps // save_interval
+        )
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -696,7 +712,8 @@ class OffPolicyRLAlgorithm(object):
                 reward=reward,
                 obs1=new_obs,
                 context1=context1,
-                terminal1=done and self.episode_step < self.horizon - 1
+                terminal1=done,
+                is_final_step=self.episode_step >= self.horizon - 1
             )
 
             # Book-keeping.

@@ -193,7 +193,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             is set to True.
         """
         super(GoalConditionedPolicy, self).__init__(
-            sess, ob_space, ac_space, co_space)
+            sess=sess,
+            ob_space=ob_space,
+            ac_space=ac_space,
+            co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            verbose=verbose,
+            tau=tau,
+            gamma=gamma,
+            layer_norm=layer_norm,
+            layers=layers,
+            act_fun=act_fun,
+            use_huber=use_huber
+        )
 
         self.meta_period = meta_period
         self.worker_reward_scale = worker_reward_scale
@@ -212,15 +227,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             use_fingerprints, self.fingerprint_dim)
 
         # Manager observation size
-        meta_ob_dim = ob_space.shape[0]
-        if co_space is not None:
-            meta_ob_dim += co_space.shape[0]
+        meta_ob_dim = self._get_ob_dim(ob_space, co_space)
 
         # Create the replay buffer.
         self.replay_buffer = HierReplayBuffer(
             buffer_size=int(buffer_size/meta_period),
             batch_size=batch_size,
-            meta_obs_dim=meta_ob_dim,
+            meta_obs_dim=meta_ob_dim[0],
             meta_ac_dim=manager_ac_space.shape[0],
             worker_obs_dim=ob_space.shape[0] + manager_ac_space.shape[0],
             worker_ac_dim=ac_space.shape[0],
@@ -465,7 +478,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return 0, 0  # FIXME
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """See parent class."""
         # Compute the worker reward and append it to the list of rewards.
         self._worker_rewards.append(
@@ -478,7 +491,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._worker_actions.append(action)
         self._meta_actions.append(self.meta_action.flatten())
         self._observations.append(self._get_obs(obs0, self.meta_action, 0))
-        self._dones.append(done)
+
+        # Modify the done mask in accordance with the TD3 algorithm. Done
+        # masks that correspond to the final step are set to False.
+        self._dones.append(done and not is_final_step)
 
         # Increment the meta reward with the most recent reward.
         self.meta_reward += reward

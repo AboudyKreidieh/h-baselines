@@ -1,13 +1,11 @@
 """TD3-compatible feedforward policy."""
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
-from hbaselines.utils.tf_util import get_target_updates
 from hbaselines.utils.tf_util import reduce_std
 
 
@@ -40,6 +38,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
         target update rate
     gamma : float
         discount factor
+    layer_norm : bool
+        enable layer normalisation
+    act_fun : tf.nn.*
+        the activation function to use in the neural network
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     noise : float
         scaling term to the range of the action space, that is subsequently
         used as the standard deviation of Gaussian noise added to the action if
@@ -49,22 +55,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor policy. See TD3 paper for more.
     target_noise_clip : float
         clipping term for the noise injected in the target actor policy
-    layer_norm : bool
-        enable layer normalisation
-    act_fun : tf.nn.*
-        the activation function to use in the neural network
-    use_huber : bool
-        specifies whether to use the huber distance function as the loss for
-        the critic. If set to False, the mean-squared error metric is used
-        instead
     zero_fingerprint : bool
         whether to zero the last two elements of the observations for the actor
-        and worker computations. Used for the worker policy when fingerprints
+        and critic computations. Used for the worker policy when fingerprints
         are being implemented.
     fingerprint_dim : int
         the number of fingerprint elements in the observation. Used when trying
         to zero the fingerprint elements.
-    replay_buffer : hbaselines.goal_conditioned.replay_buffer.ReplayBuffer
+    replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
         the replay buffer
     terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals
@@ -78,14 +76,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the next step observations
     actor_tf : tf.Variable
         the output from the actor network
-    critic_tf : tf.Variable
-        the output from the critic network
-    critic_with_actor_tf : tf.Variable
-        the output from the critic network with the action provided directly by
-        the actor policy
-    target_q : tf.Variable
-        the Q-value as estimated by the current reward and next step estimate
-        by the target Q-value
+    critic_tf : list of tf.Variable
+        the output from the critic networks. Two networks are used to stabilize
+        training.
+    critic_with_actor_tf : list of tf.Variable
+        the output from the critic networks with the action provided directly
+        by the actor policy
     target_init_updates : tf.Operation
         an operation that sets the values of the trainable parameters of the
         target actor/critic to match those actual actor/critic
@@ -113,13 +109,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise,
-                 target_policy_noise,
-                 target_noise_clip,
                  layer_norm,
                  layers,
                  act_fun,
                  use_huber,
+                 noise,
+                 target_policy_noise,
+                 target_noise_clip,
                  scope=None,
                  zero_fingerprint=False,
                  fingerprint_dim=2):
@@ -150,15 +146,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        noise : float
-            scaling term to the range of the action space, that is subsequently
-            used as the standard deviation of Gaussian noise added to the
-            action if `apply_noise` is set to True in `get_action`
-        target_policy_noise : float
-            standard deviation term to the noise from the output of the target
-            actor policy. See TD3 paper for more.
-        target_noise_clip : float
-            clipping term for the noise injected in the target actor policy
         layer_norm : bool
             enable layer normalisation
         layers : list of int or None
@@ -169,6 +156,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        noise : float
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`
+        target_policy_noise : float
+            standard deviation term to the noise from the output of the target
+            actor policy. See TD3 paper for more.
+        target_noise_clip : float
+            clipping term for the noise injected in the target actor policy
         scope : str
             an upper-level scope term. Used by policies that call this one.
         zero_fingerprint : bool
@@ -184,26 +180,30 @@ class FeedForwardPolicy(ActorCriticPolicy):
         AssertionError
             if the layers is not a list of at least size 1
         """
-        super(FeedForwardPolicy, self).__init__(sess,
-                                                ob_space, ac_space, co_space)
+        super(FeedForwardPolicy, self).__init__(
+            sess=sess,
+            ob_space=ob_space,
+            ac_space=ac_space,
+            co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            verbose=verbose,
+            tau=tau,
+            gamma=gamma,
+            layer_norm=layer_norm,
+            layers=layers,
+            act_fun=act_fun,
+            use_huber=use_huber
+        )
 
         # action magnitudes
         ac_mag = 0.5 * (ac_space.high - ac_space.low)
 
-        self.buffer_size = buffer_size
-        self.batch_size = batch_size
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.verbose = verbose
-        self.layers = layers
-        self.tau = tau
-        self.gamma = gamma
         self.noise = noise * ac_mag
         self.target_policy_noise = np.array([ac_mag * target_policy_noise])
         self.target_noise_clip = np.array([ac_mag * target_noise_clip])
-        self.layer_norm = layer_norm
-        self.act_fun = act_fun
-        self.use_huber = use_huber
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
         assert len(self.layers) >= 1, \
@@ -211,9 +211,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
-        ob_dim = ob_space.shape
-        if co_space is not None:
-            ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
+        ob_dim = self._get_ob_dim(ob_space, co_space)
 
         # =================================================================== #
         # Step 1: Create a replay buffer object.                              #
@@ -298,34 +296,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.compat.v1.variable_scope("loss", reuse=False):
-            q_obs1 = tf.minimum(critic_target[0], critic_target[1])
-            self.target_q = tf.stop_gradient(
-                self.rew_ph + (1. - self.terminals1) * gamma * q_obs1)
-
-            tf.compat.v1.summary.scalar('critic_target',
-                                        tf.reduce_mean(self.target_q))
-
         # Create the target update operations.
-        model_scope = 'model/'
-        target_scope = 'target/'
-        if scope is not None:
-            model_scope = scope + '/' + model_scope
-            target_scope = scope + '/' + target_scope
-        init_updates, soft_updates = get_target_updates(
-            get_trainable_vars(model_scope),
-            get_trainable_vars(target_scope),
-            tau, verbose)
-        self.target_init_updates = init_updates
-        self.target_soft_updates = soft_updates
+        init, soft = self._setup_target_updates(scope, tau, verbose)
+        self.target_init_updates = init
+        self.target_soft_updates = soft
 
         # =================================================================== #
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
-            self._setup_actor_optimizer(scope=scope)
-            self._setup_critic_optimizer(scope=scope)
+            self._setup_actor_optimizer(scope)
+            self._setup_critic_optimizer(critic_target, scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
             tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
 
@@ -365,10 +347,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
             var_list=get_trainable_vars(scope_name)
         )
 
-    def _setup_critic_optimizer(self, scope):
+    def _setup_critic_optimizer(self, critic_target, scope):
         """Create the critic loss, gradient, and optimizer."""
         if self.verbose >= 2:
             print('setting up critic optimizer')
+
+        # compute the target critic term
+        with tf.compat.v1.variable_scope("loss", reuse=False):
+            q_obs1 = tf.minimum(critic_target[0], critic_target[1])
+            target_q = tf.stop_gradient(
+                self.rew_ph + (1. - self.terminals1) * self.gamma * q_obs1)
+
+            tf.compat.v1.summary.scalar('critic_target',
+                                        tf.reduce_mean(target_q))
 
         # choose the loss function
         if self.use_huber:
@@ -377,8 +368,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             loss_fn = tf.compat.v1.losses.mean_squared_error
 
         self.critic_loss = \
-            loss_fn(self.critic_tf[0], self.target_q) + \
-            loss_fn(self.critic_tf[1], self.target_q)
+            loss_fn(self.critic_tf[0], target_q) + \
+            loss_fn(self.critic_tf[1], target_q)
 
         self.critic_optimizer = []
 
@@ -423,32 +414,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # zero out the fingerprint observations for the worker policy
             if self.zero_fingerprint:
-                ob_dim = self.ob_space.shape[0]
-                co_dim = self.co_space.shape[0]
-                pi_h *= tf.constant([1.0] * (ob_dim - self.fingerprint_dim)
-                                    + [0.0] * self.fingerprint_dim
-                                    + [1.0] * co_dim)
+                pi_h = self._remove_fingerprint(
+                    pi_h,
+                    self.ob_space.shape[0],
+                    self.fingerprint_dim,
+                    self.co_space.shape[0]
+                )
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = tf.layers.dense(
-                    pi_h,
-                    layer_size,
-                    name='fc' + str(i),
-                    kernel_initializer=slim.variance_scaling_initializer(
-                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
-                if self.layer_norm:
-                    pi_h = tf.contrib.layers.layer_norm(
-                        pi_h, center=True, scale=True)
-                pi_h = self.act_fun(pi_h)
+                pi_h = self._layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
 
             # create the output layer
-            policy = tf.nn.tanh(tf.layers.dense(
-                pi_h,
-                self.ac_space.shape[0],
-                name='output',
+            policy = self._layer(
+                pi_h, self.ac_space.shape[0], 'output',
+                act_fun=tf.nn.tanh,
                 kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)))
+                    minval=-3e-3, maxval=3e-3)
+            )
 
             # scaling terms to the output from the policy
             ac_means = (self.ac_space.high + self.ac_space.low) / 2.
@@ -483,33 +470,27 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # zero out the fingerprint observations for the worker policy
             if self.zero_fingerprint:
-                ob_dim = self.ob_space.shape[0]
-                co_dim = self.co_space.shape[0]
-                ac_dim = self.ac_space.shape[0]
-                qf_h *= tf.constant([1.0] * (ob_dim - self.fingerprint_dim)
-                                    + [0.0] * self.fingerprint_dim
-                                    + [1.0] * (co_dim + ac_dim))
+                qf_h = self._remove_fingerprint(
+                    qf_h,
+                    self.ob_space.shape[0],
+                    self.fingerprint_dim,
+                    self.co_space.shape[0] + self.ac_space.shape[0]
+                )
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = tf.layers.dense(
-                    qf_h,
-                    layer_size,
-                    name='fc' + str(i),
-                    kernel_initializer=slim.variance_scaling_initializer(
-                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True))
-                if self.layer_norm:
-                    qf_h = tf.contrib.layers.layer_norm(
-                        qf_h, center=True, scale=True)
-                qf_h = self.act_fun(qf_h)
+                qf_h = self._layer(
+                    qf_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
 
             # create the output layer
-            qvalue_fn = tf.layers.dense(
-                qf_h,
-                1,
-                name='qf_output',
+            qvalue_fn = self._layer(
+                qf_h, 1, 'qf_output',
                 kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3))
+                    minval=-3e-3, maxval=3e-3)
+            )
 
         return qvalue_fn
 
@@ -537,9 +518,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
+        return self.update_from_batch(obs0, actions, rewards, obs1, done1,
                                       update_actor=update_actor)
 
     def update_from_batch(self,
@@ -635,12 +616,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.
             obs0 = self._get_obs(obs0, context0, axis=0)
             obs1 = self._get_obs(obs1, context1, axis=0)
+
+            # Modify the done mask in accordance with the TD3 algorithm. Done
+            # masks that correspond to the final step are set to False.
+            done = done and not is_final_step
 
             self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
@@ -699,10 +684,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.get_td_map_from_batch(
-            obs0, actions, rewards, obs1, terminals1)
+        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
 
     def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Convert a batch to a td_map."""

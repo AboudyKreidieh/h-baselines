@@ -8,6 +8,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -21,7 +22,9 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'verbose': 2,
         }
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -57,6 +60,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
             'scope': None,
             'verbose': 2,
         }
+        self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
     def tearDown(self):
@@ -168,6 +172,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
             'layers': None,
             'verbose': 2,
         }
+        self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
 
     def tearDown(self):
