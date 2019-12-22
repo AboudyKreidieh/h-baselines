@@ -684,10 +684,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.get_td_map_from_batch(
-            obs0, actions, rewards, obs1, terminals1)
+        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
 
     def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Convert a batch to a td_map."""

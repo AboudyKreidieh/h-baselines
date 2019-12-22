@@ -22,6 +22,23 @@ from hbaselines.utils.misc import ensure_dir, create_env
 
 
 # =========================================================================== #
+#                          Policy parameters for TD3                          #
+# =========================================================================== #
+
+TD3_PARAMS = dict(
+    # scaling term to the range of the action space, that is subsequently used
+    # as the standard deviation of Gaussian noise added to the action if
+    # `apply_noise` is set to True in `get_action`
+    noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
+)
+
+
+# =========================================================================== #
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
@@ -38,15 +55,6 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # scaling term to the range of the action space, that is subsequently used
-    # as the standard deviation of Gaussian noise added to the action if
-    # `apply_noise` is set to True in `get_action`
-    noise=0.1,
-    # standard deviation term to the noise from the output of the target actor
-    # policy. See TD3 paper for more.
-    target_policy_noise=0.2,
-    # clipping term for the noise injected in the target actor policy
-    target_noise_clip=0.5,
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
@@ -286,6 +294,7 @@ class OffPolicyRLAlgorithm(object):
         else:
             self.policy_kwargs = {}
 
+        self.policy_kwargs.update(TD3_PARAMS)
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose
 

@@ -10,6 +10,7 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -66,6 +67,7 @@ class TestTD3(unittest.TestCase):
 
         # check the policy_kwargs term
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
@@ -123,6 +125,7 @@ class TestTD3(unittest.TestCase):
 
         # check the policy_kwargs term
         policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)

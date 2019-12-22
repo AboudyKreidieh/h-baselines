@@ -1,7 +1,8 @@
 """Utility methods when performing training."""
 import argparse
-from hbaselines.algorithms.off_policy import FeedForwardPolicy
-from hbaselines.algorithms.off_policy import GoalConditionedPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -103,6 +104,7 @@ def parse_options(description, example_usage, args):
              'the model is saved')
 
     # algorithm-specific hyperparameters
+    parser = create_algorithm_parser(parser)
     parser = create_td3_parser(parser)
     parser = create_feedforward_parser(parser)
     parser = create_goal_conditioned_parser(parser)
@@ -112,8 +114,8 @@ def parse_options(description, example_usage, args):
     return flags
 
 
-def create_td3_parser(parser):
-    """Add the TD3 hyperparameters to the parser."""
+def create_algorithm_parser(parser):
+    """Add the algorithm hyperparameters to the parser."""
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')
@@ -150,8 +152,33 @@ def create_td3_parser(parser):
     return parser
 
 
+def create_td3_parser(parser):
+    """Add the TD3 hyperparameters to the parser."""
+    parser.add_argument(
+        "--noise",
+        type=float,
+        default=TD3_PARAMS["noise"],
+        help="scaling term to the range of the action space, that is "
+             "subsequently used as the standard deviation of Gaussian noise "
+             "added to the action if `apply_noise` is set to True in "
+             "`get_action`")
+    parser.add_argument(
+        "--target_policy_noise",
+        type=float,
+        default=TD3_PARAMS["target_policy_noise"],
+        help="standard deviation term to the noise from the output of the "
+             "target actor policy. See TD3 paper for more.")
+    parser.add_argument(
+        "--target_noise_clip",
+        type=float,
+        default=TD3_PARAMS["target_noise_clip"],
+        help="clipping term for the noise injected in the target actor policy")
+
+    return parser
+
+
 def create_feedforward_parser(parser):
-    """Add the TD3 goal-conditioned policy hyperparameters to the parser."""
+    """Add the feedforward policy hyperparameters to the parser."""
     parser.add_argument(
         "--buffer_size",
         type=int,
@@ -183,25 +210,6 @@ def create_feedforward_parser(parser):
         default=FEEDFORWARD_PARAMS["gamma"],
         help="the discount rate")
     parser.add_argument(
-        "--noise",
-        type=float,
-        default=FEEDFORWARD_PARAMS["noise"],
-        help="scaling term to the range of the action space, that is "
-             "subsequently used as the standard deviation of Gaussian noise "
-             "added to the action if `apply_noise` is set to True in "
-             "`get_action`")
-    parser.add_argument(
-        "--target_policy_noise",
-        type=float,
-        default=FEEDFORWARD_PARAMS["target_policy_noise"],
-        help="standard deviation term to the noise from the output of the "
-             "target actor policy. See TD3 paper for more.")
-    parser.add_argument(
-        "--target_noise_clip",
-        type=float,
-        default=FEEDFORWARD_PARAMS["target_noise_clip"],
-        help="clipping term for the noise injected in the target actor policy")
-    parser.add_argument(
         "--layer_norm",
         action="store_true",
         help="enable layer normalisation")
@@ -216,7 +224,7 @@ def create_feedforward_parser(parser):
 
 
 def create_goal_conditioned_parser(parser):
-    """Add the TD3 goal-conditioned policy hyperparameters to the parser."""
+    """Add the goal-conditioned policy hyperparameters to the parser."""
     parser.add_argument(
         "--meta_period",
         type=int,
