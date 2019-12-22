@@ -413,6 +413,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Update the Manager policy.
         if kwargs['update_meta']:
+            # Replace the goals with the most likely goals.
+            if self.off_policy_corrections:
+                meta_act = self._sample_best_meta_action(
+                    state_reps=None,  # FIXME
+                    next_state_reprs=None,  # FIXME
+                    prev_meta_actions=None,  # FIXME
+                    low_states=None,  # FIXME
+                    low_actions=None,  # FIXME
+                    low_state_reprs=None,  # FIXME
+                    k=8
+                )
+
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
@@ -427,6 +439,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     worker_actions=worker_act,
                 )
             else:
+                # Perform the regular manager update procedure.
                 m_critic_loss, m_actor_loss = self.manager.update_from_batch(
                     obs0=meta_obs0,
                     actions=meta_act,
