@@ -1,4 +1,4 @@
-"""TD3-compatible goal-conditioned policy."""
+"""TD3-compatible goal-conditioned hierarchical policy."""
 import tensorflow as tf
 import numpy as np
 
@@ -11,7 +11,7 @@ from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):
-    """Goal-conditioned hierarchical reinforcement learning model.
+    r"""Goal-conditioned hierarchical reinforcement learning model.
 
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
@@ -158,8 +158,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             clipping term for the noise injected in the target actor policy
         layer_norm : bool
             enable layer normalisation
-        reuse : bool
-            if the policy is reusable or not
         layers : list of int or None
             the size of the neural network for the policy
         act_fun : tf.nn.*
@@ -268,6 +266,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_fingerprint=False,
+                fingerprint_dim=self.fingerprint_dim[0],
             )
 
         # a fixed goal transition function for the meta-actions in between meta
@@ -342,6 +341,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
                 zero_fingerprint=self.use_fingerprints,
+                fingerprint_dim=self.fingerprint_dim[0],
             )
 
         # Collect the state indices for the worker rewards.
