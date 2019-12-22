@@ -6,12 +6,13 @@ import shutil
 import os
 import csv
 
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestTD3(unittest.TestCase):
@@ -24,7 +25,6 @@ class TestTD3(unittest.TestCase):
             'policy': None,
             'env': 'MountainCarContinuous-v0',
             'eval_env': None,
-            'num_cpus': 1,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -41,12 +41,11 @@ class TestTD3(unittest.TestCase):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Test the attribute values.
         self.assertEqual(alg.policy, self.init_parameters['policy'])
         self.assertEqual(alg.eval_env, self.init_parameters['eval_env'])
-        self.assertEqual(alg.num_cpus, self.init_parameters['num_cpus'])
         self.assertEqual(alg.nb_train_steps,
                          self.init_parameters['nb_train_steps'])
         self.assertEqual(alg.nb_rollout_steps,
@@ -64,10 +63,11 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
@@ -121,10 +121,11 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
@@ -216,7 +217,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Run the learn operation for zero timesteps.
         alg.learn(0, log_dir='results', start_timesteps=0)
@@ -272,7 +273,7 @@ class TestTD3(unittest.TestCase):
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['nb_rollout_steps'] = 1
         policy_params['policy_kwargs'] = {'use_fingerprints': True}
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Test the observation spaces of the manager and worker, as well as the
         # context space of the worker and action space of the manager.
@@ -319,7 +320,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # test for one evaluation environment
         rewards = [0, 1, 2]

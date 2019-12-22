@@ -122,11 +122,11 @@ execute the `learn` method, providing the algorithm the proper policy
 along the process:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
-alg = TD3(policy=FeedForwardPolicy, env="AntGather")
+alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -135,7 +135,7 @@ alg.learn(total_timesteps=1000000)
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.fcnet.base.ActorCriticPolicy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
@@ -171,7 +171,7 @@ The feed-forward policy can be imported by including the following
 script:
 
 ```python
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -212,11 +212,11 @@ like to train a fully connected network with a hidden size of [64, 64],
 this could be done let so:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # create the algorithm object, 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
     policy_kwargs={
@@ -233,7 +233,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -246,7 +246,7 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
@@ -270,7 +270,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -281,10 +281,10 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -336,10 +336,10 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -352,10 +352,10 @@ alg = TD3(
 TODO
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -384,10 +384,10 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
-alg = TD3(
+alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
@@ -411,18 +411,6 @@ found below.
 ### MuJoCo Environments
 
 <img src="docs/img/mujoco-envs.png"/>
-
-<!--**Pendulum** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
-
-<!--**UR5** -->
-
-<!--This task was initially provided by [5].-->
-
-<!--blank-->
 
 **AntGather**
 
@@ -507,8 +495,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: blank
-* ring1: blank
+* ring0: TODO
 
 **Figure Eight**
 
@@ -614,11 +601,11 @@ This benchmark consists of the following variations:
 
 This task was initially provided by [9].
 
-blank
+TODO
 
 This benchmark consists of the following variations:
 
-* highway0: blank
+* highway0: TODO
 
 ## Citing
 
@@ -647,7 +634,8 @@ Machine Learning-Volume 70. JMLR. org, 2017.
 [3] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement learning."
 Advances in Neural Information Processing Systems. 2018.
 
-[4] TODO: HRL-CG
+[4] Kreidieh, Abdul Rahmnan, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 
 [5] Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight." 
 (2018).

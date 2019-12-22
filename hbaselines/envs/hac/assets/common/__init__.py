@@ -34,5 +34,5 @@ ASSETS = {filename: resources.GetResource(os.path.join(_SUITE_DIR, filename))
 
 
 def read_model(model_filename):
-    """Reads a model XML file and returns its contents as a string."""
+    """Read a model XML file and returns its contents as a string."""
     return resources.GetResource(os.path.join(_SUITE_DIR, model_filename))

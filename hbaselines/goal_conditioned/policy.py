@@ -4,9 +4,9 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 from functools import reduce
 
-from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.tf_util import get_target_updates
-from hbaselines.goal_conditioned.tf_util import reduce_std
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import get_target_updates
+from hbaselines.utils.tf_util import reduce_std
 from hbaselines.goal_conditioned.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance

@@ -15,10 +15,27 @@ from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.goal_conditioned.tf_util import make_session
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
+from hbaselines.utils.tf_util import make_session
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.utils.misc import ensure_dir, create_env
+
+
+# =========================================================================== #
+#                          Policy parameters for TD3                          #
+# =========================================================================== #
+
+TD3_PARAMS = dict(
+    # scaling term to the range of the action space, that is subsequently used
+    # as the standard deviation of Gaussian noise added to the action if
+    # `apply_noise` is set to True in `get_action`
+    noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
+)
 
 
 # =========================================================================== #
@@ -38,15 +55,6 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # scaling term to the range of the action space, that is subsequently used
-    # as the standard deviation of Gaussian noise added to the action if
-    # `apply_noise` is set to True in `get_action`
-    noise=0.1,
-    # standard deviation term to the noise from the output of the target actor
-    # policy. See TD3 paper for more.
-    target_policy_noise=0.2,
-    # clipping term for the noise injected in the target actor policy
-    target_noise_clip=0.5,
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
@@ -84,7 +92,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # Worker critic functions
     centralized_value_functions=False,
     # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: TODO
+    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
     # weights for the gradients of the loss of the worker with respect to the
     # parameters of the manager. Only used if `connected_gradients` is set to
@@ -93,22 +101,20 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 ))
 
 
-class TD3(object):
+class OffPolicyRLAlgorithm(object):
     """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
 
     See: https://arxiv.org/pdf/1802.09477.pdf
 
     Attributes
     ----------
-    policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
+    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the Manager
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
-    num_cpus : int
-        number of CPUs to be used during the training procedure
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
     nb_train_steps : int
@@ -149,7 +155,7 @@ class TD3(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.goal_conditioned.policy.ActorCriticPolicy
+    policy_tf : hbaselines.fcnet.base.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -212,7 +218,6 @@ class TD3(object):
     def __init__(self,
                  policy,
                  env,
-                 num_cpus=1,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -229,13 +234,10 @@ class TD3(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.goal_conditioned.policy.ActorCriticPolicy ]
+        policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
-        num_cpus : int, optional
-            number of CPUs to be used during the training procedure. Defaults
-            to 1.
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -269,7 +271,6 @@ class TD3(object):
         self.policy = policy
         self.env_name = deepcopy(env)
         self.env = create_env(env, render, evaluate=False)
-        self.num_cpus = num_cpus
         self.eval_env = create_env(eval_env, render_eval, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -293,6 +294,7 @@ class TD3(object):
         else:
             self.policy_kwargs = {}
 
+        self.policy_kwargs.update(TD3_PARAMS)
         self.policy_kwargs.update(policy_kwargs or {})
         self.policy_kwargs['verbose'] = verbose
 
@@ -303,13 +305,13 @@ class TD3(object):
         # environments).
         if hasattr(self.env, "horizon"):
             self.horizon = self.env.horizon
+        elif hasattr(self.env, "_max_episode_steps"):
+            self.horizon = self.env._max_episode_steps
         elif hasattr(self.env, "env_params"):
             # for Flow environments
             self.horizon = self.env.env_params.horizon
         else:
-            print("Warning: self.env.horizon not found. Setting self.horizon "
-                  "in the algorithm class to 500.")
-            self.horizon = 500
+            raise ValueError("Environment has not attribute env.horizon")
 
         # init
         self.graph = None
@@ -356,7 +358,6 @@ class TD3(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
-            # self.sess = make_session(num_cpu=self.num_cpus, graph=self.graph)
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
             # Create the policy.
@@ -426,7 +427,8 @@ class TD3(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions)
+            random_actions=random_actions
+        )
 
         q_value = self.policy_tf.value(obs, context, action) if compute_q \
             else None
@@ -441,6 +443,7 @@ class TD3(object):
                           obs1,
                           context1,
                           terminal1,
+                          is_final_step,
                           evaluate=False):
         """Store a transition in the replay buffer.
 
@@ -456,6 +459,10 @@ class TD3(object):
             the current observation
         terminal1 : bool
             is the episode done
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
@@ -465,7 +472,7 @@ class TD3(object):
 
         self.policy_tf.store_transition(
             obs0, context0, action, reward, obs1, context1, terminal1,
-            evaluate)
+            is_final_step, evaluate)
 
     def learn(self,
               total_timesteps,
@@ -501,7 +508,8 @@ class TD3(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval)
+            max_to_keep=total_timesteps // save_interval
+        )
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -704,7 +712,8 @@ class TD3(object):
                 reward=reward,
                 obs1=new_obs,
                 context1=context1,
-                terminal1=done and self.episode_step < self.horizon - 1
+                terminal1=done,
+                is_final_step=self.episode_step >= self.horizon - 1
             )
 
             # Book-keeping.

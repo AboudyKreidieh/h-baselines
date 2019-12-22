@@ -56,25 +56,28 @@ class AntMazeEnv(gym.Env):
         Parameters
         ----------
         maze_id : str
-            TODO
+            the type of maze being simulated. Can be 'Maze', 'Push', 'Fall', or
+            'Block'.
         maze_height : float, optional
-            TODO
+            height of the floor
         maze_size_scaling : float, optional
-            TODO
+            scaling factor for the maze. Specifies the size of one block.
         n_bins : int, optional
-            TODO
+            number of vieable objects
         sensor_range : float, optional
-            TODO
+            distance whereby objects can be perceived. Must be within the span
+            as well.
         sensor_span : float, optional
-            TODO
+            degrees of visibility
         observe_blocks : bool, optional
-            TODO
+            whether to add the movable blocks to the observations
         put_spin_near_agent : bool, optional
-            TODO
+            specifies whether the agent can spin blocks
         top_down_view : bool, optional
-            TODO
+            if set to True, the top-down view is provided via the observations
         manual_collision : bool, optional
-            TODO
+            if set to True, collisions cause the agent to return to its prior
+            position
         """
         self._maze_id = maze_id
 
