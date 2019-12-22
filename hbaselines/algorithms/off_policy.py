@@ -49,7 +49,7 @@ TD3_PARAMS = dict(
 
 SAC_PARAMS = dict(
     # TODO
-    target_entropy='auto',
+    target_entropy=None,
 )
 
 

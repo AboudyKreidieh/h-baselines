@@ -1,3 +1,4 @@
+"""SAC-compatible feedforward policy."""
 import tensorflow as tf
 import numpy as np
 from functools import reduce
@@ -45,6 +46,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    target_entropy : float
+        TODO
     zero_fingerprint : bool
         whether to zero the last two elements of the observations for the actor
         and critic computations. Used for the worker policy when fingerprints
@@ -66,7 +69,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the next step observations
     actor_tf : tf.Variable
         the output from the actor network
-    pi_mean : tf.Varaible
+    pi_mean : tf.Variable
         the output mean from the actor policy
     pi_logstd : tf.Variable
         the output log standard deviation from the actor policy
@@ -111,6 +114,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 target_entropy,
                  scope=None,
                  zero_fingerprint=False,
                  fingerprint_dim=2):
@@ -151,6 +155,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        target_entropy : float
+            TODO
         scope : str
             an upper-level scope term. Used by policies that call this one.
         zero_fingerprint : bool
@@ -183,6 +189,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             act_fun=act_fun,
             use_huber=use_huber
         )
+
+        if target_entropy is None:
+            self.target_entropy = -np.prod(self.ac_space.shape)
+        else:
+            self.target_entropy = target_entropy
 
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
@@ -328,11 +339,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             initializer=0.0)
         self.alpha = tf.exp(log_alpha)
 
-        self._target_entropy = -np.prod(self.ac_space.shape)
-
         # Compute the temperature loss. TODO: log
         self.alpha_loss = \
-            log_alpha * tf.stop_gradient(self.log_pi + self._target_entropy)
+            log_alpha * tf.stop_gradient(self.log_pi + self.target_entropy)
 
         # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -607,7 +616,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.
@@ -671,10 +680,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.get_td_map_from_batch(
-            obs0, actions, rewards, obs1, terminals1)
+        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
 
     def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Convert a batch to a td_map."""
