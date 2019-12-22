@@ -1,4 +1,5 @@
 """Script containing the ReplayBuffer object."""
+import random
 import numpy as np
 
 
@@ -22,13 +23,15 @@ class ReplayBuffer(object):
         """
         self._maxsize = buffer_size
         self._size = 0
+        self._current_idx = 0
         self._next_idx = 0
         self._batch_size = batch_size
 
         self.obs_t = np.zeros((buffer_size, obs_dim), dtype=np.float32)
-        self.action = np.zeros((buffer_size, ac_dim), dtype=np.float32)
+        self.action_t = np.zeros((buffer_size, ac_dim), dtype=np.float32)
         self.reward = np.zeros(buffer_size, dtype=np.float32)
         self.obs_tp1 = np.zeros((buffer_size, obs_dim), dtype=np.float32)
+        self.action_tp1 = np.zeros((buffer_size, ac_dim), dtype=np.float32)
         self.done = np.zeros(buffer_size, dtype=np.float32)
 
     def __len__(self):
@@ -77,19 +80,22 @@ class ReplayBuffer(object):
             is the episode done
         """
         self.obs_t[self._next_idx, :] = obs_t
-        self.action[self._next_idx, :] = action
+        self.action_t[self._next_idx, :] = action
         self.reward[self._next_idx] = reward
         self.obs_tp1[self._next_idx, :] = obs_tp1
+        self.action_tp1[self._current_idx] = action
         self.done[self._next_idx] = done
 
         # Increment the next index and size terms
+        self._current_idx = self._next_idx
         self._next_idx = (self._next_idx + 1) % self._maxsize
         self._size = min(self._size + 1, self._maxsize)
 
     def _encode_sample(self, idxes):
         """Convert the indices to appropriate samples."""
-        return self.obs_t[idxes, :], self.action[idxes, :], \
-            self.reward[idxes], self.obs_tp1[idxes, :], self.done[idxes]
+        return self.obs_t[idxes, :], self.action_t[idxes, :], \
+            self.reward[idxes], self.obs_tp1[idxes, :], \
+            self.action_tp1[idxes, :], self.done[idxes]
 
     def sample(self, **_kwargs):
         """Sample a batch of experiences.
@@ -104,9 +110,16 @@ class ReplayBuffer(object):
             rewards received as results of executing act_batch
         np.ndarray
             next set of observations seen after executing act_batch
+        numpy float
+            batch of actions executed given next obs_batch
         numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
         """
-        indices = np.random.randint(0, self._size, size=self._batch_size)
+        # Choose from a list of all values except the current one, which will
+        # not have a proper next action value.
+        possible_indices = np.arange(self._size)
+        possible_indices = np.delete(possible_indices, self._current_idx)
+        indices = random.choices(possible_indices, k=self._batch_size)
+
         return self._encode_sample(indices)
