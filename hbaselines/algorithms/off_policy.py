@@ -313,7 +313,6 @@ class OffPolicyRLAlgorithm(object):
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
 
-        self.policy_kwargs.update(TD3_PARAMS)
         self.policy_kwargs.update(policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
