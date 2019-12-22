@@ -518,9 +518,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
+        return self.update_from_batch(obs0, actions, rewards, obs1, done1,
                                       update_actor=update_actor)
 
     def update_from_batch(self,
@@ -616,12 +616,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, evaluate=False):
+                         done, is_final_step, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.
             obs0 = self._get_obs(obs0, context0, axis=0)
             obs1 = self._get_obs(obs1, context1, axis=0)
+
+            # Modify the done mask in accordance with the TD3 algorithm. Done
+            # masks that correspond to the final step are set to False.
+            done = done and not is_final_step
 
             self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
@@ -680,10 +684,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.get_td_map_from_batch(
-            obs0, actions, rewards, obs1, terminals1)
+        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
 
     def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
         """Convert a batch to a td_map."""

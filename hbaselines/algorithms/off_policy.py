@@ -313,6 +313,7 @@ class OffPolicyRLAlgorithm(object):
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
 
+        self.policy_kwargs.update(TD3_PARAMS)
         self.policy_kwargs.update(policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
@@ -322,13 +323,13 @@ class OffPolicyRLAlgorithm(object):
         # environments).
         if hasattr(self.env, "horizon"):
             self.horizon = self.env.horizon
+        elif hasattr(self.env, "_max_episode_steps"):
+            self.horizon = self.env._max_episode_steps
         elif hasattr(self.env, "env_params"):
             # for Flow environments
             self.horizon = self.env.env_params.horizon
         else:
-            print("Warning: self.env.horizon not found. Setting self.horizon "
-                  "in the algorithm class to 500.")
-            self.horizon = 500
+            raise ValueError("Environment has not attribute env.horizon")
 
         # init
         self.graph = None
@@ -444,7 +445,8 @@ class OffPolicyRLAlgorithm(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions)
+            random_actions=random_actions
+        )
 
         q_value = self.policy_tf.value(obs, context, action) if compute_q \
             else None
@@ -459,6 +461,7 @@ class OffPolicyRLAlgorithm(object):
                           obs1,
                           context1,
                           terminal1,
+                          is_final_step,
                           evaluate=False):
         """Store a transition in the replay buffer.
 
@@ -474,6 +477,10 @@ class OffPolicyRLAlgorithm(object):
             the current observation
         terminal1 : bool
             is the episode done
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
@@ -483,7 +490,7 @@ class OffPolicyRLAlgorithm(object):
 
         self.policy_tf.store_transition(
             obs0, context0, action, reward, obs1, context1, terminal1,
-            evaluate)
+            is_final_step, evaluate)
 
     def learn(self,
               total_timesteps,
@@ -519,7 +526,8 @@ class OffPolicyRLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval)
+            max_to_keep=total_timesteps // save_interval
+        )
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -722,7 +730,8 @@ class OffPolicyRLAlgorithm(object):
                 reward=reward,
                 obs1=new_obs,
                 context1=context1,
-                terminal1=done and self.episode_step < self.horizon - 1
+                terminal1=done,
+                is_final_step=self.episode_step >= self.horizon - 1
             )
 
             # Book-keeping.
@@ -869,8 +878,9 @@ class OffPolicyRLAlgorithm(object):
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
                 # of the policy.
-                self._store_transition(eval_obs, context0, eval_action, eval_r,
-                                       obs, context1, False, evaluate=True)
+                self._store_transition(eval_obs, context0, eval_action,
+                                       eval_r, obs, context1,
+                                       False, False, evaluate=True)
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
