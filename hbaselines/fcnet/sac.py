@@ -252,7 +252,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.compat.v1.variable_scope("model", reuse=False):
-            # Create the actor networks. TODO: add mean and std to logging
+            # Create the actor networks.
             self.actor_tf, log_pi_fn = self.make_actor(self.obs_ph)
 
             # Prepare operations for computing the log probability of current
@@ -301,6 +301,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(critic_target, scope)
+            tf.compat.v1.summary.scalar('alpha_loss', self.alpha_loss)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
             tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
 
@@ -336,7 +337,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             initializer=0.0)
         self.alpha = tf.exp(log_alpha)
 
-        # Compute the temperature loss. TODO: log
+        # Compute the temperature loss.
         self.alpha_loss = -tf.reduce_mean(
             log_alpha * tf.stop_gradient(self.log_pi + self.target_entropy))
 
