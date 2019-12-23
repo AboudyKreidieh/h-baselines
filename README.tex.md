@@ -115,7 +115,7 @@ goal-conditioned hierarchical reinforcement learning models.
 
 This repository supports the training of policies via two state-of-the-art 
 off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
-[SAC]().
+[SAC](https://arxiv.org/pdf/1801.01290.pdf).
 
 To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
