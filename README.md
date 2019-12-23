@@ -19,7 +19,7 @@ available [here]().
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [TD3](#td3)
-  * [Fuly Connected Neural Networks](#fully-connected-neural-networks)
+  * [Fully Connected Neural Networks](#fully-connected-neural-networks)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
