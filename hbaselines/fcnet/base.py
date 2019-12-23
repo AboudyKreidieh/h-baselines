@@ -348,8 +348,8 @@ class ActorCriticPolicy(object):
         tf.Operation
             soft target update operations
         """
-        model_scope = 'model/'
-        target_scope = 'target/'
+        model_scope = 'model/qf'
+        target_scope = 'target/qf'
         if scope is not None:
             model_scope = scope + '/' + model_scope
             target_scope = scope + '/' + target_scope

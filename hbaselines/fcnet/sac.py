@@ -1,5 +1,6 @@
 """SAC-compatible feedforward policy."""
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 from functools import reduce
 
@@ -69,10 +70,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the next step observations
     actor_tf : tf.Variable
         the output from the actor network
-    pi_mean : tf.Variable
-        the output mean from the actor policy
-    pi_logstd : tf.Variable
-        the output log standard deviation from the actor policy
     log_pi : tf.Operation
         operation for computing the log probability, mapped to action_ph
     next_log_pi : tf.Operation
@@ -256,18 +253,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Create networks and core TF parts that are shared across setup parts.
         with tf.compat.v1.variable_scope("model", reuse=False):
             # Create the actor networks. TODO: add mean and std to logging
-            self.actor_tf, self.pi_mean, self.pi_logstd = self.make_actor(
-                self.obs_ph
-            )
+            self.actor_tf, log_pi_fn = self.make_actor(self.obs_ph)
 
-            # Prepare operations for computing the log probability of certain
-            # actions.
-            p = tf.contrib.distributions.MultivariateNormalDiag(
-                loc=self.pi_mean,
-                scale_diag=tf.exp(self.pi_logstd)
-            )
-            self.log_pi = p.log_prob(self.action_ph)
-            self.next_log_pi = p.log_prob(self.action1_ph)
+            # Prepare operations for computing the log probability of current
+            # step actions.
+            self.log_pi = log_pi_fn(self.action_ph)
+            assert self.log_pi.shape.as_list() == [None, 1]
 
             # Create the critic networks.
             self.critic_tf = [
@@ -281,10 +272,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for i in range(2)
             ]
 
-        with tf.compat.v1.variable_scope("target", reuse=False):
             # create the target actor policy
-            actor_target = self.make_actor(self.obs1_ph)
+            actor_target, next_log_pi_fn = self.make_actor(
+                self.obs1_ph, reuse=True)
 
+            # Prepare operations for computing the log probability of next step
+            # actions.
+            self.next_log_pi = next_log_pi_fn(self.action1_ph)
+            assert self.next_log_pi.shape.as_list() == [None, 1]
+
+        with tf.compat.v1.variable_scope("target", reuse=False):
             # create the target critic policies
             critic_target = [
                 self.make_critic(self.obs1_ph, actor_target,
@@ -340,8 +337,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.alpha = tf.exp(log_alpha)
 
         # Compute the temperature loss. TODO: log
-        self.alpha_loss = \
-            log_alpha * tf.stop_gradient(self.log_pi + self.target_entropy)
+        self.alpha_loss = -tf.reduce_mean(
+            log_alpha * tf.stop_gradient(self.log_pi + self.target_entropy))
 
         # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -423,10 +420,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         -------
         tf.Variable
             the output from the stochastic actor
-        tf.Variable
-            the output mean from the actor policy
-        tf.Variable
-            the output log standard deviation from the actor policy
+        function
+            a function that creates tf.Operations for computing the log
+            probability of certain actions
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
@@ -449,17 +445,62 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 )
 
             # Create the output from the feedforward network.
-            output = self._layer(pi_h, 2 * self.ac_space.shape[0], 'output')
+            output = self._layer(
+                pi_h, 2 * self.ac_space.shape[0], 'output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
 
             # Extract the mean and log std from the network.
             pi_mean, pi_logstd = tf.split(output, 2, axis=-1)
 
-            # The stochastic actor samples from the base distribution and
-            # scales it by the mean and log standard deviation.
-            policy = pi_mean + tf.exp(pi_logstd) \
-                * tf.random_normal(shape=[self.ac_space.shape[0]])
+            # scaling terms to the output from the policy
+            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-        return policy, pi_mean, pi_logstd
+            # the base multivariate Gaussian to the distribution
+            base_distribution = tfp.distributions.MultivariateNormalDiag(
+                loc=tf.zeros(self.ac_space.shape[0]),
+                scale_diag=tf.ones(self.ac_space.shape[0]))
+
+            # We include a tanh bijector to match the squashed properties of
+            # the actual policy.
+            squash_bijector = tfp.bijectors.Tanh()
+
+            # A second bijector is used to scale the output by a the
+            # environment's action space.
+            ac_space_bijector = tfp.bijectors.Affine(
+                shift=ac_means,
+                scale_diag=ac_magnitudes,
+            )
+
+            # A third bijector is used to scale the actions from the Gaussian
+            # by the policy's mean and standard deviation.
+            policy_scale_bijector = tfp.bijectors.Affine(
+                shift=pi_mean,
+                scale_diag=tf.exp(pi_logstd),
+            )
+
+            # Combine the three bijectors and create the final distribution
+            bijector = tfp.bijectors.Chain((
+                ac_space_bijector,
+                squash_bijector,
+                policy_scale_bijector,
+            ))
+
+            distribution = tfp.distributions.TransformedDistribution(
+                distribution=base_distribution,
+                bijector=bijector
+            )
+
+            # Create the policy object.
+            policy = distribution.sample([1])
+
+            # Compute the log probabilities given the action placeholder.
+            def log_pis_fn(action_ph):
+                return distribution.log_prob(action_ph)[:, None]
+
+        return policy, log_pis_fn
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -525,18 +566,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, actions1, terminals1 = \
-            self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, actions1,
-                                      terminals1)
+        return self.update_from_batch(obs0, actions, rewards, obs1, done1)
 
     def update_from_batch(self,
                           obs0,
                           actions,
                           rewards,
                           obs1,
-                          actions1,
                           terminals1):
         """Perform gradient update step given a batch of data.
 
@@ -550,8 +588,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             rewards received as results of executing act_batch
         obs1 : np.ndarray
             next set of observations seen after executing act_batch
-        actions1 : numpy float
-            batch of next step actions executed
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
@@ -566,6 +602,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
+
+        # Compute the next step actions.
+        actions1 = self.sess.run(self.actor_tf, feed_dict={self.obs_ph: obs1})
 
         # Collect all update and loss call operations.
         step_ops = [
