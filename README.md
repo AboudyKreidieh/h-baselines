@@ -18,7 +18,7 @@ available [here]().
   * [Installing MuJoCo](#installing-mujoco)
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
-  * [TD3](#td3)
+  * [Off-Policy RL Algorithms](#off-policy-rl-algorithms)
   * [Fully Connected Neural Networks](#fully-connected-neural-networks)
   * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
   * [Meta Period](#meta-period)
