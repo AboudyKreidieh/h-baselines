@@ -48,7 +48,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the critic. If set to False, the mean-squared error metric is used
         instead
     target_entropy : float
-        TODO
+        target entropy used when learning the entropy coefficient
     zero_fingerprint : bool
         whether to zero the last two elements of the observations for the actor
         and critic computations. Used for the worker policy when fingerprints
@@ -70,6 +70,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the next step observations
     actor_tf : tf.Variable
         the output from the actor network
+    actor_target : tf.Variable
+        the output from the target actor network
     log_pi : tf.Operation
         operation for computing the log probability, mapped to action_ph
     next_log_pi : tf.Operation
@@ -153,7 +155,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             for the critic. If set to False, the mean-squared error metric is
             used instead
         target_entropy : float
-            TODO
+            target entropy used when learning the entropy coefficient. If set
+            to None, a heuristic value is used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         zero_fingerprint : bool
@@ -273,7 +276,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ]
 
             # create the target actor policy
-            actor_target, next_log_pi_fn = self.make_actor(
+            self.actor_target, next_log_pi_fn = self.make_actor(
                 self.obs1_ph, reuse=True)
 
             # Prepare operations for computing the log probability of next step
@@ -284,7 +287,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope("target", reuse=False):
             # create the target critic policies
             critic_target = [
-                self.make_critic(self.obs1_ph, actor_target,
+                self.make_critic(self.obs1_ph, self.actor_target,
                                  scope="qf_{}".format(i))
                 for i in range(2)
             ]
@@ -446,11 +449,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 )
 
             # Create the output from the feedforward network.
-            output = self._layer(
-                pi_h, 2 * self.ac_space.shape[0], 'output',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+            output = self._layer(pi_h, 2 * self.ac_space.shape[0], 'output')
 
             # Extract the mean and log std from the network.
             pi_mean, pi_logstd = tf.split(output, 2, axis=-1)
@@ -605,7 +604,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 = terminals1.reshape(-1, 1)
 
         # Compute the next step actions.
-        actions1 = self.sess.run(self.actor_tf, feed_dict={self.obs_ph: obs1})
+        actions1 = self.sess.run(self.actor_target,
+                                 feed_dict={self.obs1_ph: obs1})
 
         # Collect all update and loss call operations.
         step_ops = [
@@ -628,6 +628,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.obs1_ph: obs1,
             self.terminals1: terminals1
         }
+
+        log_pi, next_log_pi = self.sess.run(
+            [self.log_pi, self.next_log_pi],
+            feed_dict={
+                self.obs_ph: obs0,
+                self.obs1_ph: obs1,
+                self.action_ph: actions,
+                self.action1_ph: actions1
+            }
+        )
+
+        if np.isnan(log_pi).any() or np.isnan(next_log_pi).any():
+            print("log_pi:", log_pi)
+            print("next_log_pi:", next_log_pi)
+            print(actions - actions1)
+            exit()
 
         # Perform the update operations and collect the actor and critic loss.
         critic_loss, actor_loss, *_ = self.sess.run(step_ops, feed_dict)

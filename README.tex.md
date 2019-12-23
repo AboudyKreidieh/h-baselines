@@ -224,7 +224,8 @@ Additionally, TD3 policy parameters are:
 
 And SAC policy parameters are:
 
-* **target_entropy** (float): TODO
+* **target_entropy** (float): target entropy used when learning the entropy 
+  coefficient. If set to None, a heuristic value is used.
 
 These parameters can be assigned when using the algorithm object by 
 assigning them via the `policy_kwargs` term. For example, if you would 

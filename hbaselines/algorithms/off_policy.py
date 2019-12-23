@@ -48,7 +48,8 @@ TD3_PARAMS = dict(
 # =========================================================================== #
 
 SAC_PARAMS = dict(
-    # TODO
+    # target entropy used when learning the entropy coefficient. If set to
+    # None, a heuristic value is used.
     target_entropy=None,
 )
 

@@ -197,7 +197,8 @@ def create_sac_parser(parser):
         "--target_entropy",
         type=float,
         default=SAC_PARAMS["target_entropy"],
-        help="TODO")
+        help="target entropy used when learning the entropy coefficient. If "
+             "set to None, a heuristic value is used.")
 
     return parser
 
