@@ -1,6 +1,5 @@
 """SAC-compatible feedforward policy."""
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 from functools import reduce
 
@@ -253,14 +252,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 3: Create actor and critic variables.                          #
         # =================================================================== #
 
+        # scaling terms to the output from the policy
+        ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+        ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
+
         # Create networks and core TF parts that are shared across setup parts.
         with tf.compat.v1.variable_scope("model", reuse=False):
             # Create the actor networks.
-            self.actor_tf, log_pi_fn = self.make_actor(self.obs_ph)
+            self.actor_tf, pi_mean, pi_logstd = self.make_actor(self.obs_ph)
 
             # Prepare operations for computing the log probability of current
             # step actions.
-            self.log_pi = log_pi_fn(self.action_ph)
+            self.log_pi = self._compute_log_pis(
+                self.action_ph, pi_mean, pi_logstd, ac_means, ac_magnitudes)
             assert self.log_pi.shape.as_list() == [None, 1]
 
             # Create the critic networks.
@@ -276,12 +280,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ]
 
             # create the target actor policy
-            self.actor_target, next_log_pi_fn = self.make_actor(
+            self.actor_target, pi_mean, pi_logstd = self.make_actor(
                 self.obs1_ph, reuse=True)
 
             # Prepare operations for computing the log probability of next step
             # actions.
-            self.next_log_pi = next_log_pi_fn(self.action1_ph)
+            self.next_log_pi = self._compute_log_pis(
+                self.action1_ph, pi_mean, pi_logstd, ac_means, ac_magnitudes)
             assert self.next_log_pi.shape.as_list() == [None, 1]
 
         with tf.compat.v1.variable_scope("target", reuse=False):
@@ -454,53 +459,20 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # Extract the mean and log std from the network.
             pi_mean, pi_logstd = tf.split(output, 2, axis=-1)
 
+            # The stochastic actor samples from the base distribution and
+            # scales it by the mean and log standard deviation.
+            policy = pi_mean + tf.exp(pi_logstd) \
+                * tf.random.normal(shape=[self.ac_space.shape[0]])
+
             # scaling terms to the output from the policy
             ac_means = (self.ac_space.high + self.ac_space.low) / 2.
             ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-            # the base multivariate Gaussian to the distribution
-            base_distribution = tfp.distributions.MultivariateNormalDiag(
-                loc=tf.zeros(self.ac_space.shape[0]),
-                scale_diag=tf.ones(self.ac_space.shape[0]))
+            # The policy is squashed by a tanh and scaled by the action space
+            # of the environment.
+            policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
 
-            # We include a tanh bijector to match the squashed properties of
-            # the actual policy.
-            squash_bijector = tfp.bijectors.Tanh()
-
-            # A second bijector is used to scale the output by a the
-            # environment's action space.
-            ac_space_bijector = tfp.bijectors.Affine(
-                shift=ac_means,
-                scale_diag=ac_magnitudes,
-            )
-
-            # A third bijector is used to scale the actions from the Gaussian
-            # by the policy's mean and standard deviation.
-            policy_scale_bijector = tfp.bijectors.Affine(
-                shift=pi_mean,
-                scale_diag=tf.exp(pi_logstd),
-            )
-
-            # Combine the three bijectors and create the final distribution
-            bijector = tfp.bijectors.Chain((
-                ac_space_bijector,
-                squash_bijector,
-                policy_scale_bijector,
-            ))
-
-            distribution = tfp.distributions.TransformedDistribution(
-                distribution=base_distribution,
-                bijector=bijector
-            )
-
-            # Create the policy object.
-            policy = distribution.sample([1])
-
-            # Compute the log probabilities given the action placeholder.
-            def log_pis_fn(action_ph):
-                return distribution.log_prob(action_ph)[:, None]
-
-        return policy, log_pis_fn
+        return policy, pi_mean, pi_logstd
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -755,3 +727,42 @@ class FeedForwardPolicy(ActorCriticPolicy):
         }
 
         return td_map
+
+    @staticmethod
+    def _compute_log_pis(ac, pi_mean, pi_logstd, ac_mean, ac_scale, eps=1e-6):
+        """Creates a function that computes the log likelihoods given a policy.
+
+        The policy is assumed to be a multivariate Gaussian that is squashed by
+        a tanh and scale by additional parameters representing the mean and
+        scale of the action space of the environment.
+
+        Parameters
+        ----------
+        ac : tf.placeholder
+            an actions placeholder
+        pi_mean : tf.Variable
+            the mean of the policy given the observation
+        pi_logstd : tf.Variable
+            the log standard deviation of the policy given the observation
+        ac_mean : array_like
+            the mean value of each action dimension
+        ac_scale : array_like
+            the scale/magnitude value of each action dimension
+        eps : float
+            a stabilizing term to avoid NaN (prevents division by zero or log
+            of zero)
+
+        Returns
+        -------
+        tf.Variable
+            an operation for computing the log probability of certain actions
+        """
+        # log likelihood in the pure Gaussian case.
+        pre_sum = -0.5 * (((ac - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
+                          + 2 * pi_logstd + tf.log(2 * np.pi))
+        gaussian_lop_pi_fn = tf.reduce_sum(pre_sum, axis=1)
+
+        # TODO: including tanh and scaling
+        log_pi_fn = gaussian_lop_pi_fn
+
+        return log_pi_fn
