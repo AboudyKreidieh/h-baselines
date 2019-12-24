@@ -603,31 +603,24 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         sampled_actions = self._sample(meta_obs0, meta_obs1, meta_action, k)
         assert sampled_actions.shape == (batch_size, goal_dim, k)
 
-        # Compute the log-probability of each action.
-        sampled_log_probs = self._log_probs(
-            meta_obs0, sampled_actions, worker_obses, worker_actions)
-
-        # The fitness is the sum of all log-probabilities.
-        fitness = tf.reduce_sum(sampled_log_probs, [2, 3])
+        # Compute the fitness of each candidate goal. The fitness is the sum of
+        # the log-probabilities of each action for the given goal.
+        fitness = self._log_probs(
+            sampled_actions, worker_obses, worker_actions)
+        assert fitness.shape == (batch_size, k)
 
         # For each sample, choose the meta action that maximizes the fitness.
-        best_actions = tf.argmax(fitness, 0)
-        best_goals = tf.gather_nd(
-            sampled_actions,
-            tf.stack([
-                best_actions,
-                tf.range(meta_action.shape[0], dtype=tf.int64)], -1))
+        indx = np.argmax(fitness, 0)
+        best_goals = sampled_actions[:, :, indx]
 
         return best_goals
 
-    def _log_probs(self, meta_obs0, meta_action, worker_obses, worker_actions):
+    def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the Manager.
 
         Parameters
         ----------
-        meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
-        meta_action : array_like
+        meta_actions : array_like
             (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
             actions
         worker_obses : array_like
@@ -638,30 +631,72 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            (batch_size, num_samples) error associated with every state /
+            (batch_size, num_samples) fitness associated with every state /
             action / goal pair
 
         Helps
         -----
         * _sample_best_meta_action(self):
         """
-        # Action a policy would perform given a specific observation / goal.
-        pred_actions = self.worker.get_action(
-            worker_obses, meta_action,
-            apply_noise=False,
-            random_actions=False
-        )
+        fitness = []
+        batch_size, goal_dim, num_samples = meta_actions.shape
+        _, obs_dim, meta_period = worker_obses.shape[2]
 
-        # Normalize the error based on the range of applicable goals.
-        goal_space = self.manager.ac_space
-        spec_range = goal_space.high - goal_space.low
-        scale = np.tile(np.square(spec_range), (meta_obs0.shape[0], 1))
+        # Loop through the elements of the batch.
+        for i in range(batch_size):
+            goals_per_sample = meta_actions[i, :, :].T
+            worker_obses_per_sample = worker_obses[i, :, :].T
+            worker_actions_per_sample = worker_actions[i, :, :].T
+            fitness_per_sample = np.zeros(num_samples)
 
-        # Compute error as the distance between expected and actual actions.
-        normalized_error = np.mean(
-            np.square(np.divide(worker_actions - pred_actions, scale)), axis=1)
+            # Create repeated representations of each worker observation for
+            # each candidate goal.
+            tiled_worker_obses_per_sample = \
+                np.tile(worker_obses_per_sample[:-1, :], (num_samples, 1))
 
-        return -normalized_error
+            # Create repeated representations of each candidate goal for each
+            # worker observation in a meta period.
+            tiled_goals_per_sample = np.tile(
+                goals_per_sample, meta_period).reshape(
+                (num_samples * meta_period, goal_dim))
+
+            # If relative goals are being used, updated the later goals to
+            # match what they would be under the relative goals difference
+            # approach.
+            if self.relative_goals:
+                goal_diff = np.vstack((
+                    [[0 for _ in range(obs_dim)]],
+                    worker_obses[1:-1, :] - worker_obses[:-2, :]))
+                tiled_goals_per_sample += \
+                    np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
+
+            # Compute the actions the Worker would perform given a specific
+            # observation/goal for the current instantiation of the policy.
+            pred_actions = self.worker.get_action(
+                tiled_worker_obses_per_sample,
+                tiled_goals_per_sample,
+                apply_noise=False,
+                random_actions=False
+            )
+
+            # Compute error as the distance between expected and actual actions
+            normalized_error = -np.mean(
+                np.square(
+                    np.tile(worker_actions_per_sample, (num_samples, 1))
+                    - pred_actions
+                ),
+                axis=1
+            )
+
+            # Sum the different normalized errors to get the fitness of each
+            # candidate goal.
+            for j in num_samples:
+                fitness_per_sample[i] = np.sum(
+                    normalized_error[j * meta_period: (j+1) * meta_period])
+
+            fitness.append(fitness_per_sample)
+
+        return np.array(fitness)
 
     def _sample(self, meta_obs0, meta_obs1, meta_action, num_samples, sc=0.5):
         """Sample different goals.
