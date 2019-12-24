@@ -518,9 +518,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return 0, 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, done1,
+        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
                                       update_actor=update_actor)
 
     def update_from_batch(self,
