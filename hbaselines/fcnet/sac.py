@@ -734,11 +734,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
         # log likelihood in the pure Gaussian case.
-        p = tf.contrib.distributions.MultivariateNormalDiag(
-            loc=pi_mean,
-            scale_diag=tf.exp(pi_logstd)
-        )
-        pre_sum = p.log_prob(pre_tanh)
+        pre_sum = -0.5 * (
+            ((pre_tanh - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
+            + 2 * pi_logstd + tf.math.log(2 * np.pi))
+        pre_sum = tf.reduce_sum(pre_sum, axis=1)
 
         # Modify the actions to be bounded between (-1, 1)
         policy = (policy - ac_means) / ac_magnitudes
@@ -748,10 +747,3 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.math.log(1 - tf.square(policy) + eps), axis=1)
 
         return tf.expand_dims(log_pi_fn, axis=-1)
-
-    @staticmethod
-    def _clip_but_pass_gradient(input_, lower=-1., upper=1.):
-        clip_up = tf.cast(input_ > upper, tf.float32)
-        clip_low = tf.cast(input_ < lower, tf.float32)
-        return input_ + tf.stop_gradient((upper - input_) * clip_up +
-                                         (lower - input_) * clip_low)
