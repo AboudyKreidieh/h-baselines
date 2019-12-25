@@ -9,6 +9,11 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
 
+# CAP the standard deviation of the actor
+LOG_STD_MAX = 2
+LOG_STD_MIN = -20
+
+
 class FeedForwardPolicy(ActorCriticPolicy):
     """Feed-forward neural network actor-critic policy.
 
@@ -72,9 +77,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
     actor_target : tf.Variable
         the output from the target actor network
     log_pi : tf.Operation
-        operation for computing the log probability, mapped to action_ph
+        operation for computing the log probability of current step actions
     next_log_pi : tf.Operation
-        operation for computing the log probability, mapped to action1_ph
+        operation for computing the log probability of next step actions
     critic_tf : list of tf.Variable
         the output from the critic networks. Two networks are used to stabilize
         training.
@@ -194,6 +199,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.target_entropy = target_entropy
 
+        self.squash = True
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
         assert len(self.layers) >= 1, \
@@ -231,10 +237,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 tf.float32,
                 shape=(None,) + ac_space.shape,
                 name='actions0')
-            self.action1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ac_space.shape,
-                name='actions1')
             self.obs_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ob_dim,
@@ -252,19 +254,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 3: Create actor and critic variables.                          #
         # =================================================================== #
 
-        # scaling terms to the output from the policy
-        ac_means = (self.ac_space.high + self.ac_space.low) / 2.
-        ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
-
         # Create networks and core TF parts that are shared across setup parts.
         with tf.compat.v1.variable_scope("model", reuse=False):
             # Create the actor networks.
-            self.actor_tf, pi_mean, pi_logstd = self.make_actor(self.obs_ph)
+            self.actor_tf, self.log_pi = self.make_actor(self.obs_ph)
 
-            # Prepare operations for computing the log probability of current
-            # step actions.
-            self.log_pi = self._compute_log_pis(
-                self.action_ph, pi_mean, pi_logstd, ac_means, ac_magnitudes)
             assert self.log_pi.shape.as_list() == [None, 1]
 
             # Create the critic networks.
@@ -280,13 +274,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ]
 
             # create the target actor policy
-            self.actor_target, pi_mean, pi_logstd = self.make_actor(
+            self.actor_target, self.next_log_pi = self.make_actor(
                 self.obs1_ph, reuse=True)
 
-            # Prepare operations for computing the log probability of next step
-            # actions.
-            self.next_log_pi = self._compute_log_pis(
-                self.action1_ph, pi_mean, pi_logstd, ac_means, ac_magnitudes)
             assert self.next_log_pi.shape.as_list() == [None, 1]
 
         with tf.compat.v1.variable_scope("target", reuse=False):
@@ -429,9 +419,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         -------
         tf.Variable
             the output from the stochastic actor
-        function
-            a function that creates tf.Operations for computing the log
-            probability of certain actions
+        tf.Variable
+            an operation for computing the log probability of certain actions
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
@@ -454,25 +443,34 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 )
 
             # Create the output from the feedforward network.
-            output = self._layer(pi_h, 2 * self.ac_space.shape[0], 'output')
+            output = self._layer(
+                pi_h, 2 * self.ac_space.shape[0], 'output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
 
             # Extract the mean and log std from the network.
             pi_mean, pi_logstd = tf.split(output, 2, axis=-1)
+            pi_logstd = tf.clip_by_value(pi_logstd, LOG_STD_MIN, LOG_STD_MAX)
+
+            # scaling terms to the output from the policy
+            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
             # The stochastic actor samples from the base distribution and
             # scales it by the mean and log standard deviation.
             policy = pi_mean + tf.exp(pi_logstd) \
                 * tf.random.normal(shape=[self.ac_space.shape[0]])
 
-            # scaling terms to the output from the policy
-            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
-            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
-
             # The policy is squashed by a tanh and scaled by the action space
             # of the environment.
-            policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
+            if self.squash:
+                policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
 
-        return policy, pi_mean, pi_logstd
+            # Prepare operation for computing the log probability of actions.
+            log_pi = self._compute_log_pis(policy, pi_mean, pi_logstd)
+
+        return policy, log_pi
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -575,10 +573,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
-        # Compute the next step actions.
-        actions1 = self.sess.run(self.actor_target,
-                                 feed_dict={self.obs1_ph: obs1})
-
         # Collect all update and loss call operations.
         step_ops = [
             self.critic_loss,
@@ -595,7 +589,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         feed_dict = {
             self.obs_ph: obs0,
             self.action_ph: actions,
-            self.action1_ph: actions1,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
             self.terminals1: terminals1
@@ -607,15 +600,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 self.obs_ph: obs0,
                 self.obs1_ph: obs1,
                 self.action_ph: actions,
-                self.action1_ph: actions1
             }
         )
 
-        if np.isnan(log_pi).any() or np.isnan(next_log_pi).any():
-            print("log_pi:", log_pi)
-            print("next_log_pi:", next_log_pi)
-            print(actions - actions1)
-            exit()
+        # if np.isnan(log_pi).any() or np.isnan(next_log_pi).any():
+        print("log_pi:", log_pi)
+        print("next_log_pi:", next_log_pi)
+            # exit()
 
         # Perform the update operations and collect the actor and critic loss.
         critic_loss, actor_loss, *_ = self.sess.run(step_ops, feed_dict)
@@ -728,8 +719,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return td_map
 
-    @staticmethod
-    def _compute_log_pis(ac, pi_mean, pi_logstd, ac_mean, ac_scale, eps=1e-6):
+    def _compute_log_pis(self, policy, pi_mean, pi_logstd, eps=1e-6):
         """Creates a function that computes the log likelihoods given a policy.
 
         The policy is assumed to be a multivariate Gaussian that is squashed by
@@ -738,16 +728,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        ac : tf.placeholder
-            an actions placeholder
+        policy : TODO
+            TODO
         pi_mean : tf.Variable
             the mean of the policy given the observation
         pi_logstd : tf.Variable
             the log standard deviation of the policy given the observation
-        ac_mean : array_like
-            the mean value of each action dimension
-        ac_scale : array_like
-            the scale/magnitude value of each action dimension
         eps : float
             a stabilizing term to avoid NaN (prevents division by zero or log
             of zero)
@@ -757,12 +743,40 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             an operation for computing the log probability of certain actions
         """
-        # log likelihood in the pure Gaussian case.
-        pre_sum = -0.5 * (((ac - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
-                          + 2 * pi_logstd + tf.log(2 * np.pi))
-        gaussian_lop_pi_fn = tf.reduce_sum(pre_sum, axis=1)
+        if self.squash:
+            # scaling terms to the output from the policy
+            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-        # TODO: including tanh and scaling
-        log_pi_fn = gaussian_lop_pi_fn
+            # Modify the actions to be bounded between (-1, 1)
+            policy = (policy - ac_means) / ac_magnitudes
 
-        return log_pi_fn
+            # Compute the policy term before it was squashed by a tanh.
+            pre_tanh = 0.5 * tf.log((1 + policy) / (1 - policy))
+
+            # log likelihood in the pure Gaussian case.
+            pre_sum = -0.5 * (
+                ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
+                + 2 * pi_logstd + tf.math.log(2 * np.pi))
+            pre_sum = tf.reduce_sum(pre_sum, axis=1)
+
+            # In order to deal with values outside of [0, 1].
+            # pre_log = self._clip_but_pass_gradient(1 - tf.square(pre_tanh), 0, 1)
+            # pre_log = 1 - tf.square(pre_tanh)
+
+            # including the tanh change of variables
+            log_pi_fn = pre_sum - tf.reduce_sum(
+                tf.math.log(1 - tf.square(pre_tanh) + eps), axis=1)
+        else:
+            log_pi_fn = -0.5 * (
+                ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
+                + 2 * pi_logstd + tf.math.log(2 * np.pi))
+
+        return tf.expand_dims(log_pi_fn, axis=-1)
+
+    @staticmethod
+    def _clip_but_pass_gradient(input_, lower=-1., upper=1.):
+        clip_up = tf.cast(input_ > upper, tf.float32)
+        clip_low = tf.cast(input_ < lower, tf.float32)
+        return input_ + tf.stop_gradient((upper - input_) * clip_up +
+                                         (lower - input_) * clip_low)
