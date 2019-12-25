@@ -664,9 +664,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # match what they would be under the relative goals difference
             # approach.
             if self.relative_goals:
-                goal_diff = np.vstack((
-                    [[0 for _ in range(obs_dim)]],
-                    worker_obses[1:-1, :] - worker_obses[:-2, :]))
+                goal_diff = worker_obses_per_sample[:-1, :] - np.tile(
+                    worker_obses_per_sample[0, :], (meta_period - 1, 1))
                 tiled_goals_per_sample += \
                     np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
 
