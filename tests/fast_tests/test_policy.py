@@ -348,7 +348,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         policy = GoalConditionedPolicy(**policy_params)
 
         # Initialize the variables of the policy.
-        policy.sess.run(tf.global_variables_initializer())
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
         # Test the _sample method.
         states = np.array(

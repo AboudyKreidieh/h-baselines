@@ -403,7 +403,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
-                self.sess.run(tf.global_variables_initializer())
+                self.sess.run(tf.compat.v1.global_variables_initializer())
                 self.policy_tf.initialize()
 
             return tf.compat.v1.get_collection(
@@ -499,7 +499,7 @@ class OffPolicyRLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              start_timesteps=50000):
+              start_timesteps=0):
         """Return a trained model.
 
         Parameters

@@ -199,7 +199,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.target_entropy = target_entropy
 
-        self.squash = True
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
         assert len(self.layers) >= 1, \
@@ -464,8 +463,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # The policy is squashed by a tanh and scaled by the action space
             # of the environment.
-            if self.squash:
-                policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
+            policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
 
             # Prepare operation for computing the log probability of actions.
             log_pi = self._compute_log_pis(policy, pi_mean, pi_logstd)
@@ -594,20 +592,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.terminals1: terminals1
         }
 
-        log_pi, next_log_pi = self.sess.run(
-            [self.log_pi, self.next_log_pi],
-            feed_dict={
-                self.obs_ph: obs0,
-                self.obs1_ph: obs1,
-                self.action_ph: actions,
-            }
-        )
-
-        # if np.isnan(log_pi).any() or np.isnan(next_log_pi).any():
-        print("log_pi:", log_pi)
-        print("next_log_pi:", next_log_pi)
-            # exit()
-
         # Perform the update operations and collect the actor and critic loss.
         critic_loss, actor_loss, *_ = self.sess.run(step_ops, feed_dict)
 
@@ -728,8 +712,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        policy : TODO
-            TODO
+        policy : tf.Variable
+            the output from the policy
         pi_mean : tf.Variable
             the mean of the policy given the observation
         pi_logstd : tf.Variable
@@ -743,34 +727,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             an operation for computing the log probability of certain actions
         """
-        if self.squash:
-            # scaling terms to the output from the policy
-            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
-            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
+        # scaling terms to the output from the policy
+        ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+        ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-            # Modify the actions to be bounded between (-1, 1)
-            policy = (policy - ac_means) / ac_magnitudes
+        # Modify the actions to be bounded between (-1, 1)
+        policy = (policy - ac_means) / ac_magnitudes
 
-            # Compute the policy term before it was squashed by a tanh.
-            pre_tanh = 0.5 * tf.log((1 + policy) / (1 - policy))
+        # log likelihood in the pure Gaussian case.
+        pre_sum = -0.5 * (
+            ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
+            + 2 * pi_logstd + tf.math.log(2 * np.pi))
+        pre_sum = tf.reduce_sum(pre_sum, axis=1)
 
-            # log likelihood in the pure Gaussian case.
-            pre_sum = -0.5 * (
-                ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
-                + 2 * pi_logstd + tf.math.log(2 * np.pi))
-            pre_sum = tf.reduce_sum(pre_sum, axis=1)
-
-            # In order to deal with values outside of [0, 1].
-            # pre_log = self._clip_but_pass_gradient(1 - tf.square(pre_tanh), 0, 1)
-            # pre_log = 1 - tf.square(pre_tanh)
-
-            # including the tanh change of variables
-            log_pi_fn = pre_sum - tf.reduce_sum(
-                tf.math.log(1 - tf.square(pre_tanh) + eps), axis=1)
-        else:
-            log_pi_fn = -0.5 * (
-                ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
-                + 2 * pi_logstd + tf.math.log(2 * np.pi))
+        # including the tanh change of variables
+        log_pi_fn = pre_sum - tf.reduce_sum(
+            tf.math.log(1 - tf.square(policy) + eps), axis=1)
 
         return tf.expand_dims(log_pi_fn, axis=-1)
 
