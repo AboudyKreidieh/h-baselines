@@ -458,15 +458,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # The stochastic actor samples from the base distribution and
             # scales it by the mean and log standard deviation.
-            policy = pi_mean + tf.exp(pi_logstd) \
+            pre_tanh = pi_mean + tf.exp(pi_logstd) \
                 * tf.random.normal(shape=[self.ac_space.shape[0]])
 
             # The policy is squashed by a tanh and scaled by the action space
             # of the environment.
-            policy = ac_magnitudes * tf.nn.tanh(policy) + ac_means
+            policy = ac_magnitudes * tf.nn.tanh(pre_tanh) + ac_means
 
             # Prepare operation for computing the log probability of actions.
-            log_pi = self._compute_log_pis(policy, pi_mean, pi_logstd)
+            log_pi = self._compute_log_pi(pre_tanh, policy, pi_mean, pi_logstd)
 
         return policy, log_pi
 
@@ -703,7 +703,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return td_map
 
-    def _compute_log_pis(self, policy, pi_mean, pi_logstd, eps=1e-6):
+    def _compute_log_pi(self, pre_tanh, policy, pi_mean, pi_logstd, eps=1e-6):
         """Creates a function that computes the log likelihoods given a policy.
 
         The policy is assumed to be a multivariate Gaussian that is squashed by
@@ -712,6 +712,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
+        pre_tanh : tf.Variable
+            the output from the policy before squashing by tanh
         policy : tf.Variable
             the output from the policy
         pi_mean : tf.Variable
@@ -731,14 +733,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ac_means = (self.ac_space.high + self.ac_space.low) / 2.
         ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
+        # log likelihood in the pure Gaussian case.
+        p = tf.contrib.distributions.MultivariateNormalDiag(
+            loc=pi_mean,
+            scale_diag=tf.exp(pi_logstd)
+        )
+        pre_sum = p.log_prob(pre_tanh)
+
         # Modify the actions to be bounded between (-1, 1)
         policy = (policy - ac_means) / ac_magnitudes
-
-        # log likelihood in the pure Gaussian case.
-        pre_sum = -0.5 * (
-            ((policy - pi_mean) / (tf.exp(pi_logstd) + eps)) ** 2
-            + 2 * pi_logstd + tf.math.log(2 * np.pi))
-        pre_sum = tf.reduce_sum(pre_sum, axis=1)
 
         # including the tanh change of variables
         log_pi_fn = pre_sum - tf.reduce_sum(
