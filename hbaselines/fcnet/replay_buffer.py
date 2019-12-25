@@ -1,5 +1,4 @@
 """Script containing the ReplayBuffer object."""
-import random
 import numpy as np
 
 
