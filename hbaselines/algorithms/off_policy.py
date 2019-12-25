@@ -499,7 +499,7 @@ class OffPolicyRLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              start_timesteps=0):
+              start_timesteps=10000):
         """Return a trained model.
 
         Parameters
