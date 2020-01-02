@@ -153,6 +153,10 @@ class OffPolicyRLAlgorithm(object):
         enable rendering of the training environment
     render_eval : bool
         enable rendering of the evaluation environment
+    eval_deterministic : bool
+        if set to True, the policy provides deterministic actions to the
+        evaluation environment. Otherwise, stochastic or noisy actions are
+        returned.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     action_space : gym.spaces.*
@@ -243,6 +247,7 @@ class OffPolicyRLAlgorithm(object):
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
+                 eval_deterministic=True,
                  verbose=0,
                  policy_kwargs=None,
                  _init_setup_model=True):
@@ -276,6 +281,10 @@ class OffPolicyRLAlgorithm(object):
             enable rendering of the training environment
         render_eval : bool
             enable rendering of the evaluation environment
+        eval_deterministic : bool
+            if set to True, the policy provides deterministic actions to the
+            evaluation environment. Otherwise, stochastic or noisy actions are
+            returned.
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -296,6 +305,7 @@ class OffPolicyRLAlgorithm(object):
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
+        self.eval_deterministic = eval_deterministic
         self.verbose = verbose
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -329,7 +339,7 @@ class OffPolicyRLAlgorithm(object):
             # for Flow environments
             self.horizon = self.env.env_params.horizon
         else:
-            raise ValueError("Environment has not attribute env.horizon")
+            raise ValueError("Horizon attribute not found.")
 
         # init
         self.graph = None
@@ -857,7 +867,8 @@ class OffPolicyRLAlgorithm(object):
 
                 eval_action, _ = self._policy(
                     eval_obs, context,
-                    apply_noise=False, random_actions=False, compute_q=False)
+                    apply_noise=not self.eval_deterministic,
+                    random_actions=False, compute_q=False)
 
                 obs, eval_r, done, info = env.step(eval_action)
 
