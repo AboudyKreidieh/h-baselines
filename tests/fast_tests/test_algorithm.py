@@ -220,7 +220,7 @@ class TestTD3(unittest.TestCase):
         alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Run the learn operation for zero timesteps.
-        alg.learn(0, log_dir='results', start_timesteps=0)
+        alg.learn(0, log_dir='results', initial_exploration_steps=0)
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
         self.assertEqual(alg.epoch, 0)
@@ -236,12 +236,12 @@ class TestTD3(unittest.TestCase):
         shutil.rmtree('results')
 
         # Test the seeds.
-        alg.learn(0, log_dir='results', seed=1, start_timesteps=0)
+        alg.learn(0, log_dir='results', seed=1, initial_exploration_steps=0)
         self.assertEqual(np.random.sample(), 0.417022004702574)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
-    def test_learn_start_timesteps(self):
+    def test_learn_initial_exploration_steps(self):
         """TODO"""
         pass
 
@@ -293,7 +293,8 @@ class TestTD3(unittest.TestCase):
         # Validate that observations include the fingerprints elements upon
         # initializing the `learn` procedure and  during a step in the
         # `_collect_samples` method.
-        alg.learn(1, log_dir='results', log_interval=1, start_timesteps=0)
+        alg.learn(1, log_dir='results', log_interval=1,
+                  initial_exploration_steps=0)
         self.assertEqual(
             len(alg.obs),
             alg.env.observation_space.shape[0]
@@ -303,7 +304,8 @@ class TestTD3(unittest.TestCase):
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
-        alg.learn(500, log_dir='results', log_interval=500, start_timesteps=0)
+        alg.learn(500, log_dir='results', log_interval=500,
+                  initial_exploration_steps=0)
         self.assertEqual(
             len(alg.obs),
             alg.env.observation_space.shape[0]

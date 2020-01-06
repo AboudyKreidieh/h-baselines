@@ -48,9 +48,13 @@ TD3_PARAMS = dict(
 # =========================================================================== #
 
 SAC_PARAMS = dict(
+    # TODO
+    squash=True,
     # target entropy used when learning the entropy coefficient. If set to
     # None, a heuristic value is used.
     target_entropy=None,
+    # TODO
+    action_prior="uniform",
 )
 
 
@@ -64,9 +68,9 @@ FEEDFORWARD_PARAMS = dict(
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
-    actor_lr=3e-4,
+    actor_lr=3e-5,
     # the critic learning rate
-    critic_lr=3e-4,
+    critic_lr=3e-5,
     # the soft update coefficient (keep old values, between 0 and 1)
     tau=0.005,
     # the discount rate
@@ -377,8 +381,8 @@ class OffPolicyRLAlgorithm(object):
                 (self.observation_space.high, fingerprint_range[1]))
             self.observation_space = Box(low=low, high=high)
 
+        # Create the model variables and operations.
         if _init_setup_model:
-            # Create the model variables and operations.
             self.trainable_vars = self.setup_model()
 
     def setup_model(self):
@@ -509,8 +513,8 @@ class OffPolicyRLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              start_timesteps=10000):
-        """Return a trained model.
+              initial_exploration_steps=10000):
+        """Perform the complete training operation.
 
         Parameters
         ----------
@@ -529,7 +533,7 @@ class OffPolicyRLAlgorithm(object):
         save_interval : int
             number of simulation steps in the training environment before the
             model is saved
-        start_timesteps : int, optional
+        initial_exploration_steps : int, optional
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
@@ -574,7 +578,7 @@ class OffPolicyRLAlgorithm(object):
             # Collect preliminary random samples.
             print("Collecting pre-samples...")
             self._collect_samples(total_timesteps,
-                                  run_steps=start_timesteps,
+                                  run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
 

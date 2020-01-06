@@ -309,7 +309,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(critic_target, scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
-            tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
+            tf.compat.v1.summary.scalar('Q1_loss', self.critic_loss[0])
+            tf.compat.v1.summary.scalar('Q2_loss', self.critic_loss[1])
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
@@ -367,13 +368,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             loss_fn = tf.compat.v1.losses.mean_squared_error
 
-        self.critic_loss = \
-            loss_fn(self.critic_tf[0], target_q) + \
-            loss_fn(self.critic_tf[1], target_q)
+        self.critic_loss = [loss_fn(q, target_q) for q in self.critic_tf]
 
         self.critic_optimizer = []
 
-        for i in range(2):
+        for i, critic_loss in enumerate(self.critic_loss):
             scope_name = 'model/qf_{}/'.format(i)
             if scope is not None:
                 scope_name = scope + '/' + scope_name
@@ -390,7 +389,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
 
             # create the optimizer object
-            self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
+            self.critic_optimizer.append(optimizer.minimize(
+                loss=critic_loss,
+                var_list=get_trainable_vars(scope_name)))
 
     def make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
