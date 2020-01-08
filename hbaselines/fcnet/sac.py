@@ -1,4 +1,4 @@
-"""GaussianPolicy."""
+"""SAC-compatible feedforward policy."""
 from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
@@ -270,7 +270,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.target_entropy = target_entropy
 
         self.squash = squash
-        self.action_prior = action_prior
+        self.action_prior = action_prior  # TODO: add feature
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
 
@@ -351,7 +351,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
-        self._training_ops = {}
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(scope)
@@ -619,8 +618,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """Create minimization operation for critic Q-function.
 
         Create a `tf.optimizer.minimize` operation for updating critic
-        Q-function with gradient descent, and append it to `self._training_ops`
-        attribute.
+        Q-function with gradient descent.
 
         See Equations (5, 6) in [1], for further information of the Q-function
         update rule.
@@ -655,15 +653,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 loss=q_loss,
                 var_list=q.trainable_variables))
 
-        # Add the new operations to training_ops
-        self._training_ops.update({'Q': tf.group(self.critic_optimizer)})
-
     def _setup_actor_optimizer(self, scope):
         """Create minimization operations for policy and entropy.
 
         Creates a `tf.optimizer.minimize` operations for updating policy and
-        entropy with gradient descent, and adds them to `self._training_ops`
-        attribute.
+        entropy with gradient descent.
 
         See Section 4.2 in [1], for further information of the policy update,
         and Section 5 in [1] for further information of the entropy update.
@@ -694,21 +688,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             loss=self.alpha_loss,
             var_list=[log_alpha])
 
-        # Add the new operations to training_ops
-        self._training_ops.update({'temperature_alpha': self.alpha_optimizer})
-
-        # TODO: describe
-        if self.action_prior == 'normal':
-            policy_prior = tfp.distributions.MultivariateNormalDiag(
-                loc=tf.zeros(self.ac_space.shape),
-                scale_diag=tf.ones(self.ac_space.shape))
-            policy_prior_log_probs = policy_prior.log_prob(actions)
-        elif self.action_prior == 'uniform':
-            policy_prior_log_probs = 0.0
-        else:
-            raise ValueError("action_prior must be one of: {'normal', "
-                             "'uniform'}")
-
         q_observations = {"observations": self.obs_ph}
         q_inputs = nest.flatten({
             **q_observations, 'actions': actions})
@@ -717,7 +696,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Compute the actor loss.
         self.actor_loss = tf.reduce_mean(
-            self.alpha * log_pis - min_q_log_target - policy_prior_log_probs)
+            self.alpha * log_pis - min_q_log_target)
 
         # Create an optimizer object.
         actor_optimizer = tf.compat.v1.train.AdamOptimizer(
@@ -728,9 +707,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.actor_optimizer = actor_optimizer.minimize(
             loss=self.actor_loss,
             var_list=self.actions_model.trainable_variables)
-
-        # Add the new operations to training_ops
-        self._training_ops.update({'policy_train_op': self.actor_optimizer})
 
     def _setup_stats(self, scope):  # FIXME
         diagnosables = OrderedDict((
