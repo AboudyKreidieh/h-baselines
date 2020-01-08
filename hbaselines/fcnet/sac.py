@@ -335,8 +335,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         input_shapes = {
             "observations": [self.ob_space.shape[0]]
         }
-        critic_input_shapes = {
-            'observations': {"observations": [self.ob_space.shape[0]]},
+        critic_input_shapes = {  # TODO: maybe revert
+            'observations': self.ob_space.shape[0],
             'actions': self.ac_space.shape
         }
 
@@ -591,29 +591,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 for source, target in zip(source_params, target_params)
             ])
 
-    def _get_q_target(self):
-        policy_inputs = nest.flatten({
-            "observations": self.obs1_ph
-        })
-        next_actions = self.actions_model(policy_inputs)
-        next_log_pis = self.log_pis(policy_inputs, next_actions)
-
-        next_q_observations = {"observations": self.obs1_ph}
-        next_q_inputs = nest.flatten({
-            **next_q_observations,
-            'actions': next_actions
-        })
-        next_qs_values = tuple(q(next_q_inputs) for q in self.critic_target)
-
-        min_next_q = tf.reduce_min(next_qs_values, axis=0)
-        next_values = min_next_q - self.alpha * next_log_pis
-
-        terminals = tf.cast(self.terminals1, next_values.dtype)
-
-        q_target = self.rew_ph + self.gamma * (1 - terminals) * next_values
-
-        return tf.stop_gradient(q_target)
-
     def _setup_critic_optimizer(self, scope):
         """Create minimization operation for critic Q-function.
 
@@ -623,12 +600,29 @@ class FeedForwardPolicy(ActorCriticPolicy):
         See Equations (5, 6) in [1], for further information of the Q-function
         update rule.
         """
-        q_target = self._get_q_target()
+        policy_inputs = nest.flatten({
+            "observations": self.obs1_ph
+        })
+        next_actions = self.actions_model(policy_inputs)
+        next_log_pis = self.log_pis(policy_inputs, next_actions)
+
+        next_q_inputs = nest.flatten({
+            "observations": self.obs1_ph,
+            'actions': next_actions
+        })
+        next_qs_values = tuple(q(next_q_inputs) for q in self.critic_target)
+
+        min_next_q = tf.reduce_min(next_qs_values, axis=0)
+        next_values = min_next_q - self.alpha * next_log_pis
+
+        terminals = tf.cast(self.terminals1, next_values.dtype)
+
+        q_target = tf.stop_gradient(
+            self.rew_ph + self.gamma * (1 - terminals) * next_values)
         assert q_target.shape.as_list() == [None, 1]
 
-        q_observations = {"observations": self.obs_ph}
         q_inputs = nest.flatten({
-            **q_observations, 'actions': self.action_ph})
+            'observations': self.obs_ph, 'actions': self.action_ph})
         q_values = self._Q_values = tuple(q(q_inputs) for q in self.critic_tf)
 
         # choose the loss function
@@ -646,7 +640,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(
                 learning_rate=self.critic_lr,
-                name='{}_{}_optimizer'.format(q._name, i))
+                name='Q{}_optimizer'.format(i+1))
 
             # create the optimizer object
             self.critic_optimizer.append(optimizer.minimize(
