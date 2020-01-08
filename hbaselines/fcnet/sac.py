@@ -10,6 +10,20 @@ from hbaselines.fcnet.base import ActorCriticPolicy
 
 
 def create_input(name, input_shape):
+    """TODO
+
+    Parameters
+    ----------
+    name : TODO
+        TODO
+    input_shape : TODO
+        TODO
+
+    Returns
+    -------
+    TODO
+        TODO
+    """
     input_ = tf.keras.layers.Input(
         shape=input_shape, name=name, dtype=tf.float32
     )
@@ -17,6 +31,18 @@ def create_input(name, input_shape):
 
 
 def create_inputs(input_shapes):
+    """TODO
+
+    Parameters
+    ----------
+    input_shapes : TODO
+        TODO
+
+    Returns
+    -------
+    TODO
+        TODO
+    """
     inputs = nest.map_structure_with_paths(create_input, input_shapes)
     inputs_flat = nest.flatten(inputs)
 
@@ -30,6 +56,30 @@ def feedforward_model(hidden_layer_sizes,
                       name='feedforward_model',
                       *args,
                       **kwargs):
+    """TODO
+
+    Parameters
+    ----------
+    hidden_layer_sizes : TODO
+        TODO
+    output_size : TODO
+        TODO
+    activation : TODO
+        TODO
+    output_activation : TODO
+        TODO
+    name : TODO
+        TODO
+    args : TODO
+        TODO
+    kwargs : TODO
+        TODO
+
+    Returns
+    -------
+    TODO
+        TODO
+    """
     def cast_and_concat(x):
         x = nest.map_structure(
             lambda element: tf.cast(element, tf.float32), x)
@@ -109,25 +159,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
-    actor_tf : tf.Variable
-        the output from the actor network
-    actor_target : tf.Variable
-        the output from the target actor network
-    log_pi : tf.Operation
-        operation for computing the log probability of current step actions
-    next_log_pi : tf.Operation
-        operation for computing the log probability of next step actions
-    critic_tf : list of tf.Variable
-        the output from the critic networks. Two networks are used to stabilize
-        training.
-    critic_with_actor_tf : list of tf.Variable
-        the output from the critic networks with the action provided directly
-        by the actor policy
-    target_init_updates : tf.Operation
-        an operation that sets the values of the trainable parameters of the
-        target actor/critic to match those actual actor/critic
-    target_soft_updates : tf.Operation
-        soft target update function
+    TODO
     actor_loss : tf.Operation
         the operation that returns the loss of the actor
     actor_optimizer : tf.Operation
@@ -295,7 +327,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.latents_model = None
         self.latents_input = None
         self.actions_model = None
-        self.actions_model_for_fixed_latents = None
         self.deterministic_actions_model = None
         self.actions_input = None
         self.log_pis_model = None
@@ -353,15 +384,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         self.condition_inputs = inputs_flat
 
-        shift_and_log_scale_diag = self._shift_and_log_scale_diag_net(
+        shift_and_log_scale_diag = feedforward_model(
+            hidden_layer_sizes=self.layers,
             output_size=np.prod(self.ac_space.shape) * 2,
+            activation=self.act_fun,
+            output_activation="linear"
         )(conditions)
 
         shift, log_scale_diag = tf.keras.layers.Lambda(
-            lambda shift_and_log_scale_diag: tf.split(
-                shift_and_log_scale_diag,
-                num_or_size_splits=2,
-                axis=-1)
+            lambda x: tf.split(x, num_or_size_splits=2, axis=-1)
         )(shift_and_log_scale_diag)
 
         batch_size = tf.keras.layers.Lambda(
@@ -372,7 +403,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             scale_diag=tf.ones(self.ac_space.shape))
 
         latents = tf.keras.layers.Lambda(
-            lambda batch_size: base_distribution.sample(batch_size)
+            lambda x: base_distribution.sample(x)
         )(batch_size)
 
         self.latents_model = tf.keras.Model(self.condition_inputs, latents)
@@ -390,29 +421,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
             raw_actions_fn
         )((shift, log_scale_diag, latents))
 
-        raw_actions_for_fixed_latents = tf.keras.layers.Lambda(
-            raw_actions_fn
-        )((shift, log_scale_diag, self.latents_input))
-
         squash_bijector = (
             tfp.bijectors.Tanh()
             if self.squash
             else tfp.bijectors.Identity())
 
         actions = tf.keras.layers.Lambda(
-            lambda raw_actions: squash_bijector.forward(raw_actions)
+            lambda x: squash_bijector.forward(x)
         )(raw_actions)
         self.actions_model = tf.keras.Model(self.condition_inputs, actions)
 
-        actions_for_fixed_latents = tf.keras.layers.Lambda(
-            lambda raw_actions: squash_bijector.forward(raw_actions)
-        )(raw_actions_for_fixed_latents)
-        self.actions_model_for_fixed_latents = tf.keras.Model(
-            (*self.condition_inputs, self.latents_input),
-            actions_for_fixed_latents)
-
         deterministic_actions = tf.keras.layers.Lambda(
-            lambda shift: squash_bijector.forward(shift)
+            lambda x: squash_bijector.forward(x)
         )(shift)
 
         self.deterministic_actions_model = tf.keras.Model(
@@ -453,34 +473,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.condition_inputs,
             (shift, log_scale_diag, log_pis, raw_actions, actions))
 
-    def get_diagnostics(self, inputs):
-        """Return diagnostic information of the policy.
-
-        Returns the mean, min, max, and standard deviation of means and
-        covariances.
-        """
-        shifts_np, log_scale_diags_np, log_pis_np, raw_actions_np, actions_np \
-            = self.diagnostics_model.predict(inputs)
-
-        return OrderedDict((
-            ('shifts-mean', np.mean(shifts_np)),
-            ('shifts-std', np.std(shifts_np)),
-
-            ('log_scale_diags-mean', np.mean(log_scale_diags_np)),
-            ('log_scale_diags-std', np.std(log_scale_diags_np)),
-
-            ('-log-pis-mean', np.mean(-log_pis_np)),
-            ('-log-pis-std', np.std(-log_pis_np)),
-
-            ('raw-actions-mean', np.mean(raw_actions_np)),
-            ('raw-actions-std', np.std(raw_actions_np)),
-
-            ('actions-mean', np.mean(actions_np)),
-            ('actions-std', np.std(actions_np)),
-            ('actions-min', np.min(actions_np)),
-            ('actions-max', np.max(actions_np)),
-        ))
-
     def make_critic(self, input_shapes):
         inputs_flat = create_inputs(input_shapes)
 
@@ -490,18 +482,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         q_function.observation_keys = None
 
         return q_function
-
-    def _shift_and_log_scale_diag_net(self, output_size):
-        shift_and_log_scale_diag_net = feedforward_model(
-            hidden_layer_sizes=self.layers,
-            output_size=output_size,
-            activation=self.act_fun,
-            output_activation="linear")
-
-        return shift_and_log_scale_diag_net
-
-    def actions(self, observations):
-        return self.actions_model(observations)
 
     def log_pis(self, observations, actions):
         return self.log_pis_model([*observations, actions])
@@ -583,6 +563,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return q1_loss + q2_loss, actor_loss
 
     def get_action(self, obs, context, apply_noise, random_actions):
+        """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
@@ -593,7 +574,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             return self.deterministic_actions_model.predict(obs)
 
-    def value(self, *_):
+    def value(self, obs, context, action):
+        """See parent class."""
         return 0, 0  # FIXME
 
     def log_pis_np(self, observations, actions):
@@ -614,7 +596,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         policy_inputs = nest.flatten({
             "observations": self.obs1_ph
         })
-        next_actions = self.actions(policy_inputs)
+        next_actions = self.actions_model(policy_inputs)
         next_log_pis = self.log_pis(policy_inputs, next_actions)
 
         next_q_observations = {"observations": self.obs1_ph}
@@ -679,15 +661,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _setup_actor_optimizer(self, scope):
         """Create minimization operations for policy and entropy.
 
-        Creates a `tf.optimizer.minimize` operations for updating
-        policy and entropy with gradient descent, and adds them to
-        `self._training_ops` attribute.
+        Creates a `tf.optimizer.minimize` operations for updating policy and
+        entropy with gradient descent, and adds them to `self._training_ops`
+        attribute.
 
         See Section 4.2 in [1], for further information of the policy update,
         and Section 5 in [1] for further information of the entropy update.
         """
         policy_inputs = nest.flatten({"observations": self.obs_ph})
-        actions = self.actions(policy_inputs)
+        actions = self.actions_model(policy_inputs)
         log_pis = self.log_pis(policy_inputs, actions)
         assert log_pis.shape.as_list() == [None, 1]
 
@@ -769,15 +751,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return [], []
 
     def initialize(self):
+        """See parent class."""
         self.update_target(tau=1.0)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
         """See parent class."""
         if not evaluate:
-            # Add the contextual observation, if applicable.  FIXME
-            # obs0 = self._get_obs(obs0, context0, axis=0)
-            # obs1 = self._get_obs(obs1, context1, axis=0)
+            # Add the contextual observation, if applicable.
+            obs0 = self._get_obs(obs0, context0, axis=0)
+            obs1 = self._get_obs(obs1, context1, axis=0)
 
             self.replay_buffer.add(obs0, action, reward, obs1, float(done))
 
