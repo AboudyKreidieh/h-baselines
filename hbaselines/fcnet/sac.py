@@ -3,102 +3,17 @@ from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow.contrib.framework import nest
 
-from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.fcnet.replay_buffer import ReplayBuffer
+from hbaselines.utils.tf_util import get_trainable_vars
 
 
-def create_input(name, input_shape):
-    """TODO
-
-    Parameters
-    ----------
-    name : TODO
-        TODO
-    input_shape : TODO
-        TODO
-
-    Returns
-    -------
-    TODO
-        TODO
-    """
-    input_ = tf.keras.layers.Input(
-        shape=input_shape, name=name, dtype=tf.float32
-    )
-    return input_
-
-
-def create_inputs(input_shapes):
-    """TODO
-
-    Parameters
-    ----------
-    input_shapes : TODO
-        TODO
-
-    Returns
-    -------
-    TODO
-        TODO
-    """
-    inputs = nest.map_structure_with_paths(create_input, input_shapes)
-    inputs_flat = nest.flatten(inputs)
-
-    return inputs_flat
-
-
-def feedforward_model(hidden_layer_sizes,
-                      output_size,
-                      activation='relu',
-                      output_activation='linear',
-                      name='feedforward_model',
-                      *args,
-                      **kwargs):
-    """TODO
-
-    Parameters
-    ----------
-    hidden_layer_sizes : TODO
-        TODO
-    output_size : TODO
-        TODO
-    activation : TODO
-        TODO
-    output_activation : TODO
-        TODO
-    name : TODO
-        TODO
-    args : TODO
-        TODO
-    kwargs : TODO
-        TODO
-
-    Returns
-    -------
-    TODO
-        TODO
-    """
-    def cast_and_concat(x):
-        x = nest.map_structure(
-            lambda element: tf.cast(element, tf.float32), x)
-        x = nest.flatten(x)
-        x = tf.concat(x, axis=-1)
-        return x
-
-    model = tf.keras.Sequential((
-        tf.keras.layers.Lambda(cast_and_concat),
-        *[
-            tf.keras.layers.Dense(
-                hidden_layer_size, *args, activation=activation, **kwargs)
-            for hidden_layer_size in hidden_layer_sizes
-        ],
-        tf.keras.layers.Dense(
-            output_size, *args, activation=output_activation, **kwargs)
-    ), name=name)
-
-    return model
+# Stabilizing term to avoid NaN (prevents division by zero or log of zero)
+EPS = 1e-6
+# CAP the standard deviation of the actor
+LOG_STD_MAX = 2
+LOG_STD_MIN = -20
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
@@ -323,29 +238,36 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Step 3: Create actor and critic variables.                          #
         # =================================================================== #
 
-        self.condition_inputs = None
-        self.latents_model = None
-        self.latents_input = None
-        self.actions_model = None
-        self.deterministic_actions_model = None
-        self.actions_input = None
-        self.log_pis_model = None
-        self.diagnostics_model = None
-
-        input_shapes = {
-            "observations": [self.ob_space.shape[0]]
-        }
-        critic_input_shapes = {  # TODO: maybe revert
-            'observations': self.ob_space.shape[0],
-            'actions': self.ac_space.shape
-        }
-
         # Create networks and core TF parts that are shared across setup parts.
-        self.make_actor(input_shapes)
-        self.critic_tf = tuple(
-            self.make_critic(critic_input_shapes) for _ in range(2))
-        self.critic_target = tuple(
-            tf.keras.models.clone_model(Q) for Q in self.critic_tf)
+        with tf.compat.v1.variable_scope("model", reuse=False):
+            self.deterministic_action, self.policy_out, self.logp_pi = \
+                self.make_actor(self.obs_ph)
+            self.qf1, self.qf2, self.value_fn = self.make_critic(
+                self.obs_ph, self.action_ph,
+                create_qf=True, create_vf=True)
+            self.qf1_pi, self.qf2_pi, _ = self.make_critic(
+                self.obs_ph, self.policy_out,
+                create_qf=True, create_vf=False, reuse=True)
+
+            # The entropy coefficient or entropy can be learned automatically
+            # see Automating Entropy Adjustment for Maximum Entropy RL section
+            # of https://arxiv.org/abs/1812.05905
+            self.log_alpha = tf.compat.v1.get_variable(
+                'log_alpha',
+                dtype=tf.float32,
+                initializer=0.0)
+            self.alpha = tf.exp(self.log_alpha)
+
+        with tf.compat.v1.variable_scope("target", reuse=False):
+            # Create the value network
+            _, _, value_target = self.make_critic(
+                self.obs1_ph, create_qf=False, create_vf=True)
+            self.value_target = value_target
+
+        # Create the target update operations.
+        init, soft = self._setup_target_updates(scope, tau, verbose)
+        self.target_init_updates = init
+        self.target_soft_updates = soft
 
         # =================================================================== #
         # Step 4: Setup the optimizers for the actor and critic.              #
@@ -367,123 +289,200 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # and outputs.
         self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
 
-    def make_actor(self, input_shapes):
-        inputs_flat = create_inputs(input_shapes)
+    def make_actor(self, obs, reuse=False, scope="pi"):
+        """Create an actor tensor.
 
-        def cast_and_concat(x):
-            x = nest.map_structure(
-                lambda element: tf.cast(element, tf.float32), x)
-            x = nest.flatten(x)
-            x = tf.concat(x, axis=-1)
-            return x
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
 
-        conditions = tf.keras.layers.Lambda(
-            cast_and_concat
-        )(inputs_flat)
+        Returns
+        -------
+        tf.Variable
+            the output from the actor
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
 
-        self.condition_inputs = inputs_flat
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                pi_h = self._remove_fingerprint(
+                    pi_h,
+                    self.ob_space.shape[0],
+                    self.fingerprint_dim,
+                    self.co_space.shape[0]
+                )
 
-        shift_and_log_scale_diag = feedforward_model(
-            hidden_layer_sizes=self.layers,
-            output_size=np.prod(self.ac_space.shape) * 2,
-            activation=self.act_fun,
-            output_activation="linear"
-        )(conditions)
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                pi_h = self._layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
 
-        shift, log_scale_diag = tf.keras.layers.Lambda(
-            lambda x: tf.split(x, num_or_size_splits=2, axis=-1)
-        )(shift_and_log_scale_diag)
+            # create the output mean
+            policy_mean = self._layer(
+                pi_h, self.ac_space.shape[0], 'mean',
+                act_fun=None,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
 
-        batch_size = tf.keras.layers.Lambda(
-            lambda x: tf.shape(input=x)[0])(conditions)
+            # create the output log_std
+            log_std = self._layer(
+                pi_h, self.ac_space.shape[0], 'log_std',
+                act_fun=None,
+            )
 
-        base_distribution = tfp.distributions.MultivariateNormalDiag(
-            loc=tf.zeros(self.ac_space.shape),
-            scale_diag=tf.ones(self.ac_space.shape))
+        # OpenAI Variation to cap the standard deviation
+        log_std = tf.clip_by_value(log_std, LOG_STD_MIN, LOG_STD_MAX)
 
-        latents = tf.keras.layers.Lambda(
-            lambda x: base_distribution.sample(x)
-        )(batch_size)
+        std = tf.exp(log_std)
 
-        self.latents_model = tf.keras.Model(self.condition_inputs, latents)
-        self.latents_input = tf.keras.layers.Input(
-            shape=self.ac_space.shape, name='latents')
+        # Reparameterization trick
+        policy = policy_mean + tf.random_normal(tf.shape(policy_mean)) * std
+        logp_pi = self._gaussian_likelihood(policy, policy_mean, log_std)
 
-        def raw_actions_fn(inputs):
-            shift, log_scale_diag, latents = inputs
-            bijector = tfp.bijectors.Affine(
-                shift=shift,
-                scale_diag=tf.exp(log_scale_diag))
-            return bijector.forward(latents)
+        # Apply squashing and account for it in the probability
+        deterministic_policy, policy, logp_pi = self._apply_squashing_func(
+            policy, policy_mean, logp_pi)
 
-        raw_actions = tf.keras.layers.Lambda(
-            raw_actions_fn
-        )((shift, log_scale_diag, latents))
+        return deterministic_policy, policy, logp_pi
 
-        squash_bijector = (
-            tfp.bijectors.Tanh()
-            if self.squash
-            else tfp.bijectors.Identity())
+    def make_critic(self,
+                    obs,
+                    action=None,
+                    reuse=False,
+                    scope="qf",
+                    create_qf=True,
+                    create_vf=True):
+        """
 
-        actions = tf.keras.layers.Lambda(
-            lambda x: squash_bijector.forward(x)
-        )(raw_actions)
-        self.actions_model = tf.keras.Model(self.condition_inputs, actions)
+        :param obs:
+        :param action:
+        :param reuse:
+        :param scope:
+        :return:
+        """
+        with tf.variable_scope(scope, reuse=reuse):
+            # zero out the fingerprint observations for the worker policy
+            if self.zero_fingerprint:
+                obs = self._remove_fingerprint(
+                    obs,
+                    self.ob_space.shape[0],
+                    self.fingerprint_dim,
+                    self.co_space.shape[0]
+                )
 
-        deterministic_actions = tf.keras.layers.Lambda(
-            lambda x: squash_bijector.forward(x)
-        )(shift)
+            # Value function
+            if create_vf:
+                with tf.variable_scope("vf", reuse=reuse):
+                    vf_h = obs
 
-        self.deterministic_actions_model = tf.keras.Model(
-            self.condition_inputs, deterministic_actions)
+                    # create the hidden layers
+                    for i, layer_size in enumerate(self.layers):
+                        vf_h = self._layer(
+                            vf_h, layer_size, 'fc{}'.format(i),
+                            act_fun=self.act_fun,
+                            layer_norm=self.layer_norm
+                        )
 
-        def log_pis_fn(inputs):
-            shift, log_scale_diag, actions = inputs
-            base_distribution = tfp.distributions.MultivariateNormalDiag(
-                loc=tf.zeros(self.ac_space.shape),
-                scale_diag=tf.ones(self.ac_space.shape))
-            bijector = tfp.bijectors.Chain((
-                squash_bijector,
-                tfp.bijectors.Affine(
-                    shift=shift,
-                    scale_diag=tf.exp(log_scale_diag)),
-            ))
-            distribution = (
-                tfp.distributions.TransformedDistribution(
-                    distribution=base_distribution,
-                    bijector=bijector))
+                    # create the output layer
+                    value_fn = self._layer(
+                        vf_h, 1, 'vf_output',
+                        kernel_initializer=tf.random_uniform_initializer(
+                            minval=-3e-3, maxval=3e-3)
+                    )
+            else:
+                value_fn = None
 
-            return distribution.log_prob(actions)[:, None]
+            # Double Q values to reduce overestimation
+            if create_qf:
+                with tf.variable_scope('qf1', reuse=reuse):
+                    # concatenate the observations and actions
+                    qf1_h = tf.concat([obs, action], axis=-1)
 
-        self.actions_input = tf.keras.layers.Input(
-            shape=self.ac_space.shape, name='actions')
+                    # create the hidden layers
+                    for i, layer_size in enumerate(self.layers):
+                        qf1_h = self._layer(
+                            qf1_h, layer_size, 'fc{}'.format(i),
+                            act_fun=self.act_fun,
+                            layer_norm=self.layer_norm
+                        )
 
-        log_pis = tf.keras.layers.Lambda(
-            log_pis_fn)([shift, log_scale_diag, actions])
+                    # create the output layer
+                    qf1 = self._layer(
+                        qf1_h, 1, 'qf_output',
+                        kernel_initializer=tf.random_uniform_initializer(
+                            minval=-3e-3, maxval=3e-3)
+                    )
 
-        log_pis_for_action_input = tf.keras.layers.Lambda(
-            log_pis_fn)([shift, log_scale_diag, self.actions_input])
+                with tf.variable_scope('qf2', reuse=reuse):
+                    # concatenate the observations and actions
+                    qf2_h = tf.concat([obs, action], axis=-1)
 
-        self.log_pis_model = tf.keras.Model(
-            (*self.condition_inputs, self.actions_input),
-            log_pis_for_action_input)
+                    # create the hidden layers
+                    for i, layer_size in enumerate(self.layers):
+                        qf2_h = self._layer(
+                            qf2_h, layer_size, 'fc{}'.format(i),
+                            act_fun=self.act_fun,
+                            layer_norm=self.layer_norm
+                        )
 
-        self.diagnostics_model = tf.keras.Model(
-            self.condition_inputs,
-            (shift, log_scale_diag, log_pis, raw_actions, actions))
+                    # create the output layer
+                    qf2 = self._layer(
+                        qf2_h, 1, 'qf_output',
+                        kernel_initializer=tf.random_uniform_initializer(
+                            minval=-3e-3, maxval=3e-3)
+                    )
+            else:
+                qf1, qf2 = None, None
 
-    def make_critic(self, input_shapes):
-        inputs_flat = create_inputs(input_shapes)
+        return qf1, qf2, value_fn
 
-        q_function = feedforward_model(
-            hidden_layer_sizes=self.layers, output_size=1)
-        q_function = tf.keras.Model(inputs_flat, q_function(inputs_flat))
-        q_function.observation_keys = None
+    @staticmethod
+    def _gaussian_likelihood(input_, mu_, log_std):
+        """Compute log likelihood of a gaussian.
 
-        return q_function
+        Here we assume this is a Diagonal Gaussian.
 
-    def log_pis(self, observations, actions):
-        return self.log_pis_model([*observations, actions])
+        :param input_: (tf.Tensor)
+        :param mu_: (tf.Tensor)
+        :param log_std: (tf.Tensor)
+        :return: (tf.Tensor)
+        """
+        pre_sum = -0.5 * (((input_ - mu_) / (
+                    tf.exp(log_std) + EPS)) ** 2 + 2 * log_std + np.log(
+            2 * np.pi))
+        return tf.reduce_sum(pre_sum, axis=1)
+
+    @staticmethod
+    def _apply_squashing_func(mu_, pi_, logp_pi):
+        """Squash the output of the Gaussian distribution.
+
+        This method also accounts for that in the log probability.
+
+        The squashed mean is also returned for using deterministic actions.
+
+        :param mu_: (tf.Tensor) Mean of the gaussian
+        :param pi_: (tf.Tensor) Output of the policy before squashing
+        :param logp_pi: (tf.Tensor) Log probability before squashing
+        :return: ([tf.Tensor])
+        """
+        # Squash the output
+        deterministic_policy = tf.nn.tanh(mu_)
+        policy = tf.nn.tanh(pi_)
+
+        # Squash correction (from original implementation)
+        logp_pi -= tf.reduce_sum(tf.log(1 - policy ** 2 + EPS), axis=1)
+
+        return deterministic_policy, policy, logp_pi
 
     def update(self, **kwargs):
         """Perform a gradient update step.
@@ -536,12 +535,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         step_ops = [
             self.critic_loss[0],
             self.critic_loss[1],
+            self.critic_loss[2],
             self.actor_loss,
             self.alpha_loss,
-            self.critic_optimizer[0],
-            self.critic_optimizer[1],
+            self.critic_optimizer,
             self.actor_optimizer,
             self.alpha_optimizer,
+            self.target_soft_updates,
         ]
 
         # Prepare the feed_dict information.
@@ -554,12 +554,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         }
 
         # Perform the update operations and collect the actor and critic loss.
-        q1_loss, q2_loss, actor_loss, *_ = self.sess.run(step_ops, feed_dict)
+        q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
+            step_ops, feed_dict)
 
-        # Run target update ops.
-        self.update_target()
-
-        return q1_loss + q2_loss, actor_loss
+        return q1_loss + q2_loss + vf_loss, actor_loss
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
@@ -569,27 +567,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if random_actions:
             return self.ac_space.sample()
         elif apply_noise:
-            return self.actions_model.predict(obs)
+            return self.sess.run(
+                self.policy_out, feed_dict={self.obs_ph: obs})
         else:
-            return self.deterministic_actions_model.predict(obs)
+            return self.sess.run(
+                self.deterministic_action, feed_dict={self.obs_ph: obs})
 
     def value(self, obs, context, action):
         """See parent class."""
         return 0, 0  # FIXME
-
-    def log_pis_np(self, observations, actions):
-        return self.log_pis_model.predict([*observations, actions])
-
-    def update_target(self, tau=None):
-        tau = tau or self.tau
-
-        for Q, Q_target in zip(self.critic_tf, self.critic_target):
-            source_params = Q.get_weights()
-            target_params = Q_target.get_weights()
-            Q_target.set_weights([
-                tau * source + (1.0 - tau) * target
-                for source, target in zip(source_params, target_params)
-            ])
 
     def _setup_critic_optimizer(self, scope):
         """Create minimization operation for critic Q-function.
@@ -600,30 +586,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         See Equations (5, 6) in [1], for further information of the Q-function
         update rule.
         """
-        policy_inputs = nest.flatten({
-            "observations": self.obs1_ph
-        })
-        next_actions = self.actions_model(policy_inputs)
-        next_log_pis = self.log_pis(policy_inputs, next_actions)
+        # Take the min of the two Q-Values (Double-Q Learning)
+        min_qf_pi = tf.minimum(self.qf1_pi, self.qf2_pi)
 
-        next_q_inputs = nest.flatten({
-            "observations": self.obs1_ph,
-            'actions': next_actions
-        })
-        next_qs_values = tuple(q(next_q_inputs) for q in self.critic_target)
-
-        min_next_q = tf.reduce_min(next_qs_values, axis=0)
-        next_values = min_next_q - self.alpha * next_log_pis
-
-        terminals = tf.cast(self.terminals1, next_values.dtype)
-
-        q_target = tf.stop_gradient(
-            self.rew_ph + self.gamma * (1 - terminals) * next_values)
-        assert q_target.shape.as_list() == [None, 1]
-
-        q_inputs = nest.flatten({
-            'observations': self.obs_ph, 'actions': self.action_ph})
-        q_values = self._Q_values = tuple(q(q_inputs) for q in self.critic_tf)
+        # Target for Q value regression
+        q_backup = tf.stop_gradient(
+            self.rew_ph +
+            (1 - self.terminals1) * self.gamma * self.value_target)
 
         # choose the loss function
         if self.use_huber:
@@ -631,21 +600,26 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             loss_fn = tf.compat.v1.losses.mean_squared_error
 
-        self.critic_loss = tuple(
-            loss_fn(q_target, q_value) for q_value in q_values)
+        # Compute Q-Function loss
+        qf1_loss = loss_fn(q_backup, self.qf1)
+        qf2_loss = loss_fn(q_backup, self.qf2)
 
-        self.critic_optimizer = []
+        # Target for value fn regression
+        # We update the vf towards the min of two Q-functions in order to
+        # reduce overestimation bias from function approximation error.
+        v_backup = tf.stop_gradient(min_qf_pi - self.alpha * self.logp_pi)
+        value_loss = loss_fn(self.value_fn, v_backup)
 
-        for i, (q, q_loss) in enumerate(zip(self.critic_tf, self.critic_loss)):
-            # create an optimizer object
-            optimizer = tf.compat.v1.train.AdamOptimizer(
-                learning_rate=self.critic_lr,
-                name='Q{}_optimizer'.format(i+1))
+        self.critic_loss = (qf1_loss, qf2_loss, value_loss)
 
-            # create the optimizer object
-            self.critic_optimizer.append(optimizer.minimize(
-                loss=q_loss,
-                var_list=q.trainable_variables))
+        # Combine the loss functions for the optimizer.
+        critic_loss = qf1_loss + qf2_loss + value_loss
+
+        # Value train op
+        critic_optimizer = tf.train.AdamOptimizer(learning_rate=self.critic_lr)
+        self.critic_optimizer = critic_optimizer.minimize(
+            critic_loss,
+            var_list=get_trainable_vars('model/qf'))
 
     def _setup_actor_optimizer(self, scope):
         """Create minimization operations for policy and entropy.
@@ -656,73 +630,37 @@ class FeedForwardPolicy(ActorCriticPolicy):
         See Section 4.2 in [1], for further information of the policy update,
         and Section 5 in [1] for further information of the entropy update.
         """
-        policy_inputs = nest.flatten({"observations": self.obs_ph})
-        actions = self.actions_model(policy_inputs)
-        log_pis = self.log_pis(policy_inputs, actions)
-        assert log_pis.shape.as_list() == [None, 1]
+        # Take the min of the two Q-Values (Double-Q Learning)
+        min_qf_pi = tf.minimum(self.qf1_pi, self.qf2_pi)
 
-        # Create the temperature term.
-        log_alpha = tf.compat.v1.get_variable(
-            'log_alpha',
-            dtype=tf.float32,
-            initializer=0.0)
-        self.alpha = tf.exp(log_alpha)
-
-        # Compute the temperature loss.
+        # Compute the entropy temperature loss
         self.alpha_loss = -tf.reduce_mean(
-            log_alpha * tf.stop_gradient(log_pis + self.target_entropy))
+            self.log_alpha
+            * tf.stop_gradient(self.logp_pi + self.target_entropy))
 
-        # Create an optimizer object.
-        alpha_optimizer = tf.compat.v1.train.AdamOptimizer(
-            self.actor_lr,
-            name='alpha_optimizer')
+        alpha_optimizer = tf.train.AdamOptimizer(learning_rate=self.actor_lr)
 
-        # Create the optimizer for the alpha term.
         self.alpha_optimizer = alpha_optimizer.minimize(
-            loss=self.alpha_loss,
-            var_list=[log_alpha])
+            self.alpha_loss,
+            var_list=self.log_alpha)
 
-        q_observations = {"observations": self.obs_ph}
-        q_inputs = nest.flatten({
-            **q_observations, 'actions': actions})
-        q_log_targets = tuple(q(q_inputs) for q in self.critic_tf)
-        min_q_log_target = tf.reduce_min(q_log_targets, axis=0)
+        # Compute the policy loss
+        self.actor_loss = tf.reduce_mean(self.alpha * self.logp_pi - min_qf_pi)
 
-        # Compute the actor loss.
-        self.actor_loss = tf.reduce_mean(
-            self.alpha * log_pis - min_q_log_target)
+        # Policy train op (has to be separate from value train op, because
+        # min_qf_pi appears in policy_loss)
+        actor_optimizer = tf.train.AdamOptimizer(learning_rate=self.actor_lr)
 
-        # Create an optimizer object.
-        actor_optimizer = tf.compat.v1.train.AdamOptimizer(
-            learning_rate=self.actor_lr,
-            name="policy_optimizer")
-
-        # Create the optimizer for the actor.
         self.actor_optimizer = actor_optimizer.minimize(
-            loss=self.actor_loss,
-            var_list=self.actions_model.trainable_variables)
+            self.actor_loss,
+            var_list=get_trainable_vars('model/pi'))
 
     def _setup_stats(self, scope):  # FIXME
-        diagnosables = OrderedDict((
-            ('Q_value', self._Q_values),
-        ))
-
-        diagnostic_metrics = OrderedDict((
-            ('mean', tf.reduce_mean),
-            ('std', lambda x: tfp.stats.stddev(x, sample_axis=None)),
-        ))
-
-        self._diagnostics_ops = OrderedDict([
-            (f'{key}-{metric_name}', metric_fn(values))
-            for key, values in diagnosables.items()
-            for metric_name, metric_fn in diagnostic_metrics.items()
-        ])
-
         return [], []
 
     def initialize(self):
         """See parent class."""
-        self.update_target(tau=1.0)
+        self.sess.run(self.target_init_updates)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
