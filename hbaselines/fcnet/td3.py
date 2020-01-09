@@ -297,7 +297,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ]
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(scope, tau, verbose)
+        init, soft = self._setup_target_updates(
+            'model', 'target', scope, tau, verbose)
         self.target_init_updates = init
         self.target_soft_updates = soft
 
@@ -329,9 +330,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
-        # compute the actor loss
-        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
-
         if self.verbose >= 2:
             actor_shapes = [var.get_shape().as_list()
                             for var in get_trainable_vars(scope_name)]
@@ -339,6 +337,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                    for shape in actor_shapes])
             print('  actor shapes: {}'.format(actor_shapes))
             print('  actor params: {}'.format(actor_nb_params))
+
+        # compute the actor loss
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
 
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)

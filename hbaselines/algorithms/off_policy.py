@@ -48,13 +48,9 @@ TD3_PARAMS = dict(
 # =========================================================================== #
 
 SAC_PARAMS = dict(
-    # TODO
-    squash=True,
     # target entropy used when learning the entropy coefficient. If set to
     # None, a heuristic value is used.
     target_entropy=None,
-    # TODO
-    action_prior="uniform",
 )
 
 
@@ -68,9 +64,9 @@ FEEDFORWARD_PARAMS = dict(
     # the size of the batch for learning the policy
     batch_size=128,
     # the actor learning rate
-    actor_lr=3e-5,
+    actor_lr=3e-4,
     # the critic learning rate
-    critic_lr=3e-5,
+    critic_lr=3e-4,
     # the soft update coefficient (keep old values, between 0 and 1)
     tau=0.005,
     # the discount rate
