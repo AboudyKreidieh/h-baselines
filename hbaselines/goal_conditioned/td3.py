@@ -396,7 +396,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
 
         Returns
         -------
-        float
+        [float, float]
             manager critic loss
         float
             manager actor loss

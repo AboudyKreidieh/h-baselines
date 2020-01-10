@@ -654,44 +654,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
+        [float, float]
             manager critic loss
         float
             manager actor loss
         """
-        # Reshape to match previous behavior and placeholder shape.
-        rewards = rewards.reshape(-1, 1)
-        terminals1 = terminals1.reshape(-1, 1)
-
-        # Update operations for the critic networks.
-        step_ops = [self.manager.critic_loss,
-                    self.manager.critic_optimizer[0],
-                    self.manager.critic_optimizer[1]]
-
-        feed_dict = {
-            self.manager.obs_ph: obs0,
-            self.manager.action_ph: actions,
-            self.manager.rew_ph: rewards,
-            self.manager.obs1_ph: obs1,
-            self.manager.terminals1: terminals1
-        }
-
-        if update_actor:
-            # Actor updates and target soft update operation.
-            step_ops += [self.manager.actor_loss,
-                         self.cg_optimizer,  # This is what's replaced.
-                         self.manager.target_soft_updates]
-
-            feed_dict.update({
-                self.worker.obs_ph: worker_obs0,
-                self.worker.action_ph: worker_actions,
-                self.worker.obs1_ph: worker_obs1,
-            })
-
-        # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+        raise NotImplementedError
