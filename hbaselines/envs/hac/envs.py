@@ -257,10 +257,8 @@ class Environment(gym.Env):
 class UR5(Environment):
     """UR5 environment class.
 
-        # In the UR5 reacher environment, the end goal will be the desired
-        # joint positions for the 3 main joints.
-
-    TODO: document
+    In this environment, a UR5 reacher object is tasked with reaching an end
+    goal consisting of the desired joint positions for the 3 main joints.
     """
 
     def __init__(self,
@@ -488,10 +486,9 @@ class UR5(Environment):
 class Pendulum(Environment):
     """Pendulum environment class.
 
-        # In the inverted pendulum environment, the end goal will be the
-        # desired joint angle and joint velocity for the pendulum.
-
-    TODO: document
+    In this environment, an inverted pendulum object is tasked with reaching an
+    end goal consisting of the desired joint angle and joint velocity for the
+    pendulum.
     """
 
     def __init__(self,

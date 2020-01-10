@@ -321,7 +321,7 @@ class ActorCriticPolicy(object):
         return val
 
     @staticmethod
-    def _setup_target_updates(scope, tau, verbose):
+    def _setup_target_updates(model_scope, target_scope, scope, tau, verbose):
         """Create the soft and initial target updates.
 
         The initial model parameters are assumed to be stored under the scope
@@ -333,6 +333,10 @@ class ActorCriticPolicy(object):
 
         Parameters
         ----------
+        model_scope : str
+            the scope of the model parameters
+        target_scope : str
+            the scope of the target parameters
         scope : str
             the outer scope, set to None if not available
         tau : float
@@ -348,8 +352,6 @@ class ActorCriticPolicy(object):
         tf.Operation
             soft target update operations
         """
-        model_scope = 'model/'
-        target_scope = 'target/'
         if scope is not None:
             model_scope = scope + '/' + model_scope
             target_scope = scope + '/' + target_scope

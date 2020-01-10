@@ -137,6 +137,10 @@ class OffPolicyRLAlgorithm(object):
         enable rendering of the training environment
     render_eval : bool
         enable rendering of the evaluation environment
+    eval_deterministic : bool
+        if set to True, the policy provides deterministic actions to the
+        evaluation environment. Otherwise, stochastic or noisy actions are
+        returned.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     action_space : gym.spaces.*
@@ -177,9 +181,12 @@ class OffPolicyRLAlgorithm(object):
     epoch_actor_losses : list of float
         the actor loss values from each SGD step in the most recent training
         iteration
-    epoch_critic_losses : list of float
-        the critic loss values from each SGD step in the most recent training
-        iteration
+    epoch_q1_losses : list of float
+        the loss values for the first Q-function from each SGD step in the most
+        recent training iteration
+    epoch_q2_losses : list of float
+        the loss values for the second Q-function from each SGD step in the
+        most recent training iteration
     epoch_actions : list of array_like
         a list of the actions that were performed during the most recent
         training iteration
@@ -227,6 +234,7 @@ class OffPolicyRLAlgorithm(object):
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
+                 eval_deterministic=True,
                  verbose=0,
                  policy_kwargs=None,
                  _init_setup_model=True):
@@ -260,6 +268,10 @@ class OffPolicyRLAlgorithm(object):
             enable rendering of the training environment
         render_eval : bool
             enable rendering of the evaluation environment
+        eval_deterministic : bool
+            if set to True, the policy provides deterministic actions to the
+            evaluation environment. Otherwise, stochastic or noisy actions are
+            returned.
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -280,6 +292,7 @@ class OffPolicyRLAlgorithm(object):
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
+        self.eval_deterministic = eval_deterministic
         self.verbose = verbose
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -311,7 +324,7 @@ class OffPolicyRLAlgorithm(object):
             # for Flow environments
             self.horizon = self.env.env_params.horizon
         else:
-            raise ValueError("Environment has not attribute env.horizon")
+            raise ValueError("Horizon attribute not found.")
 
         # init
         self.graph = None
@@ -325,7 +338,8 @@ class OffPolicyRLAlgorithm(object):
         self.epoch_episode_rewards = []
         self.epoch_episode_steps = []
         self.epoch_actor_losses = []
-        self.epoch_critic_losses = []
+        self.epoch_q1_losses = []
+        self.epoch_q2_losses = []
         self.epoch_actions = []
         self.epoch_q1s = []
         self.epoch_q2s = []
@@ -349,8 +363,8 @@ class OffPolicyRLAlgorithm(object):
                 (self.observation_space.high, fingerprint_range[1]))
             self.observation_space = Box(low=low, high=high)
 
+        # Create the model variables and operations.
         if _init_setup_model:
-            # Create the model variables and operations.
             self.trainable_vars = self.setup_model()
 
     def setup_model(self):
@@ -385,7 +399,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
-                self.sess.run(tf.global_variables_initializer())
+                self.sess.run(tf.compat.v1.global_variables_initializer())
                 self.policy_tf.initialize()
 
             return tf.compat.v1.get_collection(
@@ -481,8 +495,8 @@ class OffPolicyRLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              start_timesteps=50000):
-        """Return a trained model.
+              initial_exploration_steps=10000):
+        """Perform the complete training operation.
 
         Parameters
         ----------
@@ -501,7 +515,7 @@ class OffPolicyRLAlgorithm(object):
         save_interval : int
             number of simulation steps in the training environment before the
             model is saved
-        start_timesteps : int, optional
+        initial_exploration_steps : int, optional
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
@@ -546,7 +560,7 @@ class OffPolicyRLAlgorithm(object):
             # Collect preliminary random samples.
             print("Collecting pre-samples...")
             self._collect_samples(total_timesteps,
-                                  run_steps=start_timesteps,
+                                  run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
 
@@ -562,7 +576,8 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_q1s = []
                 self.epoch_q2s = []
                 self.epoch_actor_losses = []
-                self.epoch_critic_losses = []
+                self.epoch_q1_losses = []
+                self.epoch_q2_losses = []
                 self.epoch_episode_rewards = []
                 self.epoch_episode_steps = []
 
@@ -774,7 +789,17 @@ class OffPolicyRLAlgorithm(object):
                 update_actor=update, **kwargs)
 
             # Add actor and critic loss information for logging purposes.
-            self.epoch_critic_losses.append(critic_loss)
+            if isinstance(critic_loss, tuple):
+                # For hierarchical policies
+                # TODO: modify for Manager/Worker paradigm
+                self.epoch_q1_losses.append(
+                    critic_loss[0][0] + critic_loss[0][1])
+                self.epoch_q2_losses.append(
+                    critic_loss[1][0] + critic_loss[1][1])
+            else:
+                # For non-hierarchical policies
+                self.epoch_q1_losses.append(critic_loss[0])
+                self.epoch_q2_losses.append(critic_loss[1])
             self.epoch_actor_losses.append(actor_loss)
 
     def _evaluate(self, total_timesteps, env):
@@ -839,7 +864,8 @@ class OffPolicyRLAlgorithm(object):
 
                 eval_action, _ = self._policy(
                     eval_obs, context,
-                    apply_noise=False, random_actions=False, compute_q=False)
+                    apply_noise=not self.eval_deterministic,
+                    random_actions=False, compute_q=False)
 
                 obs, eval_r, done, info = env.step(eval_action)
 
@@ -989,7 +1015,8 @@ class OffPolicyRLAlgorithm(object):
             'rollout/Q1_mean': np.mean(self.epoch_q1s),
             'rollout/Q2_mean': np.mean(self.epoch_q2s),
             'train/loss_actor': np.mean(self.epoch_actor_losses),
-            'train/loss_critic': np.mean(self.epoch_critic_losses),
+            'train/loss_Q1': np.mean(self.epoch_q1_losses),
+            'train/loss_Q2': np.mean(self.epoch_q2_losses),
             'total/duration': duration,
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,
