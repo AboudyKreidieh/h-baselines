@@ -397,14 +397,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        (float, float)
+        ([float, float], [float, float])
             manager critic loss, worker critic loss
-        (float, float)
+        ([float, float], float)
             manager actor loss, worker actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return (0, 0), (0, 0)
+            return ([0, 0], [0, 0]), (0, 0)
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
@@ -436,7 +436,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     update_actor=kwargs['update_meta_actor'],
                 )
         else:
-            m_critic_loss, m_actor_loss = 0, 0
+            m_critic_loss, m_actor_loss = [0, 0], 0
 
         # Update the Worker policy.
         w_critic_loss, w_actor_loss = self.worker.update_from_batch(
