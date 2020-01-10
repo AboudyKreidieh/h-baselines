@@ -654,11 +654,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Returns
         -------
-<<<<<<< HEAD
-        float
-=======
         [float, float]
->>>>>>> 6747a7be93efd1f8b59061cdea010251391502f9
             manager critic loss
         float
             manager actor loss
