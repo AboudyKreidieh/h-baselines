@@ -348,7 +348,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         policy = GoalConditionedPolicy(**policy_params)
 
         # Initialize the variables of the policy.
-        policy.sess.run(tf.global_variables_initializer())
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
         # Test the _sample method.
         states = np.array(
@@ -400,7 +400,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
         error = policy._log_probs(manager_obs, worker_obs, actions, goals)
         np.testing.assert_array_almost_equal(
-            error, [-3.890966e-03, -3.893214e-03, -1.082069e-07])
+            error, [-3.907223e-03, -3.918726e-03, -7.482369e-08])
 
         # Test the _sample_best_meta_action method.  FIXME
 

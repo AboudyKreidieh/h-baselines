@@ -297,7 +297,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ]
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(scope, tau, verbose)
+        init, soft = self._setup_target_updates(
+            'model', 'target', scope, tau, verbose)
         self.target_init_updates = init
         self.target_soft_updates = soft
 
@@ -309,7 +310,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(critic_target, scope)
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
-            tf.compat.v1.summary.scalar('critic_loss', self.critic_loss)
+            tf.compat.v1.summary.scalar('Q1_loss', self.critic_loss[0])
+            tf.compat.v1.summary.scalar('Q2_loss', self.critic_loss[1])
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
@@ -328,9 +330,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
-        # compute the actor loss
-        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
-
         if self.verbose >= 2:
             actor_shapes = [var.get_shape().as_list()
                             for var in get_trainable_vars(scope_name)]
@@ -338,6 +337,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                    for shape in actor_shapes])
             print('  actor shapes: {}'.format(actor_shapes))
             print('  actor params: {}'.format(actor_nb_params))
+
+        # compute the actor loss
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
 
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -367,13 +369,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             loss_fn = tf.compat.v1.losses.mean_squared_error
 
-        self.critic_loss = \
-            loss_fn(self.critic_tf[0], target_q) + \
-            loss_fn(self.critic_tf[1], target_q)
+        self.critic_loss = [loss_fn(q, target_q) for q in self.critic_tf]
 
         self.critic_optimizer = []
 
-        for i in range(2):
+        for i, critic_loss in enumerate(self.critic_loss):
             scope_name = 'model/qf_{}/'.format(i)
             if scope is not None:
                 scope_name = scope + '/' + scope_name
@@ -390,7 +390,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
 
             # create the optimizer object
-            self.critic_optimizer.append(optimizer.minimize(self.critic_loss))
+            self.critic_optimizer.append(optimizer.minimize(
+                loss=critic_loss,
+                var_list=get_trainable_vars(scope_name)))
 
     def make_actor(self, obs, reuse=False, scope="pi"):
         """Create an actor tensor.
@@ -441,7 +443,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ac_means = (self.ac_space.high + self.ac_space.low) / 2.
             ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-            policy = ac_means + ac_magnitudes * policy
+            policy = ac_means + ac_magnitudes * tf.to_float(policy)
 
         return policy
 
@@ -508,14 +510,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return 0, 0
+            return [0, 0], 0
 
         # Get a batch
         obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
@@ -552,8 +554,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
