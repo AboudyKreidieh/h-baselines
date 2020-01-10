@@ -123,7 +123,7 @@ along the process:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy # for TD3 algorithm
+from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object, 
 alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
@@ -234,7 +234,7 @@ size of [64, 64], this could be done as such:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object, 
 alg = OffPolicyRLAlgorithm(
@@ -316,7 +316,7 @@ This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,

@@ -197,9 +197,12 @@ class OffPolicyRLAlgorithm(object):
     epoch_actor_losses : list of float
         the actor loss values from each SGD step in the most recent training
         iteration
-    epoch_critic_losses : list of float
-        the critic loss values from each SGD step in the most recent training
-        iteration
+    epoch_q1_losses : list of float
+        the loss values for the first Q-function from each SGD step in the most
+        recent training iteration
+    epoch_q2_losses : list of float
+        the loss values for the second Q-function from each SGD step in the
+        most recent training iteration
     epoch_actions : list of array_like
         a list of the actions that were performed during the most recent
         training iteration
@@ -353,7 +356,8 @@ class OffPolicyRLAlgorithm(object):
         self.epoch_episode_rewards = []
         self.epoch_episode_steps = []
         self.epoch_actor_losses = []
-        self.epoch_critic_losses = []
+        self.epoch_q1_losses = []
+        self.epoch_q2_losses = []
         self.epoch_actions = []
         self.epoch_q1s = []
         self.epoch_q2s = []
@@ -590,7 +594,8 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_q1s = []
                 self.epoch_q2s = []
                 self.epoch_actor_losses = []
-                self.epoch_critic_losses = []
+                self.epoch_q1_losses = []
+                self.epoch_q2_losses = []
                 self.epoch_episode_rewards = []
                 self.epoch_episode_steps = []
 
@@ -802,7 +807,17 @@ class OffPolicyRLAlgorithm(object):
                 update_actor=update, **kwargs)
 
             # Add actor and critic loss information for logging purposes.
-            self.epoch_critic_losses.append(critic_loss)
+            if isinstance(critic_loss, tuple):
+                # For hierarchical policies
+                # TODO: modify for Manager/Worker paradigm
+                self.epoch_q1_losses.append(
+                    critic_loss[0][0] + critic_loss[0][1])
+                self.epoch_q2_losses.append(
+                    critic_loss[1][0] + critic_loss[1][1])
+            else:
+                # For non-hierarchical policies
+                self.epoch_q1_losses.append(critic_loss[0])
+                self.epoch_q2_losses.append(critic_loss[1])
             self.epoch_actor_losses.append(actor_loss)
 
     def _evaluate(self, total_timesteps, env):
@@ -1019,7 +1034,8 @@ class OffPolicyRLAlgorithm(object):
             'rollout/Q1_mean': np.mean(self.epoch_q1s),
             'rollout/Q2_mean': np.mean(self.epoch_q2s),
             'train/loss_actor': np.mean(self.epoch_actor_losses),
-            'train/loss_critic': np.mean(self.epoch_critic_losses),
+            'train/loss_Q1': np.mean(self.epoch_q1_losses),
+            'train/loss_Q2': np.mean(self.epoch_q2_losses),
             'total/duration': duration,
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,

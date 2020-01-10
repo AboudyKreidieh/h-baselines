@@ -510,14 +510,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return 0, 0
+            return [0, 0], 0
 
         # Get a batch
         obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
@@ -554,8 +554,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
