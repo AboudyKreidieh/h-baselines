@@ -18,13 +18,13 @@ available [here]().
   * [Installing MuJoCo](#installing-mujoco)
   * [Importing AntGather](#importing-antgather)
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
-  * [TD3](#td3)
-  * [Fuly Connected Neural Networks](#fully-connected-neural-networks)
-  * [Goal-Conditioned HRL](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [Off-Policy RL Algorithms](#off-policy-rl-algorithms)
+  * [Fully Connected Neural Networks](#fully-connected-neural-networks)
+  * [Goal-Conditioned HRL](#goal-conditioned-hrl)
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
 * [Environments](#environments)
   * [MuJoCo Environments](#mujoco-environments)
   * [Flow Environments](#flow-environments)
@@ -117,13 +117,13 @@ We use TD3 as our base policy optimization algorithm. Details on this
 algorithm can be found in the following article: 
 https://arxiv.org/pdf/1802.09477.pdf.
 
-To train a policy using this algorithm, create a `TD3` object and 
-execute the `learn` method, providing the algorithm the proper policy 
+To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
+and execute the `learn` method, providing the algorithm the proper policy 
 along the process:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object, 
 alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
@@ -213,7 +213,7 @@ this could be done let so:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object, 
 alg = OffPolicyRLAlgorithm(
@@ -282,7 +282,7 @@ This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
@@ -495,7 +495,8 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: TODO
+* ring0: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
+  <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/351ed9c9a71df22eb3e86de90dd9699a.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 
 **Figure Eight**
 
