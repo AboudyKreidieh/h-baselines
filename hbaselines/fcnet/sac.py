@@ -669,6 +669,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
+        # Normalize the actions (bounded between [-1, 1]).
+        action = (action - self._ac_means) / self._ac_magnitudes
+
         return self.sess.run(
             [self.qf1, self.qf2],  # , self.value_fn],  FIXME
             feed_dict={
