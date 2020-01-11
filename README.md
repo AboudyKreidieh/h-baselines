@@ -125,7 +125,7 @@ along the process:
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
-# create the algorithm object, 
+# create the algorithm object
 alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
@@ -236,7 +236,7 @@ size of [64, 64], this could be done as such:
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
-# create the algorithm object, 
+# create the algorithm object
 alg = OffPolicyRLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
@@ -280,7 +280,11 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
+# for TD3
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+
+# for SAC
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
@@ -306,6 +310,19 @@ parameters. These default terms are available via the following command:
 ```python
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
+```
+
+Moreover, similar to the feed-forward policy, additional algorithm-specific 
+default policy parameters can be found via the following commands:
+
+```python
+# for TD3
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+print(TD3_PARAMS)
+
+# for SAC
+from hbaselines.algorithms.off_policy import SAC_PARAMS
+print(SAC_PARAMS)
 ```
 
 ### Meta Period
@@ -371,7 +388,7 @@ the `relative_goals` parameter to True:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
@@ -387,7 +404,7 @@ TODO
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
@@ -419,7 +436,7 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
