@@ -1,7 +1,4 @@
 """SAC-compatible goal-conditioned hierarchical policy."""
-import tensorflow as tf
-import numpy as np
-
 from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
     BaseGCPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy

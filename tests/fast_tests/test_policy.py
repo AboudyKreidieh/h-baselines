@@ -6,9 +6,10 @@ import random
 from gym.spaces import Box
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
-from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
+# from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -31,7 +32,7 @@ class TestActorCriticPolicy(unittest.TestCase):
         del self.policy_params
 
     def test_init(self):
-        """Validate that the graph and variables are initialized properly."""
+        """Validate that the variables are initialized properly."""
         policy = ActorCriticPolicy(**self.policy_params)
 
         # Check that the abstract class has all the required attributes.
@@ -39,16 +40,88 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertEqual(policy.ac_space, self.policy_params['ac_space'])
         self.assertEqual(policy.ob_space, self.policy_params['ob_space'])
         self.assertEqual(policy.co_space, self.policy_params['co_space'])
+        self.assertEqual(policy.buffer_size, self.policy_params['buffer_size'])
+        self.assertEqual(policy.batch_size, self.policy_params['batch_size'])
+        self.assertEqual(policy.actor_lr, self.policy_params['actor_lr'])
+        self.assertEqual(policy.critic_lr, self.policy_params['critic_lr'])
+        self.assertEqual(policy.verbose, self.policy_params['verbose'])
+        self.assertEqual(policy.layers, self.policy_params['layers'])
+        self.assertEqual(policy.tau, self.policy_params['tau'])
+        self.assertEqual(policy.gamma, self.policy_params['gamma'])
+        self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
+        self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
+        self.assertEqual(policy.use_huber, self.policy_params['use_hube'])
 
         # Check that the abstract class has all the required methods.
-        self.assertTrue(hasattr(policy, "initialize"))
-        self.assertTrue(hasattr(policy, "update"))
-        self.assertTrue(hasattr(policy, "get_action"))
-        self.assertTrue(hasattr(policy, "value"))
-        self.assertTrue(hasattr(policy, "store_transition"))
+        self.assertRaises(NotImplementedError, policy.initialize)
+        self.assertRaises(NotImplementedError, policy.update,
+                          update_actor=None)
+        self.assertRaises(NotImplementedError, policy.get_action,
+                          obs=None, context=None, apply_noise=None,
+                          random_actions=None)
+        self.assertRaises(NotImplementedError, policy.value,
+                          obs=None, context=None, action=None)
+        self.assertRaises(NotImplementedError, policy.store_transition,
+                          obs0=None, context0=None, action=None, reward=None,
+                          obs1=None, context1=None, done=None,
+                          is_final_step=None, evaluate=False)
+        self.assertRaises(NotImplementedError, policy.get_td_map)
+
+    def test_get_obs(self):
+        """Check the functionality of the _get_obs() method.
+
+        This method is tested for three cases:
+
+        1. when the context is None
+        2. for 1-D observations and contexts
+        3. for 2-D observations and contexts
+        """
+        pass  # TODO
+
+    def test_get_ob_dim(self):
+        """Check the functionality of the _get_ob_dim() method.
+
+        This method is tested for two cases:
+
+        1. when the context is None
+        2. when the context is not None
+        """
+        pass  # TODO
+
+    def test_layer(self):
+        """Check the functionality of the _layer() method.
+
+        This method is tested for the following features:
+
+        1. the number of outputs from the layer equals num_outputs
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. weights match what the kernel_initializer requests (tested on a
+           constant initializer)
+        5. layer_norm is applied if requested
+        """
+        pass  # TODO
+
+    def test_setup_target_updates(self):
+        """Check the functionality of the _setup_target_updates() method.
+
+        This test validates both the init and soft update procedures generated
+        by the tested method.
+        """
+        pass  # TODO
+
+    def test_remove_fingerprint(self):
+        """Check the functionality of the _remove_fingerprint() method.
+
+        This method is tested for two cases:
+
+        1. for an additional_dim of zero
+        2. for an additional_dim greater than zero
+        """
+        pass  # TODO
 
 
-class TestFeedForwardPolicy(unittest.TestCase):
+class TestTD3FeedForwardPolicy(unittest.TestCase):
     """Test FeedForwardPolicy in hbaselines/fcnet/td3.py."""
 
     def setUp(self):
@@ -69,7 +142,7 @@ class TestFeedForwardPolicy(unittest.TestCase):
 
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
-        policy = FeedForwardPolicy(**self.policy_params)
+        policy = TD3FeedForwardPolicy(**self.policy_params)
 
         # Check that the abstract class has all the required attributes.
         self.assertEqual(policy.buffer_size, self.policy_params['buffer_size'])
@@ -147,17 +220,59 @@ class TestFeedForwardPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
+    def test_initialize(self):
+        """Test that the target variables are properly initialized."""
+        pass  # TODO
+
     def test_optimization(self):
         """Test the losses and gradient update steps."""
-        pass
+        pass  # TODO
 
     def test_update_target(self):
         """Test the soft and init target updates."""
-        pass
+        pass  # TODO
 
     def test_store_transition(self):
         """Test the `store_transition` method."""
-        pass
+        pass  # TODO
+
+
+class TestSACFeedForwardPolicy(unittest.TestCase):
+    """Test FeedForwardPolicy in hbaselines/fcnet/td3.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'scope': None,
+            'verbose': 2,
+        }
+        self.policy_params.update(SAC_PARAMS.copy())
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+    def test_init(self):
+        """Validate that the graph and variables are initialized properly."""
+        # policy = SACFeedForwardPolicy(**self.policy_params)
+
+        pass  # TODO
+
+    def test_gaussian_likelihood(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_apply_squashing(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_initialize(self):
+        """Test that the target variables are properly initialized."""
+        pass  # TODO
 
 
 class TestGoalConditionedPolicy(unittest.TestCase):
@@ -293,7 +408,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
 
     def test_store_transition(self):
         """Test the `store_transition` method."""
-        pass
+        pass  # TODO
 
     def test_meta_period(self):
         """Verify that the rate of the Manager is dictated by meta_period."""
@@ -404,13 +519,13 @@ class TestGoalConditionedPolicy(unittest.TestCase):
 
         # Test the _sample_best_meta_action method.  FIXME
 
-    def test_centralized_value_functions(self):
-        """Validate the functionality of the centralized value function."""
-        pass
-
     def test_connected_gradients(self):
         """Validate the functionality of the connected-gradients feature."""
-        pass
+        pass  # TODO
+
+    def test_centralized_value_functions(self):
+        """Validate the functionality of the centralized value function."""
+        pass  # TODO
 
 
 if __name__ == '__main__':
