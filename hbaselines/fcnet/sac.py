@@ -214,6 +214,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         self.zero_fingerprint = zero_fingerprint
         self.fingerprint_dim = fingerprint_dim
+        self._ac_means = 0.5 * (ac_space.high + ac_space.low)
+        self._ac_magnitudes = 0.5 * (ac_space.high - ac_space.low)
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
@@ -611,6 +613,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """
         del update_actor  # unused by this method
 
+        # Normalize the actions (bounded between [-1, 1]).
+        actions = (actions - self._ac_means) / self._ac_magnitudes
+
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
@@ -651,11 +656,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         if random_actions:
             return np.array([self.ac_space.sample()])
         elif apply_noise:
-            return self.sess.run(
+            normalized_action = self.sess.run(
                 self.policy_out, feed_dict={self.obs_ph: obs})
+            return self._ac_magnitudes * normalized_action + self._ac_means
         else:
-            return self.sess.run(
+            normalized_action = self.sess.run(
                 self.deterministic_action, feed_dict={self.obs_ph: obs})
+            return self._ac_magnitudes * normalized_action + self._ac_means
 
     def value(self, obs, context, action):
         """See parent class."""
