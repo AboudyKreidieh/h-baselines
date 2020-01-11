@@ -38,7 +38,7 @@ class HierReplayBuffer(ReplayBuffer):
             buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
 
         self._meta_period = meta_period
-        self._worker_obs_dim = worker_obs_dim
+        self._worker_ob_dim = worker_obs_dim
         self._worker_ac_dim = worker_ac_dim
 
         # Used to store buffer data.
@@ -136,7 +136,7 @@ class HierReplayBuffer(ReplayBuffer):
         """
         additional = {
             "worker_obses": np.zeros(
-                (self._batch_size, self._worker_obs_dim, self._meta_period),
+                (self._batch_size, self._worker_ob_dim, self._meta_period + 1),
                 dtype=np.float32),
             "worker_actions": np.zeros(
                 (self._batch_size, self._worker_ac_dim, self._meta_period),
@@ -177,6 +177,7 @@ class HierReplayBuffer(ReplayBuffer):
 
             for j in range(len(worker_obses)):
                 additional["worker_obses"][i, :, j] = worker_obses[j]
+            for j in range(len(worker_actions)):
                 additional["worker_actions"][i, :, j] = worker_actions[j]
 
         return self.meta_obs0, \

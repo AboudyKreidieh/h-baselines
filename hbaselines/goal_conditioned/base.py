@@ -576,7 +576,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done = \
+            worker_obs1, worker_act, worker_rew, worker_done, _ = \
             self.replay_buffer.sample()
 
         td_map = {}
@@ -593,7 +593,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                                  meta_action,
                                  worker_obses,
                                  worker_actions,
-                                 k=8):
+                                 k=10):
         """Return meta-actions that approximately maximize low-level log-probs.
 
         Parameters
@@ -606,8 +606,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         meta_action : array_like
             (batch_size, m_ac_dim) matrix of Manager actions
         worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period) matrix of current Worker state
-            observation
+            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
+            state observations
         worker_actions : array_like
             (batch_size, w_ac_dim, meta_period) matrix of current Worker
             environmental actions

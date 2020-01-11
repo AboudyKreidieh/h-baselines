@@ -159,7 +159,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
                                  meta_action,
                                  worker_obses,
                                  worker_actions,
-                                 k=8):
+                                 k=10):
         """Return meta-actions that approximately maximize low-level log-probs.
 
         Parameters
@@ -172,8 +172,8 @@ class GoalConditionedPolicy(BaseGCPolicy):
         meta_action : array_like
             (batch_size, m_ac_dim) matrix of Manager actions
         worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period) matrix of current Worker state
-            observation
+            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
+            state observations
         worker_actions : array_like
             (batch_size, w_ac_dim, meta_period) matrix of current Worker
             environmental actions
@@ -199,8 +199,9 @@ class GoalConditionedPolicy(BaseGCPolicy):
         assert fitness.shape == (batch_size, k)
 
         # For each sample, choose the meta action that maximizes the fitness.
-        indx = np.argmax(fitness, 0)
-        best_goals = sampled_actions[:, :, indx]
+        indx = np.argmax(fitness, 1)
+        best_goals = np.asarray(
+            [sampled_actions[i, :, indx[i]] for i in range(batch_size)])
 
         return best_goals
 
@@ -213,7 +214,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
             (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
             actions
         worker_obses : array_like
-            (bath_size, w_obs_dim, meta_period) matrix of Worker observations
+            (bath_size, w_obs_dim, meta_period+1) matrix of Worker observations
         worker_actions : array_like
             (batch_size, w_ac_dim, meta_period) list of Worker actions
 
@@ -229,19 +230,34 @@ class GoalConditionedPolicy(BaseGCPolicy):
         """
         fitness = []
         batch_size, goal_dim, num_samples = meta_actions.shape
-        _, obs_dim, meta_period = worker_obses.shape[2]
+        _, _, meta_period = worker_actions.shape
 
         # Loop through the elements of the batch.
         for i in range(batch_size):
+            # Extract the candidate goals for the current element in the batch.
+            # The worker observations and actions from the meta period of the
+            # current batch are also collected to compute the log-probability
+            # of a given candidate goal.
             goals_per_sample = meta_actions[i, :, :].T
             worker_obses_per_sample = worker_obses[i, :, :].T
             worker_actions_per_sample = worker_actions[i, :, :].T
+
+            # This will be used to store the cumulative log-probabilities of a
+            # given candidate goal for the entire meta-period.
             fitness_per_sample = np.zeros(num_samples)
 
             # Create repeated representations of each worker observation for
-            # each candidate goal.
-            tiled_worker_obses_per_sample = \
-                np.tile(worker_obses_per_sample[:-1, :], (num_samples, 1))
+            # each candidate goal. The indexing of worker_obses_per_sample is
+            # meant to do the following:
+            #  1. We remove the last observation since it does not correspond
+            #     to any action for the current meta-period.
+            #  2. Since the worker observations contain the goal (context) for
+            #     the last `goal_dim` elements, these elements are removed to
+            #     only provide the environmental observation.
+            tiled_worker_obses_per_sample = np.tile(
+                worker_obses_per_sample[:-1, :-goal_dim],
+                (num_samples, 1)
+            )
 
             # Create repeated representations of each candidate goal for each
             # worker observation in a meta period.
@@ -249,12 +265,11 @@ class GoalConditionedPolicy(BaseGCPolicy):
                 goals_per_sample, meta_period).reshape(
                 (num_samples * meta_period, goal_dim))
 
-            # If relative goals are being used, updated the later goals to
-            # match what they would be under the relative goals difference
-            # approach.
+            # If relative goals are being used, update the later goals to match
+            # what they would be under the relative goals difference approach.
             if self.relative_goals:
                 goal_diff = worker_obses_per_sample[:-1, :] - np.tile(
-                    worker_obses_per_sample[0, :], (meta_period - 1, 1))
+                    worker_obses_per_sample[0, :], (meta_period, 1))
                 tiled_goals_per_sample += \
                     np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
 
@@ -278,8 +293,8 @@ class GoalConditionedPolicy(BaseGCPolicy):
 
             # Sum the different normalized errors to get the fitness of each
             # candidate goal.
-            for j in num_samples:
-                fitness_per_sample[i] = np.sum(
+            for j in range(num_samples):
+                fitness_per_sample[j] = np.sum(
                     normalized_error[j * meta_period: (j+1) * meta_period])
 
             fitness.append(fitness_per_sample)
@@ -322,7 +337,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
 
         # Compute the mean and std for the Gaussian distribution to sample
         # from, and well as the maxima and minima.
-        loc = meta_obs1 - meta_obs0
+        loc = meta_obs1[:, :goal_dim] - meta_obs0[:, :goal_dim]
         scale = [sc * spec_range / 2]
         minimum, maximum = [goal_space.low], [goal_space.high]
 
@@ -346,7 +361,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
 
         samples = np.zeros((batch_size, goal_dim, num_samples))
         samples[:, :, :-2] = new_loc + normal_samples * new_scale
-        samples[:, :, -2] = meta_obs1 - meta_obs0
+        samples[:, :, -2] = loc
         samples[:, :, -1] = meta_action
 
         # Clip the values based on the Manager action space range.
