@@ -6,6 +6,7 @@ from functools import reduce
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import reduce_std
 
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
@@ -779,8 +780,50 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.actor_loss,
             var_list=get_trainable_vars(scope_name))
 
-    def _setup_stats(self, scope):  # FIXME
-        return [], []
+    def _setup_stats(self, base):
+        """Create the running means and std of the model inputs and outputs.
+
+        This method also adds the same running means and stds as scalars to
+        tensorboard for additional storage.
+        """
+        ops = []
+        names = []
+
+        ops += [tf.reduce_mean(self.qf1)]
+        names += ['{}/reference_Q1_mean'.format(base)]
+        ops += [reduce_std(self.qf1)]
+        names += ['{}/reference_Q1_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.qf2)]
+        names += ['{}/reference_Q2_mean'.format(base)]
+        ops += [reduce_std(self.qf2)]
+        names += ['{}/reference_Q2_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.qf1_pi)]
+        names += ['{}/reference_actor_Q1_mean'.format(base)]
+        ops += [reduce_std(self.qf1_pi)]
+        names += ['{}/reference_actor_Q1_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.qf2_pi)]
+        names += ['{}/reference_actor_Q2_mean'.format(base)]
+        ops += [reduce_std(self.qf2_pi)]
+        names += ['{}/reference_actor_Q2_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.policy_out)]
+        names += ['{}/reference_action_mean'.format(base)]
+        ops += [reduce_std(self.policy_out)]
+        names += ['{}/reference_action_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.logp_pi)]
+        names += ['{}/reference_log_probability_mean'.format(base)]
+        ops += [reduce_std(self.logp_pi)]
+        names += ['{}/reference_log_probability_std'.format(base)]
+
+        # Add all names and ops to the tensorboard summary.
+        for op, name in zip(ops, names):
+            tf.compat.v1.summary.scalar(name, op)
+
+        return ops, names
 
     def initialize(self):
         """See parent class."""
