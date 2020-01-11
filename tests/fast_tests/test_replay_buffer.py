@@ -36,7 +36,7 @@ class TestReplayBuffer(unittest.TestCase):
         # Add an element.
         self.replay_buffer.add(
             obs_t=np.array([0]),
-            action=np.array([77]),
+            action=np.array([1]),
             reward=2,
             obs_tp1=np.array([3]),
             done=False
@@ -49,13 +49,11 @@ class TestReplayBuffer(unittest.TestCase):
         self.assertEqual(self.replay_buffer.can_sample(), True)
 
         # Test the `sample` method.
-        obs_t, actions_t, rewards, obs_tp1, actions_tp1, done = \
-            self.replay_buffer.sample()
+        obs_t, actions_t, rewards, obs_tp1, done = self.replay_buffer.sample()
         np.testing.assert_array_almost_equal(obs_t, [[0]])
         np.testing.assert_array_almost_equal(actions_t, [[1]])
         np.testing.assert_array_almost_equal(rewards, [2])
         np.testing.assert_array_almost_equal(obs_tp1, [[3]])
-        np.testing.assert_array_almost_equal(actions_tp1, [[77]])
         np.testing.assert_array_almost_equal(done, [False])
 
 

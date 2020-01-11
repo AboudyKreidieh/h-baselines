@@ -377,7 +377,7 @@ class TestGoalConditionedPolicy(unittest.TestCase):
              [0, 0],
              [1, 1]]
         )
-        samples = policy._sample(states, next_states, num_samples, orig_goals)
+        samples = policy._sample(states, next_states, orig_goals, num_samples)
 
         # Check that the shape is correct.
         self.assertTupleEqual(
@@ -394,11 +394,10 @@ class TestGoalConditionedPolicy(unittest.TestCase):
         )
 
         # Test the _log_probs method.
-        manager_obs = np.array([[1, 2], [3, -1], [0, 0]])
         worker_obs = np.array([[1, 1], [2, 2], [3, 3]])
         actions = np.array([[1], [-1], [0]])
         goals = np.array([[0, 0], [-1, -1], [-2, -2]])
-        error = policy._log_probs(manager_obs, worker_obs, actions, goals)
+        error = policy._log_probs(goals, worker_obs, actions)
         np.testing.assert_array_almost_equal(
             error, [-3.907223e-03, -3.918726e-03, -7.482369e-08])
 
