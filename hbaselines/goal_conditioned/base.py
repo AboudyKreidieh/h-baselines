@@ -101,9 +101,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 noise,
-                 target_policy_noise,
-                 target_noise_clip,
                  layer_norm,
                  layers,
                  act_fun,
@@ -119,7 +116,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  cg_weights,
                  env_name="",
                  meta_policy=None,
-                 worker_policy=None):
+                 worker_policy=None,
+                 additional_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -147,15 +145,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        noise : float
-            scaling term to the range of the action space, that is subsequently
-            used as the standard deviation of Gaussian noise added to the
-            action if `apply_noise` is set to True in `get_action`.
-        target_policy_noise : float
-            standard deviation term to the noise from the output of the target
-            actor policy. See TD3 paper for more.
-        target_noise_clip : float
-            clipping term for the noise injected in the target actor policy
         layer_norm : bool
             enable layer normalisation
         layers : list of int or None
@@ -266,11 +255,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 act_fun=act_fun,
                 use_huber=use_huber,
                 scope="Manager",
-                noise=noise,
-                target_policy_noise=target_policy_noise,
-                target_noise_clip=target_noise_clip,
                 zero_fingerprint=False,
                 fingerprint_dim=self.fingerprint_dim[0],
+                **(additional_params or {}),
             )
 
         # a fixed goal transition function for the meta-actions in between meta
@@ -341,11 +328,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 act_fun=act_fun,
                 use_huber=use_huber,
                 scope="Worker",
-                noise=noise,
-                target_policy_noise=target_policy_noise,
-                target_noise_clip=target_noise_clip,
                 zero_fingerprint=self.use_fingerprints,
                 fingerprint_dim=self.fingerprint_dim[0],
+                **(additional_params or {}),
             )
 
         # Collect the state indices for the worker rewards.
