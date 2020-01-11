@@ -567,21 +567,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return 0, 0
+            return [0, 0], 0
 
         # Get a batch
         obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
 
         return self.update_from_batch(obs0, actions, rewards, obs1, done1)
 
-    def update_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+    def update_from_batch(self, obs0, actions, rewards, obs1, terminals1,
+                          update_actor=True):
         """Perform gradient update step given a batch of data.
 
         Parameters
@@ -597,14 +598,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
+        update_actor : bool
+            whether to update the actor policy. Unused by this method.
 
         Returns
         -------
-        float
-            critic loss
+        [float, float]
+            Q1 loss, Q2 loss
         float
             actor loss
         """
+        del update_actor  # unused by this method
+
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
@@ -635,7 +640,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
             step_ops, feed_dict)
 
-        return q1_loss + q2_loss + vf_loss, actor_loss
+        return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
