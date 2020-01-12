@@ -7,12 +7,12 @@ import sys
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 
 
 def run_exp(env,
+            policy,
             hp,
             steps,
             dir_name,
@@ -27,6 +27,8 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
+    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+        the policy class to use
     hp : dict
         additional algorithm hyper-parameters
     steps : int
@@ -49,7 +51,7 @@ def run_exp(env,
     eval_env = env if evaluate else None
 
     alg = OffPolicyRLAlgorithm(
-        policy=FeedForwardPolicy,
+        policy=policy,
         env=env,
         eval_env=eval_env,
         **hp
@@ -78,6 +80,14 @@ def main(args, base_dir):
             '{}/{}'.format(args.env_name, strftime("%Y-%m-%d-%H:%M:%S")))
         ensure_dir(dir_name)
 
+        # get the policy class
+        if args.alg == "TD3":
+            from hbaselines.fcnet.td3 import FeedForwardPolicy
+        elif args.alg == "SAC":
+            from hbaselines.fcnet.sac import FeedForwardPolicy
+        else:
+            raise ValueError("Unknown algorithm: {}".format(args.alg))
+
         # get the hyperparameters
         hp = get_hyperparameters(args, FeedForwardPolicy)
 
@@ -86,12 +96,14 @@ def main(args, base_dir):
         params_with_extra['seed'] = seed
         params_with_extra['env_name'] = args.env_name
         params_with_extra['policy_name'] = "FeedForwardPolicy"
+        params_with_extra['algorithm'] = args.alg
 
         # add the hyperparameters to the folder
         with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
             json.dump(params_with_extra, f, sort_keys=True, indent=4)
 
         run_exp(env=args.env_name,
+                policy=FeedForwardPolicy,
                 hp=hp,
                 steps=args.total_steps,
                 dir_name=dir_name,

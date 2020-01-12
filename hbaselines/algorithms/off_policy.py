@@ -1,9 +1,13 @@
-"""Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
+"""Script algorithm contain the base off-policy RL algorithm class.
 
-This algorithm also contains modifications to support contextual environments
-and hierarchical policies.
+Supported algorithms through this class:
 
-See: https://arxiv.org/pdf/1802.09477.pdf
+* Twin Delayed Deep Deterministic Policy Gradient (TD3): see
+  https://arxiv.org/pdf/1802.09477.pdf
+* Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
+
+This algorithm class also contains modifications to support contextual
+environments and hierarchical policies.
 """
 import os
 import time
@@ -15,9 +19,10 @@ from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
 
+from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
+from hbaselines.algorithms.utils import is_feedforward_policy
+from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.utils.tf_util import make_session
-from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.utils.misc import ensure_dir, create_env
 
 
@@ -39,7 +44,18 @@ TD3_PARAMS = dict(
 
 
 # =========================================================================== #
-#                   Policy parameters for FeedForwardPolicy                   #
+#                          Policy parameters for SAC                          #
+# =========================================================================== #
+
+SAC_PARAMS = dict(
+    # target entropy used when learning the entropy coefficient. If set to
+    # None, a heuristic value is used.
+    target_entropy=None,
+)
+
+
+# =========================================================================== #
+#       Policy parameters for FeedForwardPolicy (shared by TD3 and SAC)       #
 # =========================================================================== #
 
 FEEDFORWARD_PARAMS = dict(
@@ -68,7 +84,7 @@ FEEDFORWARD_PARAMS = dict(
 
 
 # =========================================================================== #
-#                Policy parameters for GoalConditionedPolicy                  #
+#     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
 GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
@@ -102,9 +118,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 
 
 class OffPolicyRLAlgorithm(object):
-    """Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm.
+    """Off-policy RL algorithm class.
 
-    See: https://arxiv.org/pdf/1802.09477.pdf
+    Supports the training of TD3 and SAC policies.
 
     Attributes
     ----------
@@ -297,19 +313,21 @@ class OffPolicyRLAlgorithm(object):
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
+        self.policy_kwargs = {'verbose': verbose}
 
         # add the default policy kwargs to the policy_kwargs term
-        if policy == FeedForwardPolicy:
-            self.policy_kwargs = FEEDFORWARD_PARAMS.copy()
-        elif policy == GoalConditionedPolicy:
-            self.policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
+        if is_feedforward_policy(policy):
+            self.policy_kwargs.update(FEEDFORWARD_PARAMS.copy())
+        elif is_goal_conditioned_policy(policy):
+            self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
-        else:
-            self.policy_kwargs = {}
 
-        self.policy_kwargs.update(TD3_PARAMS)
+        if is_td3_policy(policy):
+            self.policy_kwargs.update(TD3_PARAMS.copy())
+        elif is_sac_policy(policy):
+            self.policy_kwargs.update(SAC_PARAMS.copy())
+
         self.policy_kwargs.update(policy_kwargs or {})
-        self.policy_kwargs['verbose'] = verbose
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask as per TD3
@@ -766,7 +784,7 @@ class OffPolicyRLAlgorithm(object):
         the policy, and the summary information is logged to tensorboard.
         """
         for t_train in range(self.nb_train_steps):
-            if self.policy == GoalConditionedPolicy:
+            if is_goal_conditioned_policy(self.policy):
                 # specifies whether to update the meta actor and critic
                 # policies based on the meta and actor update frequencies
                 kwargs = {
@@ -841,7 +859,7 @@ class OffPolicyRLAlgorithm(object):
 
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
-        if isinstance(self.policy_tf, GoalConditionedPolicy):
+        if is_goal_conditioned_policy(self.policy):
             self.policy_tf.clear_memory()
 
         for i in range(self.nb_eval_episodes):
@@ -886,8 +904,9 @@ class OffPolicyRLAlgorithm(object):
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
                 # of the policy.
-                self._store_transition(eval_obs, context0, eval_action, eval_r,
-                                       obs, context1, False, evaluate=True)
+                self._store_transition(eval_obs, context0, eval_action,
+                                       eval_r, obs, context1,
+                                       False, False, evaluate=True)
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
@@ -942,7 +961,7 @@ class OffPolicyRLAlgorithm(object):
 
         # Clear replay buffer-related memory in the policy once again so that
         # it does not affect the training procedure.
-        if isinstance(self.policy_tf, GoalConditionedPolicy):
+        if is_goal_conditioned_policy(self.policy):
             self.policy_tf.clear_memory()
 
         return eval_episode_rewards, eval_episode_successes, ret_info

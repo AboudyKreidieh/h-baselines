@@ -337,7 +337,7 @@ class ActorCriticPolicy(object):
             the scope of the model parameters
         target_scope : str
             the scope of the target parameters
-        scope : str
+        scope : str or None
             the outer scope, set to None if not available
         tau : float
             target update rate

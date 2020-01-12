@@ -1,10 +1,11 @@
 """Utility methods when performing training."""
 import argparse
-from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.utils import is_sac_policy, is_td3_policy
+from hbaselines.algorithms.utils import is_goal_conditioned_policy
 
 
 def get_hyperparameters(args, policy):
@@ -21,26 +22,35 @@ def get_hyperparameters(args, policy):
         "verbose": args.verbose,
         "_init_setup_model": True,
     }
-    policy_kwargs = {}
 
     # add FeedForwardPolicy parameters
-    if policy in [FeedForwardPolicy, GoalConditionedPolicy]:
+    policy_kwargs = {
+        "buffer_size": args.buffer_size,
+        "batch_size": args.batch_size,
+        "actor_lr": args.actor_lr,
+        "critic_lr": args.critic_lr,
+        "tau": args.tau,
+        "gamma": args.gamma,
+        "layer_norm": args.layer_norm,
+        "use_huber": args.use_huber,
+    }
+
+    # add TD3 parameters
+    if is_td3_policy(policy):
         policy_kwargs.update({
-            "buffer_size": args.buffer_size,
-            "batch_size": args.batch_size,
-            "actor_lr": args.actor_lr,
-            "critic_lr": args.critic_lr,
-            "tau": args.tau,
-            "gamma": args.gamma,
             "noise": args.noise,
             "target_policy_noise": args.target_policy_noise,
             "target_noise_clip": args.target_noise_clip,
-            "layer_norm": args.layer_norm,
-            "use_huber": args.use_huber,
+        })
+
+    # add SAC parameters
+    if is_sac_policy(policy):
+        policy_kwargs.update({
+            "target_entropy": args.target_entropy,
         })
 
     # add GoalConditionedPolicy parameters
-    if policy == GoalConditionedPolicy:
+    if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
             "meta_period": args.meta_period,
             "worker_reward_scale": args.worker_reward_scale,
@@ -79,6 +89,9 @@ def parse_options(description, example_usage, args):
 
     # optional input parameters
     parser.add_argument(
+        '--alg', type=str, default='TD3',
+        help='The algorithm to use. Must be one of [TD3, SAC].')
+    parser.add_argument(
         '--evaluate', action='store_true',
         help='add an evaluation environment')
     parser.add_argument(
@@ -106,6 +119,7 @@ def parse_options(description, example_usage, args):
     # algorithm-specific hyperparameters
     parser = create_algorithm_parser(parser)
     parser = create_td3_parser(parser)
+    parser = create_sac_parser(parser)
     parser = create_feedforward_parser(parser)
     parser = create_goal_conditioned_parser(parser)
 
@@ -173,6 +187,18 @@ def create_td3_parser(parser):
         type=float,
         default=TD3_PARAMS["target_noise_clip"],
         help="clipping term for the noise injected in the target actor policy")
+
+    return parser
+
+
+def create_sac_parser(parser):
+    """Add the SAC hyperparameters to the parser."""
+    parser.add_argument(
+        "--target_entropy",
+        type=float,
+        default=SAC_PARAMS["target_entropy"],
+        help="target entropy used when learning the entropy coefficient. If "
+             "set to None, a heuristic value is used.")
 
     return parser
 

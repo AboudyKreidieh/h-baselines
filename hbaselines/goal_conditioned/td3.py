@@ -132,9 +132,6 @@ class GoalConditionedPolicy(BaseGCPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            noise=noise,
-            target_policy_noise=target_policy_noise,
-            target_noise_clip=target_noise_clip,
             layer_norm=layer_norm,
             layers=layers,
             act_fun=act_fun,
@@ -151,6 +148,11 @@ class GoalConditionedPolicy(BaseGCPolicy):
             env_name=env_name,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
+            additional_params=dict(
+                noise=noise,
+                target_policy_noise=target_policy_noise,
+                target_noise_clip=target_noise_clip,
+            ),
         )
 
     def _sample_best_meta_action(self,
