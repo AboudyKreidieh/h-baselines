@@ -423,22 +423,29 @@ The HAC algorithm [5] attempts to address non-stationarity between levels of a
 goal-conditioned hierarchy by employing various forms of hindsight to samples 
 within the replay buffer.
 
-Hindsight action transitions are used to **TODO** by **TODO**. For example, 
-given an original sub-policy transition:
+Hindsight action transitions assist by training each subgoal policy with 
+respect to a transition function that simulates the optimal lower level policy 
+hierarchy. This is done by by using the subgoal state achieved in hindsight 
+instead of the original subgoal state as the action component in the 
+transition. For example, given an original sub-policy transition:
 
-TODO
+[initial state = <img src="/tex/ac3148a5746b81298cb0c456b661f197.svg?invert_in_darkmode&sanitize=true" align=middle width=14.25802619999999pt height=14.15524440000002pt/> , goal = <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]
 
 The original goal is relabeled to match the original as follows:
 
-TODO
+[initial state = <img src="/tex/1f1c28e0a1b1708c6889fb006c886784.svg?invert_in_darkmode&sanitize=true" align=middle width=12.67127234999999pt height=14.15524440000002pt/> , goal = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]
 
 In cases when the `relative_goals` feature is being employed, the hindsight 
-goal is labeled using the inverse goal transition function, or:
+goal is labeled using the inverse goal transition function. In other words, for
+a sample with a meta period of length <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, the goal for every worker for every 
+worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.svg?invert_in_darkmode&sanitize=true" align=middle width=5.936097749999991pt height=20.221802699999984pt/> is:
 
-TODO
+<p align="center"><img src="/tex/89e32679b529c4a84a98f4d2106bc68d.svg?invert_in_darkmode&sanitize=true" align=middle width=258.4149909pt height=44.38401329999999pt/></p>
+
+The initial goal, as represented in the example above, is then <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>.
 
 Additional forms of hindsight employed by the original article, namely 
-hindsight goal transitions and sub-goal testing, are not implemented within 
+*hindsight goal transitions* and *sub-goal testing*, are not implemented within 
 this repository and they assume a specific structure to the environmental 
 reward; namely a return of -1 of the environmental goal is not achieved and 0 
 if it is. Instead, in order further promote exploration when using hindsight 
