@@ -348,7 +348,8 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
         ]
 
         for model, target in zip(model_var_list, target_var_list):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
                 model_val = policy.sess.run(model)
                 target_val = policy.sess.run(target)
             np.testing.assert_almost_equal(model_val, target_val)
@@ -518,7 +519,8 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
         ]
 
         for model, target in zip(model_var_list, target_var_list):
-            with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
                 model_val = policy.sess.run(model)
                 target_val = policy.sess.run(target)
             np.testing.assert_almost_equal(model_val, target_val)
@@ -772,12 +774,42 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # Test the _sample_best_meta_action method.  FIXME
 
-    def test_connected_gradients(self):
-        """Validate the functionality of the connected-gradients feature."""
-        pass  # TODO
+    def test_hindsight(self):
+        """Check the functionality of the _get_obs() method.
+
+        This method is tested for two cases:
+
+        1. when `relative_goals` is set to False.
+        2. when `relative_goals` is set to True.
+        """
+        pass
 
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function."""
+        pass  # TODO
+
+
+class TestTD3GoalConditionedPolicy(unittest.TestCase):
+    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
+
+    def test_log_probs(self):
+        """Check the functionality of the log_probs() method."""
+        pass  # TODO
+
+    def test_connected_gradients(self):
+        """Check the functionality of the connected-gradients feature."""
+        pass  # TODO
+
+
+class TestSACGoalConditionedPolicy(unittest.TestCase):
+    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/sac.py."""
+
+    def test_log_probs(self):
+        """Check the functionality of the log_probs() method."""
+        pass  # TODO
+
+    def test_connected_gradients(self):
+        """Check the functionality of the connected-gradients feature."""
         pass  # TODO
 
 

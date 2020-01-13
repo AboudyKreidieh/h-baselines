@@ -99,6 +99,16 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # whether to use off-policy corrections during the update procedure. See:
     # https://arxiv.org/abs/1805.08296
     off_policy_corrections=False,
+    # whether to include hindsight action transitions in the replay buffer.
+    # See: https://arxiv.org/abs/1712.00948
+    hindsight=False,
+    # whether to use the connected gradient update actor update procedure to
+    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
+    connected_gradients=False,
+    # weights for the gradients of the loss of the worker with respect to the
+    # parameters of the manager. Only used if `connected_gradients` is set to
+    # True.
+    cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
@@ -107,13 +117,6 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # specifies whether to use centralized value functions for the Manager and
     # Worker critic functions
     centralized_value_functions=False,
-    # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
-    connected_gradients=False,
-    # weights for the gradients of the loss of the worker with respect to the
-    # parameters of the manager. Only used if `connected_gradients` is set to
-    # True.
-    cg_weights=0.0005,
 ))
 
 
