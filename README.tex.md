@@ -439,7 +439,7 @@ transition. For example, given an original sub-policy transition:
 
 The original goal is relabeled to match the original as follows:
 
-<p align="center">[initial state = $s_t$ , goal = $s_k$, next state = $s_k$]</p>
+<p align="center">[initial state = $s_0$ , goal = $s_k$, next state = $s_k$]</p>
 
 In cases when the `relative_goals` feature is being employed, the hindsight 
 goal is labeled using the inverse goal transition function. In other words, for
@@ -449,7 +449,7 @@ worker observation indexed by $t$ is:
 \begin{equation*}
     g_t = 
     \begin{cases}
-        0 & \text{if } t = k+1 \\
+        0 & \text{if } t = k \\
         g_{t+1} + s_t - s_{t+1} & \text{otherwise}
     \end{cases}
 \end{equation*}
