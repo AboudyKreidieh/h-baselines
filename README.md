@@ -440,18 +440,18 @@ goal is labeled using the inverse goal transition function. In other words, for
 a sample with a meta period of length <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, the goal for every worker for every 
 worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.svg?invert_in_darkmode&sanitize=true" align=middle width=5.936097749999991pt height=20.221802699999984pt/> is:
 
-<p align="center"><img src="/tex/9c91bab936e334ad9d5049d76c14021f.svg?invert_in_darkmode&sanitize=true" align=middle width=272.4045852pt height=49.315569599999996pt/></p>
+<p align="center"><img src="/tex/c8479d018e6038aab79457592540e1c9.svg?invert_in_darkmode&sanitize=true" align=middle width=259.61915265pt height=49.315569599999996pt/></p>
 
 The initial goal, as represented in the example above, is then <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>.
 
 Additional forms of hindsight employed by the original article, namely 
 *hindsight goal transitions* and *sub-goal testing*, are not implemented within 
 this repository and they assume a specific structure to the environmental 
-reward; namely a return of -1 of the environmental goal is not achieved and 0 
-if it is. Instead, in order further promote exploration when using hindsight 
-(as the sub-goal testing features is intended to facilitate) we store the 
-original (non-hindsight) sample in the replay buffer as well. The use of this 
-extra transition is justified empirically in **TODO**.
+reward function; namely a return of -1 of the environmental goal is not 
+achieved and 0 if it is. Instead, in order further promote exploration when 
+using hindsight (as the sub-goal testing features is intended to facilitate) we
+store the original (non-hindsight) sample in the replay buffer as well. The use
+of this extra transition is justified empirically in **TODO**.
 
 In order to use relative goals when training a hierarchical policy, set 
 the `relative_goals` parameter to True:
