@@ -429,22 +429,35 @@ The HAC algorithm [5] attempts to address non-stationarity between levels of a
 goal-conditioned hierarchy by employing various forms of hindsight to samples 
 within the replay buffer.
 
-Hindsight action transitions are used to **TODO** by **TODO**. For example, 
-given an original sub-policy transition:
+Hindsight action transitions assist by training each subgoal policy with 
+respect to a transition function that simulates the optimal lower level policy 
+hierarchy. This is done by by using the subgoal state achieved in hindsight 
+instead of the original subgoal state as the action component in the 
+transition. For example, given an original sub-policy transition:
 
-TODO
+[initial state = $s_0$ , goal = $g_0$, next state = $s_k$]
 
 The original goal is relabeled to match the original as follows:
 
-TODO
+[initial state = $s_t$ , goal = $s_k$, next state = $s_k$]
 
 In cases when the `relative_goals` feature is being employed, the hindsight 
-goal is labeled using the inverse goal transition function, or:
+goal is labeled using the inverse goal transition function. In other words, for
+a sample with a meta period of length $k$, the goal for every worker for every 
+worker observation indexed by $t$ is:
 
-TODO
+\begin{equation}
+    \text{g_t} = 
+    \begin{cases}
+        0 & \text{if } t == k+1 \\
+        g_{t+1} + s_t - s_{t+1} & \text{otherwise}
+    \end{cases}
+\end{equation}
+
+The initial goal, as represented in the example above, is then $g_0$.
 
 Additional forms of hindsight employed by the original article, namely 
-hindsight goal transitions and sub-goal testing, are not implemented within 
+*hindsight goal transitions* and *sub-goal testing*, are not implemented within 
 this repository and they assume a specific structure to the environmental 
 reward; namely a return of -1 of the environmental goal is not achieved and 0 
 if it is. Instead, in order further promote exploration when using hindsight 
