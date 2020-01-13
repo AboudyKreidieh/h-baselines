@@ -449,7 +449,7 @@ worker observation indexed by $t$ is:
 \begin{equation*}
     g_t = 
     \begin{cases}
-        0 & \text{if } t == k+1 \\
+        0 & \text{if } t = k+1 \\
         g_{t+1} + s_t - s_{t+1} & \text{otherwise}
     \end{cases}
 \end{equation*}
@@ -459,11 +459,11 @@ The initial goal, as represented in the example above, is then $g_0$.
 Additional forms of hindsight employed by the original article, namely 
 *hindsight goal transitions* and *sub-goal testing*, are not implemented within 
 this repository and they assume a specific structure to the environmental 
-reward; namely a return of -1 of the environmental goal is not achieved and 0 
-if it is. Instead, in order further promote exploration when using hindsight 
-(as the sub-goal testing features is intended to facilitate) we store the 
-original (non-hindsight) sample in the replay buffer as well. The use of this 
-extra transition is justified empirically in **TODO**.
+reward function; namely a return of -1 of the environmental goal is not 
+achieved and 0 if it is. Instead, in order further promote exploration when 
+using hindsight (as the sub-goal testing features is intended to facilitate) we
+store the original (non-hindsight) sample in the replay buffer as well. The use
+of this extra transition is justified empirically in **TODO**.
 
 In order to use relative goals when training a hierarchical policy, set 
 the `relative_goals` parameter to True:
