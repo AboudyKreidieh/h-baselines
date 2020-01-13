@@ -24,7 +24,7 @@ available [here]().
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HAC (Learning Multi-level Hierarchies With Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsigh)
+  * [HAC (Learning Multi-level Hierarchies With Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
 * [Environments](#environments)
   * [MuJoCo Environments](#mujoco-environments)
@@ -435,24 +435,24 @@ hierarchy. This is done by by using the subgoal state achieved in hindsight
 instead of the original subgoal state as the action component in the 
 transition. For example, given an original sub-policy transition:
 
-[initial state = $s_0$ , goal = $g_0$, next state = $s_k$]
+<p align="center">[initial state = $s_0$ , goal = $g_0$, next state = $s_k$]</p>
 
 The original goal is relabeled to match the original as follows:
 
-[initial state = $s_t$ , goal = $s_k$, next state = $s_k$]
+<p align="center">[initial state = $s_t$ , goal = $s_k$, next state = $s_k$]</p>
 
 In cases when the `relative_goals` feature is being employed, the hindsight 
 goal is labeled using the inverse goal transition function. In other words, for
 a sample with a meta period of length $k$, the goal for every worker for every 
 worker observation indexed by $t$ is:
 
-\begin{equation}
-    \text{g_t} = 
+\begin{equation*}
+    g_t = 
     \begin{cases}
         0 & \text{if } t == k+1 \\
         g_{t+1} + s_t - s_{t+1} & \text{otherwise}
     \end{cases}
-\end{equation}
+\end{equation*}
 
 The initial goal, as represented in the example above, is then $g_0$.
 
