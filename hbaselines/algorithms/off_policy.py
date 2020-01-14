@@ -99,8 +99,8 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # whether to use off-policy corrections during the update procedure. See:
     # https://arxiv.org/abs/1805.08296
     off_policy_corrections=False,
-    # whether to include hindsight action transitions in the replay buffer.
-    # See: https://arxiv.org/abs/1712.00948
+    # whether to include hindsight action and goal transitions in the replay
+    # buffer. See: https://arxiv.org/abs/1712.00948
     hindsight=False,
     # whether to use the connected gradient update actor update procedure to
     # the Manager policy. See: https://arxiv.org/abs/1912.02368v1

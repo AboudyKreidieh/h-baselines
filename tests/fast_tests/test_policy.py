@@ -721,6 +721,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
             worker_rewards, worker_dones = policy.replay_buffer._storage[0]
 
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
+
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
 
@@ -738,6 +742,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the worker contexts
         for obs in worker_obses:
             np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
+
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -788,6 +796,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         for obs in worker_obses:
             np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
 
+        # check the worker rewards
+        for _, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
+
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
             worker_rewards, worker_dones = policy.replay_buffer._storage[1]
@@ -796,8 +808,12 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
 
         # check the worker contexts
-        for i, obs in enumerate(reversed(worker_obses)):
+        for i, obs, in enumerate(reversed(worker_obses)):
             np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
+
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
     def test_meta_period(self):
         """Verify that the rate of the Manager is dictated by meta_period."""

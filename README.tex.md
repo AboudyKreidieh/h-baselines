@@ -561,7 +561,7 @@ alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
-        # include hindsight action transitions in the replay buffer
+        # include hindsight action and goal transitions in the replay buffer
         "hindsight": True
     }
 )

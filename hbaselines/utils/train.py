@@ -276,8 +276,8 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--hindsight",
         action="store_true",
-        help="whether to include hindsight action transitions in the replay "
-             "buffer. See: https://arxiv.org/abs/1712.00948")
+        help="whether to include hindsight action and goal transitions in the "
+             "replay buffer. See: https://arxiv.org/abs/1712.00948")
     parser.add_argument(
         "--use_fingerprints",
         action="store_true",
