@@ -464,7 +464,7 @@ sub-policy transition:
         ],
         "worker rewards": [
             r_w(s_0, g_0, s_1),
-            r_w(s_0, h(g_0, s_0, s_1), s_1),
+            r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
             r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
@@ -490,7 +490,7 @@ The original goal is relabeled to match the original as follows:
         ],
         "worker rewards": [
             r_w(s_0, g_0, s_1),
-            r_w(s_0, h(g_0, s_0, s_1), s_1),
+            r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
             r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
@@ -511,33 +511,35 @@ worker observation indexed by $t$ is:
 
 The "meta action", as represented in the example above, is then $\bar{g}_0$.
 
-**Hindsight action transitions** TODO.
+**Hindsight action transitions** extend the use of hindsight to the worker 
+observations and intrinsic rewards within the sample as well. This is done by 
+modifying the relevant worker-specific features as follows:
 
     sample = {
         "manager observation": s_0,
         "manager action" \bar{g}_0,
         "manager reward" r,
-        "worker observations" [ <-------------------------------
-            (s_0, \bar{g}_0),                                  |
-            (s_1, h(\bar{g}_0, s_0, s_1)),                     |---- the changed components
-            ...                                                |
-            (s_k, h(\bar{g}_{k-1}, s_{k-1}, s_k))              |
-        ], <----------------------------------------------------
+        "worker observations" [ <------------
+            (s_0, \bar{g}_0),               |
+            (s_1, \bar{g}_1),               |---- the changed components
+            ...                             |
+            (s_k, \bar{g}_k)                |
+        ], <---------------------------------
         "worker actions" [
             a_0,
             a_1,
             ...
             a_{k-1}
         ],
-        "worker rewards": [ <-----------------------------------
-            r_w(s_0, \bar{g}_0, s_1),                          |
-            r_w(s_0, h(\bar{g}_0, s_0, s_1), s_1),             |---- the changed components
-            ...                                                |
-            r_w(s_{k-1}, h(\bar{g}_{k-1}, s_{k-1}, s_k), s_k)  |
-        ] <-----------------------------------------------------
+        "worker rewards": [ <----------------
+            r_w(s_0, \bar{g}_0, s_1),       |
+            r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
+            ...                             |
+            r_w(s_{k-1}, \bar{g}_k, s_k)    |
+        ] <----------------------------------
     }
 
-where $\bar{g}_i$ for $i = [0, \dots, k]$ is equal to $s_k$ if `relative_goals`
+where $\bar{g}_t$ for $t = [0, \dots, k]$ is equal to $s_k$ if `relative_goals`
 is False and is defined by the equation above if set to True.
 
 The final form of hindsight employed by the original article, namely 
