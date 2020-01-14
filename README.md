@@ -24,6 +24,7 @@ available [here]().
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [HAC (Learning Multi-level Hierarchies With Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
 * [Environments](#environments)
   * [MuJoCo Environments](#mujoco-environments)
@@ -111,11 +112,11 @@ python experiments/run_fcnet.py
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-### TD3
+### Off-Policy RL Algorithms
 
-We use TD3 as our base policy optimization algorithm. Details on this 
-algorithm can be found in the following article: 
-https://arxiv.org/pdf/1802.09477.pdf.
+This repository supports the training of policies via two state-of-the-art 
+off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
+[SAC](https://arxiv.org/pdf/1801.01290.pdf).
 
 To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
@@ -125,11 +126,20 @@ along the process:
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
-# create the algorithm object, 
+# create the algorithm object
 alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
+```
+
+The specific algorithm that is executed is defined by the policy that is 
+provided. If, for example, you would like to switch the above script to train 
+a feed-forward policy using the SAC algorithm, then the policy must simply be 
+changed to:
+
+```python
+from hbaselines.fcnet.sac import FeedForwardPolicy
 ```
 
 The hyperparameters and modifiable features of this algorithm are as 
@@ -171,7 +181,11 @@ The feed-forward policy can be imported by including the following
 script:
 
 ```python
+# for TD3
 from hbaselines.fcnet.td3 import FeedForwardPolicy
+
+# for SAC
+from hbaselines.fcnet.sac import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -191,13 +205,6 @@ The modifiable parameters of this policy are as follows:
   information, 2 tensorflow debug
 * **tau** (float) : target update rate
 * **gamma** (float) : discount factor
-* **noise** (float) : scaling term to the range of the action space, 
-  that is subsequently used as the standard deviation of Gaussian noise 
-  added to the action if `apply_noise` is set to True in `get_action`
-* **target_policy_noise** (float) : standard deviation term to the noise
-  from the output of the target actor policy. See TD3 paper for more.
-* **target_noise_clip** (float) : clipping term for the noise injected 
-  in the target actor policy
 * **layer_norm** (bool) : enable layer normalisation
 * **layers** (list of int) :the size of the Neural network for the policy
 * **act_fun** (tf.nn.*) : the activation function to use in the neural 
@@ -206,16 +213,31 @@ The modifiable parameters of this policy are as follows:
   function as the loss for the critic. If set to False, the mean-squared 
   error metric is used instead
 
+Additionally, TD3 policy parameters are:
+
+* **noise** (float) : scaling term to the range of the action space, 
+  that is subsequently used as the standard deviation of Gaussian noise 
+  added to the action if `apply_noise` is set to True in `get_action`
+* **target_policy_noise** (float) : standard deviation term to the noise
+  from the output of the target actor policy. See TD3 paper for more.
+* **target_noise_clip** (float) : clipping term for the noise injected 
+  in the target actor policy
+
+And SAC policy parameters are:
+
+* **target_entropy** (float): target entropy used when learning the entropy 
+  coefficient. If set to None, a heuristic value is used.
+
 These parameters can be assigned when using the algorithm object by 
 assigning them via the `policy_kwargs` term. For example, if you would 
-like to train a fully connected network with a hidden size of [64, 64], 
-this could be done let so:
+like to train a fully connected network using the TD3 algorithm with a hidden 
+size of [64, 64], this could be done as such:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
-# create the algorithm object, 
+# create the algorithm object
 alg = OffPolicyRLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
@@ -237,6 +259,19 @@ from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
+Additional algorithm-specific default policy parameters can be found via the 
+following commands:
+
+```python
+# for TD3
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+print(TD3_PARAMS)
+
+# for SAC
+from hbaselines.algorithms.off_policy import SAC_PARAMS
+print(SAC_PARAMS)
+```
+
 ### Goal-Conditioned HRL
 
 Goal-conditioned HRL models, also known as feudal models, are a variant 
@@ -246,7 +281,11 @@ of this policy, seen in the figure below. The policy can be imported via
 the following command:
 
 ```python
+# for TD3
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+
+# for SAC
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 ```
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
@@ -272,6 +311,19 @@ parameters. These default terms are available via the following command:
 ```python
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
+```
+
+Moreover, similar to the feed-forward policy, additional algorithm-specific 
+default policy parameters can be found via the following commands:
+
+```python
+# for TD3
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+print(TD3_PARAMS)
+
+# for SAC
+from hbaselines.algorithms.off_policy import SAC_PARAMS
+print(SAC_PARAMS)
 ```
 
 ### Meta Period
@@ -337,7 +389,7 @@ the `relative_goals` parameter to True:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
@@ -364,7 +416,7 @@ to True:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
@@ -372,6 +424,59 @@ alg = OffPolicyRLAlgorithm(
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
         "off_policy_corrections": True
+    }
+)
+```
+
+### HAC (Learning Multi-level Hierarchies With Hindsight)
+
+The HAC algorithm [5] attempts to address non-stationarity between levels of a 
+goal-conditioned hierarchy by employing various forms of hindsight to samples 
+within the replay buffer.
+
+Hindsight action transitions assist by training each subgoal policy with 
+respect to a transition function that simulates the optimal lower level policy 
+hierarchy. This is done by by using the subgoal state achieved in hindsight 
+instead of the original subgoal state as the action component in the 
+transition. For example, given an original sub-policy transition:
+
+<p align="center">[initial state = <img src="/tex/ac3148a5746b81298cb0c456b661f197.svg?invert_in_darkmode&sanitize=true" align=middle width=14.25802619999999pt height=14.15524440000002pt/> , goal = <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]</p>
+
+The original goal is relabeled to match the original as follows:
+
+<p align="center">[initial state = <img src="/tex/ac3148a5746b81298cb0c456b661f197.svg?invert_in_darkmode&sanitize=true" align=middle width=14.25802619999999pt height=14.15524440000002pt/> , goal = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]</p>
+
+In cases when the `relative_goals` feature is being employed, the hindsight 
+goal is labeled using the inverse goal transition function. In other words, for
+a sample with a meta period of length <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, the goal for every worker for every 
+worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.svg?invert_in_darkmode&sanitize=true" align=middle width=5.936097749999991pt height=20.221802699999984pt/> is:
+
+<p align="center"><img src="/tex/839739b5d350a093805521c33eae9765.svg?invert_in_darkmode&sanitize=true" align=middle width=247.02824025pt height=49.315569599999996pt/></p>
+
+The initial goal, as represented in the example above, is then <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>.
+
+Additional forms of hindsight employed by the original article, namely 
+*hindsight goal transitions* and *sub-goal testing*, are not implemented within 
+this repository and they assume a specific structure to the environmental 
+reward function; namely a return of -1 of the environmental goal is not 
+achieved and 0 if it is. Instead, in order further promote exploration when 
+using hindsight (as the sub-goal testing features is intended to facilitate) we
+store the original (non-hindsight) sample in the replay buffer as well. The use
+of this extra transition is justified empirically in **TODO**.
+
+In order to use relative goals when training a hierarchical policy, set 
+the `relative_goals` parameter to True:
+
+```python
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
+
+alg = OffPolicyRLAlgorithm(
+    policy=GoalConditionedPolicy,
+    ...,
+    policy_kwargs={
+        # include hindsight action transitions in the replay buffer
+        "hindsight": True
     }
 )
 ```
@@ -396,7 +501,7 @@ term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&san
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,

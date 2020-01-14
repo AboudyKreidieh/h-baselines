@@ -6,6 +6,7 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
@@ -18,6 +19,7 @@ class TestTrain(unittest.TestCase):
         args = parse_options("", "", args=["AntMaze"])
         expected_args = {
             'env_name': 'AntMaze',
+            'alg': 'TD3',
             'evaluate': False,
             'n_training': 1,
             'total_steps': 1000000,
@@ -34,15 +36,16 @@ class TestTrain(unittest.TestCase):
             'verbose': 2,
             'actor_update_freq': 2,
             'meta_update_freq': 10,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'target_entropy': SAC_PARAMS['target_entropy'],
             'buffer_size': FEEDFORWARD_PARAMS['buffer_size'],
             'batch_size': FEEDFORWARD_PARAMS['batch_size'],
             'actor_lr': FEEDFORWARD_PARAMS['actor_lr'],
             'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
             'tau': FEEDFORWARD_PARAMS['tau'],
             'gamma': FEEDFORWARD_PARAMS['gamma'],
-            'noise': TD3_PARAMS['noise'],
-            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
-            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
             'layer_norm': False,
             'use_huber': False,
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
@@ -50,6 +53,7 @@ class TestTrain(unittest.TestCase):
                 GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
             'relative_goals': False,
             'off_policy_corrections': False,
+            'hindsight': False,
             'use_fingerprints': False,
             'centralized_value_functions': False,
             'connected_gradients': False,
@@ -91,6 +95,7 @@ class TestTrain(unittest.TestCase):
             '--worker_reward_scale', '24',
             '--relative_goals',
             '--off_policy_corrections',
+            '--hindsight',
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
@@ -124,6 +129,7 @@ class TestTrain(unittest.TestCase):
                 'worker_reward_scale': 24.0,
                 'relative_goals': True,
                 'off_policy_corrections': True,
+                'hindsight': True,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
                 'connected_gradients': True,
