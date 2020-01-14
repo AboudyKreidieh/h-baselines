@@ -458,7 +458,7 @@ sub-policy transition:
         ],
         "worker rewards": [
             r_w(s_0, g_0, s_1),
-            r_w(s_0, h(g_0, s_0, s_1), s_1),
+            r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
             r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
@@ -484,7 +484,7 @@ The original goal is relabeled to match the original as follows:
         ],
         "worker rewards": [
             r_w(s_0, g_0, s_1),
-            r_w(s_0, h(g_0, s_0, s_1), s_1),
+            r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
             r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
@@ -499,33 +499,35 @@ worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.sv
 
 The "meta action", as represented in the example above, is then <img src="/tex/9053fd2f3aa4a20e3e837c3b0d414a34.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=18.666631500000015pt/>.
 
-**Hindsight action transitions** TODO.
+**Hindsight action transitions** extend the use of hindsight to the worker 
+observations and intrinsic rewards within the sample as well. This is done by 
+modifying the relevant worker-specific features as follows:
 
     sample = {
         "manager observation": s_0,
         "manager action" \bar{g}_0,
         "manager reward" r,
-        "worker observations" [ <-------------------------------
-            (s_0, \bar{g}_0),                                  |
-            (s_1, h(\bar{g}_0, s_0, s_1)),                     |---- the changed components
-            ...                                                |
-            (s_k, h(\bar{g}_{k-1}, s_{k-1}, s_k))              |
-        ], <----------------------------------------------------
+        "worker observations" [ <------------
+            (s_0, \bar{g}_0),               |
+            (s_1, \bar{g}_1),               |---- the changed components
+            ...                             |
+            (s_k, \bar{g}_k)                |
+        ], <---------------------------------
         "worker actions" [
             a_0,
             a_1,
             ...
             a_{k-1}
         ],
-        "worker rewards": [ <-----------------------------------
-            r_w(s_0, \bar{g}_0, s_1),                          |
-            r_w(s_0, h(\bar{g}_0, s_0, s_1), s_1),             |---- the changed components
-            ...                                                |
-            r_w(s_{k-1}, h(\bar{g}_{k-1}, s_{k-1}, s_k), s_k)  |
-        ] <-----------------------------------------------------
+        "worker rewards": [ <----------------
+            r_w(s_0, \bar{g}_0, s_1),       |
+            r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
+            ...                             |
+            r_w(s_{k-1}, \bar{g}_k, s_k)    |
+        ] <----------------------------------
     }
 
-where <img src="/tex/6c96c14e35c85fb960481df2e053bf1b.svg?invert_in_darkmode&sanitize=true" align=middle width=12.49148174999999pt height=18.666631500000015pt/> for <img src="/tex/48dfcf6b5e08170f27902d52ea09a438.svg?invert_in_darkmode&sanitize=true" align=middle width=90.53729189999999pt height=24.65753399999998pt/> is equal to <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/> if `relative_goals`
+where <img src="/tex/cf330f355a2166e28d565ffff2400b3b.svg?invert_in_darkmode&sanitize=true" align=middle width=12.80637434999999pt height=18.666631500000015pt/> for <img src="/tex/cec901e2962c50e80af4cfde53675570.svg?invert_in_darkmode&sanitize=true" align=middle width=90.81016394999999pt height=24.65753399999998pt/> is equal to <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/> if `relative_goals`
 is False and is defined by the equation above if set to True.
 
 The final form of hindsight employed by the original article, namely 
