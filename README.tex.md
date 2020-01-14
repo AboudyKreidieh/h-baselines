@@ -450,7 +450,7 @@ worker observation indexed by $t$ is:
     g_t = 
     \begin{cases}
         0 & \text{if } t = k \\
-        g_{t+1} + s_t - s_{t+1} & \text{otherwise}
+        g_{t+1} - s_t + s_{t+1} & \text{otherwise}
     \end{cases}
 \end{equation*}
 

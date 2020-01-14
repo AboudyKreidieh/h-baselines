@@ -782,7 +782,116 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         1. when `relative_goals` is set to False.
         2. when `relative_goals` is set to True.
         """
-        pass
+        # test case 1
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = False
+        policy_params['hindsight'] = True
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = GoalConditionedPolicy(**policy_params)
+
+        policy.meta_action = np.array([5, 5])
+        policy.meta_reward = 0
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        # unchanged sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # hindsight sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # test case 2
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = True
+        policy_params['hindsight'] = True
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = GoalConditionedPolicy(**policy_params)
+
+        policy.meta_action = np.array([5, 5])
+        policy.meta_reward = 0
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        # unchanged sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # hindsight sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+
+        # check the worker contexts
+        for i, obs in enumerate(reversed(worker_obses)):
+            np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
 
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function."""

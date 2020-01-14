@@ -526,7 +526,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 if self.hindsight:
                     goal_dim = self.meta_action.shape[0]
                     observations = deepcopy(self._observations)
-                    hindsight_goal = observations[-1][-goal_dim:]
+                    hindsight_goal = 0 if self.relative_goals \
+                        else observations[-1][:goal_dim]
                     obs_tp1 = observations[-1][:goal_dim]
 
                     for i in range(1, len(observations) + 1):
@@ -535,8 +536,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         # final state observation.
                         if self.relative_goals:
                             obs_t = observations[-i][:goal_dim]
-                            hindsight_goal = hindsight_goal - obs_tp1 + obs_t
-                            obs_tp1 = obs_t.copy()
+                            hindsight_goal = hindsight_goal + obs_tp1 - obs_t
+                            obs_tp1 = deepcopy(obs_t)
 
                         # Replace the goal with the goal that the worker
                         # actually achieved.
@@ -552,13 +553,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         meta_obs_t=(self.prev_meta_obs, meta_obs1),
                         meta_reward_t=self.meta_reward,
                     )
-
-                    # Implement hindsight goal transitions.
-                    pass  # TODO
-
-                    # Determine whether to perform sub-goal testing on the next
-                    # goal.
-                    pass  # TODO
 
             # Clear the worker rewards and actions, and the environmental
             # observation and reward.
