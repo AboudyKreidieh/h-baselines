@@ -440,7 +440,7 @@ goal is labeled using the inverse goal transition function. In other words, for
 a sample with a meta period of length <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, the goal for every worker for every 
 worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.svg?invert_in_darkmode&sanitize=true" align=middle width=5.936097749999991pt height=20.221802699999984pt/> is:
 
-<p align="center"><img src="/tex/92ca7231fe0089e9c9838137c18ec854.svg?invert_in_darkmode&sanitize=true" align=middle width=247.02824025pt height=49.315569599999996pt/></p>
+<p align="center"><img src="/tex/839739b5d350a093805521c33eae9765.svg?invert_in_darkmode&sanitize=true" align=middle width=247.02824025pt height=49.315569599999996pt/></p>
 
 The initial goal, as represented in the example above, is then <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>.
 
