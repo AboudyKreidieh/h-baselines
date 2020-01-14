@@ -94,8 +94,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
         hindsight : bool
-            whether to include hindsight action transitions in the replay
-            buffer. See: https://arxiv.org/abs/1712.00948
+            whether to include hindsight action and goal transitions in the
+            replay buffer. See: https://arxiv.org/abs/1712.00948
         connected_gradients : bool
             whether to connect the graph between the manager and worker
         cg_weights : float

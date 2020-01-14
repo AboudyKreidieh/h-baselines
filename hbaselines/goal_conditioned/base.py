@@ -171,8 +171,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
         hindsight : bool
-            whether to include hindsight action transitions in the replay
-            buffer. See: https://arxiv.org/abs/1712.00948
+            whether to include hindsight action and goal transitions in the
+            replay buffer. See: https://arxiv.org/abs/1712.00948
         connected_gradients : bool
             whether to connect the graph between the manager and worker
         cg_weights : float
@@ -535,22 +535,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     meta_reward_t=self.meta_reward,
                 )
 
-                # Implement hindsight action transitions.
+                # Implement hindsight action and goal transitions.
                 if self.hindsight:
                     goal_dim = self.meta_action.shape[0]
                     observations = deepcopy(self._observations)
+                    rewards = deepcopy(self._worker_rewards)
                     hindsight_goal = 0 if self.relative_goals \
                         else observations[-1][:goal_dim]
                     obs_tp1 = observations[-1][:goal_dim]
 
                     for i in range(1, len(observations) + 1):
+                        obs_t = observations[-i][:goal_dim]
+
                         # Calculate the hindsight goal in using relative goals.
                         # If not, the hindsight goal is simply a subset of the
                         # final state observation.
                         if self.relative_goals:
-                            obs_t = observations[-i][:goal_dim]
                             hindsight_goal = hindsight_goal + obs_tp1 - obs_t
-                            obs_tp1 = deepcopy(obs_t)
+
+                        # Modify the Worker intrinsic rewards based on the new
+                        # hindsight goal.
+                        if i > 1:
+                            rewards[-(i-1)] = self.worker_reward_scale \
+                                * self.worker_reward_fn(
+                                    obs_t, hindsight_goal, obs_tp1)
+
+                        obs_tp1 = deepcopy(obs_t)
 
                         # Replace the goal with the goal that the worker
                         # actually achieved.
@@ -561,7 +571,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         obs_t=observations,
                         goal_t=hindsight_goal,
                         action_t=self._worker_actions,
-                        reward_t=self._worker_rewards,
+                        reward_t=rewards,
                         done=self._dones,
                         meta_obs_t=(self.prev_meta_obs, meta_obs1),
                         meta_reward_t=self.meta_reward,
