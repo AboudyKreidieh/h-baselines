@@ -440,7 +440,7 @@ The HAC algorithm [5] attempts to address non-stationarity between levels of a
 goal-conditioned hierarchy by employing various forms of hindsight to samples 
 within the replay buffer.
 
-Hindsight action transitions assist by training each subgoal policy with 
+**Hindsight action transitions** assist by training each subgoal policy with 
 respect to a transition function that simulates the optimal lower level policy 
 hierarchy. This is done by by replacing the action performed by the manager 
 with the subgoal state achieved in hindsight. For example, given an original 
@@ -511,14 +511,42 @@ worker observation indexed by $t$ is:
 
 The "meta action", as represented in the example above, is then $\bar{g}_0$.
 
-Additional forms of hindsight employed by the original article, namely 
-*hindsight goal transitions* and *sub-goal testing*, are not implemented within 
-this repository and they assume a specific structure to the environmental 
-reward function; namely a return of -1 of the environmental goal is not 
-achieved and 0 if it is. Instead, in order further promote exploration when 
-using hindsight (as the sub-goal testing features is intended to facilitate) we
-store the original (non-hindsight) sample in the replay buffer as well. The use
-of this extra transition is justified empirically in **TODO**.
+**Hindsight action transitions** TODO.
+
+    sample = {
+        "manager observation": s_0,
+        "manager action" \bar{g}_0,
+        "manager reward" r,
+        "worker observations" [ <-------------------------------
+            (s_0, \bar{g}_0),                                  |
+            (s_1, h(\bar{g}_0, s_0, s_1)),                     |---- the changed components
+            ...                                                |
+            (s_k, h(\bar{g}_{k-1}, s_{k-1}, s_k))              |
+        ], <----------------------------------------------------
+        "worker actions" [
+            a_0,
+            a_1,
+            ...
+            a_{k-1}
+        ],
+        "worker rewards": [ <-----------------------------------
+            r_w(s_0, \bar{g}_0, s_1),                          |
+            r_w(s_0, h(\bar{g}_0, s_0, s_1), s_1),             |---- the changed components
+            ...                                                |
+            r_w(s_{k-1}, h(\bar{g}_{k-1}, s_{k-1}, s_k), s_k)  |
+        ] <-----------------------------------------------------
+    }
+
+where $\bar{g}_i$ for $i = [0, \dots, k]$ is equal to $s_k$ if `relative_goals`
+is False and is defined by the equation above if set to True.
+
+The final form of hindsight employed by the original article, namely 
+**sub-goal testing**, is not implemented within this repository and it assumes 
+a specific structure to the intrinsic reward function; namely a return of -1 if 
+the environmental goal is not achieved and 0 if it is. Instead, in order 
+further promote exploration when using hindsight, we store the original 
+(non-hindsight) sample in the replay buffer as well. The use of this extra 
+transition is justified empirically in **TODO**.
 
 In order to use relative goals when training a hierarchical policy, set 
 the `relative_goals` parameter to True:
