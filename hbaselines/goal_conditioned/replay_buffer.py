@@ -11,6 +11,7 @@ class HierReplayBuffer(ReplayBuffer):
     def __init__(self,
                  buffer_size,
                  batch_size,
+                 meta_period,
                  meta_obs_dim,
                  meta_ac_dim,
                  worker_obs_dim,
@@ -35,6 +36,10 @@ class HierReplayBuffer(ReplayBuffer):
         """
         super(HierReplayBuffer, self).__init__(
             buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
+
+        self._meta_period = meta_period
+        self._worker_ob_dim = worker_obs_dim
+        self._worker_ac_dim = worker_ac_dim
 
         # Used to store buffer data.
         self._storage = [None for _ in range(buffer_size)]
@@ -125,7 +130,19 @@ class HierReplayBuffer(ReplayBuffer):
             (batch_size,) vector of worker rewards
         numpy.ndarray
             (batch_size,) vector of worker done masks
+        dict
+            additional information; used for features such as the off-policy
+            corrections or centralized value functions
         """
+        additional = {
+            "worker_obses": np.zeros(
+                (self._batch_size, self._worker_ob_dim, self._meta_period + 1),
+                dtype=np.float32),
+            "worker_actions": np.zeros(
+                (self._batch_size, self._worker_ac_dim, self._meta_period),
+                dtype=np.float32),
+        }
+
         for i, indx in enumerate(idxes):
             # Extract the elements of the sample.
             meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
@@ -158,6 +175,11 @@ class HierReplayBuffer(ReplayBuffer):
             self.worker_rew[i] = np.array(worker_reward, copy=False)
             self.worker_done[i] = np.array(worker_done, copy=False)
 
+            for j in range(len(worker_obses)):
+                additional["worker_obses"][i, :, j] = worker_obses[j]
+            for j in range(len(worker_actions)):
+                additional["worker_actions"][i, :, j] = worker_actions[j]
+
         return self.meta_obs0, \
             self.meta_obs1, \
             self.meta_act, \
@@ -167,4 +189,5 @@ class HierReplayBuffer(ReplayBuffer):
             self.worker_obs1, \
             self.worker_act, \
             self.worker_rew, \
-            self.worker_done
+            self.worker_done, \
+            additional

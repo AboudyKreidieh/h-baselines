@@ -1,10 +1,10 @@
 """SAC-compatible goal-conditioned hierarchical policy."""
 from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
-    BaseGCPolicy
+    BaseGoalConditionedPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 
 
-class GoalConditionedPolicy(BaseGCPolicy):
+class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     """SAC-compatible goal-conditioned hierarchical policy.
 
     TODO: description of off-policy corrections
@@ -147,29 +147,29 @@ class GoalConditionedPolicy(BaseGCPolicy):
         )
 
     def _sample_best_meta_action(self,
-                                 state_reps,
-                                 next_state_reprs,
-                                 prev_meta_actions,
-                                 low_states,
-                                 low_actions,
-                                 low_state_reprs,
-                                 k=8):
+                                 meta_obs0,
+                                 meta_obs1,
+                                 meta_action,
+                                 worker_obses,
+                                 worker_actions,
+                                 k=10):
         """Return meta-actions that approximately maximize low-level log-probs.
 
         Parameters
         ----------
-        state_reps : array_like
-            current Manager state observation
-        next_state_reprs : array_like
-            next Manager state observation
-        prev_meta_actions : array_like
-            previous meta Manager action
-        low_states : array_like
-            current Worker state observation
-        low_actions : array_like
-            current Worker environmental action
-        low_state_reprs : array_like
-            current Worker state observation
+        meta_obs0 : array_like
+            (batch_size, m_obs_dim) matrix of Manager observations
+        meta_obs1 : array_like
+            (batch_size, m_obs_dim) matrix of next time step Manager
+            observations
+        meta_action : array_like
+            (batch_size, m_ac_dim) matrix of Manager actions
+        worker_obses : array_like
+            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
+            state observations
+        worker_actions : array_like
+            (batch_size, w_ac_dim, meta_period) matrix of current Worker
+            environmental actions
         k : int, optional
             number of goals returned, excluding the initial goal and the mean
             value
@@ -177,7 +177,7 @@ class GoalConditionedPolicy(BaseGCPolicy):
         Returns
         -------
         array_like
-            most likely meta-actions
+            (batch_size, m_ac_dim) matrix of most likely Manager actions
         """
         raise NotImplementedError  # TODO
 

@@ -407,7 +407,18 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-TODO
+Second, HIRO addresses the non-stationarity effects between the Manager and
+Worker policies, which can have a detrimental effect particularly in off-policy 
+training, by relabeling the manager actions (or goals) to make the actual 
+observed action sequence more likely to have happened with respect to the 
+current instantiation of the Worker policy. This is done by sampling a sequence
+of potential goals sampled via a Gaussian centered at $s_{t+c}-s_t$ and 
+choosing the candidate goal that maximizes the log-probability of the actions 
+that were originally performed by the Worker.
+
+In order to use HIRO's goal relabeling (or off-policy corrections) procedure 
+when training a hierarchical policy, set the `off_policy_corrections` parameter
+to True:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm

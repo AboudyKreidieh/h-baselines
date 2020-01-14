@@ -580,7 +580,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return [0, 0], 0
 
         # Get a batch
-        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
 
         return self.update_from_batch(obs0, actions, rewards, obs1, done1)
 
@@ -856,7 +856,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, _, done1 = self.replay_buffer.sample()
+        obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
 
         return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
 

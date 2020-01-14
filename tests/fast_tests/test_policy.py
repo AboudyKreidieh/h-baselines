@@ -2,7 +2,6 @@
 import unittest
 import numpy as np
 import tensorflow as tf
-import random
 from gym.spaces import Box
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
@@ -662,127 +661,31 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         tf.compat.v1.reset_default_graph()
 
     def test_store_transition(self):
-        """Test the `store_transition` method."""
+        """Check the functionality of the store_transition() method.
+
+        This method is tested for the following cases:
+
+        1. hindsight = False, relative_goals = False
+        2. hindsight = False, relative_goals = True
+        3. hindsight = True,  relative_goals = False
+        4. hindsight = True,  relative_goals = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
         pass  # TODO
 
-    def test_meta_period(self):
-        """Verify that the rate of the Manager is dictated by meta_period."""
-        # Test for a meta period of 5.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 5
-        policy = GoalConditionedPolicy(**policy_params)
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
 
-        # FIXME: add test
-        del policy
+        pass  # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
 
-        # Test for a meta period of 10.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 10
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # FIXME: add test
-        del policy
-
-    def test_relative_goals(self):
-        """Validate the functionality of relative goals.
-
-        This should affect the worker reward function as well as transformation
-        from relative goals to absolute goals.
-        """
-        policy_params = self.policy_params.copy()
-        policy_params["relative_goals"] = True
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # Test the updated reward function.
-        states = np.array([1, 2, 3])
-        goals = np.array([4, 5, 6])
-        next_states = np.array([7, 8, 9])
-        self.assertAlmostEqual(
-            policy.worker_reward_fn(states, goals, next_states),
-            -2.2360679775221506
-        )
-
-    def test_off_policy_corrections(self):
-        """Validate the functionality of the off-policy corrections."""
-        # Set a random variable seed.
-        np.random.seed(1)
-        random.seed(1)
-        tf.compat.v1.set_random_seed(1)
-
-        policy_params = self.policy_params.copy()
-        policy_params["relative_goals"] = True
-        policy_params["off_policy_corrections"] = True
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # Initialize the variables of the policy.
-        policy.sess.run(tf.compat.v1.global_variables_initializer())
-
-        # Test the _sample method.
-        states = np.array(
-            [[1, 2],
-             [3, 4],
-             [5, 6],
-             [7, 8],
-             [9, 10],
-             [11, 12],
-             [13, 14],
-             [15, 16],
-             [17, 18],
-             [19, 20]]
-        )
-        next_states = -states
-        num_samples = 10
-        orig_goals = np.array(
-            [[1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1]]
-        )
-        samples = policy._sample(states, next_states, num_samples, orig_goals)
-
-        # Check that the shape is correct.
-        self.assertTupleEqual(
-            samples.shape, (states.shape[0], states.shape[1], num_samples))
-
-        # Check the last few elements are the deterministic components that
-        # they are expected to be.
-        np.testing.assert_array_almost_equal(
-            samples[:, :, -2:].reshape(states.shape[0] * states.shape[1], 2).T,
-            np.vstack(
-                [np.array([-2] * states.shape[0] * states.shape[1]),
-                 orig_goals.flatten()]
-            )
-        )
-
-        # Test the _log_probs method.
-        manager_obs = np.array([[1, 2], [3, -1], [0, 0]])
-        worker_obs = np.array([[1, 1], [2, 2], [3, 3]])
-        actions = np.array([[1], [-1], [0]])
-        goals = np.array([[0, 0], [-1, -1], [-2, -2]])
-        error = policy._log_probs(manager_obs, worker_obs, actions, goals)
-        np.testing.assert_array_almost_equal(
-            error, [-3.907223e-03, -3.918726e-03, -7.482369e-08])
-
-        # Test the _sample_best_meta_action method.  FIXME
-
-    def test_hindsight(self):
-        """Check the functionality of the _get_obs() method.
-
-        This method is tested for two cases:
-
-        1. when `relative_goals` is set to False.
-        2. when `relative_goals` is set to True.
-        """
-        # test case 1
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = False
         policy_params['hindsight'] = True
@@ -839,7 +742,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-        # test case 2
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = True
         policy_params['hindsight'] = True
@@ -892,6 +798,107 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the worker contexts
         for i, obs in enumerate(reversed(worker_obses)):
             np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
+
+    def test_meta_period(self):
+        """Verify that the rate of the Manager is dictated by meta_period."""
+        # Test for a meta period of 5.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 5
+        policy = GoalConditionedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # Test for a meta period of 10.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 10
+        policy = GoalConditionedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+    def test_relative_goals(self):
+        """Validate the functionality of relative goals.
+
+        This should affect the worker reward function as well as transformation
+        from relative goals to absolute goals.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["relative_goals"] = True
+        policy = GoalConditionedPolicy(**policy_params)
+
+        # Test the updated reward function.
+        states = np.array([1, 2, 3])
+        goals = np.array([4, 5, 6])
+        next_states = np.array([7, 8, 9])
+        self.assertAlmostEqual(
+            policy.worker_reward_fn(states, goals, next_states),
+            -2.2360679775221506
+        )
+
+    def test_sample_best_meta_action(self):
+        """Check the functionality of the _sample_best_meta_action() method."""
+        pass  # TODO
+
+    def test_log_probs(self):
+        """Check the functionality of the _log_probs() method."""
+        pass  # TODO
+
+    def test_sample(self):
+        """Check the functionality of the _sample() method.
+
+        This test checks for the following features:
+
+        1. that the shape of the output candidate goals is correct
+        2. that the last few elements are the deterministic components that
+           they are expected to be (see method's docstring)
+        """
+        policy = GoalConditionedPolicy(**self.policy_params)
+
+        # some variables to try on
+        states = np.array(
+            [[1, 2],
+             [3, 4],
+             [5, 6],
+             [7, 8],
+             [9, 10],
+             [11, 12],
+             [13, 14],
+             [15, 16],
+             [17, 18],
+             [19, 20]]
+        )
+        next_states = -states
+        num_samples = 10
+        orig_goals = np.array(
+            [[1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1]]
+        )
+        samples = policy._sample(states, next_states, orig_goals, num_samples)
+
+        # test case 1
+        self.assertTupleEqual(
+            samples.shape, (states.shape[0], states.shape[1], num_samples))
+
+        # test case 2
+        np.testing.assert_array_almost_equal(
+            samples[:, :, -2:].reshape(states.shape[0] * states.shape[1], 2).T,
+            np.vstack(
+                [np.array([-2] * states.shape[0] * states.shape[1]),
+                 orig_goals.flatten()]
+            )
+        )
 
     def test_centralized_value_functions(self):
         """Validate the functionality of the centralized value function."""

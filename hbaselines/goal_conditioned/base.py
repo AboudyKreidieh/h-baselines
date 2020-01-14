@@ -235,6 +235,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.replay_buffer = HierReplayBuffer(
             buffer_size=int(buffer_size/meta_period),
             batch_size=batch_size,
+            meta_period=meta_period,
             meta_obs_dim=meta_ob_dim[0],
             meta_ac_dim=manager_ac_space.shape[0],
             worker_obs_dim=ob_space.shape[0] + manager_ac_space.shape[0],
@@ -406,11 +407,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done = \
+            worker_obs1, worker_act, worker_rew, worker_done, additional = \
             self.replay_buffer.sample()
 
         # Update the Manager policy.
         if kwargs['update_meta']:
+            # Replace the goals with the most likely goals.
+            if self.off_policy_corrections:
+                meta_act = self._sample_best_meta_action(
+                    meta_obs0=meta_obs0,
+                    meta_obs1=meta_obs1,
+                    meta_action=meta_act,
+                    worker_obses=additional["worker_obses"],
+                    worker_actions=additional["worker_actions"],
+                    k=8
+                )
+
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
@@ -425,6 +437,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     worker_actions=worker_act,
                 )
             else:
+                # Perform the regular manager update procedure.
                 m_critic_loss, m_actor_loss = self.manager.update_from_batch(
                     obs0=meta_obs0,
                     actions=meta_act,
@@ -589,7 +602,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done = \
+            worker_obs1, worker_act, worker_rew, worker_done, _ = \
             self.replay_buffer.sample()
 
         td_map = {}
@@ -601,29 +614,29 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return td_map
 
     def _sample_best_meta_action(self,
-                                 state_reps,
-                                 next_state_reprs,
-                                 prev_meta_actions,
-                                 low_states,
-                                 low_actions,
-                                 low_state_reprs,
-                                 k=8):
+                                 meta_obs0,
+                                 meta_obs1,
+                                 meta_action,
+                                 worker_obses,
+                                 worker_actions,
+                                 k=10):
         """Return meta-actions that approximately maximize low-level log-probs.
 
         Parameters
         ----------
-        state_reps : array_like
-            current Manager state observation
-        next_state_reprs : array_like
-            next Manager state observation
-        prev_meta_actions : array_like
-            previous meta Manager action
-        low_states : array_like
-            current Worker state observation
-        low_actions : array_like
-            current Worker environmental action
-        low_state_reprs : array_like
-            current Worker state observation
+        meta_obs0 : array_like
+            (batch_size, m_obs_dim) matrix of Manager observations
+        meta_obs1 : array_like
+            (batch_size, m_obs_dim) matrix of next time step Manager
+            observations
+        meta_action : array_like
+            (batch_size, m_ac_dim) matrix of Manager actions
+        worker_obses : array_like
+            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
+            state observations
+        worker_actions : array_like
+            (batch_size, w_ac_dim, meta_period) matrix of current Worker
+            environmental actions
         k : int, optional
             number of goals returned, excluding the initial goal and the mean
             value
@@ -631,7 +644,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            most likely meta-actions
+            (batch_size, m_ac_dim) matrix of most likely Manager actions
         """
         raise NotImplementedError
 
