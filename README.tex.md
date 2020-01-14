@@ -447,52 +447,52 @@ with the subgoal state achieved in hindsight. For example, given an original
 sub-policy transition:
 
     sample = {
-        "manager observation": $s_0$,
-        "manager action" $g_0$,
-        "manager reward" $r$,
+        "manager observation": s_0,
+        "manager action" g_0,
+        "manager reward" r,
         "worker observations" [
-            ($s_0$, $g_0$),
-            ($s_1$, $h(g_0, s_0, s_1)$),
+            (s_0, g_0),
+            (s_1, h(g_0, s_0, s_1)),
             ...
-            ($s_k$, $h(g_{k-1}, s_{k-1}, s_k)$)
+            (s_k, h(g_{k-1}, s_{k-1}, s_k))
         ],
         "worker actions" [
-            $a_0$,
-            $a_1$,
+            a_0,
+            a_1,
             ...
-            $a_{k-1}$
+            a_{k-1}
         ],
         "worker rewards": [
-            $r_w(s_0, g_0, s_1)$,
-            $r_w(s_0, h(g_0, s_0, s_1), s_1)$,
+            r_w(s_0, g_0, s_1),
+            r_w(s_0, h(g_0, s_0, s_1), s_1),
             ...
-            $r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)$
+            r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
     }
 
 The original goal is relabeled to match the original as follows:
 
     sample = {
-        "manager observation": $s_0$,
-        "manager action" $s_k$, <---- the changed component
-        "manager reward" $r$,
+        "manager observation": s_0,
+        "manager action" s_k, <---- the changed component
+        "manager reward" r,
         "worker observations" [
-            ($s_0$, $g_0$),
-            ($s_1$, $h(g_0, s_0, s_1)$),
+            (s_0, g_0),
+            (s_1, h(g_0, s_0, s_1)),
             ...
-            ($s_k$, $h(g_{k-1}, s_{k-1}, s_k)$)
+            (s_k, h(g_{k-1}, s_{k-1}, s_k))
         ],
         "worker actions" [
-            $a_0$,
-            $a_1$,
+            a_0,
+            a_1,
             ...
-            $a_{k-1}$
+            a_{k-1}
         ],
         "worker rewards": [
-            $r_w(s_0, g_0, s_1)$,
-            $r_w(s_0, h(g_0, s_0, s_1), s_1)$,
+            r_w(s_0, g_0, s_1),
+            r_w(s_0, h(g_0, s_0, s_1), s_1),
             ...
-            $r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)$
+            r_w(s_{k-1}, h(g_{k-1}, s_{k-1}, s_k), s_k)
         ]
     }
 
