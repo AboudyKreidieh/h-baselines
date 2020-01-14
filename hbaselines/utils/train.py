@@ -56,10 +56,11 @@ def get_hyperparameters(args, policy):
             "worker_reward_scale": args.worker_reward_scale,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
-            "use_fingerprints": args.use_fingerprints,
-            "centralized_value_functions": args.centralized_value_functions,
+            "hindsight": args.hindsight,
             "connected_gradients": args.connected_gradients,
             "cg_weights": args.cg_weights,
+            "use_fingerprints": args.use_fingerprints,
+            "centralized_value_functions": args.centralized_value_functions,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -272,6 +273,11 @@ def create_goal_conditioned_parser(parser):
         action="store_true",
         help="whether to use off-policy corrections during the update "
              "procedure. See: https://arxiv.org/abs/1805.08296")
+    parser.add_argument(
+        "--hindsight",
+        action="store_true",
+        help="whether to include hindsight action transitions in the replay "
+             "buffer. See: https://arxiv.org/abs/1712.00948")
     parser.add_argument(
         "--use_fingerprints",
         action="store_true",

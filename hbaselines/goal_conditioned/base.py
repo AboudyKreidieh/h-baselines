@@ -1,6 +1,7 @@
 """Base goal-conditioned hierarchical policy."""
 import tensorflow as tf
 import numpy as np
+from copy import deepcopy
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
@@ -57,6 +58,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     off_policy_corrections : bool
         whether to use off-policy corrections during the update procedure. See:
         https://arxiv.org/abs/1805.08296.
+    hindsight : bool
+        whether to use hindsight action and goal transitions, as well as
+        subgoal testing. See: https://arxiv.org/abs/1712.00948
+    connected_gradients : bool
+        whether to connect the graph between the manager and worker
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
@@ -68,8 +74,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
         critic functions
-    connected_gradients : bool
-        whether to connect the graph between the manager and worker
     cg_weights : float
         weights for the gradients of the loss of the worker with respect to the
         parameters of the manager. Only used if `connected_gradients` is set to
@@ -109,10 +113,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
+                 hindsight,
+                 connected_gradients,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
-                 connected_gradients,
                  cg_weights,
                  env_name="",
                  meta_policy=None,
@@ -165,6 +170,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
+        hindsight : bool
+            whether to include hindsight action transitions in the replay
+            buffer. See: https://arxiv.org/abs/1712.00948
+        connected_gradients : bool
+            whether to connect the graph between the manager and worker
+        cg_weights : float
+            weights for the gradients of the loss of the worker with respect to
+            the parameters of the manager. Only used if `connected_gradients`
+            is set to True.
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -174,12 +188,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         centralized_value_functions : bool
             specifies whether to use centralized value functions for the
             Manager and Worker critic functions
-        connected_gradients : bool
-            whether to connect the graph between the manager and worker
-        cg_weights : float
-            weights for the gradients of the loss of the worker with respect to
-            the parameters of the manager. Only used if `connected_gradients`
-            is set to True.
         meta_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
             the policy model to use for the Manager
         worker_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
@@ -207,11 +215,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.worker_reward_scale = worker_reward_scale
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
+        self.hindsight = hindsight
+        self.connected_gradients = connected_gradients
         self.use_fingerprints = use_fingerprints
         self.fingerprint_range = fingerprint_range
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
-        self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
 
         # Get the Manager's action space.
@@ -501,8 +510,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # observation, if applicable.
             meta_obs1 = self._get_obs(obs1, context1, 0)
 
-            # Store a sample in the Manager policy.
             if not evaluate:
+                # Store a sample in the replay buffer.
                 self.replay_buffer.add(
                     obs_t=self._observations,
                     goal_t=self._meta_actions[0],
@@ -512,6 +521,38 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     meta_obs_t=(self.prev_meta_obs, meta_obs1),
                     meta_reward_t=self.meta_reward,
                 )
+
+                # Implement hindsight action transitions.
+                if self.hindsight:
+                    goal_dim = self.meta_action.shape[0]
+                    observations = deepcopy(self._observations)
+                    hindsight_goal = 0 if self.relative_goals \
+                        else observations[-1][:goal_dim]
+                    obs_tp1 = observations[-1][:goal_dim]
+
+                    for i in range(1, len(observations) + 1):
+                        # Calculate the hindsight goal in using relative goals.
+                        # If not, the hindsight goal is simply a subset of the
+                        # final state observation.
+                        if self.relative_goals:
+                            obs_t = observations[-i][:goal_dim]
+                            hindsight_goal = hindsight_goal + obs_tp1 - obs_t
+                            obs_tp1 = deepcopy(obs_t)
+
+                        # Replace the goal with the goal that the worker
+                        # actually achieved.
+                        observations[-i][-goal_dim:] = hindsight_goal
+
+                    # Store the hindsight sample in the replay buffer.
+                    self.replay_buffer.add(
+                        obs_t=observations,
+                        goal_t=hindsight_goal,
+                        action_t=self._worker_actions,
+                        reward_t=self._worker_rewards,
+                        done=self._dones,
+                        meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                        meta_reward_t=self.meta_reward,
+                    )
 
             # Clear the worker rewards and actions, and the environmental
             # observation and reward.

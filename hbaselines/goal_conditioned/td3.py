@@ -42,11 +42,12 @@ class GoalConditionedPolicy(BaseGCPolicy):
                  worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
+                 hindsight,
+                 connected_gradients,
+                 cg_weights,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
-                 connected_gradients,
-                 cg_weights,
                  env_name=""):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -104,6 +105,15 @@ class GoalConditionedPolicy(BaseGCPolicy):
         off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
+        hindsight : bool
+            whether to include hindsight action transitions in the replay
+            buffer. See: https://arxiv.org/abs/1712.00948
+        connected_gradients : bool
+            whether to connect the graph between the manager and worker
+        cg_weights : float
+            weights for the gradients of the loss of the worker with respect to
+            the parameters of the manager. Only used if `connected_gradients`
+            is set to True.
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -113,12 +123,6 @@ class GoalConditionedPolicy(BaseGCPolicy):
         centralized_value_functions : bool
             specifies whether to use centralized value functions for the
             Manager and Worker critic functions
-        connected_gradients : bool
-            whether to connect the graph between the manager and worker
-        cg_weights : float
-            weights for the gradients of the loss of the worker with respect to
-            the parameters of the manager. Only used if `connected_gradients`
-            is set to True.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -140,11 +144,12 @@ class GoalConditionedPolicy(BaseGCPolicy):
             worker_reward_scale=worker_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
+            hindsight=hindsight,
+            connected_gradients=connected_gradients,
+            cg_weights=cg_weights,
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
-            connected_gradients=connected_gradients,
-            cg_weights=cg_weights,
             env_name=env_name,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,

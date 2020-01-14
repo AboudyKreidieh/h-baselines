@@ -24,6 +24,7 @@ available [here]().
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
   * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
+  * [HAC (Learning Multi-level Hierarchies With Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
   * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
 * [Environments](#environments)
   * [MuJoCo Environments](#mujoco-environments)
@@ -412,6 +413,59 @@ alg = OffPolicyRLAlgorithm(
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
         "off_policy_corrections": True
+    }
+)
+```
+
+### HAC (Learning Multi-level Hierarchies With Hindsight)
+
+The HAC algorithm [5] attempts to address non-stationarity between levels of a 
+goal-conditioned hierarchy by employing various forms of hindsight to samples 
+within the replay buffer.
+
+Hindsight action transitions assist by training each subgoal policy with 
+respect to a transition function that simulates the optimal lower level policy 
+hierarchy. This is done by by using the subgoal state achieved in hindsight 
+instead of the original subgoal state as the action component in the 
+transition. For example, given an original sub-policy transition:
+
+<p align="center">[initial state = <img src="/tex/ac3148a5746b81298cb0c456b661f197.svg?invert_in_darkmode&sanitize=true" align=middle width=14.25802619999999pt height=14.15524440000002pt/> , goal = <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]</p>
+
+The original goal is relabeled to match the original as follows:
+
+<p align="center">[initial state = <img src="/tex/ac3148a5746b81298cb0c456b661f197.svg?invert_in_darkmode&sanitize=true" align=middle width=14.25802619999999pt height=14.15524440000002pt/> , goal = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>, next state = <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/>]</p>
+
+In cases when the `relative_goals` feature is being employed, the hindsight 
+goal is labeled using the inverse goal transition function. In other words, for
+a sample with a meta period of length <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, the goal for every worker for every 
+worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.svg?invert_in_darkmode&sanitize=true" align=middle width=5.936097749999991pt height=20.221802699999984pt/> is:
+
+<p align="center"><img src="/tex/839739b5d350a093805521c33eae9765.svg?invert_in_darkmode&sanitize=true" align=middle width=247.02824025pt height=49.315569599999996pt/></p>
+
+The initial goal, as represented in the example above, is then <img src="/tex/ca4277553ce1dfd86b9f9ccbd4ada2c2.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=14.15524440000002pt/>.
+
+Additional forms of hindsight employed by the original article, namely 
+*hindsight goal transitions* and *sub-goal testing*, are not implemented within 
+this repository and they assume a specific structure to the environmental 
+reward function; namely a return of -1 of the environmental goal is not 
+achieved and 0 if it is. Instead, in order further promote exploration when 
+using hindsight (as the sub-goal testing features is intended to facilitate) we
+store the original (non-hindsight) sample in the replay buffer as well. The use
+of this extra transition is justified empirically in **TODO**.
+
+In order to use relative goals when training a hierarchical policy, set 
+the `relative_goals` parameter to True:
+
+```python
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
+
+alg = OffPolicyRLAlgorithm(
+    policy=GoalConditionedPolicy,
+    ...,
+    policy_kwargs={
+        # include hindsight action transitions in the replay buffer
+        "hindsight": True
     }
 )
 ```
