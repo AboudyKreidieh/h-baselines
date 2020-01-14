@@ -3,12 +3,12 @@ import tensorflow as tf
 import numpy as np
 
 from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
-    BaseGCPolicy
+    BaseGoalConditionedPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.utils.tf_util import get_trainable_vars
 
 
-class GoalConditionedPolicy(BaseGCPolicy):
+class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     """TD3-compatible goal-conditioned hierarchical policy.
 
     TODO: description of off-policy corrections
@@ -304,8 +304,12 @@ class GoalConditionedPolicy(BaseGCPolicy):
     def _sample(self, meta_obs0, meta_obs1, meta_action, num_samples, sc=0.5):
         """Sample different goals.
 
-        These goals are acquired from a random Gaussian distribution centered
-        at s_{t+c} - s_t.
+        The goals are sampled as follows:
+
+        * The first num_samples-2 goals are acquired from a random Gaussian
+          distribution centered at s_{t+c} - s_t.
+        * The second to last goal is s_{t+c} - s_t.
+        * The last goal is the originally sampled goal g_t.
 
         Parameters
         ----------
