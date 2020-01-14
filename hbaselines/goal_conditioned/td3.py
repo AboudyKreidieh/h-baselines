@@ -221,7 +221,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
             actions
         worker_obses : array_like
-            (bath_size, w_obs_dim, meta_period+1) matrix of Worker observations
+            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
+            observations
         worker_actions : array_like
             (batch_size, w_ac_dim, meta_period) list of Worker actions
 
