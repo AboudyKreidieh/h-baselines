@@ -385,7 +385,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Apply squashing and account for it in the probability
         deterministic_policy, policy, logp_pi = self._apply_squashing_func(
-            policy, policy_mean, logp_pi)
+            policy_mean, policy, logp_pi)
 
         return deterministic_policy, policy, logp_pi
 
