@@ -28,6 +28,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
+                 maze_size_scaling=8,
                  horizon=500):
         """Initialize the Universal environment.
 
@@ -60,7 +61,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
         super(UniversalAntMazeEnv, self).__init__(
             maze_id=maze_id,
             maze_height=0.5,
-            maze_size_scaling=8,
+            maze_size_scaling=maze_size_scaling,
             n_bins=0,
             sensor_range=3.,
             sensor_span=2 * np.pi,
@@ -255,6 +256,7 @@ class AntMaze(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            maze_size_scaling=8,
         )
 
 
@@ -313,6 +315,7 @@ class AntPush(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            maze_size_scaling=8,
         )
 
 
@@ -373,4 +376,58 @@ class AntFall(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            maze_size_scaling=8,
+        )
+
+
+class AntFourRooms(UniversalAntMazeEnv):
+    """Ant Four Rooms Environment.
+
+    Need to add description. TODO
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None):
+        """Initialize the Ant Four Rooms environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : list of float or list of (float, float)
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "FourRooms"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[0, 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(AntFourRooms, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=3,
         )

@@ -10,7 +10,10 @@ try:
     from hbaselines.envs.mixed_autonomy import FlowEnv
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import AntFall
+from hbaselines.envs.efficient_hrl.envs import AntPush
+from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.envs import UR5, Pendulum
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
@@ -59,7 +62,8 @@ def get_manager_ac_space(ob_space,
     gym.spaces.Box
         the action space of the Manager policy
     """
-    if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
+    if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather",
+                    "AntFourRooms"]:
         manager_ac_space = Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
@@ -159,7 +163,8 @@ def get_state_indices(ob_space,
     else:
         state_indices = None
 
-    if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather"]:
+    if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather",
+                    "AntFourRooms"]:
         state_indices = list(np.arange(0, 15))
     elif env_name == "UR5":
         state_indices = None
@@ -203,15 +208,28 @@ def create_env(env, render=False, evaluate=False):
     if env == "AntGather":
         env = AntGatherEnv()
 
-    if env == "AntMaze":
+    elif env == "AntMaze":
         if evaluate:
-            env = [AntMaze(use_contexts=True, context_range=[16, 0]),
-                   AntMaze(use_contexts=True, context_range=[16, 16]),
-                   AntMaze(use_contexts=True, context_range=[0, 16])]
+            env = [
+                AntMaze(
+                    use_contexts=True,
+                    context_range=[16, 0]
+                ),
+                AntMaze(
+                    use_contexts=True,
+                    context_range=[16, 16]
+                ),
+                AntMaze(
+                    use_contexts=True,
+                    context_range=[0, 16]
+                )
+            ]
         else:
-            env = AntMaze(use_contexts=True,
-                          random_contexts=True,
-                          context_range=[(-4, 20), (-4, 20)])
+            env = AntMaze(
+                use_contexts=True,
+                random_contexts=True,
+                context_range=[(-4, 20), (-4, 20)]
+            )
 
     elif env == "AntPush":
         if evaluate:
@@ -230,6 +248,29 @@ def create_env(env, render=False, evaluate=False):
             # env = AntFall(use_contexts=True,
             #               random_contexts=True,
             #               context_range=[(-4, 12), (-4, 28), (0, 5)])
+
+    elif env == "AntFourRooms":
+        if evaluate:
+            env = [
+                AntFourRooms(
+                    use_contexts=True,
+                    context_range=[30, 0]
+                ),
+                AntFourRooms(
+                    use_contexts=True,
+                    context_range=[0, 30]
+                ),
+                AntFourRooms(
+                    use_contexts=True,
+                    context_range=[30, 30]
+                )
+            ]
+        else:
+            env = AntFourRooms(
+                use_contexts=True,
+                random_contexts=True,
+                context_range=[(-1.5, 31.5), (-1.5, 31.5)]
+            )
 
     elif env == "UR5":
         if evaluate:

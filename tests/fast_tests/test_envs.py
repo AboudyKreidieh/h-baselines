@@ -5,7 +5,10 @@ import random
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
-from hbaselines.envs.efficient_hrl.envs import AntMaze, AntFall, AntPush
+from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import AntFall
+from hbaselines.envs.efficient_hrl.envs import AntPush
+from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
 from hbaselines.envs.mixed_autonomy import FlowEnv
@@ -17,7 +20,8 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
     def test_maze_env_utils(self):
         """Test hbaselines/envs/efficient_hrl/maze_env_utils.py."""
         # test construct_maze
-        for maze_id in ["Maze", "Push", "Fall", "Block", "BlockMaze"]:
+        for maze_id in ["Maze", "Push", "Fall", "Block", "BlockMaze",
+                        "FourRooms"]:
             construct_maze(maze_id)
         self.assertRaises(NotImplementedError, construct_maze, maze_id="error")
 
@@ -61,6 +65,14 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             env.contextual_reward(
                 np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
             -1.7320508075977448 * REWARD_SCALE
+        )
+
+        # test AntMaze
+        env = AntFourRooms(use_contexts=True, context_range=[0, 0])
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -1.4142135624084504 * REWARD_SCALE
         )
 
         # test context_space
