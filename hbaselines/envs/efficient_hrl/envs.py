@@ -383,7 +383,7 @@ class AntFall(UniversalAntMazeEnv):
 class AntFourRooms(UniversalAntMazeEnv):
     """Ant Four Rooms Environment.
 
-    TODO
+    Need to add description. TODO
     """
 
     def __init__(self,
