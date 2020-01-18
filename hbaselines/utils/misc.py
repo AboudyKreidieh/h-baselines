@@ -156,13 +156,6 @@ def get_state_indices(ob_space,
     list of int
         the state indices that are assigned goals
     """
-    # remove the last element to compute the reward FIXME
-    if use_fingerprints:
-        state_indices = list(np.arange(
-            0, ob_space.shape[0] - fingerprint_dim[0]))
-    else:
-        state_indices = None
-
     if env_name in ["AntMaze", "AntPush", "AntFall", "AntGather",
                     "AntFourRooms"]:
         state_indices = list(np.arange(0, 15))
@@ -184,6 +177,13 @@ def get_state_indices(ob_space,
         state_indices = [5 * i for i in range(13)]
     elif env_name == "merge2":
         state_indices = [5 * i for i in range(17)]
+    elif use_fingerprints:
+        # Remove the last element to compute the reward.
+        state_indices = list(np.arange(
+            0, ob_space.shape[0] - fingerprint_dim[0]))
+    else:
+        # All observations are presented in the goal.
+        state_indices = list(np.arange(0, ob_space.shape[0]))
 
     return state_indices
 

@@ -537,7 +537,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'sess': tf.compat.v1.Session(),
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
             'verbose': 2,
         }
@@ -650,11 +650,11 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Test the worker_reward function.
         self.assertAlmostEqual(
             policy.worker_reward_fn(
-                states=np.array([1, 2, 3]),
-                goals=np.array([3, 2, 1]),
-                next_states=np.array([0, 0, 0])
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
             ),
-            -3.7416573867873044
+            -3.6055512754778567
         )
 
         # Clear the graph.
@@ -847,9 +847,9 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy = GoalConditionedPolicy(**policy_params)
 
         # Test the updated reward function.
-        states = np.array([1, 2, 3])
-        goals = np.array([4, 5, 6])
-        next_states = np.array([7, 8, 9])
+        states = np.array([1, 2])
+        goals = np.array([4, 5])
+        next_states = np.array([7, 8])
         self.assertAlmostEqual(
             policy.worker_reward_fn(states, goals, next_states),
             -2.2360679775221506
