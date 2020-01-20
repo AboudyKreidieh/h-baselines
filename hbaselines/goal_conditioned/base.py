@@ -405,10 +405,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         if not self.replay_buffer.can_sample():
             return ([0, 0], [0, 0]), (0, 0)
 
+        # Specifies whether to remove additional data from the replay buffer
+        # sampling procedure. Since only a subset of algorithms use additional
+        # data, removing it can speedup the other algorithms.
+        with_additional = self.off_policy_corrections
+
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done, additional = \
-            self.replay_buffer.sample()
+            self.replay_buffer.sample(with_additional=with_additional)
 
         # Update the Manager policy.
         if kwargs['update_meta']:
