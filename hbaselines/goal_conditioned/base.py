@@ -542,16 +542,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     rewards = deepcopy(self._worker_rewards)
                     hindsight_goal = 0 if self.relative_goals \
                         else observations[-1][:goal_dim]
-                    obs_tp1 = observations[-1][:goal_dim]
+                    obs_tp1 = observations[-1]
 
                     for i in range(1, len(observations) + 1):
-                        obs_t = observations[-i][:goal_dim]
+                        obs_t = observations[-i]
 
                         # Calculate the hindsight goal in using relative goals.
                         # If not, the hindsight goal is simply a subset of the
                         # final state observation.
                         if self.relative_goals:
-                            hindsight_goal = hindsight_goal + obs_tp1 - obs_t
+                            hindsight_goal = hindsight_goal \
+                                + obs_tp1[:goal_dim] - obs_t[:goal_dim]
 
                         # Modify the Worker intrinsic rewards based on the new
                         # hindsight goal.

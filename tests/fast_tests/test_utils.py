@@ -1,6 +1,7 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
 import numpy as np
+from gym.spaces import Box
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
@@ -386,7 +387,7 @@ class TestMisc(unittest.TestCase):
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=None,
+            ob_space=Box(-1, 1, shape=(2,)),
             use_fingerprints=False,
             fingerprint_dim=1,
         )
