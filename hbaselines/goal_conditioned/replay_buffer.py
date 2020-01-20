@@ -100,13 +100,20 @@ class HierReplayBuffer(ReplayBuffer):
         self._next_idx = (self._next_idx + 1) % self._maxsize
         self._size = min(self._size + 1, self._maxsize)
 
-    def _encode_sample(self, idxes):
+    def _encode_sample(self, idxes, **kwargs):
         """Return a sample from the replay buffer based on indices.
 
         Parameters
         ----------
         idxes : list of int
             list of random indices
+        kwargs : dict
+            additional parameters, including:
+
+            * with_additional (bool): specifies whether to remove additional
+              data from the replay buffer sampling procedure. Since only a
+              subset of algorithms use additional data, removing it can speedup
+              the other algorithms.
 
         Returns
         -------
@@ -134,14 +141,20 @@ class HierReplayBuffer(ReplayBuffer):
             additional information; used for features such as the off-policy
             corrections or centralized value functions
         """
-        additional = {
-            "worker_obses": np.zeros(
-                (self._batch_size, self._worker_ob_dim, self._meta_period + 1),
-                dtype=np.float32),
-            "worker_actions": np.zeros(
-                (self._batch_size, self._worker_ac_dim, self._meta_period),
-                dtype=np.float32),
-        }
+        # Do not encode additional information information in samples if it is
+        # not needed. Waste of compute resources.
+        if kwargs.get("with_additional", True):
+            additional = {
+                "worker_obses": np.zeros(
+                    (self._batch_size, self._worker_ob_dim,
+                     self._meta_period + 1),
+                    dtype=np.float32),
+                "worker_actions": np.zeros(
+                    (self._batch_size, self._worker_ac_dim, self._meta_period),
+                    dtype=np.float32),
+            }
+        else:
+            additional = None
 
         for i, indx in enumerate(idxes):
             # Extract the elements of the sample.
@@ -175,10 +188,11 @@ class HierReplayBuffer(ReplayBuffer):
             self.worker_rew[i] = np.array(worker_reward, copy=False)
             self.worker_done[i] = np.array(worker_done, copy=False)
 
-            for j in range(len(worker_obses)):
-                additional["worker_obses"][i, :, j] = worker_obses[j]
-            for j in range(len(worker_actions)):
-                additional["worker_actions"][i, :, j] = worker_actions[j]
+            if kwargs.get("with_additional", True):
+                for j in range(len(worker_obses)):
+                    additional["worker_obses"][i, :, j] = worker_obses[j]
+                for j in range(len(worker_actions)):
+                    additional["worker_actions"][i, :, j] = worker_actions[j]
 
         return self.meta_obs0, \
             self.meta_obs1, \
