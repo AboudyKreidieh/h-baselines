@@ -120,6 +120,19 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 ))
 
 
+# =========================================================================== #
+#    Policy parameters for MultiFeedForwardPolicy (shared by TD3 and SAC)     #
+# =========================================================================== #
+
+MULTI_FEEDFORWARD_PARAMS = FEEDFORWARD_PARAMS.copy()
+MULTI_FEEDFORWARD_PARAMS.update(dict(
+    # whether to use a shared policy for all agents
+    shared=False,
+    # whether to use an algorithm-specific variant of the MADDPG algorithm
+    maddpg=False,
+))
+
+
 class OffPolicyRLAlgorithm(object):
     """Off-policy RL algorithm class.
 

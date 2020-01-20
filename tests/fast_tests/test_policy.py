@@ -8,9 +8,14 @@ from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
+    TD3MultiFeedForwardPolicy
+from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
+    SACMultiFeedForwardPolicy
 from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.off_policy import MULTI_FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -942,6 +947,572 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
 
     def test_connected_gradients(self):
         """Check the functionality of the connected-gradients feature."""
+        pass  # TODO
+
+
+class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/td3.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params.update(TD3_PARAMS.copy())
+        self.policy_params.update(MULTI_FEEDFORWARD_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init(self):
+        """Check the functionality of the __init__() method.
+
+        This method is tested for the following features:
+
+        1. The proper structure graph was generated.
+        2. All input placeholders are correct.
+
+        This is done for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
+
+        This test validates that the target variables are properly initialized
+        when initialize is called.
+
+        This is done for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_store_transition(self):
+        """Check the functionality of the store_transition() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_get_td_map(self):
+        """Check the functionality of the get_td_map() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+
+class TestSACMultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/sac.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params.update(SAC_PARAMS.copy())
+        self.policy_params.update(MULTI_FEEDFORWARD_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init(self):
+        """Check the functionality of the __init__() method.
+
+        This method is tested for the following features:
+
+        1. The proper structure graph was generated.
+        2. All input placeholders are correct.
+
+        This is done for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
+
+        This test validates that the target variables are properly initialized
+        when initialize is called.
+
+        This is done for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_store_transition(self):
+        """Check the functionality of the store_transition() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+    def test_get_td_map(self):
+        """Check the functionality of the get_td_map() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = False
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        pass  # TODO
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params["maddpg"] = True
+        policy_params["shared"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
         pass  # TODO
 
 

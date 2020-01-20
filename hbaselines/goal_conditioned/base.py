@@ -46,7 +46,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    manager : hbaselines.fcnet.td3.FeedForwardPolicy
+    manager : hbaselines.fcnet.base.ActorCriticPolicy
         the manager policy
     meta_period : int
         manger action period
@@ -87,7 +87,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         during the meta period
     batch_size : int
         SGD batch size
-    worker : hbaselines.fcnet.td3.FeedForwardPolicy
+    worker : hbaselines.fcnet.base.ActorCriticPolicy
         the worker policy
     worker_reward_fn : function
         reward function for the worker
@@ -192,6 +192,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             the policy model to use for the Manager
         worker_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
             the policy model to use for the Worker
+        additional_params : dict
+            additional algorithm-specific policy parameters. Used internally by
+            the class when instantiating other (child) policies.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
