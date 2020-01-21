@@ -370,7 +370,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     # ======================================================================= #
 
     def _setup_independent_learners(self, scope):
-        """Setup independent learners.
+        """Create independent learners components.
 
         In this case, the policy consists of separate (or shared) policies for
         the individual agents that are subsequently trained in a decentralized
@@ -514,7 +514,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     # ======================================================================= #
 
     def _setup_maddpg(self, all_ob_space, scope):
-        """Setup algorithmic-variant of MADDPG.
+        """Create algorithmic-variant of MADDPG components.
 
         See: https://arxiv.org/pdf/1706.02275.pdf
         """
