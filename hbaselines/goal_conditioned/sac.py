@@ -206,7 +206,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             #     to any action for the current meta-period.
             #  2. Unlike the TD3 implementation, we keep the trailing context
             #     (goal) terms since they are needed to compute the log-prob
-            #     of a given action when feeding to logp_ac.
+            #     of a given action when feeding to logp_action.
             tiled_worker_obses_per_sample = np.tile(
                 worker_obses_per_sample[:-1, :], (num_samples, 1))
 
@@ -224,10 +224,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 tiled_goals_per_sample += \
                     np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
 
-            # Compute the log-probability of each action using the logp_ac
+            # Compute the log-probability of each action using the logp_action
             # attribute of the SAC Worker policy.
             normalized_error = self.sess.run(
-                self.worker.logp_ac,
+                self.worker.logp_action,
                 feed_dict={
                     self.worker.obs_ph: tiled_worker_obses_per_sample,
                     self.worker.action_ph: tiled_worker_actions_per_sample,
