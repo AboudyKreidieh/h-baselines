@@ -217,7 +217,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if maddpg:
             self._setup_maddpg(all_ob_space, scope)
         else:
-            self._setup_independent_learners(scope)
+            self._setup_basic(scope)
 
     def initialize(self):
         """Initialize the policy.
@@ -228,7 +228,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if self.maddpg:
             self._initialize_maddpg()
         else:
-            self._initialize_independent_learners()
+            self._initialize_basic()
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
@@ -249,7 +249,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if self.maddpg:
             self._update_maddpg(update_actor, **kwargs)
         else:
-            self._update_independent_learners(update_actor, **kwargs)
+            self._update_basic(update_actor, **kwargs)
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """Call the actor methods to compute policy actions.
@@ -280,7 +280,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             return self._get_action_maddpg(
                 obs, context, apply_noise, random_actions)
         else:
-            return self._get_action_independent_learners(
+            return self._get_action_basic(
                 obs, context, apply_noise, random_actions)
 
     def value(self, obs, context, action):
@@ -309,7 +309,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if self.maddpg:
             self._value_maddpg(obs, context, action)
         else:
-            self._value_independent_learners(obs, context, action)
+            self._value_basic(obs, context, action)
 
     def store_transition(self,
                          obs0,
@@ -355,7 +355,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 obs0, context0, action, reward, obs1, context1, done, all_obs0,
                 all_obs1, evaluate)
         else:
-            self._store_transition_independent_learners(
+            self._store_transition_basic(
                 obs0, context0, action, reward, obs1, context1, done, evaluate)
 
     def get_td_map(self):
@@ -363,14 +363,14 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if self.maddpg:
             return self._get_td_map_maddpg()
         else:
-            return self._get_td_map_independent_learners()
+            return self._get_td_map_basic()
 
     # ======================================================================= #
-    #       Independent learners version of required abstract methods.        #
+    #               Basic version of required abstract methods.               #
     # ======================================================================= #
 
-    def _setup_independent_learners(self, scope):
-        """Create independent learners components.
+    def _setup_basic(self, scope):
+        """Create basic independent learners / shared policy components.
 
         In this case, the policy consists of separate (or shared) policies for
         the individual agents that are subsequently trained in a decentralized
@@ -425,21 +425,17 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                         **policy_parameters
                     )
 
-    def _initialize_independent_learners(self):
+    def _initialize_basic(self):
         """See initialize."""
         for key in self.agents.keys():
             self.agents[key].initialize()
 
-    def _update_independent_learners(self, update_actor=True, **kwargs):
+    def _update_basic(self, update_actor=True, **kwargs):
         """See update."""
         for key in self.agents.keys():
             self.agents[key].update(update_actor, **kwargs)
 
-    def _get_action_independent_learners(self,
-                                         obs,
-                                         context,
-                                         apply_noise,
-                                         random_actions):
+    def _get_action_basic(self, obs, context, apply_noise, random_actions):
         """See get_action."""
         actions = {}
 
@@ -454,7 +450,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return actions
 
-    def _value_independent_learners(self, obs, context, action):
+    def _value_basic(self, obs, context, action):
         """See value."""
         values = {}
 
@@ -468,15 +464,15 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return values
 
-    def _store_transition_independent_learners(self,
-                                               obs0,
-                                               context0,
-                                               action,
-                                               reward,
-                                               obs1,
-                                               context1,
-                                               done,
-                                               evaluate):
+    def _store_transition_basic(self,
+                                obs0,
+                                context0,
+                                action,
+                                reward,
+                                obs1,
+                                context1,
+                                done,
+                                evaluate):
         """See store_transition."""
         for key in obs0.keys():
             # Use the same policy for all operations if shared, and the
@@ -498,7 +494,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 evaluate=evaluate,
             )
 
-    def _get_td_map_independent_learners(self):
+    def _get_td_map_basic(self):
         """See get_td_map."""
         combines_td_maps = {}
 
