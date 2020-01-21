@@ -511,7 +511,7 @@ worker observation indexed by $t$ is:
 
 The "meta action", as represented in the example above, is then $\bar{g}_0$.
 
-**Hindsight action transitions** extend the use of hindsight to the worker 
+**Hindsight goal transitions** extend the use of hindsight to the worker 
 observations and intrinsic rewards within the sample as well. This is done by 
 modifying the relevant worker-specific features as follows:
 

@@ -160,57 +160,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             ),
         )
 
-    def _sample_best_meta_action(self,
-                                 meta_obs0,
-                                 meta_obs1,
-                                 meta_action,
-                                 worker_obses,
-                                 worker_actions,
-                                 k=10):
-        """Return meta-actions that approximately maximize low-level log-probs.
-
-        Parameters
-        ----------
-        meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
-        meta_obs1 : array_like
-            (batch_size, m_obs_dim) matrix of next time step Manager
-            observations
-        meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions
-        worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
-            state observations
-        worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) matrix of current Worker
-            environmental actions
-        k : int, optional
-            number of goals returned, excluding the initial goal and the mean
-            value
-
-        Returns
-        -------
-        array_like
-            (batch_size, m_ac_dim) matrix of most likely Manager actions
-        """
-        batch_size, goal_dim = meta_action.shape
-
-        # Collect several samples of potentially optimal goals.
-        sampled_actions = self._sample(meta_obs0, meta_obs1, meta_action, k)
-        assert sampled_actions.shape == (batch_size, goal_dim, k)
-
-        # Compute the fitness of each candidate goal. The fitness is the sum of
-        # the log-probabilities of each action for the given goal.
-        fitness = self._log_probs(
-            sampled_actions, worker_obses, worker_actions)
-        assert fitness.shape == (batch_size, k)
-
-        # For each sample, choose the meta action that maximizes the fitness.
-        indx = np.argmax(fitness, 1)
-        best_goals = np.asarray(
-            [sampled_actions[i, :, indx[i]] for i in range(batch_size)])
-
-        return best_goals
+    # ======================================================================= #
+    #                       Auxiliary methods for HIRO                        #
+    # ======================================================================= #
 
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the Manager.
@@ -309,77 +261,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         return np.array(fitness)
 
-    def _sample(self, meta_obs0, meta_obs1, meta_action, num_samples, sc=0.5):
-        """Sample different goals.
-
-        The goals are sampled as follows:
-
-        * The first num_samples-2 goals are acquired from a random Gaussian
-          distribution centered at s_{t+c} - s_t.
-        * The second to last goal is s_{t+c} - s_t.
-        * The last goal is the originally sampled goal g_t.
-
-        Parameters
-        ----------
-        meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
-        meta_obs1 : array_like
-            (batch_size, m_obs_dim) matrix of next time step Manager
-            observations
-        meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions
-        num_samples : int
-            number of samples
-        sc : float
-            scaling factor for the normal distribution.
-
-        Returns
-        -------
-        array_like
-            (batch_size, goal_dim, num_samples) matrix of sampled goals
-
-        Helps
-        -----
-        * _sample_best_meta_action(self)
-        """
-        batch_size, goal_dim = meta_action.shape
-        goal_space = self.manager.ac_space
-        spec_range = goal_space.high - goal_space.low
-        random_samples = num_samples - 2
-
-        # Compute the mean and std for the Gaussian distribution to sample
-        # from, and well as the maxima and minima.
-        loc = meta_obs1[:, :goal_dim] - meta_obs0[:, :goal_dim]
-        scale = [sc * spec_range / 2]
-        minimum, maximum = [goal_space.low], [goal_space.high]
-
-        new_loc = np.zeros((batch_size, goal_dim, random_samples))
-        new_scale = np.zeros((batch_size, goal_dim, random_samples))
-        for i in range(random_samples):
-            new_loc[:, :, i] = loc
-            new_scale[:, :, i] = scale
-
-        new_minimum = np.zeros((batch_size, goal_dim, num_samples))
-        new_maximum = np.zeros((batch_size, goal_dim, num_samples))
-        for i in range(num_samples):
-            new_minimum[:, :, i] = minimum
-            new_maximum[:, :, i] = maximum
-
-        # Generate random samples for the above distribution.
-        normal_samples = np.random.normal(
-            size=(random_samples * batch_size * goal_dim))
-        normal_samples = normal_samples.reshape(
-            (batch_size, goal_dim, random_samples))
-
-        samples = np.zeros((batch_size, goal_dim, num_samples))
-        samples[:, :, :-2] = new_loc + normal_samples * new_scale
-        samples[:, :, -2] = loc
-        samples[:, :, -1] = meta_action
-
-        # Clip the values based on the Manager action space range.
-        samples = np.minimum(np.maximum(samples, new_minimum), new_maximum)
-
-        return samples
+    # ======================================================================= #
+    #                      Auxiliary methods for HRL-CG                       #
+    # ======================================================================= #
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""

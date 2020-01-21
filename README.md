@@ -499,7 +499,7 @@ worker observation indexed by <img src="/tex/4f4f4e395762a3af4575de74c019ebb5.sv
 
 The "meta action", as represented in the example above, is then <img src="/tex/9053fd2f3aa4a20e3e837c3b0d414a34.svg?invert_in_darkmode&sanitize=true" align=middle width=14.393129849999989pt height=18.666631500000015pt/>.
 
-**Hindsight action transitions** extend the use of hindsight to the worker 
+**Hindsight goal transitions** extend the use of hindsight to the worker 
 observations and intrinsic rewards within the sample as well. This is done by 
 modifying the relevant worker-specific features as follows:
 
