@@ -578,7 +578,9 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # TensorFlow graph.
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['Manager/model/pi/fc0/bias:0',
+            ['0:0',  # TODO: why?
+             '1:0',  # TODO: why?
+             'Manager/model/pi/fc0/bias:0',
              'Manager/model/pi/fc0/kernel:0',
              'Manager/model/pi/fc1/bias:0',
              'Manager/model/pi/fc1/kernel:0',
@@ -921,6 +923,18 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 class TestTD3GoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
 
+    def test_init(self):
+        """Validate that the graph and variables are initialized properly."""
+        pass  # TODO
+
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
+
+        This test validates that the target variables are properly initialized
+        when initialize is called.
+        """
+        pass  # TODO
+
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""
         pass  # TODO
@@ -932,6 +946,18 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
 
 class TestSACGoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/sac.py."""
+
+    def test_init(self):
+        """Validate that the graph and variables are initialized properly."""
+        pass  # TODO
+
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
+
+        This test validates that the target variables are properly initialized
+        when initialize is called.
+        """
+        pass  # TODO
 
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""
@@ -1210,6 +1236,22 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
              'b/target/qf_1/qf_output/kernel:0']
         )
 
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['a'].ac_space,
+                         self.policy_params_independent['ac_space']['a'])
+        self.assertEqual(policy.agents['a'].ob_space,
+                         self.policy_params_independent['ob_space']['a'])
+        self.assertEqual(policy.agents['a'].co_space,
+                         self.policy_params_independent['co_space']['a'])
+
+        self.assertEqual(policy.agents['b'].ac_space,
+                         self.policy_params_independent['ac_space']['b'])
+        self.assertEqual(policy.agents['b'].ob_space,
+                         self.policy_params_independent['ob_space']['b'])
+        self.assertEqual(policy.agents['b'].co_space,
+                         self.policy_params_independent['co_space']['b'])
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(not policy.shared)
         self.assertTrue(not policy.maddpg)
 
@@ -1258,6 +1300,15 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
              'target/qf_1/qf_output/kernel:0']
         )
 
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['agent'].ac_space,
+                         self.policy_params_shared['ac_space'])
+        self.assertEqual(policy.agents['agent'].ob_space,
+                         self.policy_params_shared['ob_space'])
+        self.assertEqual(policy.agents['agent'].co_space,
+                         self.policy_params_shared['co_space'])
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(not policy.maddpg)
 
@@ -1266,13 +1317,14 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        self.assertTrue(not policy.shared)
-        self.assertTrue(policy.maddpg)
-
         # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        # Check observation/action/context spaces of the agents
+        # TODO
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(policy.maddpg)
 
     def test_init_4(self):
         policy_params = self.policy_params_shared.copy()
@@ -1281,6 +1333,10 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
 
         # TODO
 
+        # Check observation/action/context spaces of the agents
+        # TODO
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(policy.maddpg)
 
@@ -1605,6 +1661,22 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
              'b/target/value_fns/vf/vf_output/kernel:0']
         )
 
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['a'].ac_space,
+                         self.policy_params_independent['ac_space']['a'])
+        self.assertEqual(policy.agents['a'].ob_space,
+                         self.policy_params_independent['ob_space']['a'])
+        self.assertEqual(policy.agents['a'].co_space,
+                         self.policy_params_independent['co_space']['a'])
+
+        self.assertEqual(policy.agents['b'].ac_space,
+                         self.policy_params_independent['ac_space']['b'])
+        self.assertEqual(policy.agents['b'].ob_space,
+                         self.policy_params_independent['ob_space']['b'])
+        self.assertEqual(policy.agents['b'].co_space,
+                         self.policy_params_independent['co_space']['b'])
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(not policy.shared)
         self.assertTrue(not policy.maddpg)
 
@@ -1650,6 +1722,15 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
              'target/value_fns/vf/vf_output/kernel:0']
         )
 
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['agent'].ac_space,
+                         self.policy_params_shared['ac_space'])
+        self.assertEqual(policy.agents['agent'].ob_space,
+                         self.policy_params_shared['ob_space'])
+        self.assertEqual(policy.agents['agent'].co_space,
+                         self.policy_params_shared['co_space'])
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(not policy.maddpg)
 
@@ -1660,6 +1741,10 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
 
         # TODO
 
+        # Check observation/action/context spaces of the agents
+        # TODO
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(not policy.shared)
         self.assertTrue(policy.maddpg)
 
@@ -1670,6 +1755,10 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
 
         # TODO
 
+        # Check observation/action/context spaces of the agents
+        # TODO
+
+        # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(policy.maddpg)
 
@@ -1690,14 +1779,84 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'a/model/value_fns/vf/fc0/kernel:0',
+            'a/model/value_fns/vf/fc0/bias:0',
+            'a/model/value_fns/vf/fc1/kernel:0',
+            'a/model/value_fns/vf/fc1/bias:0',
+            'a/model/value_fns/vf/vf_output/kernel:0',
+            'a/model/value_fns/vf/vf_output/bias:0',
+            'b/model/value_fns/vf/fc0/kernel:0',
+            'b/model/value_fns/vf/fc0/bias:0',
+            'b/model/value_fns/vf/fc1/kernel:0',
+            'b/model/value_fns/vf/fc1/bias:0',
+            'b/model/value_fns/vf/vf_output/kernel:0',
+            'b/model/value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'a/target/value_fns/vf/fc0/kernel:0',
+            'a/target/value_fns/vf/fc0/bias:0',
+            'a/target/value_fns/vf/fc1/kernel:0',
+            'a/target/value_fns/vf/fc1/bias:0',
+            'a/target/value_fns/vf/vf_output/kernel:0',
+            'a/target/value_fns/vf/vf_output/bias:0',
+            'b/target/value_fns/vf/fc0/kernel:0',
+            'b/target/value_fns/vf/fc0/bias:0',
+            'b/target/value_fns/vf/fc1/kernel:0',
+            'b/target/value_fns/vf/fc1/bias:0',
+            'b/target/value_fns/vf/vf_output/kernel:0',
+            'b/target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_initialize_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'model/value_fns/vf/fc0/kernel:0',
+            'model/value_fns/vf/fc0/bias:0',
+            'model/value_fns/vf/fc1/kernel:0',
+            'model/value_fns/vf/fc1/bias:0',
+            'model/value_fns/vf/vf_output/kernel:0',
+            'model/value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'target/value_fns/vf/fc0/kernel:0',
+            'target/value_fns/vf/fc0/bias:0',
+            'target/value_fns/vf/fc1/kernel:0',
+            'target/value_fns/vf/fc1/bias:0',
+            'target/value_fns/vf/vf_output/kernel:0',
+            'target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_initialize_3(self):
         policy_params = self.policy_params_independent.copy()
