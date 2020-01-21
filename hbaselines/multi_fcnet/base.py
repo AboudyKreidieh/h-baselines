@@ -130,12 +130,15 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         ----------
         sess : tf.compat.v1.Session
             the current TensorFlow session
-        ob_space : gym.spaces.*
-            the observation space of the environment
-        ac_space : gym.spaces.*
-            the action space of the environment
-        co_space : gym.spaces.*
-            the context space of the environment
+        ob_space : gym.spaces.* or dict <str, gym.spaces.*>
+            the observation space of individual agents in the environment. If
+            not a dictionary, the observation space is shared across all agents
+        ac_space : gym.spaces.* or dict <str, gym.spaces.*>
+            the action space of individual agents in the environment. If
+            not a dictionary, the action space is shared across all agents.
+        co_space : gym.spaces.* or dict <str, gym.spaces.*>
+            the context space of individual agents in the environment. If
+            not a dictionary, the context space is shared across all agents.
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -340,9 +343,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         done : dict of float
             is the episode done for each agent
         all_obs0 : array_like
-            TODO
+            the last full-state observation
         all_obs1 : array_like
-            TODO
+            the current full-state observation
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.

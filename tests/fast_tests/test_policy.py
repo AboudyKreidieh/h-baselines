@@ -864,10 +864,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         """Check the functionality of the _sample_best_meta_action() method."""
         pass  # TODO
 
-    def test_log_probs(self):
-        """Check the functionality of the _log_probs() method."""
-        pass  # TODO
-
     def test_sample(self):
         """Check the functionality of the _sample() method.
 
@@ -954,20 +950,47 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
     """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/td3.py."""
 
     def setUp(self):
-        self.policy_params = {
-            'sess': tf.compat.v1.Session(),
+        self.sess = tf.compat.v1.Session()
+
+        # Shared policy parameters
+        self.policy_params_shared = {
+            'sess': self.sess,
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'layers': None,
             'verbose': 2,
         }
-        self.policy_params.update(TD3_PARAMS.copy())
-        self.policy_params.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(TD3_PARAMS.copy())
+        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared['shared'] = True
+
+        # Independent policy parameters
+        self.policy_params_independent = {
+            'sess': self.sess,
+            'ac_space': {
+                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            },
+            'co_space': {
+                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+            },
+            'ob_space': {
+                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
+                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+            },
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params_independent.update(TD3_PARAMS.copy())
+        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent['shared'] = False
 
     def tearDown(self):
-        self.policy_params['sess'].close()
-        del self.policy_params
+        self.sess.close()
+        del self.policy_params_shared
+        del self.policy_params_independent
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -991,9 +1014,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1005,9 +1027,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1019,9 +1040,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1033,9 +1053,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1057,9 +1076,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1071,9 +1089,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1085,9 +1102,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1099,9 +1115,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1120,9 +1135,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1134,9 +1148,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1148,9 +1161,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1162,9 +1174,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1183,9 +1194,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1197,9 +1207,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1211,9 +1220,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1225,9 +1233,8 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
@@ -1237,20 +1244,47 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
     """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/sac.py."""
 
     def setUp(self):
-        self.policy_params = {
-            'sess': tf.compat.v1.Session(),
+        self.sess = tf.compat.v1.Session()
+
+        # Shared policy parameters
+        self.policy_params_shared = {
+            'sess': self.sess,
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'layers': None,
             'verbose': 2,
         }
-        self.policy_params.update(SAC_PARAMS.copy())
-        self.policy_params.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(SAC_PARAMS.copy())
+        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared['shared'] = True
+
+        # Independent policy parameters
+        self.policy_params_independent = {
+            'sess': self.sess,
+            'ac_space': {
+                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            },
+            'co_space': {
+                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+            },
+            'ob_space': {
+                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
+                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+            },
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params_independent.update(SAC_PARAMS.copy())
+        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent['shared'] = False
 
     def tearDown(self):
-        self.policy_params['sess'].close()
-        del self.policy_params
+        self.sess.close()
+        del self.policy_params_shared
+        del self.policy_params_independent
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1274,10 +1308,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1288,10 +1321,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1302,10 +1334,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1316,10 +1347,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1340,10 +1370,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1354,10 +1383,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1368,10 +1396,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1382,10 +1409,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1403,10 +1429,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1417,10 +1442,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1431,10 +1455,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1445,10 +1468,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1466,10 +1488,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1480,10 +1501,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 2                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1494,10 +1514,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 3                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 
@@ -1508,10 +1527,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         #                             test case 4                             #
         # =================================================================== #
 
-        policy_params = self.policy_params.copy()
+        policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
-        policy_params["shared"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        policy = SACMultiFeedForwardPolicy(**policy_params)
 
         pass  # TODO
 

@@ -6,12 +6,7 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 
 class MultiFeedForwardPolicy(BasePolicy):
-    """Feed-forward neural network actor-critic policy.
-
-    Attributes
-    ----------
-    TODO
-    """
+    """TD3-compatible multi-agent feedforward neural."""
 
     def __init__(self,
                  sess,
@@ -131,3 +126,44 @@ class MultiFeedForwardPolicy(BasePolicy):
                 target_noise_clip=target_noise_clip,
             ),
         )
+
+    def _setup_maddpg(self, all_ob_space, scope):
+        """Setup algorithmic-variant of MADDPG.
+
+        See: https://arxiv.org/pdf/1706.02275.pdf
+        """
+        raise NotImplementedError  # TODO
+
+    def _initialize_maddpg(self):
+        """See initialize."""
+        raise NotImplementedError  # TODO
+
+    def _update_maddpg(self, update_actor=True, **kwargs):
+        """See update."""
+        raise NotImplementedError  # TODO
+
+    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+        """See get_action."""
+        raise NotImplementedError  # TODO
+
+    def _value_maddpg(self, obs, context, action):
+        """See value."""
+        raise NotImplementedError  # TODO
+
+    def _store_transition_maddpg(self,
+                                 obs0,
+                                 context0,
+                                 action,
+                                 reward,
+                                 obs1,
+                                 context1,
+                                 done,
+                                 all_obs0,
+                                 all_obs1,
+                                 evaluate):
+        """See store_transition."""
+        raise NotImplementedError  # TODO
+
+    def _get_td_map_maddpg(self):
+        """See get_td_map."""
+        raise NotImplementedError  # TODO
