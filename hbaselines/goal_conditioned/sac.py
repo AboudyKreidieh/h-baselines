@@ -1,4 +1,6 @@
 """SAC-compatible goal-conditioned hierarchical policy."""
+import numpy as np
+
 from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
     BaseGoalConditionedPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
@@ -146,40 +148,105 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             ),
         )
 
-    def _sample_best_meta_action(self,
-                                 meta_obs0,
-                                 meta_obs1,
-                                 meta_action,
-                                 worker_obses,
-                                 worker_actions,
-                                 k=10):
-        """Return meta-actions that approximately maximize low-level log-probs.
+    # ======================================================================= #
+    #                       Auxiliary methods for HIRO                        #
+    # ======================================================================= #
+
+    def _log_probs(self, meta_actions, worker_obses, worker_actions):
+        """Calculate the log probability of the next goal by the Manager.
 
         Parameters
         ----------
-        meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
-        meta_obs1 : array_like
-            (batch_size, m_obs_dim) matrix of next time step Manager
-            observations
-        meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions
+        meta_actions : array_like
+            (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
+            actions
         worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
-            state observations
+            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
+            observations
         worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) matrix of current Worker
-            environmental actions
-        k : int, optional
-            number of goals returned, excluding the initial goal and the mean
-            value
+            (batch_size, w_ac_dim, meta_period) list of Worker actions
 
         Returns
         -------
         array_like
-            (batch_size, m_ac_dim) matrix of most likely Manager actions
+            (batch_size, num_samples) fitness associated with every state /
+            action / goal pair
+
+        Helps
+        -----
+        * _sample_best_meta_action(self):
         """
-        raise NotImplementedError  # TODO
+        fitness = []
+        batch_size, goal_dim, num_samples = meta_actions.shape
+        _, _, meta_period = worker_actions.shape
+
+        # Loop through the elements of the batch.
+        for i in range(batch_size):
+            # Extract the candidate goals for the current element in the batch.
+            # The worker observations and actions from the meta period of the
+            # current batch are also collected to compute the log-probability
+            # of a given candidate goal.
+            goals_per_sample = meta_actions[i, :, :].T
+            worker_obses_per_sample = worker_obses[i, :, :].T
+            worker_actions_per_sample = worker_actions[i, :, :].T
+
+            # This will be used to store the cumulative log-probabilities of a
+            # given candidate goal for the entire meta-period.
+            fitness_per_sample = np.zeros(num_samples)
+
+            # Create repeated representations of each worker action for each
+            # candidate goal.
+            tiled_worker_actions_per_sample = np.tile(
+                worker_actions_per_sample, (num_samples, 1))
+
+            # Create repeated representations of each worker observation for
+            # each candidate goal. The indexing of worker_obses_per_sample is
+            # meant to do the following:
+            #  1. We remove the last observation since it does not correspond
+            #     to any action for the current meta-period.
+            #  2. Unlike the TD3 implementation, we keep the trailing context
+            #     (goal) terms since they are needed to compute the log-prob
+            #     of a given action when feeding to logp_action.
+            tiled_worker_obses_per_sample = np.tile(
+                worker_obses_per_sample[:-1, :], (num_samples, 1))
+
+            # Create repeated representations of each candidate goal for each
+            # worker observation in a meta period.
+            tiled_goals_per_sample = np.tile(
+                goals_per_sample, meta_period).reshape(
+                (num_samples * meta_period, goal_dim))
+
+            # If relative goals are being used, update the later goals to match
+            # what they would be under the relative goals difference approach.
+            if self.relative_goals:
+                goal_diff = worker_obses_per_sample[:-1, :] - np.tile(
+                    worker_obses_per_sample[0, :], (meta_period, 1))
+                tiled_goals_per_sample += \
+                    np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
+
+            # Compute the log-probability of each action using the logp_action
+            # attribute of the SAC Worker policy.
+            normalized_error = self.sess.run(
+                self.worker.logp_action,
+                feed_dict={
+                    self.worker.obs_ph: tiled_worker_obses_per_sample,
+                    self.worker.action_ph: tiled_worker_actions_per_sample,
+                }
+            )
+
+            # Sum the different normalized errors to get the fitness of each
+            # candidate goal.
+            for j in range(num_samples):
+                fitness_per_sample[j] = np.sum(
+                    normalized_error[j * meta_period: (j+1) * meta_period])
+
+            fitness.append(fitness_per_sample)
+
+        return np.array(fitness)
+
+    # ======================================================================= #
+    #                      Auxiliary methods for HRL-CG                       #
+    # ======================================================================= #
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""

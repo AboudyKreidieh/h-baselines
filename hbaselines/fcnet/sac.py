@@ -81,6 +81,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
     logp_pi : tf.Variable
         the log-probability of a given observation given the output action from
         the policy
+    logp_pi : tf.Variable
+        the log-probability of a given observation given a fixed action. Used
+        by the hierarchical policy to perform off-policy corrections.
     qf1 : tf.Variable
         the output from the first Q-function
     qf2 : tf.Variable
@@ -268,8 +271,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.compat.v1.variable_scope("model", reuse=False):
-            self.deterministic_action, self.policy_out, self.logp_pi = \
-                self.make_actor(self.obs_ph)
+            self.deterministic_action, self.policy_out, self.logp_pi, \
+                self.logp_action = self.make_actor(self.obs_ph, self.action_ph)
             self.qf1, self.qf2, self.value_fn = self.make_critic(
                 self.obs_ph, self.action_ph,
                 create_qf=True, create_vf=True)
@@ -318,13 +321,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # and outputs.
         self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
 
-    def make_actor(self, obs, reuse=False, scope="pi"):
+    def make_actor(self, obs, action, reuse=False, scope="pi"):
         """Create the actor variables.
 
         Parameters
         ----------
         obs : tf.compat.v1.placeholder
             the input observation placeholder
+        action : tf.compat.v1.placeholder
+            the input action placeholder
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -339,6 +344,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the log-probability of a given observation given the output action
             from the policy
+        tf.Variable
+            the log-probability of a given observation given a fixed action
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
@@ -382,12 +389,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Reparameterization trick
         policy = policy_mean + tf.random.normal(tf.shape(policy_mean)) * std
         logp_pi = self._gaussian_likelihood(policy, policy_mean, log_std)
+        logp_ac = self._gaussian_likelihood(action, policy_mean, log_std)
 
         # Apply squashing and account for it in the probability
+        _, _, logp_ac = self._apply_squashing_func(
+            policy_mean, action, logp_ac)
         deterministic_policy, policy, logp_pi = self._apply_squashing_func(
             policy_mean, policy, logp_pi)
 
-        return deterministic_policy, policy, logp_pi
+        return deterministic_policy, policy, logp_pi, logp_ac
 
     def make_critic(self,
                     obs,
@@ -540,21 +550,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
         mu_ : tf.Variable
             mean of the gaussian
         pi_ : tf.Variable
-            output of the policy before squashing
+            output of the policy (or action) before squashing
         logp_pi : tf.Variable
             log probability before squashing
 
         Returns
         -------
         tf.Variable
-            the output from the first Q-function. Set to None if `create_qf` is
-            False.
+            the output from the squashed deterministic policy
         tf.Variable
-            the output from the second Q-function. Set to None if `create_qf`
-            is False.
+            the output from the squashed stochastic policy
         tf.Variable
-            the output from the value function. Set to None if `create_vf` is
-            False.
+            the log probability of a given squashed action
         """
         # Squash the output
         deterministic_policy = tf.nn.tanh(mu_)
