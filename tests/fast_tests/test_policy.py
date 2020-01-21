@@ -1018,7 +1018,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1031,7 +1031,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1044,7 +1044,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1057,7 +1057,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_initialize(self):
         """Check the functionality of the initialize() method.
@@ -1080,7 +1080,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1093,7 +1093,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1106,7 +1106,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1119,7 +1119,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_store_transition(self):
         """Check the functionality of the store_transition() method.
@@ -1139,7 +1139,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1152,7 +1152,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1165,7 +1165,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1178,7 +1178,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_get_td_map(self):
         """Check the functionality of the get_td_map() method.
@@ -1198,7 +1198,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1211,7 +1211,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1224,7 +1224,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1237,7 +1237,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
 
 class TestSACMultiFeedForwardPolicy(unittest.TestCase):
@@ -1312,7 +1312,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1325,7 +1325,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1338,7 +1338,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1351,7 +1351,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_initialize(self):
         """Check the functionality of the initialize() method.
@@ -1374,7 +1374,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1387,7 +1387,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1400,7 +1400,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1413,7 +1413,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_store_transition(self):
         """Check the functionality of the store_transition() method.
@@ -1433,7 +1433,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1446,7 +1446,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1459,7 +1459,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1472,7 +1472,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
     def test_get_td_map(self):
         """Check the functionality of the get_td_map() method.
@@ -1492,7 +1492,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1505,7 +1505,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1518,7 +1518,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
@@ -1531,7 +1531,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        pass  # TODO
+        del policy  # TODO
 
 
 if __name__ == '__main__':

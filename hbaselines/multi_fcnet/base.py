@@ -95,7 +95,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     additional_params : dict
         additional algorithm-specific policy parameters. Used internally by the
         class when instantiating other (child) policies.
-    agents : dict of hbaselines.fcnet.base.ActorCriticPolicy
+    agents : dict <str, hbaselines.fcnet.base.ActorCriticPolicy>
         Actor policy for each agent in the network. If MADDPG variants of the
         policy are being used, this attribute is not used.
     """

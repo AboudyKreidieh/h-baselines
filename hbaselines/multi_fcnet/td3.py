@@ -1,6 +1,4 @@
 """TD3-compatible multi-agent feedforward policy."""
-import tensorflow as tf
-
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 
