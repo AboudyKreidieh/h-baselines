@@ -917,10 +917,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             )
         )
 
-    def test_centralized_value_functions(self):
-        """Validate the functionality of the centralized value function."""
-        pass  # TODO
-
 
 class TestTD3GoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
@@ -946,8 +942,8 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         pass  # TODO
 
 
-class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
-    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/td3.py."""
+class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/base.py."""
 
     def setUp(self):
         self.sess = tf.compat.v1.Session()
@@ -958,7 +954,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'layers': None,
+            'layers': [256, 256],
             'verbose': 2,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -980,7 +976,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
                 'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
                 'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
             },
-            'layers': None,
+            'layers': [256, 256],
             'verbose': 2,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -995,7 +991,131 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-    def test_init(self):
+    def test_store_transition_1(self):
+        """Check the functionality of the store_transition() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_store_transition_2(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_store_transition_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_store_transition_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_1(self):
+        """Check the functionality of the get_td_map() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = False, shared = False
+        2. maddpg = False, shared = True
+        3. maddpg = True,  shared = False
+        4. maddpg = True,  shared = True
+        """
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_2(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+
+class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/td3.py."""
+
+    def setUp(self):
+        self.sess = tf.compat.v1.Session()
+
+        # Shared policy parameters
+        self.policy_params_shared = {
+            'sess': self.sess,
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'layers': [256, 256],
+            'verbose': 2,
+        }
+        self.policy_params_shared.update(TD3_PARAMS.copy())
+        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared['shared'] = True
+
+        # Independent policy parameters
+        self.policy_params_independent = {
+            'sess': self.sess,
+            'ac_space': {
+                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            },
+            'co_space': {
+                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+            },
+            'ob_space': {
+                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
+                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+            },
+            'layers': [256, 256],
+            'verbose': 2,
+        }
+        self.policy_params_independent.update(TD3_PARAMS.copy())
+        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent['shared'] = False
+
+    def tearDown(self):
+        self.sess.close()
+        del self.policy_params_shared
+        del self.policy_params_independent
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init_1(self):
         """Check the functionality of the __init__() method.
 
         This method is tested for the following features:
@@ -1010,56 +1130,161 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         3. maddpg = True,  shared = False
         4. maddpg = True,  shared = True
         """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/output/bias:0',
+             'a/model/pi/output/kernel:0',
+             'a/model/qf_0/fc0/bias:0',
+             'a/model/qf_0/fc0/kernel:0',
+             'a/model/qf_0/fc1/bias:0',
+             'a/model/qf_0/fc1/kernel:0',
+             'a/model/qf_0/qf_output/bias:0',
+             'a/model/qf_0/qf_output/kernel:0',
+             'a/model/qf_1/fc0/bias:0',
+             'a/model/qf_1/fc0/kernel:0',
+             'a/model/qf_1/fc1/bias:0',
+             'a/model/qf_1/fc1/kernel:0',
+             'a/model/qf_1/qf_output/bias:0',
+             'a/model/qf_1/qf_output/kernel:0',
+             'a/target/pi/fc0/bias:0',
+             'a/target/pi/fc0/kernel:0',
+             'a/target/pi/fc1/bias:0',
+             'a/target/pi/fc1/kernel:0',
+             'a/target/pi/output/bias:0',
+             'a/target/pi/output/kernel:0',
+             'a/target/qf_0/fc0/bias:0',
+             'a/target/qf_0/fc0/kernel:0',
+             'a/target/qf_0/fc1/bias:0',
+             'a/target/qf_0/fc1/kernel:0',
+             'a/target/qf_0/qf_output/bias:0',
+             'a/target/qf_0/qf_output/kernel:0',
+             'a/target/qf_1/fc0/bias:0',
+             'a/target/qf_1/fc0/kernel:0',
+             'a/target/qf_1/fc1/bias:0',
+             'a/target/qf_1/fc1/kernel:0',
+             'a/target/qf_1/qf_output/bias:0',
+             'a/target/qf_1/qf_output/kernel:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/output/bias:0',
+             'b/model/pi/output/kernel:0',
+             'b/model/qf_0/fc0/bias:0',
+             'b/model/qf_0/fc0/kernel:0',
+             'b/model/qf_0/fc1/bias:0',
+             'b/model/qf_0/fc1/kernel:0',
+             'b/model/qf_0/qf_output/bias:0',
+             'b/model/qf_0/qf_output/kernel:0',
+             'b/model/qf_1/fc0/bias:0',
+             'b/model/qf_1/fc0/kernel:0',
+             'b/model/qf_1/fc1/bias:0',
+             'b/model/qf_1/fc1/kernel:0',
+             'b/model/qf_1/qf_output/bias:0',
+             'b/model/qf_1/qf_output/kernel:0',
+             'b/target/pi/fc0/bias:0',
+             'b/target/pi/fc0/kernel:0',
+             'b/target/pi/fc1/bias:0',
+             'b/target/pi/fc1/kernel:0',
+             'b/target/pi/output/bias:0',
+             'b/target/pi/output/kernel:0',
+             'b/target/qf_0/fc0/bias:0',
+             'b/target/qf_0/fc0/kernel:0',
+             'b/target/qf_0/fc1/bias:0',
+             'b/target/qf_0/fc1/kernel:0',
+             'b/target/qf_0/qf_output/bias:0',
+             'b/target/qf_0/qf_output/kernel:0',
+             'b/target/qf_1/fc0/bias:0',
+             'b/target/qf_1/fc0/kernel:0',
+             'b/target/qf_1/fc1/bias:0',
+             'b/target/qf_1/fc1/kernel:0',
+             'b/target/qf_1/qf_output/bias:0',
+             'b/target/qf_1/qf_output/kernel:0']
+        )
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        self.assertTrue(not policy.shared)
+        self.assertTrue(not policy.maddpg)
 
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
+    def test_init_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'model/qf_0/fc0/bias:0',
+             'model/qf_0/fc0/kernel:0',
+             'model/qf_0/fc1/bias:0',
+             'model/qf_0/fc1/kernel:0',
+             'model/qf_0/qf_output/bias:0',
+             'model/qf_0/qf_output/kernel:0',
+             'model/qf_1/fc0/bias:0',
+             'model/qf_1/fc0/kernel:0',
+             'model/qf_1/fc1/bias:0',
+             'model/qf_1/fc1/kernel:0',
+             'model/qf_1/qf_output/bias:0',
+             'model/qf_1/qf_output/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0',
+             'target/qf_0/fc0/bias:0',
+             'target/qf_0/fc0/kernel:0',
+             'target/qf_0/fc1/bias:0',
+             'target/qf_0/fc1/kernel:0',
+             'target/qf_0/qf_output/bias:0',
+             'target/qf_0/qf_output/kernel:0',
+             'target/qf_1/fc0/bias:0',
+             'target/qf_1/fc0/kernel:0',
+             'target/qf_1/fc1/bias:0',
+             'target/qf_1/fc1/kernel:0',
+             'target/qf_1/qf_output/bias:0',
+             'target/qf_1/qf_output/kernel:0']
+        )
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        self.assertTrue(policy.shared)
+        self.assertTrue(not policy.maddpg)
 
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
+    def test_init_3(self):
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        self.assertTrue(not policy.shared)
+        self.assertTrue(policy.maddpg)
+
+        # TODO
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
+    def test_init_4(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # TODO
 
-    def test_initialize(self):
+        self.assertTrue(policy.shared)
+        self.assertTrue(policy.maddpg)
+
+    def test_initialize_1(self):
         """Check the functionality of the initialize() method.
 
         This test validates that the target variables are properly initialized
@@ -1072,167 +1297,169 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         3. maddpg = True,  shared = False
         4. maddpg = True,  shared = True
         """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        # Run the initialize method.
+        policy.initialize()
 
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
+        model_var_list = [
+            'a/model/pi/fc0/bias:0',
+            'a/model/pi/fc0/kernel:0',
+            'a/model/pi/fc1/bias:0',
+            'a/model/pi/fc1/kernel:0',
+            'a/model/pi/output/bias:0',
+            'a/model/pi/output/kernel:0',
+            'a/model/qf_0/fc0/bias:0',
+            'a/model/qf_0/fc0/kernel:0',
+            'a/model/qf_0/fc1/bias:0',
+            'a/model/qf_0/fc1/kernel:0',
+            'a/model/qf_0/qf_output/bias:0',
+            'a/model/qf_0/qf_output/kernel:0',
+            'a/model/qf_1/fc0/bias:0',
+            'a/model/qf_1/fc0/kernel:0',
+            'a/model/qf_1/fc1/bias:0',
+            'a/model/qf_1/fc1/kernel:0',
+            'a/model/qf_1/qf_output/bias:0',
+            'a/model/qf_1/qf_output/kernel:0',
+            'b/model/pi/fc0/bias:0',
+            'b/model/pi/fc0/kernel:0',
+            'b/model/pi/fc1/bias:0',
+            'b/model/pi/fc1/kernel:0',
+            'b/model/pi/output/bias:0',
+            'b/model/pi/output/kernel:0',
+            'b/model/qf_0/fc0/bias:0',
+            'b/model/qf_0/fc0/kernel:0',
+            'b/model/qf_0/fc1/bias:0',
+            'b/model/qf_0/fc1/kernel:0',
+            'b/model/qf_0/qf_output/bias:0',
+            'b/model/qf_0/qf_output/kernel:0',
+            'b/model/qf_1/fc0/bias:0',
+            'b/model/qf_1/fc0/kernel:0',
+            'b/model/qf_1/fc1/bias:0',
+            'b/model/qf_1/fc1/kernel:0',
+            'b/model/qf_1/qf_output/bias:0',
+            'b/model/qf_1/qf_output/kernel:0',
+        ]
 
+        target_var_list = [
+            'a/target/pi/fc0/bias:0',
+            'a/target/pi/fc0/kernel:0',
+            'a/target/pi/fc1/bias:0',
+            'a/target/pi/fc1/kernel:0',
+            'a/target/pi/output/bias:0',
+            'a/target/pi/output/kernel:0',
+            'a/target/qf_0/fc0/bias:0',
+            'a/target/qf_0/fc0/kernel:0',
+            'a/target/qf_0/fc1/bias:0',
+            'a/target/qf_0/fc1/kernel:0',
+            'a/target/qf_0/qf_output/bias:0',
+            'a/target/qf_0/qf_output/kernel:0',
+            'a/target/qf_1/fc0/bias:0',
+            'a/target/qf_1/fc0/kernel:0',
+            'a/target/qf_1/fc1/bias:0',
+            'a/target/qf_1/fc1/kernel:0',
+            'a/target/qf_1/qf_output/bias:0',
+            'a/target/qf_1/qf_output/kernel:0',
+            'b/target/pi/fc0/bias:0',
+            'b/target/pi/fc0/kernel:0',
+            'b/target/pi/fc1/bias:0',
+            'b/target/pi/fc1/kernel:0',
+            'b/target/pi/output/bias:0',
+            'b/target/pi/output/kernel:0',
+            'b/target/qf_0/fc0/bias:0',
+            'b/target/qf_0/fc0/kernel:0',
+            'b/target/qf_0/fc1/bias:0',
+            'b/target/qf_0/fc1/kernel:0',
+            'b/target/qf_0/qf_output/bias:0',
+            'b/target/qf_0/qf_output/kernel:0',
+            'b/target/qf_1/fc0/bias:0',
+            'b/target/qf_1/fc0/kernel:0',
+            'b/target/qf_1/fc1/bias:0',
+            'b/target/qf_1/fc1/kernel:0',
+            'b/target/qf_1/qf_output/bias:0',
+            'b/target/qf_1/qf_output/kernel:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        # Run the initialize method.
+        policy.initialize()
 
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
+        model_var_list = [
+            'model/pi/fc0/bias:0',
+            'model/pi/fc0/kernel:0',
+            'model/pi/fc1/bias:0',
+            'model/pi/fc1/kernel:0',
+            'model/pi/output/bias:0',
+            'model/pi/output/kernel:0',
+            'model/qf_0/fc0/bias:0',
+            'model/qf_0/fc0/kernel:0',
+            'model/qf_0/fc1/bias:0',
+            'model/qf_0/fc1/kernel:0',
+            'model/qf_0/qf_output/bias:0',
+            'model/qf_0/qf_output/kernel:0',
+            'model/qf_1/fc0/bias:0',
+            'model/qf_1/fc0/kernel:0',
+            'model/qf_1/fc1/bias:0',
+            'model/qf_1/fc1/kernel:0',
+            'model/qf_1/qf_output/bias:0',
+            'model/qf_1/qf_output/kernel:0',
+        ]
 
+        target_var_list = [
+            'target/pi/fc0/bias:0',
+            'target/pi/fc0/kernel:0',
+            'target/pi/fc1/bias:0',
+            'target/pi/fc1/kernel:0',
+            'target/pi/output/bias:0',
+            'target/pi/output/kernel:0',
+            'target/qf_0/fc0/bias:0',
+            'target/qf_0/fc0/kernel:0',
+            'target/qf_0/fc1/bias:0',
+            'target/qf_0/fc1/kernel:0',
+            'target/qf_0/qf_output/bias:0',
+            'target/qf_0/qf_output/kernel:0',
+            'target/qf_1/fc0/bias:0',
+            'target/qf_1/fc0/kernel:0',
+            'target/qf_1/fc1/bias:0',
+            'target/qf_1/fc1/kernel:0',
+            'target/qf_1/qf_output/bias:0',
+            'target/qf_1/qf_output/kernel:0'
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_3(self):
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         del policy  # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-    def test_store_transition(self):
-        """Check the functionality of the store_transition() method.
-
-        This test checks for the following cases:
-
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-    def test_get_td_map(self):
-        """Check the functionality of the get_td_map() method.
-
-        This test checks for the following cases:
-
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
+    def test_initialize_4(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
@@ -1252,7 +1479,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'layers': None,
+            'layers': [256, 256],
             'verbose': 2,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
@@ -1274,7 +1501,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                 'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
                 'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
             },
-            'layers': None,
+            'layers': [256, 256],
             'verbose': 2,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
@@ -1289,7 +1516,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-    def test_init(self):
+    def test_init_1(self):
         """Check the functionality of the __init__() method.
 
         This method is tested for the following features:
@@ -1304,56 +1531,149 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         3. maddpg = True,  shared = False
         4. maddpg = True,  shared = True
         """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/log_alpha:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/log_std/bias:0',
+             'a/model/pi/log_std/kernel:0',
+             'a/model/pi/mean/bias:0',
+             'a/model/pi/mean/kernel:0',
+             'a/model/value_fns/qf1/fc0/bias:0',
+             'a/model/value_fns/qf1/fc0/kernel:0',
+             'a/model/value_fns/qf1/fc1/bias:0',
+             'a/model/value_fns/qf1/fc1/kernel:0',
+             'a/model/value_fns/qf1/qf_output/bias:0',
+             'a/model/value_fns/qf1/qf_output/kernel:0',
+             'a/model/value_fns/qf2/fc0/bias:0',
+             'a/model/value_fns/qf2/fc0/kernel:0',
+             'a/model/value_fns/qf2/fc1/bias:0',
+             'a/model/value_fns/qf2/fc1/kernel:0',
+             'a/model/value_fns/qf2/qf_output/bias:0',
+             'a/model/value_fns/qf2/qf_output/kernel:0',
+             'a/model/value_fns/vf/fc0/bias:0',
+             'a/model/value_fns/vf/fc0/kernel:0',
+             'a/model/value_fns/vf/fc1/bias:0',
+             'a/model/value_fns/vf/fc1/kernel:0',
+             'a/model/value_fns/vf/vf_output/bias:0',
+             'a/model/value_fns/vf/vf_output/kernel:0',
+             'a/target/value_fns/vf/fc0/bias:0',
+             'a/target/value_fns/vf/fc0/kernel:0',
+             'a/target/value_fns/vf/fc1/bias:0',
+             'a/target/value_fns/vf/fc1/kernel:0',
+             'a/target/value_fns/vf/vf_output/bias:0',
+             'a/target/value_fns/vf/vf_output/kernel:0',
+             'b/model/log_alpha:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/log_std/bias:0',
+             'b/model/pi/log_std/kernel:0',
+             'b/model/pi/mean/bias:0',
+             'b/model/pi/mean/kernel:0',
+             'b/model/value_fns/qf1/fc0/bias:0',
+             'b/model/value_fns/qf1/fc0/kernel:0',
+             'b/model/value_fns/qf1/fc1/bias:0',
+             'b/model/value_fns/qf1/fc1/kernel:0',
+             'b/model/value_fns/qf1/qf_output/bias:0',
+             'b/model/value_fns/qf1/qf_output/kernel:0',
+             'b/model/value_fns/qf2/fc0/bias:0',
+             'b/model/value_fns/qf2/fc0/kernel:0',
+             'b/model/value_fns/qf2/fc1/bias:0',
+             'b/model/value_fns/qf2/fc1/kernel:0',
+             'b/model/value_fns/qf2/qf_output/bias:0',
+             'b/model/value_fns/qf2/qf_output/kernel:0',
+             'b/model/value_fns/vf/fc0/bias:0',
+             'b/model/value_fns/vf/fc0/kernel:0',
+             'b/model/value_fns/vf/fc1/bias:0',
+             'b/model/value_fns/vf/fc1/kernel:0',
+             'b/model/value_fns/vf/vf_output/bias:0',
+             'b/model/value_fns/vf/vf_output/kernel:0',
+             'b/target/value_fns/vf/fc0/bias:0',
+             'b/target/value_fns/vf/fc0/kernel:0',
+             'b/target/value_fns/vf/fc1/bias:0',
+             'b/target/value_fns/vf/fc1/kernel:0',
+             'b/target/value_fns/vf/vf_output/bias:0',
+             'b/target/value_fns/vf/vf_output/kernel:0']
+        )
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        self.assertTrue(not policy.shared)
+        self.assertTrue(not policy.maddpg)
 
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
+    def test_init_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/log_alpha:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/log_std/bias:0',
+             'model/pi/log_std/kernel:0',
+             'model/pi/mean/bias:0',
+             'model/pi/mean/kernel:0',
+             'model/value_fns/qf1/fc0/bias:0',
+             'model/value_fns/qf1/fc0/kernel:0',
+             'model/value_fns/qf1/fc1/bias:0',
+             'model/value_fns/qf1/fc1/kernel:0',
+             'model/value_fns/qf1/qf_output/bias:0',
+             'model/value_fns/qf1/qf_output/kernel:0',
+             'model/value_fns/qf2/fc0/bias:0',
+             'model/value_fns/qf2/fc0/kernel:0',
+             'model/value_fns/qf2/fc1/bias:0',
+             'model/value_fns/qf2/fc1/kernel:0',
+             'model/value_fns/qf2/qf_output/bias:0',
+             'model/value_fns/qf2/qf_output/kernel:0',
+             'model/value_fns/vf/fc0/bias:0',
+             'model/value_fns/vf/fc0/kernel:0',
+             'model/value_fns/vf/fc1/bias:0',
+             'model/value_fns/vf/fc1/kernel:0',
+             'model/value_fns/vf/vf_output/bias:0',
+             'model/value_fns/vf/vf_output/kernel:0',
+             'target/value_fns/vf/fc0/bias:0',
+             'target/value_fns/vf/fc0/kernel:0',
+             'target/value_fns/vf/fc1/bias:0',
+             'target/value_fns/vf/fc1/kernel:0',
+             'target/value_fns/vf/vf_output/bias:0',
+             'target/value_fns/vf/vf_output/kernel:0']
+        )
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        self.assertTrue(policy.shared)
+        self.assertTrue(not policy.maddpg)
 
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
+    def test_init_3(self):
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        self.assertTrue(not policy.shared)
+        self.assertTrue(policy.maddpg)
 
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
+    def test_init_4(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # TODO
 
-    def test_initialize(self):
+        self.assertTrue(policy.shared)
+        self.assertTrue(policy.maddpg)
+
+    def test_initialize_1(self):
         """Check the functionality of the initialize() method.
 
         This test validates that the target variables are properly initialized
@@ -1366,167 +1686,27 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         3. maddpg = True,  shared = False
         4. maddpg = True,  shared = True
         """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
         del policy  # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
+    def test_initialize_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
         del policy  # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
+    def test_initialize_3(self):
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
         del policy  # TODO
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-    def test_store_transition(self):
-        """Check the functionality of the store_transition() method.
-
-        This test checks for the following cases:
-
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-    def test_get_td_map(self):
-        """Check the functionality of the get_td_map() method.
-
-        This test checks for the following cases:
-
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = SACMultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
+    def test_initialize_4(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)

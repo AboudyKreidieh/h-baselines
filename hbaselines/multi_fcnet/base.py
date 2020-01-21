@@ -118,8 +118,8 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  shared,
                  maddpg,
-                 all_ob_space,
                  base_policy,
+                 all_ob_space=None,
                  additional_params=None,
                  scope=None,
                  zero_fingerprint=False,
@@ -169,12 +169,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         maddpg : bool
             whether to use an algorithm-specific variant of the MADDPG
             algorithm
-        all_ob_space : gym.spaces.*
-            the observation space of the full state space. Used by MADDPG
-            variants of the policy.
         base_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
             the base (single agent) policy model used by all agents within the
             network
+        all_ob_space : gym.spaces.*
+            the observation space of the full state space. Used by MADDPG
+            variants of the policy.
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
@@ -400,26 +400,22 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         # Create the actor and critic networks for each agent.
         self.agents = {}
         if self.shared:
-            # Add the outer scope if provided.
-            scope = "agent" if scope is None else "{}/agent".format(scope)
-
             # One policy shared by all agents.
-            with tf.compat.v1.variable_scope("agent"):
-                self.agents["agent"] = self.base_policy(
-                    sess=self.sess,
-                    ob_space=self.ob_space,
-                    ac_space=self.ac_space,
-                    co_space=self.co_space,
-                    scope=scope,
-                    **policy_parameters
-                )
+            self.agents["agent"] = self.base_policy(
+                sess=self.sess,
+                ob_space=self.ob_space,
+                ac_space=self.ac_space,
+                co_space=self.co_space,
+                scope=scope,
+                **policy_parameters
+            )
         else:
             for key in self.ob_space.keys():
                 # Add the outer scope if provided.
                 scope_i = key if scope is None else "{}/{}".format(scope, key)
 
                 # Each agent requires a new feed-forward policy.
-                with tf.compat.v1.variable_scope(scope_i):
+                with tf.compat.v1.variable_scope(key):
                     self.agents[key] = self.base_policy(
                         sess=self.sess,
                         ob_space=self.ob_space[key],
