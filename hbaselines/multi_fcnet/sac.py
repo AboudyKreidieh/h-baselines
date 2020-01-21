@@ -123,10 +123,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         )
 
     def _setup_maddpg(self, all_ob_space, scope):
-        """Setup algorithmic-variant of MADDPG.
-
-        See: https://arxiv.org/pdf/1706.02275.pdf
-        """
+        """See setup."""
         pass  # TODO
 
     def _initialize_maddpg(self):
