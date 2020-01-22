@@ -33,10 +33,11 @@ class MultiFeedForwardPolicy(BasePolicy):
                  shared,
                  maddpg,
                  all_ob_space=None,
+                 n_agents=1,
                  scope=None,
                  zero_fingerprint=False,
                  fingerprint_dim=2):
-        """Instantiate the multi-agent feed-forward neural network policy.
+        """Instantiate a multi-agent feed-forward neural network policy.
 
         Parameters
         ----------
@@ -84,6 +85,10 @@ class MultiFeedForwardPolicy(BasePolicy):
         all_ob_space : gym.spaces.*
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
+        n_agents : int
+            the number of agents in the networks. This is needed if using
+            MADDPG with a shared policy to compute the length of the full
+            action space. Otherwise, it is not used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         zero_fingerprint : bool
@@ -113,6 +118,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
+            n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
             zero_fingerprint=zero_fingerprint,
@@ -122,7 +128,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             ),
         )
 
-    def _setup_maddpg(self, all_ob_space, scope):
+    def _setup_maddpg(self, scope):
         """See setup."""
         pass  # TODO
 

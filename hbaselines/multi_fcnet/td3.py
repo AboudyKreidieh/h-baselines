@@ -1,4 +1,6 @@
 """TD3-compatible multi-agent feedforward policy."""
+import tensorflow as tf
+
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 
@@ -28,10 +30,11 @@ class MultiFeedForwardPolicy(BasePolicy):
                  shared,
                  maddpg,
                  all_ob_space=None,
+                 n_agents=1,
                  scope=None,
                  zero_fingerprint=False,
                  fingerprint_dim=2):
-        """Instantiate the multi-agent feed-forward neural network policy.
+        """Instantiate a multi-agent feed-forward neural network policy.
 
         Parameters
         ----------
@@ -85,6 +88,10 @@ class MultiFeedForwardPolicy(BasePolicy):
         all_ob_space : gym.spaces.*
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
+        n_agents : int
+            the number of agents in the networks. This is needed if using
+            MADDPG with a shared policy to compute the length of the full
+            action space. Otherwise, it is not used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         zero_fingerprint : bool
@@ -95,6 +102,24 @@ class MultiFeedForwardPolicy(BasePolicy):
             the number of fingerprint elements in the observation. Used when
             trying to zero the fingerprint elements.
         """
+        # Instantiate a few terms (needed if MADDPG is used).
+        self.target_policy_noise = target_policy_noise
+        self.target_noise_clip = target_noise_clip
+
+        # variables to be initialized later (if MADDPG is used)
+        self.replay_buffer = None
+        self.terminals1 = None
+        self.rew_ph = None
+        self.action_ph = None
+        self.obs_ph = None
+        self.obs1_ph = None
+        self.all_obs_ph = None
+        self.all_action_ph = None
+        self.actor_tf = None
+        self.critic_tf = None
+        self.target_init_updates = None
+        self.target_soft_updates = None
+
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -114,6 +139,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
+            n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
             zero_fingerprint=zero_fingerprint,
@@ -125,13 +151,274 @@ class MultiFeedForwardPolicy(BasePolicy):
             ),
         )
 
-    def _setup_maddpg(self, all_ob_space, scope):
+    def _setup_maddpg(self, scope):
         """See setup."""
-        pass  # TODO
+        # Create an input placeholder for the full state observations.
+        self.all_obs_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None,) + self.all_ob_space.shape,
+            name='all_obs')
+
+        if self.shared:
+            # Create an input placeholder for the full actions.
+            self.all_action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+                name='all_actions')
+
+            # Create actor and critic networks for the shared policy.
+            replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
+                obs1_ph, actor_tf, critic_tf, noisy_actor_target = \
+                self._setup_agent(
+                    ob_space=self.ob_space,
+                    ac_space=self.ac_space,
+                    co_space=self.co_space,
+                )
+
+            # Store the new objects in their respective attributes.
+            self.replay_buffer = replay_buffer
+            self.terminals1 = terminals1
+            self.rew_ph = rew_ph
+            self.action_ph = action_ph
+            self.obs_ph = obs_ph
+            self.obs1_ph = obs1_ph
+            self.actor_tf = actor_tf
+            self.critic_tf = critic_tf
+        else:
+            # Create an input placeholder for the full actions.
+            all_ac_dim = sum(self.ac_space[key].shape[0]
+                             for key in self.ac_space.keys())
+
+            self.all_action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, all_ac_dim),
+                name='all_actions')
+
+            self.replay_buffer = {}
+            self.terminals1 = {}
+            self.rew_ph = {}
+            self.action_ph = {}
+            self.obs_ph = {}
+            self.obs1_ph = {}
+            self.all_obs_ph = {}
+            self.all_action_ph = {}
+            self.actor_tf = {}
+            self.critic_tf = {}
+
+            # We move through the keys in a sorted fashion so that we may
+            # collect the observations and actions for the full state in a
+            # sorted manner as well.
+            for key in sorted(self.ob_space.keys()):
+                # Create actor and critic networks for the the individual
+                # policies.
+                with tf.compat.v1.variable_scope(key, reuse=False):
+                    replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
+                        obs1_ph, actor_tf, critic_tf, noisy_actor_target = \
+                        self._setup_agent(
+                            ob_space=self.ob_space[key],
+                            ac_space=self.ac_space[key],
+                            co_space=self.co_space[key],
+                        )
+
+                # Store the new objects in their respective attributes.
+                self.replay_buffer[key] = replay_buffer
+                self.terminals1[key] = terminals1
+                self.rew_ph[key] = rew_ph
+                self.action_ph[key] = action_ph
+                self.obs_ph[key] = obs_ph
+                self.obs1_ph[key] = obs1_ph
+                self.actor_tf[key] = actor_tf
+                self.critic_tf[key] = critic_tf
+
+    def _setup_agent(self, ob_space, ac_space, co_space):
+        """Create the components for an individual agent.
+
+        Parameters
+        ----------
+        ob_space : gym.spaces.*
+            the observation space of the individual agent
+        ac_space : gym.spaces.*
+            the action space of the individual agent
+        co_space : gym.spaces.*
+            the context space of the individual agent
+
+        Returns
+        -------
+        TODO
+            the replay buffer object for the individual agent
+        """
+        # Compute the shape of the input observation space, which may include
+        # the contextual term.
+        ob_dim = self._get_ob_dim(ob_space, co_space)
+
+        # =================================================================== #
+        # Step 1: Create a replay buffer object.                              #
+        # =================================================================== #
+
+        replay_buffer = MultiReplayBuffer(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            obs_dim=ob_dim[0],
+            ac_dim=ac_space.shape[0],
+            all_obs_dim=self.all_obs_ph.shape[-1],
+            all_ac_dim=self.all_action_ph.shape[-1],
+        )
+
+        # =================================================================== #
+        # Step 2: Create input variables.                                     #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("input", reuse=False):
+            terminals1 = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='terminals1')
+            rew_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='rewards')
+            action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ac_space.shape,
+                name='actions')
+            obs_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs0')
+            obs1_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs1')
+
+        # logging of rewards to tensorboard
+        with tf.compat.v1.variable_scope("input_info", reuse=False):
+            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(rew_ph))
+
+        # =================================================================== #
+        # Step 3: Create actor and critic variables.                          #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("model", reuse=False):
+            actor_tf = self.make_actor(obs_ph, ac_space)
+            critic_tf = [
+                self.make_critic(self.all_obs_ph, self.all_action_ph,
+                                 scope="centralized_qf_{}".format(i))
+                for i in range(2)
+            ]
+
+        with tf.compat.v1.variable_scope("target", reuse=False):
+            # create the target actor policy
+            actor_target = self.make_actor(obs1_ph, ac_space)
+
+            # smooth target policy by adding clipped noise to target actions
+            target_noise = tf.random.normal(
+                tf.shape(actor_target), stddev=self.target_policy_noise)
+            target_noise = tf.clip_by_value(
+                target_noise, -self.target_noise_clip, self.target_noise_clip)
+
+            # clip the noisy action to remain in the bounds
+            noisy_actor_target = tf.clip_by_value(
+                actor_target + target_noise,
+                self.ac_space.low,
+                self.ac_space.high
+            )
+
+        return replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
+            actor_tf, critic_tf, noisy_actor_target
+
+    def make_actor(self, obs, ac_space, reuse=False, scope="pi"):
+        """Create an actor tensor.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder of the individual agent
+        ac_space : gym.space.*
+            the action space of the individual agent
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tf.Variable
+            the output from the actor
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                pi_h = self._layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
+
+            # create the output layer
+            policy = self._layer(
+                pi_h, ac_space.shape[0], 'output',
+                act_fun=tf.nn.tanh,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+            # scaling terms to the output from the policy
+            ac_means = (ac_space.high + ac_space.low) / 2.
+            ac_magnitudes = (ac_space.high - ac_space.low) / 2.
+
+            policy = ac_means + ac_magnitudes * tf.to_float(policy)
+
+        return policy
+
+    def make_critic(self, obs, action, reuse=False, scope="qf"):
+        """Create a critic tensor.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        action : tf.compat.v1.placeholder
+            the input action placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tf.Variable
+            the output from the critic
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            # concatenate the observations and actions
+            qf_h = tf.concat([obs, action], axis=-1)
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                qf_h = self._layer(
+                    qf_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
+
+            # create the output layer
+            qvalue_fn = self._layer(
+                qf_h, 1, 'qf_output',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+        return qvalue_fn
 
     def _initialize_maddpg(self):
-        """See initialize."""
-        pass  # TODO
+        """See initialize.
+
+        This method initializes the target parameters to match the model
+        parameters.
+        """
+        self.sess.run(self.target_init_updates)
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""

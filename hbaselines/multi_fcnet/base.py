@@ -52,8 +52,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       off-policy RL algorithms. See: https://arxiv.org/pdf/1706.02275.pdf
 
       To train a policy using their MADDPG variants as opposed to independent
-      learners, algorithm, set the `maddpg` attribute to True. This works for
-      both shared and non-shared policies:
+      learners, algorithm, set the `maddpg` attribute to True:
 
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
@@ -66,12 +65,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>>     }
       >>> )
 
-      For shared policies, we include the following modifications to the
-      properties of the algorithm as described by the original paper:
-
-      * Centralized value functions: TODO
-      * Inferring policies of other agents: TODO
-      * Agents with policy ensembles: TODO
+      This works for both shared and non-shared policies. For shared policies,
+      we use a single centralized value function instead of a value function
+      for each agent.
 
     Attributes
     ----------
@@ -89,6 +85,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     all_ob_space : gym.spaces.*
         the observation space of the full state space. Used by MADDPG variants
         of the policy.
+    n_agents : int
+        the number of agents in the networks. This is needed if using MADDPG
+        with a shared policy to compute the length of the full action space.
+        Otherwise, it is not used.
     base_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the base (single agent) policy model used by all agents within the
         network
@@ -120,6 +120,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  maddpg,
                  base_policy,
                  all_ob_space=None,
+                 n_agents=1,
                  additional_params=None,
                  scope=None,
                  zero_fingerprint=False,
@@ -175,6 +176,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         all_ob_space : gym.spaces.*
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
+        n_agents : int
+            the number of agents in the networks. This is needed if using
+            MADDPG with a shared policy to compute the length of the full
+            action space. Otherwise, it is not used.
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
@@ -209,13 +214,14 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.shared = shared
         self.maddpg = maddpg
         self.all_ob_space = all_ob_space
+        self.n_agents = n_agents
         self.base_policy = base_policy
         self.additional_params = additional_params or {}
 
         # Setup the agents and the necessary objects and operations needed to
         # support the training procedure.
         if maddpg:
-            self._setup_maddpg(all_ob_space, scope)
+            self._setup_maddpg(all_ob_space)
         else:
             self._setup_basic(scope)
 
@@ -509,7 +515,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
     #                  Filled in by the specific algorithms.                  #
     # ======================================================================= #
 
-    def _setup_maddpg(self, all_ob_space, scope):
+    def _setup_maddpg(self, scope):
         """Create algorithmic-variant of MADDPG components.
 
         See: https://arxiv.org/pdf/1706.02275.pdf

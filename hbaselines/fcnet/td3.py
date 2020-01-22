@@ -634,8 +634,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def initialize(self):
         """See parent class.
 
-        This method syncs the actor and critic optimizers across CPUs, and
-        initializes the target parameters to match the model parameters.
+        This method initializes the target parameters to match the model
+        parameters.
         """
         self.sess.run(self.target_init_updates)
 
