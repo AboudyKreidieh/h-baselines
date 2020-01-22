@@ -973,6 +973,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'Manager/model/qf_1/fc1/kernel:0',
             'Manager/model/qf_1/qf_output/bias:0',
             'Manager/model/qf_1/qf_output/kernel:0',
+
             'Worker/model/pi/fc0/bias:0',
             'Worker/model/pi/fc0/kernel:0',
             'Worker/model/pi/fc1/bias:0',
@@ -1011,7 +1012,8 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'Manager/target/qf_1/fc1/bias:0',
             'Manager/target/qf_1/fc1/kernel:0',
             'Manager/target/qf_1/qf_output/bias:0',
-            'Manager/target/qf_1/qf_output/kernel:0'
+            'Manager/target/qf_1/qf_output/kernel:0',
+
             'Worker/target/pi/fc0/bias:0',
             'Worker/target/pi/fc0/kernel:0',
             'Worker/target/pi/fc1/bias:0',
@@ -1176,35 +1178,35 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         policy.initialize()
 
         model_var_list = [
-            'model/value_fns/vf/fc0/kernel:0',
-            'model/value_fns/vf/fc0/bias:0',
-            'model/value_fns/vf/fc1/kernel:0',
-            'model/value_fns/vf/fc1/bias:0',
-            'model/value_fns/vf/vf_output/kernel:0',
-            'model/value_fns/vf/vf_output/bias:0',
+            'Manager/model/value_fns/vf/fc0/kernel:0',
+            'Manager/model/value_fns/vf/fc0/bias:0',
+            'Manager/model/value_fns/vf/fc1/kernel:0',
+            'Manager/model/value_fns/vf/fc1/bias:0',
+            'Manager/model/value_fns/vf/vf_output/kernel:0',
+            'Manager/model/value_fns/vf/vf_output/bias:0',
 
-            'model/value_fns/vf/fc0/kernel:0',
-            'model/value_fns/vf/fc0/bias:0',
-            'model/value_fns/vf/fc1/kernel:0',
-            'model/value_fns/vf/fc1/bias:0',
-            'model/value_fns/vf/vf_output/kernel:0',
-            'model/value_fns/vf/vf_output/bias:0',
+            'Worker/model/value_fns/vf/fc0/kernel:0',
+            'Worker/model/value_fns/vf/fc0/bias:0',
+            'Worker/model/value_fns/vf/fc1/kernel:0',
+            'Worker/model/value_fns/vf/fc1/bias:0',
+            'Worker/model/value_fns/vf/vf_output/kernel:0',
+            'Worker/model/value_fns/vf/vf_output/bias:0',
         ]
 
         target_var_list = [
-            'target/value_fns/vf/fc0/kernel:0',
-            'target/value_fns/vf/fc0/bias:0',
-            'target/value_fns/vf/fc1/kernel:0',
-            'target/value_fns/vf/fc1/bias:0',
-            'target/value_fns/vf/vf_output/kernel:0',
-            'target/value_fns/vf/vf_output/bias:0',
+            'Manager/target/value_fns/vf/fc0/kernel:0',
+            'Manager/target/value_fns/vf/fc0/bias:0',
+            'Manager/target/value_fns/vf/fc1/kernel:0',
+            'Manager/target/value_fns/vf/fc1/bias:0',
+            'Manager/target/value_fns/vf/vf_output/kernel:0',
+            'Manager/target/value_fns/vf/vf_output/bias:0',
 
-            'target/value_fns/vf/fc0/kernel:0',
-            'target/value_fns/vf/fc0/bias:0',
-            'target/value_fns/vf/fc1/kernel:0',
-            'target/value_fns/vf/fc1/bias:0',
-            'target/value_fns/vf/vf_output/kernel:0',
-            'target/value_fns/vf/vf_output/bias:0',
+            'Worker/target/value_fns/vf/fc0/kernel:0',
+            'Worker/target/value_fns/vf/fc0/bias:0',
+            'Worker/target/value_fns/vf/fc1/kernel:0',
+            'Worker/target/value_fns/vf/fc1/bias:0',
+            'Worker/target/value_fns/vf/vf_output/kernel:0',
+            'Worker/target/value_fns/vf/vf_output/bias:0',
         ]
 
         for model, target in zip(model_var_list, target_var_list):
