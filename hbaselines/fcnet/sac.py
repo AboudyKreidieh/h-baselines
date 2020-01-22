@@ -11,7 +11,7 @@ from hbaselines.utils.tf_util import reduce_std
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
 EPS = 1e-6
-# CAP the standard deviation of the actor
+# Cap the standard deviation of the actor
 LOG_STD_MAX = 2
 LOG_STD_MIN = -20
 
