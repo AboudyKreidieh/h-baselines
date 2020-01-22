@@ -7,7 +7,10 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
+    TD3GoalConditionedPolicy
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
+    SACGoalConditionedPolicy
 from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
@@ -551,9 +554,297 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
+    def test_store_transition(self):
+        """Check the functionality of the store_transition() method.
+
+        This method is tested for the following cases:
+
+        1. hindsight = False, relative_goals = False
+        2. hindsight = False, relative_goals = True
+        3. hindsight = True,  relative_goals = False
+        4. hindsight = True,  relative_goals = True
+        """
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        pass  # TODO
+
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
+        pass  # TODO
+
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = False
+        policy_params['hindsight'] = True
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        policy.meta_action = np.array([5, 5])
+        policy.meta_reward = 0
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        # unchanged sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # hindsight sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
+
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = True
+        policy_params['hindsight'] = True
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        policy.meta_action = np.array([5, 5])
+        policy.meta_reward = 0
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        # unchanged sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # check the worker rewards
+        for _, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
+
+        # hindsight sample
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+
+        # check the worker contexts
+        for i, obs, in enumerate(reversed(worker_obses)):
+            np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
+
+        # check the worker rewards
+        for i, rew, in enumerate(reversed(worker_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
+
+    def test_meta_period(self):
+        """Verify that the rate of the Manager is dictated by meta_period."""
+        # Test for a meta period of 5.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 5
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # Test for a meta period of 10.
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = 10
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # FIXME: add test
+        del policy
+
+    def test_intrinsic_rewards(self):
+        """Validate the functionality of the intrinsic rewards."""
+        policy = TD3GoalConditionedPolicy(**self.policy_params)
+
+        self.assertAlmostEqual(
+            policy.worker_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            -3.6055512754778567
+        )
+
+    def test_relative_goals(self):
+        """Validate the functionality of relative goals.
+
+        This should affect the worker reward function as well as transformation
+        from relative goals to absolute goals.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["relative_goals"] = True
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # Test the updated reward function.
+        states = np.array([1, 2])
+        goals = np.array([4, 5])
+        next_states = np.array([7, 8])
+        self.assertAlmostEqual(
+            policy.worker_reward_fn(states, goals, next_states),
+            -2.2360679775221506
+        )
+
+    def test_sample_best_meta_action(self):
+        """Check the functionality of the _sample_best_meta_action() method."""
+        pass  # TODO
+
+    def test_sample(self):
+        """Check the functionality of the _sample() method.
+
+        This test checks for the following features:
+
+        1. that the shape of the output candidate goals is correct
+        2. that the last few elements are the deterministic components that
+           they are expected to be (see method's docstring)
+        """
+        policy = TD3GoalConditionedPolicy(**self.policy_params)
+
+        # some variables to try on
+        states = np.array(
+            [[1, 2],
+             [3, 4],
+             [5, 6],
+             [7, 8],
+             [9, 10],
+             [11, 12],
+             [13, 14],
+             [15, 16],
+             [17, 18],
+             [19, 20]]
+        )
+        next_states = -states
+        num_samples = 10
+        orig_goals = np.array(
+            [[1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1],
+             [1, 1],
+             [0, 0],
+             [1, 1]]
+        )
+        samples = policy._sample(states, next_states, orig_goals, num_samples)
+
+        # test case 1
+        self.assertTupleEqual(
+            samples.shape, (states.shape[0], states.shape[1], num_samples))
+
+        # test case 2
+        np.testing.assert_array_almost_equal(
+            samples[:, :, -2:].reshape(states.shape[0] * states.shape[1], 2).T,
+            np.vstack(
+                [np.array([-2] * states.shape[0] * states.shape[1]),
+                 orig_goals.flatten()]
+            )
+        )
+
+
+class TestTD3GoalConditionedPolicy(unittest.TestCase):
+    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params.update(TD3_PARAMS.copy())
+        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
     def test_init(self):
         """Validate that the graph and variables are initialized properly."""
-        policy = GoalConditionedPolicy(**self.policy_params)
+        policy = TD3GoalConditionedPolicy(**self.policy_params)
 
         # Check that the abstract class has all the required attributes.
         self.assertEqual(policy.meta_period,
@@ -568,6 +859,8 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                          self.policy_params['centralized_value_functions'])
         self.assertEqual(policy.connected_gradients,
                          self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cg_weights,
+                         self.policy_params['cg_weights'])
 
         # Check that all trainable variables have been created in the
         # TensorFlow graph.
@@ -647,282 +940,106 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
              'Worker/target/qf_1/qf_output/kernel:0']
         )
 
-        # Test the worker_reward function.
-        self.assertAlmostEqual(
-            policy.worker_reward_fn(
-                states=np.array([1, 2]),
-                goals=np.array([3, 2]),
-                next_states=np.array([0, 0])
-            ),
-            -3.6055512754778567
-        )
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-    def test_store_transition(self):
-        """Check the functionality of the store_transition() method.
-
-        This method is tested for the following cases:
-
-        1. hindsight = False, relative_goals = False
-        2. hindsight = False, relative_goals = True
-        3. hindsight = True,  relative_goals = False
-        4. hindsight = True,  relative_goals = True
+        This test validates that the target variables are properly initialized
+        when initialize is called.
         """
-        # =================================================================== #
-        #                             test case 1                             #
-        # =================================================================== #
+        policy = TD3GoalConditionedPolicy(**self.policy_params)
 
-        pass  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
+        # Run the initialize method.
+        policy.initialize()
 
-        pass  # TODO
+        model_var_list = [
+            'Manager/model/pi/fc0/bias:0',
+            'Manager/model/pi/fc0/kernel:0',
+            'Manager/model/pi/fc1/bias:0',
+            'Manager/model/pi/fc1/kernel:0',
+            'Manager/model/pi/output/bias:0',
+            'Manager/model/pi/output/kernel:0',
+            'Manager/model/qf_0/fc0/bias:0',
+            'Manager/model/qf_0/fc0/kernel:0',
+            'Manager/model/qf_0/fc1/bias:0',
+            'Manager/model/qf_0/fc1/kernel:0',
+            'Manager/model/qf_0/qf_output/bias:0',
+            'Manager/model/qf_0/qf_output/kernel:0',
+            'Manager/model/qf_1/fc0/bias:0',
+            'Manager/model/qf_1/fc0/kernel:0',
+            'Manager/model/qf_1/fc1/bias:0',
+            'Manager/model/qf_1/fc1/kernel:0',
+            'Manager/model/qf_1/qf_output/bias:0',
+            'Manager/model/qf_1/qf_output/kernel:0',
 
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
+            'Worker/model/pi/fc0/bias:0',
+            'Worker/model/pi/fc0/kernel:0',
+            'Worker/model/pi/fc1/bias:0',
+            'Worker/model/pi/fc1/kernel:0',
+            'Worker/model/pi/output/bias:0',
+            'Worker/model/pi/output/kernel:0',
+            'Worker/model/qf_0/fc0/bias:0',
+            'Worker/model/qf_0/fc0/kernel:0',
+            'Worker/model/qf_0/fc1/bias:0',
+            'Worker/model/qf_0/fc1/kernel:0',
+            'Worker/model/qf_0/qf_output/bias:0',
+            'Worker/model/qf_0/qf_output/kernel:0',
+            'Worker/model/qf_1/fc0/bias:0',
+            'Worker/model/qf_1/fc0/kernel:0',
+            'Worker/model/qf_1/fc1/bias:0',
+            'Worker/model/qf_1/fc1/kernel:0',
+            'Worker/model/qf_1/qf_output/bias:0',
+            'Worker/model/qf_1/qf_output/kernel:0',
+        ]
 
-        policy_params = self.policy_params.copy()
-        policy_params['relative_goals'] = False
-        policy_params['hindsight'] = True
-        policy_params['meta_period'] = 4
-        policy_params['batch_size'] = 2
-        policy = GoalConditionedPolicy(**policy_params)
+        target_var_list = [
+            'Manager/target/pi/fc0/bias:0',
+            'Manager/target/pi/fc0/kernel:0',
+            'Manager/target/pi/fc1/bias:0',
+            'Manager/target/pi/fc1/kernel:0',
+            'Manager/target/pi/output/bias:0',
+            'Manager/target/pi/output/kernel:0',
+            'Manager/target/qf_0/fc0/bias:0',
+            'Manager/target/qf_0/fc0/kernel:0',
+            'Manager/target/qf_0/fc1/bias:0',
+            'Manager/target/qf_0/fc1/kernel:0',
+            'Manager/target/qf_0/qf_output/bias:0',
+            'Manager/target/qf_0/qf_output/kernel:0',
+            'Manager/target/qf_1/fc0/bias:0',
+            'Manager/target/qf_1/fc0/kernel:0',
+            'Manager/target/qf_1/fc1/bias:0',
+            'Manager/target/qf_1/fc1/kernel:0',
+            'Manager/target/qf_1/qf_output/bias:0',
+            'Manager/target/qf_1/qf_output/kernel:0',
 
-        policy.meta_action = np.array([5, 5])
-        policy.meta_reward = 0
+            'Worker/target/pi/fc0/bias:0',
+            'Worker/target/pi/fc0/kernel:0',
+            'Worker/target/pi/fc1/bias:0',
+            'Worker/target/pi/fc1/kernel:0',
+            'Worker/target/pi/output/bias:0',
+            'Worker/target/pi/output/kernel:0',
+            'Worker/target/qf_0/fc0/bias:0',
+            'Worker/target/qf_0/fc0/kernel:0',
+            'Worker/target/qf_0/fc1/bias:0',
+            'Worker/target/qf_0/fc1/kernel:0',
+            'Worker/target/qf_0/qf_output/bias:0',
+            'Worker/target/qf_0/qf_output/kernel:0',
+            'Worker/target/qf_1/fc0/bias:0',
+            'Worker/target/qf_1/fc0/kernel:0',
+            'Worker/target/qf_1/fc1/bias:0',
+            'Worker/target/qf_1/fc1/kernel:0',
+            'Worker/target/qf_1/qf_output/bias:0',
+            'Worker/target/qf_1/qf_output/kernel:0'
+        ]
 
-        for i in range(4):
-            obs0 = np.array([i for _ in range(2)])
-            context0 = np.array([i for _ in range(3)])
-            action = np.array([i for _ in range(1)])
-            reward = i
-            obs1 = np.array([i+1 for _ in range(2)])
-            context1 = np.array([i for _ in range(3)])
-            done, is_final_step, evaluate = False, False, False
-
-            policy.store_transition(
-                obs0=obs0,
-                context0=context0,
-                action=action,
-                reward=reward,
-                obs1=obs1,
-                context1=context1,
-                done=done,
-                is_final_step=is_final_step,
-                evaluate=evaluate
-            )
-
-        # unchanged sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
-
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
-
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
-
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
-
-        # hindsight sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
-
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
-
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
-
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
-        policy_params = self.policy_params.copy()
-        policy_params['relative_goals'] = True
-        policy_params['hindsight'] = True
-        policy_params['meta_period'] = 4
-        policy_params['batch_size'] = 2
-        policy = GoalConditionedPolicy(**policy_params)
-
-        policy.meta_action = np.array([5, 5])
-        policy.meta_reward = 0
-
-        for i in range(4):
-            obs0 = np.array([i for _ in range(2)])
-            context0 = np.array([i for _ in range(3)])
-            action = np.array([i for _ in range(1)])
-            reward = i
-            obs1 = np.array([i+1 for _ in range(2)])
-            context1 = np.array([i for _ in range(3)])
-            done, is_final_step, evaluate = False, False, False
-
-            policy.store_transition(
-                obs0=obs0,
-                context0=context0,
-                action=action,
-                reward=reward,
-                obs1=obs1,
-                context1=context1,
-                done=done,
-                is_final_step=is_final_step,
-                evaluate=evaluate
-            )
-
-        # unchanged sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
-
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
-
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
-
-        # check the worker rewards
-        for _, rew, in enumerate(reversed(worker_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
-
-        # hindsight sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
-
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
-
-        # check the worker contexts
-        for i, obs, in enumerate(reversed(worker_obses)):
-            np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
-
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
-
-    def test_meta_period(self):
-        """Verify that the rate of the Manager is dictated by meta_period."""
-        # Test for a meta period of 5.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 5
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # FIXME: add test
-        del policy
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # Test for a meta period of 10.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 10
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # FIXME: add test
-        del policy
-
-    def test_relative_goals(self):
-        """Validate the functionality of relative goals.
-
-        This should affect the worker reward function as well as transformation
-        from relative goals to absolute goals.
-        """
-        policy_params = self.policy_params.copy()
-        policy_params["relative_goals"] = True
-        policy = GoalConditionedPolicy(**policy_params)
-
-        # Test the updated reward function.
-        states = np.array([1, 2])
-        goals = np.array([4, 5])
-        next_states = np.array([7, 8])
-        self.assertAlmostEqual(
-            policy.worker_reward_fn(states, goals, next_states),
-            -2.2360679775221506
-        )
-
-    def test_sample_best_meta_action(self):
-        """Check the functionality of the _sample_best_meta_action() method."""
-        pass  # TODO
-
-    def test_log_probs(self):
-        """Check the functionality of the _log_probs() method."""
-        pass  # TODO
-
-    def test_sample(self):
-        """Check the functionality of the _sample() method.
-
-        This test checks for the following features:
-
-        1. that the shape of the output candidate goals is correct
-        2. that the last few elements are the deterministic components that
-           they are expected to be (see method's docstring)
-        """
-        policy = GoalConditionedPolicy(**self.policy_params)
-
-        # some variables to try on
-        states = np.array(
-            [[1, 2],
-             [3, 4],
-             [5, 6],
-             [7, 8],
-             [9, 10],
-             [11, 12],
-             [13, 14],
-             [15, 16],
-             [17, 18],
-             [19, 20]]
-        )
-        next_states = -states
-        num_samples = 10
-        orig_goals = np.array(
-            [[1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1],
-             [1, 1],
-             [0, 0],
-             [1, 1]]
-        )
-        samples = policy._sample(states, next_states, orig_goals, num_samples)
-
-        # test case 1
-        self.assertTupleEqual(
-            samples.shape, (states.shape[0], states.shape[1], num_samples))
-
-        # test case 2
-        np.testing.assert_array_almost_equal(
-            samples[:, :, -2:].reshape(states.shape[0] * states.shape[1], 2).T,
-            np.vstack(
-                [np.array([-2] * states.shape[0] * states.shape[1]),
-                 orig_goals.flatten()]
-            )
-        )
-
-    def test_centralized_value_functions(self):
-        """Validate the functionality of the centralized value function."""
-        pass  # TODO
-
-
-class TestTD3GoalConditionedPolicy(unittest.TestCase):
-    """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""
@@ -935,6 +1052,169 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
 
 class TestSACGoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/sac.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'layers': None,
+            'verbose': 2,
+        }
+        self.policy_params.update(SAC_PARAMS.copy())
+        self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init(self):
+        """Validate that the graph and variables are initialized properly."""
+        policy = SACGoalConditionedPolicy(**self.policy_params)
+
+        # Check that the abstract class has all the required attributes.
+        self.assertEqual(policy.meta_period,
+                         self.policy_params['meta_period'])
+        self.assertEqual(policy.relative_goals,
+                         self.policy_params['relative_goals'])
+        self.assertEqual(policy.off_policy_corrections,
+                         self.policy_params['off_policy_corrections'])
+        self.assertEqual(policy.use_fingerprints,
+                         self.policy_params['use_fingerprints'])
+        self.assertEqual(policy.centralized_value_functions,
+                         self.policy_params['centralized_value_functions'])
+        self.assertEqual(policy.connected_gradients,
+                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cg_weights,
+                         self.policy_params['cg_weights'])
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['Manager/model/log_alpha:0',
+             'Manager/model/pi/fc0/bias:0',
+             'Manager/model/pi/fc0/kernel:0',
+             'Manager/model/pi/fc1/bias:0',
+             'Manager/model/pi/fc1/kernel:0',
+             'Manager/model/pi/log_std/bias:0',
+             'Manager/model/pi/log_std/kernel:0',
+             'Manager/model/pi/mean/bias:0',
+             'Manager/model/pi/mean/kernel:0',
+             'Manager/model/value_fns/qf1/fc0/bias:0',
+             'Manager/model/value_fns/qf1/fc0/kernel:0',
+             'Manager/model/value_fns/qf1/fc1/bias:0',
+             'Manager/model/value_fns/qf1/fc1/kernel:0',
+             'Manager/model/value_fns/qf1/qf_output/bias:0',
+             'Manager/model/value_fns/qf1/qf_output/kernel:0',
+             'Manager/model/value_fns/qf2/fc0/bias:0',
+             'Manager/model/value_fns/qf2/fc0/kernel:0',
+             'Manager/model/value_fns/qf2/fc1/bias:0',
+             'Manager/model/value_fns/qf2/fc1/kernel:0',
+             'Manager/model/value_fns/qf2/qf_output/bias:0',
+             'Manager/model/value_fns/qf2/qf_output/kernel:0',
+             'Manager/model/value_fns/vf/fc0/bias:0',
+             'Manager/model/value_fns/vf/fc0/kernel:0',
+             'Manager/model/value_fns/vf/fc1/bias:0',
+             'Manager/model/value_fns/vf/fc1/kernel:0',
+             'Manager/model/value_fns/vf/vf_output/bias:0',
+             'Manager/model/value_fns/vf/vf_output/kernel:0',
+             'Manager/target/value_fns/vf/fc0/bias:0',
+             'Manager/target/value_fns/vf/fc0/kernel:0',
+             'Manager/target/value_fns/vf/fc1/bias:0',
+             'Manager/target/value_fns/vf/fc1/kernel:0',
+             'Manager/target/value_fns/vf/vf_output/bias:0',
+             'Manager/target/value_fns/vf/vf_output/kernel:0',
+             'Worker/model/log_alpha:0',
+             'Worker/model/pi/fc0/bias:0',
+             'Worker/model/pi/fc0/kernel:0',
+             'Worker/model/pi/fc1/bias:0',
+             'Worker/model/pi/fc1/kernel:0',
+             'Worker/model/pi/log_std/bias:0',
+             'Worker/model/pi/log_std/kernel:0',
+             'Worker/model/pi/mean/bias:0',
+             'Worker/model/pi/mean/kernel:0',
+             'Worker/model/value_fns/qf1/fc0/bias:0',
+             'Worker/model/value_fns/qf1/fc0/kernel:0',
+             'Worker/model/value_fns/qf1/fc1/bias:0',
+             'Worker/model/value_fns/qf1/fc1/kernel:0',
+             'Worker/model/value_fns/qf1/qf_output/bias:0',
+             'Worker/model/value_fns/qf1/qf_output/kernel:0',
+             'Worker/model/value_fns/qf2/fc0/bias:0',
+             'Worker/model/value_fns/qf2/fc0/kernel:0',
+             'Worker/model/value_fns/qf2/fc1/bias:0',
+             'Worker/model/value_fns/qf2/fc1/kernel:0',
+             'Worker/model/value_fns/qf2/qf_output/bias:0',
+             'Worker/model/value_fns/qf2/qf_output/kernel:0',
+             'Worker/model/value_fns/vf/fc0/bias:0',
+             'Worker/model/value_fns/vf/fc0/kernel:0',
+             'Worker/model/value_fns/vf/fc1/bias:0',
+             'Worker/model/value_fns/vf/fc1/kernel:0',
+             'Worker/model/value_fns/vf/vf_output/bias:0',
+             'Worker/model/value_fns/vf/vf_output/kernel:0',
+             'Worker/target/value_fns/vf/fc0/bias:0',
+             'Worker/target/value_fns/vf/fc0/kernel:0',
+             'Worker/target/value_fns/vf/fc1/bias:0',
+             'Worker/target/value_fns/vf/fc1/kernel:0',
+             'Worker/target/value_fns/vf/vf_output/bias:0',
+             'Worker/target/value_fns/vf/vf_output/kernel:0',
+             ]
+        )
+
+    def test_initialize(self):
+        """Check the functionality of the initialize() method.
+
+        This test validates that the target variables are properly initialized
+        when initialize is called.
+        """
+        policy = SACGoalConditionedPolicy(**self.policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'Manager/model/value_fns/vf/fc0/kernel:0',
+            'Manager/model/value_fns/vf/fc0/bias:0',
+            'Manager/model/value_fns/vf/fc1/kernel:0',
+            'Manager/model/value_fns/vf/fc1/bias:0',
+            'Manager/model/value_fns/vf/vf_output/kernel:0',
+            'Manager/model/value_fns/vf/vf_output/bias:0',
+
+            'Worker/model/value_fns/vf/fc0/kernel:0',
+            'Worker/model/value_fns/vf/fc0/bias:0',
+            'Worker/model/value_fns/vf/fc1/kernel:0',
+            'Worker/model/value_fns/vf/fc1/bias:0',
+            'Worker/model/value_fns/vf/vf_output/kernel:0',
+            'Worker/model/value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'Manager/target/value_fns/vf/fc0/kernel:0',
+            'Manager/target/value_fns/vf/fc0/bias:0',
+            'Manager/target/value_fns/vf/fc1/kernel:0',
+            'Manager/target/value_fns/vf/fc1/bias:0',
+            'Manager/target/value_fns/vf/vf_output/kernel:0',
+            'Manager/target/value_fns/vf/vf_output/bias:0',
+
+            'Worker/target/value_fns/vf/fc0/kernel:0',
+            'Worker/target/value_fns/vf/fc0/bias:0',
+            'Worker/target/value_fns/vf/fc1/kernel:0',
+            'Worker/target/value_fns/vf/fc1/bias:0',
+            'Worker/target/value_fns/vf/vf_output/kernel:0',
+            'Worker/target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""

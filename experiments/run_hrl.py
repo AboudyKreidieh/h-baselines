@@ -74,13 +74,14 @@ def main(args, base_dir):
         # value of the next seed
         seed = args.seed + i
 
-        # create a save directory folder (if it doesn't exist)
-        dir_name = os.path.join(
-            base_dir,
-            '{}/{}'.format(args.env_name, strftime("%Y-%m-%d-%H:%M:%S")))
+        # The time when the current experiment started.
+        now = strftime("%Y-%m-%d-%H:%M:%S")
+
+        # Create a save directory folder (if it doesn't exist).
+        dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
         ensure_dir(dir_name)
 
-        # get the policy class
+        # Get the policy class.
         if args.alg == "TD3":
             from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
         elif args.alg == "SAC":
@@ -88,17 +89,18 @@ def main(args, base_dir):
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
-        # get the hyperparameters
+        # Get the hyperparameters.
         hp = get_hyperparameters(args, GoalConditionedPolicy)
 
-        # add the seed for logging purposes
+        # Add the seed for logging purposes.
         params_with_extra = hp.copy()
         params_with_extra['seed'] = seed
         params_with_extra['env_name'] = args.env_name
         params_with_extra['policy_name'] = "GoalConditionedPolicy"
         params_with_extra['algorithm'] = args.alg
+        params_with_extra['date/time'] = now
 
-        # add the hyperparameters to the folder
+        # Add the hyperparameters to the folder.
         with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
             json.dump(params_with_extra, f, sort_keys=True, indent=4)
 
