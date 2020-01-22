@@ -550,8 +550,8 @@ further promote exploration when using hindsight, we store the original
 (non-hindsight) sample in the replay buffer as well. The use of this extra 
 transition is justified empirically in **TODO**.
 
-In order to use relative goals when training a hierarchical policy, set 
-the `relative_goals` parameter to True:
+In order to use hindsight action and goal transitions when training a 
+hierarchical policy, set the `hindsight` parameter to True:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
@@ -621,10 +621,9 @@ found below.
 
 This task was initially provided by [6].
 
-In this task, a quadrupedal (Ant) agent is placed in a 20x20 space 
-with 8 apples and 8 bombs. The agent receives a reward of +1 or 
-collecting an apple and -1 for collecting a bomb. All other actions 
-yield a reward of 0.
+In this task, a quadrupedal (Ant) agent is placed in a 20x20 space with 8 
+apples and 8 bombs. The agent receives a reward of +1 or collecting an apple 
+and -1 for collecting a bomb. All other actions yield a reward of 0.
 
 **AntMaze**
 
