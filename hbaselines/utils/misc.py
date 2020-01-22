@@ -269,7 +269,7 @@ def create_env(env, render=False, evaluate=False):
             env = AntFourRooms(
                 use_contexts=True,
                 random_contexts=True,
-                context_range=[(-1.5, 31.5), (-1.5, 31.5)]
+                context_range=[[30, 0], [0, 30], [30, 30]]
             )
 
     elif env == "UR5":

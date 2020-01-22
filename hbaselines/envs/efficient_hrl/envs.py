@@ -45,9 +45,13 @@ class UniversalAntMazeEnv(AntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
-            the desired context / goal, or the (lower, upper) bound tuple for
-            each dimension of the goal
+        context_range : [float] or [(float, float)] or [[float]]
+            one of the following three:
+
+            1. the desired context / goal
+            2. the (lower, upper) bound tuple for each dimension of the goal
+            3. a list of desired contexts / goals. Goals are sampled from these
+               list of possible goals
         horizon : float, optional
             time horizon
 
@@ -95,7 +99,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 assert all(not isinstance(i, tuple) for i in
                            self.context_range), \
                     "When not using random contexts, every element in " \
-                    "context_range, must be a single value."
+                    "context_range, must be a single value or a list of " \
+                    "values."
 
     @property
     def context_space(self):
@@ -116,8 +121,21 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 return Box(low=np.asarray(context_low),
                            high=np.asarray(context_high))
             else:
-                return Box(low=np.asarray(self.context_range),
-                           high=np.asarray(self.context_range))
+                # If there are a list of possible goals, use the min and max
+                # values of each index for the context space.
+                if isinstance(self.context_range[0], list):
+                    min_val = []
+                    max_val = []
+                    for i in range(len(self.context_range[0])):
+                        min_val.append(min(v[i] for v in self.context_range))
+                        max_val.append(max(v[i] for v in self.context_range))
+
+                    return Box(low=np.array(min_val), high=np.array(max_val))
+                else:
+                    # Use the original context as the context space. It is a
+                    # fixed value in this case.
+                    return Box(low=np.asarray(self.context_range),
+                               high=np.asarray(self.context_range))
         else:
             return None
 
@@ -187,8 +205,14 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
         if self.use_contexts:
             if not self.random_contexts:
-                # In this case, the context range is just the context.
-                self.current_context = self.context_range
+                if isinstance(self.context_range[0], list):
+                    # In this case, sample on of the contexts as the next
+                    # environmental context.
+                    self.current_context = random.sample(self.context_range, 1)
+                    self.current_context = self.current_context[0]
+                else:
+                    # In this case, the context range is just the context.
+                    self.current_context = self.context_range
             else:
                 # In this case, choose random values between the context range.
                 self.current_context = []
