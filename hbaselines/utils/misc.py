@@ -268,7 +268,7 @@ def create_env(env, render=False, evaluate=False):
         else:
             env = AntFourRooms(
                 use_contexts=True,
-                random_contexts=True,
+                random_contexts=False,
                 context_range=[[30, 0], [0, 30], [30, 30]]
             )
 
