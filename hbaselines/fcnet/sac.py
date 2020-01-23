@@ -81,7 +81,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     logp_pi : tf.Variable
         the log-probability of a given observation given the output action from
         the policy
-    logp_pi : tf.Variable
+    logp_action : tf.Variable
         the log-probability of a given observation given a fixed action. Used
         by the hierarchical policy to perform off-policy corrections.
     qf1 : tf.Variable
@@ -541,9 +541,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
     def _apply_squashing_func(mu_, pi_, logp_pi):
         """Squash the output of the Gaussian distribution.
 
-        This method also accounts for that in the log probability.
-
-        The squashed mean is also returned for using deterministic actions.
+        This method also accounts for that in the log probability. The squashed
+        mean is also returned for using deterministic actions.
 
         Parameters
         ----------

@@ -1242,6 +1242,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -1264,6 +1265,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
                 'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
                 'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
             },
+            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -1366,6 +1368,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -1388,6 +1391,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
                 'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
                 'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
             },
+            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -1579,7 +1583,57 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_qf_0/fc0/bias:0',
+             'a/model/centralized_qf_0/fc0/kernel:0',
+             'a/model/centralized_qf_0/fc1/bias:0',
+             'a/model/centralized_qf_0/fc1/kernel:0',
+             'a/model/centralized_qf_0/qf_output/bias:0',
+             'a/model/centralized_qf_0/qf_output/kernel:0',
+             'a/model/centralized_qf_1/fc0/bias:0',
+             'a/model/centralized_qf_1/fc0/kernel:0',
+             'a/model/centralized_qf_1/fc1/bias:0',
+             'a/model/centralized_qf_1/fc1/kernel:0',
+             'a/model/centralized_qf_1/qf_output/bias:0',
+             'a/model/centralized_qf_1/qf_output/kernel:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/output/bias:0',
+             'a/model/pi/output/kernel:0',
+             'a/target/pi/fc0/bias:0',
+             'a/target/pi/fc0/kernel:0',
+             'a/target/pi/fc1/bias:0',
+             'a/target/pi/fc1/kernel:0',
+             'a/target/pi/output/bias:0',
+             'a/target/pi/output/kernel:0',
+             'b/model/centralized_qf_0/fc0/bias:0',
+             'b/model/centralized_qf_0/fc0/kernel:0',
+             'b/model/centralized_qf_0/fc1/bias:0',
+             'b/model/centralized_qf_0/fc1/kernel:0',
+             'b/model/centralized_qf_0/qf_output/bias:0',
+             'b/model/centralized_qf_0/qf_output/kernel:0',
+             'b/model/centralized_qf_1/fc0/bias:0',
+             'b/model/centralized_qf_1/fc0/kernel:0',
+             'b/model/centralized_qf_1/fc1/bias:0',
+             'b/model/centralized_qf_1/fc1/kernel:0',
+             'b/model/centralized_qf_1/qf_output/bias:0',
+             'b/model/centralized_qf_1/qf_output/kernel:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/output/bias:0',
+             'b/model/pi/output/kernel:0',
+             'b/target/pi/fc0/bias:0',
+             'b/target/pi/fc0/kernel:0',
+             'b/target/pi/fc1/bias:0',
+             'b/target/pi/fc1/kernel:0',
+             'b/target/pi/output/bias:0',
+             'b/target/pi/output/kernel:0']
+        )
 
         # Check observation/action/context spaces of the agents
         # TODO
@@ -1593,7 +1647,33 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_qf_0/fc0/bias:0',
+             'model/centralized_qf_0/fc0/kernel:0',
+             'model/centralized_qf_0/fc1/bias:0',
+             'model/centralized_qf_0/fc1/kernel:0',
+             'model/centralized_qf_0/qf_output/bias:0',
+             'model/centralized_qf_0/qf_output/kernel:0',
+             'model/centralized_qf_1/fc0/bias:0',
+             'model/centralized_qf_1/fc0/kernel:0',
+             'model/centralized_qf_1/fc1/bias:0',
+             'model/centralized_qf_1/fc1/kernel:0',
+             'model/centralized_qf_1/qf_output/bias:0',
+             'model/centralized_qf_1/qf_output/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0']
+        )
 
         # Check observation/action/context spaces of the agents
         # TODO
@@ -1797,6 +1877,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -1819,6 +1900,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                 'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
                 'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
             },
+            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
             'verbose': 2,
         }
@@ -2001,7 +2083,75 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_value_fns/qf1/fc0/bias:0',
+             'a/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf1/fc1/bias:0',
+             'a/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc0/bias:0',
+             'a/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc1/bias:0',
+             'a/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'a/model/centralized_value_fns/vf/fc0/bias:0',
+             'a/model/centralized_value_fns/vf/fc0/kernel:0',
+             'a/model/centralized_value_fns/vf/fc1/bias:0',
+             'a/model/centralized_value_fns/vf/fc1/kernel:0',
+             'a/model/centralized_value_fns/vf/vf_output/bias:0',
+             'a/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'a/model/log_alpha:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/log_std/bias:0',
+             'a/model/pi/log_std/kernel:0',
+             'a/model/pi/mean/bias:0',
+             'a/model/pi/mean/kernel:0',
+             'a/target/centralized_value_fns/vf/fc0/bias:0',
+             'a/target/centralized_value_fns/vf/fc0/kernel:0',
+             'a/target/centralized_value_fns/vf/fc1/bias:0',
+             'a/target/centralized_value_fns/vf/fc1/kernel:0',
+             'a/target/centralized_value_fns/vf/vf_output/bias:0',
+             'a/target/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc0/bias:0',
+             'b/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc1/bias:0',
+             'b/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc0/bias:0',
+             'b/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc1/bias:0',
+             'b/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'b/model/centralized_value_fns/vf/fc0/bias:0',
+             'b/model/centralized_value_fns/vf/fc0/kernel:0',
+             'b/model/centralized_value_fns/vf/fc1/bias:0',
+             'b/model/centralized_value_fns/vf/fc1/kernel:0',
+             'b/model/centralized_value_fns/vf/vf_output/bias:0',
+             'b/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/log_alpha:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/log_std/bias:0',
+             'b/model/pi/log_std/kernel:0',
+             'b/model/pi/mean/bias:0',
+             'b/model/pi/mean/kernel:0',
+             'b/target/centralized_value_fns/vf/fc0/bias:0',
+             'b/target/centralized_value_fns/vf/fc0/kernel:0',
+             'b/target/centralized_value_fns/vf/fc1/bias:0',
+             'b/target/centralized_value_fns/vf/fc1/kernel:0',
+             'b/target/centralized_value_fns/vf/vf_output/bias:0',
+             'b/target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
 
         # Check observation/action/context spaces of the agents
         # TODO
@@ -2015,7 +2165,42 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = True
         policy = SACMultiFeedForwardPolicy(**policy_params)
 
-        # TODO
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_value_fns/qf1/fc0/bias:0',
+             'model/centralized_value_fns/qf1/fc0/kernel:0',
+             'model/centralized_value_fns/qf1/fc1/bias:0',
+             'model/centralized_value_fns/qf1/fc1/kernel:0',
+             'model/centralized_value_fns/qf1/qf_output/bias:0',
+             'model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'model/centralized_value_fns/qf2/fc0/bias:0',
+             'model/centralized_value_fns/qf2/fc0/kernel:0',
+             'model/centralized_value_fns/qf2/fc1/bias:0',
+             'model/centralized_value_fns/qf2/fc1/kernel:0',
+             'model/centralized_value_fns/qf2/qf_output/bias:0',
+             'model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'model/centralized_value_fns/vf/fc0/bias:0',
+             'model/centralized_value_fns/vf/fc0/kernel:0',
+             'model/centralized_value_fns/vf/fc1/bias:0',
+             'model/centralized_value_fns/vf/fc1/kernel:0',
+             'model/centralized_value_fns/vf/vf_output/bias:0',
+             'model/centralized_value_fns/vf/vf_output/kernel:0',
+             'model/log_alpha:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/log_std/bias:0',
+             'model/pi/log_std/kernel:0',
+             'model/pi/mean/bias:0',
+             'model/pi/mean/kernel:0',
+             'target/centralized_value_fns/vf/fc0/bias:0',
+             'target/centralized_value_fns/vf/fc0/kernel:0',
+             'target/centralized_value_fns/vf/fc1/bias:0',
+             'target/centralized_value_fns/vf/fc1/kernel:0',
+             'target/centralized_value_fns/vf/vf_output/bias:0',
+             'target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
 
         # Check observation/action/context spaces of the agents
         # TODO

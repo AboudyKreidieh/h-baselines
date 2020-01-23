@@ -3,10 +3,50 @@ import tensorflow as tf
 
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 
 
 class MultiFeedForwardPolicy(BasePolicy):
-    """TD3-compatible multi-agent feedforward neural."""
+    """TD3-compatible multi-agent feedforward neural.
+
+    The attributes described in this docstring are only used if the `maddpg`
+    parameter is set to True. The attributes are dictionaries of their
+    described form for each agent if `shared` is set to False.
+
+    See the docstring of the parent class for a further description of this
+    class.
+
+    Attributes
+    ----------
+    target_policy_noise : float
+        standard deviation term to the noise from the output of the target
+        actor policy. See TD3 paper for more.
+    target_noise_clip : float
+        clipping term for the noise injected in the target actor policy
+    replay_buffer : hbaselines.multi_fcnet.replay_buffer.MultiReplayBuffer
+        the replay buffer for each agent
+    terminals1 : tf.compat.v1.placeholder
+        placeholder for the next step terminals for each agent
+    rew_ph : tf.compat.v1.placeholder
+        placeholder for the rewards for each agent
+    action_ph : tf.compat.v1.placeholder
+        placeholder for the actions for each agent
+    obs_ph : tf.compat.v1.placeholder
+        placeholder for the observations for each agent
+    obs1_ph : tf.compat.v1.placeholder
+        placeholder for the next step observations for each agent
+    all_obs_ph : tf.compat.v1.placeholder
+        placeholder for the last step full state observations
+    all_obs1_ph : tf.compat.v1.placeholder
+        placeholder for the current step full state observations
+    all_action_ph : tf.compat.v1.placeholder
+        placeholder for the actions of all agents
+    actor_tf : tf.Variable
+        the output from the actor network
+    critic_tf : list of tf.Variable
+        the output from the critic networks. Two networks are used to stabilize
+        training.
+    """
 
     def __init__(self,
                  sess,
@@ -114,11 +154,10 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.obs_ph = None
         self.obs1_ph = None
         self.all_obs_ph = None
+        self.all_obs1_ph = None
         self.all_action_ph = None
         self.actor_tf = None
         self.critic_tf = None
-        self.target_init_updates = None
-        self.target_soft_updates = None
 
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
@@ -200,8 +239,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.action_ph = {}
             self.obs_ph = {}
             self.obs1_ph = {}
-            self.all_obs_ph = {}
-            self.all_action_ph = {}
             self.actor_tf = {}
             self.critic_tf = {}
 
@@ -244,8 +281,25 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         Returns
         -------
-        TODO
-            the replay buffer object for the individual agent
+        MultiReplayBuffer
+            the replay buffer object for each agent
+        tf.compat.v1.placeholder
+            placeholder for the next step terminals for each agent
+        tf.compat.v1.placeholder
+            placeholder for the rewards for each agent
+        tf.compat.v1.placeholder
+            placeholder for the actions for each agent
+        tf.compat.v1.placeholder
+            placeholder for the observations for each agent
+        tf.compat.v1.placeholder
+            placeholder for the next step observations for each agent
+        tf.Variable
+            the output from the actor network
+        list of tf.Variable
+            the output from the critic networks. Two networks are used to
+            stabilize training.
+        tf.Variable
+            the output from a noise target actor network
         """
         # Compute the shape of the input observation space, which may include
         # the contextual term.
@@ -319,8 +373,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             # clip the noisy action to remain in the bounds
             noisy_actor_target = tf.clip_by_value(
                 actor_target + target_noise,
-                self.ac_space.low,
-                self.ac_space.high
+                ac_space.low,
+                ac_space.high
             )
 
         return replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
@@ -418,7 +472,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         This method initializes the target parameters to match the model
         parameters.
         """
-        self.sess.run(self.target_init_updates)
+        pass  # TODO
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""

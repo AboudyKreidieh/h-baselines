@@ -3,6 +3,7 @@ import numpy as np
 
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 # from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
+# from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):
@@ -62,6 +63,16 @@ class TestReplayBuffer(unittest.TestCase):
 #
 #     def setUp(self):
 #         self.replay_buffer = HierReplayBuffer(size=2)
+#
+#     def tearDown(self):
+#         del self.replay_buffer
+
+
+# class TestMultiReplayBuffer(unittest.TestCase):
+#     """Tests for the MultiReplayBuffer object."""
+#
+#     def setUp(self):
+#         self.replay_buffer = MultiReplayBuffer(size=2)
 #
 #     def tearDown(self):
 #         del self.replay_buffer
