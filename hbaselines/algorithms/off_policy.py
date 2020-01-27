@@ -102,6 +102,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # whether to include hindsight action and goal transitions in the replay
     # buffer. See: https://arxiv.org/abs/1712.00948
     hindsight=False,
+    # rate at which the original (non-hindsight) sample is stored in the
+    # replay buffer as well. Used only if `hindsight` is set to True.
+    subgoal_testing_rate=0.3,
     # whether to use the connected gradient update actor update procedure to
     # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,

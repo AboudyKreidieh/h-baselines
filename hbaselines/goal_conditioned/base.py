@@ -2,6 +2,7 @@
 import tensorflow as tf
 import numpy as np
 from copy import deepcopy
+import random
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
@@ -61,8 +62,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     hindsight : bool
         whether to use hindsight action and goal transitions, as well as
         subgoal testing. See: https://arxiv.org/abs/1712.00948
+    subgoal_testing_rate : float
+        rate at which the original (non-hindsight) sample is stored in the
+        replay buffer as well. Used only if `hindsight` is set to True.
     connected_gradients : bool
         whether to connect the graph between the manager and worker
+    cg_weights : float
+        weights for the gradients of the loss of the worker with respect to the
+        parameters of the manager. Only used if `connected_gradients` is set to
+        True.
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
@@ -74,10 +82,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     centralized_value_functions : bool
         specifies whether to use centralized value functions for the Manager
         critic functions
-    cg_weights : float
-        weights for the gradients of the loss of the worker with respect to the
-        parameters of the manager. Only used if `connected_gradients` is set to
-        True.
     prev_meta_obs : array_like
         previous observation by the Manager
     meta_action : array_like
@@ -114,11 +118,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  relative_goals,
                  off_policy_corrections,
                  hindsight,
+                 subgoal_testing_rate,
                  connected_gradients,
+                 cg_weights,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
-                 cg_weights,
                  env_name="",
                  meta_policy=None,
                  worker_policy=None,
@@ -173,6 +178,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         hindsight : bool
             whether to include hindsight action and goal transitions in the
             replay buffer. See: https://arxiv.org/abs/1712.00948
+        subgoal_testing_rate : float
+            rate at which the original (non-hindsight) sample is stored in the
+            replay buffer as well. Used only if `hindsight` is set to True.
         connected_gradients : bool
             whether to connect the graph between the manager and worker
         cg_weights : float
@@ -219,12 +227,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
         self.hindsight = hindsight
+        self.subgoal_testing_rate = subgoal_testing_rate
         self.connected_gradients = connected_gradients
+        self.cg_weights = cg_weights
         self.use_fingerprints = use_fingerprints
         self.fingerprint_range = fingerprint_range
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
-        self.cg_weights = cg_weights
 
         # Get the Manager's action space.
         manager_ac_space = get_manager_ac_space(
@@ -531,17 +540,20 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # observation, if applicable.
             meta_obs1 = self._get_obs(obs1, context1, 0)
 
+            # Avoid storing samples when performing evaluations.
             if not evaluate:
-                # Store a sample in the replay buffer.
-                self.replay_buffer.add(
-                    obs_t=self._observations,
-                    goal_t=self._meta_actions[0],
-                    action_t=self._worker_actions,
-                    reward_t=self._worker_rewards,
-                    done=self._dones,
-                    meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                    meta_reward_t=self.meta_reward,
-                )
+                if not self.hindsight \
+                        or random.random() < self.subgoal_testing_rate:
+                    # Store a sample in the replay buffer.
+                    self.replay_buffer.add(
+                        obs_t=self._observations,
+                        goal_t=self._meta_actions[0],
+                        action_t=self._worker_actions,
+                        reward_t=self._worker_rewards,
+                        done=self._dones,
+                        meta_obs_t=(self.prev_meta_obs, meta_obs1),
+                        meta_reward_t=self.meta_reward,
+                    )
 
                 if self.hindsight:
                     # Implement hindsight action and goal transitions.
