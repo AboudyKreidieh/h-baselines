@@ -43,6 +43,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  relative_goals,
                  off_policy_corrections,
                  hindsight,
+                 subgoal_testing_rate,
                  connected_gradients,
                  cg_weights,
                  use_fingerprints,
@@ -108,6 +109,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         hindsight : bool
             whether to include hindsight action and goal transitions in the
             replay buffer. See: https://arxiv.org/abs/1712.00948
+        subgoal_testing_rate : float
+            rate at which the original (non-hindsight) sample is stored in the
+            replay buffer as well. Used only if `hindsight` is set to True.
         connected_gradients : bool
             whether to connect the graph between the manager and worker
         cg_weights : float
@@ -145,6 +149,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,
+            subgoal_testing_rate=subgoal_testing_rate,
             connected_gradients=connected_gradients,
             cg_weights=cg_weights,
             use_fingerprints=use_fingerprints,

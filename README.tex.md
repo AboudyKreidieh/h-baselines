@@ -542,13 +542,9 @@ modifying the relevant worker-specific features as follows:
 where $\bar{g}_t$ for $t = [0, \dots, k]$ is equal to $s_k$ if `relative_goals`
 is False and is defined by the equation above if set to True.
 
-The final form of hindsight employed by the original article, namely 
-**sub-goal testing**, is not implemented within this repository and it assumes 
-a specific structure to the intrinsic reward function; namely a return of -1 if 
-the environmental goal is not achieved and 0 if it is. Instead, in order 
-further promote exploration when using hindsight, we store the original 
-(non-hindsight) sample in the replay buffer as well. The use of this extra 
-transition is justified empirically in **TODO**.
+Finally, **sub-goal testing** promotes exploration when using hindsight by 
+storing the original (non-hindsight) sample in the replay buffer as well. This 
+happens at a rate defined by the `subgoal_testing_rate` term.
 
 In order to use hindsight action and goal transitions when training a 
 hierarchical policy, set the `hindsight` parameter to True:
@@ -562,7 +558,9 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # include hindsight action and goal transitions in the replay buffer
-        "hindsight": True
+        "hindsight": True,
+        # specify the sub-goal testing rate
+        "subgoal_testing_rate": 0.3
     }
 )
 ```

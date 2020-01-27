@@ -57,6 +57,7 @@ def get_hyperparameters(args, policy):
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
             "hindsight": args.hindsight,
+            "subgoal_testing_rate": args.subgoal_testing_rate,
             "connected_gradients": args.connected_gradients,
             "cg_weights": args.cg_weights,
             "use_fingerprints": args.use_fingerprints,
@@ -278,6 +279,13 @@ def create_goal_conditioned_parser(parser):
         action="store_true",
         help="whether to include hindsight action and goal transitions in the "
              "replay buffer. See: https://arxiv.org/abs/1712.00948")
+    parser.add_argument(
+        "--subgoal_testing_rate",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["subgoal_testing_rate"],
+        help="rate at which the original (non-hindsight) sample is stored in "
+             "the replay buffer as well. Used only if `hindsight` is set to "
+             "True.")
     parser.add_argument(
         "--use_fingerprints",
         action="store_true",
