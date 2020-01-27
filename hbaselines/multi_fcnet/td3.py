@@ -46,6 +46,22 @@ class MultiFeedForwardPolicy(BasePolicy):
     critic_tf : list of tf.Variable
         the output from the critic networks. Two networks are used to stabilize
         training.
+    critic_target : list of tf.Variable
+        the output from the critic target networks. Two networks are used to
+        stabilize training.
+    critic_loss : tf.Operation
+        the operation that returns the loss of the critic
+    critic_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the critic
+    target_init_updates : tf.Operation
+        an operation that sets the values of the trainable parameters of the
+        target actor/critic to match those actual actor/critic
+    target_soft_updates : tf.Operation
+        soft target update function
+    actor_loss : tf.Operation
+        the operation that returns the loss of the actor
+    actor_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the actor
     """
 
     def __init__(self,
@@ -158,6 +174,13 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.all_action_ph = None
         self.actor_tf = None
         self.critic_tf = None
+        self.critic_target = None
+        self.critic_loss = None
+        self.critic_optimizer = None
+        self.target_init_updates = None
+        self.target_soft_updates = None
+        self.actor_loss = None
+        self.actor_optimizer = None
 
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
@@ -225,17 +248,22 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.critic_tf = critic_tf
 
             # Setup the target critic and critic update procedure.
-            self._setup_critic_updates_shared(noisy_actor_target)
+            self.critic_target, self.critic_loss, self.critic_optimizer = \
+                self._setup_critic_updates_shared(noisy_actor_target)
 
             # Create the target update operations.
-            pass  # TODO
+            init, soft = self._setup_target_updates_shared(scope)
+            self.target_init_updates = init
+            self.target_soft_updates = soft
 
             # Setup the actor update procedure.
-            pass  # TODO
+            loss, optimizer = self._setup_actor_updates_shared()
+            self.actor_loss = loss
+            self.actor_optimizer = optimizer
 
             # Setup the running means and standard deviations of the model
             # inputs and outputs.
-            pass  # TODO
+            self._setup_stats_shared(scope or "Model")
         else:
             # Create an input placeholder for the full actions.
             all_ac_dim = sum(self.ac_space[key].shape[0]
@@ -283,17 +311,22 @@ class MultiFeedForwardPolicy(BasePolicy):
                 actor_targets.append(noisy_actor_target)
 
             # Setup the target critic and critic update procedure.
-            self._setup_critic_updates_nonshared(actor_targets)
+            self.critic_target, self.critic_loss, self.critic_optimizer = \
+                self._setup_critic_updates_nonshared(actor_targets)
 
             # Create the target update operations.
-            pass  # TODO
+            init, soft = self._setup_target_updates_nonshared(scope)
+            self.target_init_updates = init
+            self.target_soft_updates = soft
 
             # Setup the actor update procedure.
-            pass  # TODO
+            loss, optimizer = self._setup_actor_updates_nonshared()
+            self.actor_loss = loss
+            self.actor_optimizer = optimizer
 
             # Setup the running means and standard deviations of the model
             # inputs and outputs.
-            pass  # TODO
+            self._setup_stats_nonshared(scope or "Model")
 
     def _setup_agent(self, ob_space, ac_space, co_space):
         """Create the components for an individual agent.
@@ -497,18 +530,122 @@ class MultiFeedForwardPolicy(BasePolicy):
         return qvalue_fn
 
     def _setup_critic_updates_shared(self, actor_target):
-        """
+        """TODO
 
-        :param actor_target:
-        :return:
+        Parameters
+        ----------
+        actor_target : tf.Variable
+            the output from the shared target actor
+
+        Returns
+        -------
+        tf.Variable
+            output from the centralized critic target with inputs from the
+            actor target
+        tf.Operation
+            the operation that returns the loss of the critic
+        tf.Operation
+            the operation that updates the trainable parameters of the critic
         """
         pass  # TODO
 
     def _setup_critic_updates_nonshared(self, actor_targets):
-        """
+        """TODO
 
-        :param actor_targets:
-        :return:
+        Parameters
+        ----------
+        actor_targets : list of tf.Variable
+            the output from all target actors, indexed by their ordered IDs
+
+        Returns
+        -------
+        dict <str, tf.Variable>
+            output from the centralized critic target with inputs from the
+            actor target
+        dict <str, tf.Operation>
+            the operation that returns the loss of the critic
+        dict <str, tf.Operation>
+            the operation that updates the trainable parameters of the critic
+        """
+        pass  # TODO
+
+    def _setup_target_updates_shared(self, scope):
+        """TODO
+
+        Parameters
+        ----------
+        scope : str
+            an upper-level scope term
+
+        Returns
+        -------
+        tf.Operation
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        tf.Operation
+            soft target update function
+        """
+        pass  # TODO
+
+    def _setup_target_updates_nonshared(self, scope):
+        """TODO
+
+        Parameters
+        ----------
+        scope : str
+            an upper-level scope term
+
+        Returns
+        -------
+        dict <str, tf.Operation>
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        dict <str, tf.Operation>
+            soft target update function
+        """
+        pass  # TODO
+
+    def _setup_actor_updates_shared(self):
+        """TODO
+
+        Returns
+        -------
+        tf.Operation
+            the operation that returns the loss of the actor
+        tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        pass  # TODO
+
+    def _setup_actor_updates_nonshared(self):
+        """TODO
+
+        Returns
+        -------
+        dict <str, tf.Operation>
+            the operation that returns the loss of the actor
+        dict <str, tf.Operation>
+            the operation that updates the trainable parameters of the actor
+        """
+        pass  # TODO
+
+    def _setup_stats_shared(self, base):
+        """TODO
+
+        Parameters
+        ----------
+        base : str
+            an upper-level scope term
+        """
+        pass  # TODO
+
+    def _setup_stats_nonshared(self, base):
+        """TODO
+
+        Parameters
+        ----------
+        base : str
+            an upper-level scope term
         """
         pass  # TODO
 
@@ -518,7 +655,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         This method initializes the target parameters to match the model
         parameters.
         """
-        pass  # TODO
+        self.sess.run(self.target_init_updates)
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""

@@ -69,6 +69,23 @@ class MultiFeedForwardPolicy(BasePolicy):
     value_target : tf.Variable
         the output from the target value function. Takes as input the next-step
         observations
+    critic_loss : tf.Operation
+        the operation that returns the loss of the critic
+    critic_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the critic
+    target_init_updates : tf.Operation
+        an operation that sets the values of the trainable parameters of the
+        target actor/critic to match those actual actor/critic
+    target_soft_updates : tf.Operation
+        soft target update function
+    alpha_loss : tf.Operation
+        the operation that returns the loss of the entropy term
+    alpha_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the entropy term
+    actor_loss : tf.Operation
+        the operation that returns the loss of the actor
+    actor_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the actor
     """
 
     def __init__(self,
@@ -189,6 +206,14 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.log_alpha = None
         self.alpha = None
         self.value_target = None
+        self.critic_loss = None
+        self.critic_optimizer = None
+        self.target_init_updates = None
+        self.target_soft_updates = None
+        self.alpha_loss = None
+        self.alpha_optimizer = None
+        self.actor_loss = None
+        self.actor_optimizer = None
 
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
@@ -261,6 +286,26 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.log_alpha = log_alpha
             self.alpha = alpha
             self.value_target = value_target
+
+            # Setup the target critic and critic update procedure.
+            self.critic_loss, self.critic_optimizer = \
+                self._setup_critic_updates_shared(self.value_target)
+
+            # Create the target update operations.
+            init, soft = self._setup_target_updates_shared(scope)
+            self.target_init_updates = init
+            self.target_soft_updates = soft
+
+            # Setup the alpha and actor update procedures.
+            l1, o1, l2, o2 = self._setup_actor_updates_shared()
+            self.alpha_loss = l1
+            self.alpha_optimizer = o1
+            self.actor_loss = l2
+            self.actor_optimizer = o2
+
+            # Setup the running means and standard deviations of the model
+            # inputs and outputs.
+            self._setup_stats_shared(scope or "Model")
         else:
             # Create an input placeholder for the full actions.
             all_ac_dim = sum(self.ac_space[key].shape[0]
@@ -322,6 +367,26 @@ class MultiFeedForwardPolicy(BasePolicy):
                 self.log_alpha[key] = log_alpha
                 self.alpha[key] = alpha
                 self.value_target[key] = value_target
+
+            # Setup the target critic and critic update procedure.
+            self.critic_loss, self.critic_optimizer = \
+                self._setup_critic_updates_nonshared(self.value_target)
+
+            # Create the target update operations.
+            init, soft = self._setup_target_updates_nonshared(scope)
+            self.target_init_updates = init
+            self.target_soft_updates = soft
+
+            # Setup the alpha and actor update procedures.
+            l1, o1, l2, o2 = self._setup_actor_updates_nonshared()
+            self.alpha_loss = l1
+            self.alpha_optimizer = o1
+            self.actor_loss = l2
+            self.actor_optimizer = o2
+
+            # Setup the running means and standard deviations of the model
+            # inputs and outputs.
+            self._setup_stats_nonshared(scope or "Model")
 
     def _setup_agent(self, ob_space, ac_space, co_space):
         """Create the components for an individual agent.
@@ -388,6 +453,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             ac_dim=ac_space.shape[0],
             all_obs_dim=self.all_obs_ph.shape[-1],
             all_ac_dim=self.all_action_ph.shape[-1],
+            shared=self.shared,
+            n_agents=self.n_agents,
         )
 
         # =================================================================== #
@@ -625,6 +692,126 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return qf1, qf2, value_fn
 
+    def _setup_critic_updates_shared(self, value_target):
+        """TODO
+
+        Parameters
+        ----------
+        value_target : tf.Variable
+            the output from the shared target value function
+
+        Returns
+        -------
+        tf.Variable
+            output from the centralized critic target with inputs from the
+            actor target
+        tf.Operation
+            the operation that returns the loss of the critic
+        tf.Operation
+            the operation that updates the trainable parameters of the critic
+        """
+        pass  # TODO
+
+    def _setup_critic_updates_nonshared(self, value_targets):
+        """TODO
+
+        Parameters
+        ----------
+        value_targets : dict <str, tf.Variable>
+            the output from all target value functions
+
+        Returns
+        -------
+        dict <str, tf.Variable>
+            output from the centralized critic target with inputs from the
+            actor target
+        dict <str, tf.Operation>
+            the operation that returns the loss of the critic
+        dict <str, tf.Operation>
+            the operation that updates the trainable parameters of the critic
+        """
+        pass  # TODO
+
+    def _setup_target_updates_shared(self, scope):
+        """TODO
+
+        Parameters
+        ----------
+        scope : str
+            an upper-level scope term
+
+        Returns
+        -------
+        tf.Operation
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        tf.Operation
+            soft target update function
+        """
+        pass  # TODO
+
+    def _setup_target_updates_nonshared(self, scope):
+        """TODO
+
+        Parameters
+        ----------
+        scope : str
+            an upper-level scope term
+
+        Returns
+        -------
+        dict <str, tf.Operation>
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        dict <str, tf.Operation>
+            soft target update function
+        """
+        pass  # TODO
+
+    def _setup_actor_updates_shared(self):
+        """TODO
+
+        Returns
+        -------
+        tf.Operation
+            the operation that returns the loss of the actor
+        tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        pass  # TODO
+
+    def _setup_actor_updates_nonshared(self):
+        """TODO
+
+        Returns
+        -------
+        dict <str, tf.Operation>
+            the operation that returns the loss of the actor
+        dict <str, tf.Operation>
+            the operation that updates the trainable parameters of the actor
+        """
+        pass  # TODO
+
+    def _setup_stats_shared(self, base):
+        """TODO
+
+        Parameters
+        ----------
+        base : str
+            an upper-level scope term
+        """
+        pass  # TODO
+
+    def _setup_stats_nonshared(self, base):
+        """TODO
+
+        Parameters
+        ----------
+        base : str
+            an upper-level scope term
+        """
+        pass  # TODO
+
     @staticmethod
     def _gaussian_likelihood(input_, mu_, log_std):
         """Compute log likelihood of a gaussian.
@@ -687,7 +874,7 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _initialize_maddpg(self):
         """See initialize."""
-        pass  # TODO
+        self.sess.run(self.target_init_updates)
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""

@@ -312,6 +312,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
             tf.compat.v1.summary.scalar('Q1_loss', self.critic_loss[0])
             tf.compat.v1.summary.scalar('Q2_loss', self.critic_loss[1])
+            tf.compat.v1.summary.scalar('value_loss', self.critic_loss[2])
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
