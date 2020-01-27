@@ -223,6 +223,19 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.obs1_ph = obs1_ph
             self.actor_tf = actor_tf
             self.critic_tf = critic_tf
+
+            # Setup the target critic and critic update procedure.
+            self._setup_critic_updates_shared(noisy_actor_target)
+
+            # Create the target update operations.
+            pass  # TODO
+
+            # Setup the actor update procedure.
+            pass  # TODO
+
+            # Setup the running means and standard deviations of the model
+            # inputs and outputs.
+            pass  # TODO
         else:
             # Create an input placeholder for the full actions.
             all_ac_dim = sum(self.ac_space[key].shape[0]
@@ -241,6 +254,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.obs1_ph = {}
             self.actor_tf = {}
             self.critic_tf = {}
+            actor_targets = []
 
             # We move through the keys in a sorted fashion so that we may
             # collect the observations and actions for the full state in a
@@ -266,6 +280,20 @@ class MultiFeedForwardPolicy(BasePolicy):
                 self.obs1_ph[key] = obs1_ph
                 self.actor_tf[key] = actor_tf
                 self.critic_tf[key] = critic_tf
+                actor_targets.append(noisy_actor_target)
+
+            # Setup the target critic and critic update procedure.
+            self._setup_critic_updates_nonshared(actor_targets)
+
+            # Create the target update operations.
+            pass  # TODO
+
+            # Setup the actor update procedure.
+            pass  # TODO
+
+            # Setup the running means and standard deviations of the model
+            # inputs and outputs.
+            pass  # TODO
 
     def _setup_agent(self, ob_space, ac_space, co_space):
         """Create the components for an individual agent.
@@ -316,6 +344,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             ac_dim=ac_space.shape[0],
             all_obs_dim=self.all_obs_ph.shape[-1],
             all_ac_dim=self.all_action_ph.shape[-1],
+            shared=self.shared,
+            n_agents=self.n_agents,
         )
 
         # =================================================================== #
@@ -465,6 +495,22 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
 
         return qvalue_fn
+
+    def _setup_critic_updates_shared(self, actor_target):
+        """
+
+        :param actor_target:
+        :return:
+        """
+        pass  # TODO
+
+    def _setup_critic_updates_nonshared(self, actor_targets):
+        """
+
+        :param actor_targets:
+        :return:
+        """
+        pass  # TODO
 
     def _initialize_maddpg(self):
         """See initialize.
