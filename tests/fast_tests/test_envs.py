@@ -39,11 +39,19 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         self.assertAlmostEqual(x, 1)
         self.assertAlmostEqual(y, 1)
 
-    def test_envs(self):
-        """Test hbaselines/envs/efficient_hrl/envs.py."""
+    def test_contextual_reward(self):
+        """Check the functionality of the context_space attribute.
+
+        This method is tested for the following environments:
+
+        1. AntMaze
+        2. AntPush
+        3. AntFall
+        4. AntFourRooms
+        """
         from hbaselines.envs.efficient_hrl.envs import REWARD_SCALE
 
-        # test AntMaze
+        # test case 1
         env = AntMaze(use_contexts=True, context_range=[0, 0])
         self.assertAlmostEqual(
             env.contextual_reward(
@@ -51,7 +59,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             -1.4142135624084504 * REWARD_SCALE
         )
 
-        # test AntPush
+        # test case 2
         env = AntPush(use_contexts=True, context_range=[0, 0])
         self.assertAlmostEqual(
             env.contextual_reward(
@@ -59,7 +67,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             -1.4142135624084504 * REWARD_SCALE
         )
 
-        # test AntFall
+        # test case 3
         env = AntFall(use_contexts=True, context_range=[0, 0, 0])
         self.assertAlmostEqual(
             env.contextual_reward(
@@ -67,7 +75,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             -1.7320508075977448 * REWARD_SCALE
         )
 
-        # test AntMaze
+        # test case 4
         env = AntFourRooms(use_contexts=True, context_range=[0, 0])
         self.assertAlmostEqual(
             env.contextual_reward(
@@ -75,7 +83,21 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
             -1.4142135624084504 * REWARD_SCALE
         )
 
-        # test context_space
+    def test_context_space(self):
+        """Check the functionality of the context_space attribute.
+
+        This method is tested for the following cases:
+
+        1. no context
+        2. random contexts
+        3. fixed single context
+        4. fixed multiple contexts
+        """
+        # test case 1
+        env = AntMaze(use_contexts=False)
+        self.assertIsNone(env.context_space)
+
+        # test case 2
         env = AntMaze(use_contexts=True, random_contexts=True,
                       context_range=[(-4, 5), (4, 20)])
         np.testing.assert_almost_equal(
@@ -83,14 +105,7 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         np.testing.assert_almost_equal(
             env.context_space.high, np.array([5, 20]))
 
-        # test reset for random contexts
-        np.random.seed(0)
-        random.seed(0)
-        env.reset()
-        np.testing.assert_almost_equal(
-            env.current_context, np.array([3.5997967, 16.1272704]))
-
-        # test non-random context_space
+        # test case 3
         env = AntMaze(use_contexts=True, random_contexts=False,
                       context_range=[-4, 5])
         np.testing.assert_almost_equal(
@@ -98,13 +113,55 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         np.testing.assert_almost_equal(
             env.context_space.high, np.array([-4, 5]))
 
-        # test reset for non-random contexts
-        env.reset()
-        np.testing.assert_almost_equal(env.current_context, np.array([-4, 5]))
+        # test case 4
+        env = AntMaze(use_contexts=True, random_contexts=False,
+                      context_range=[[-4, 5], [-3, 10], [-2, 7]])
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 5]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([-2, 10]))
 
-        # test context_space without contexts
+    def test_current_context(self):
+        """Check the functionality of the current_context attribute.
+
+        This method is tested for the following cases:
+
+        1. no context
+        2. random contexts
+        3. fixed single context
+        4. fixed multiple contexts
+        """
+        np.random.seed(0)
+        random.seed(0)
+
+        # test case 1
         env = AntMaze(use_contexts=False)
-        self.assertIsNone(env.context_space)
+        env.reset()
+        self.assertIsNone(env.current_context)
+
+        # test case 2
+        env = AntMaze(use_contexts=True, random_contexts=True,
+                      context_range=[(-4, 5), (4, 20)])
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([3.5997967, 16.1272704]))
+
+        # test case 3
+        env = AntMaze(use_contexts=True, random_contexts=False,
+                      context_range=[-4, 5])
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-4, 5]))
+
+        # test case 4
+        env = AntMaze(use_contexts=True, random_contexts=False,
+                      context_range=[[-4, 5], [-3, 6], [-2, 7]])
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-3, 6]))
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-4, 5]))
 
 
 class TestHACEnvironments(unittest.TestCase):
