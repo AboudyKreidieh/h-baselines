@@ -583,6 +583,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = False
         policy_params['hindsight'] = True
+        policy_params['subgoal_testing_rate'] = 1
         policy_params['meta_period'] = 4
         policy_params['batch_size'] = 2
         policy = TD3GoalConditionedPolicy(**policy_params)
@@ -651,6 +652,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = True
         policy_params['hindsight'] = True
+        policy_params['subgoal_testing_rate'] = 1
         policy_params['meta_period'] = 4
         policy_params['batch_size'] = 2
         policy = TD3GoalConditionedPolicy(**policy_params)
