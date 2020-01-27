@@ -530,13 +530,9 @@ modifying the relevant worker-specific features as follows:
 where <img src="/tex/cf330f355a2166e28d565ffff2400b3b.svg?invert_in_darkmode&sanitize=true" align=middle width=12.80637434999999pt height=18.666631500000015pt/> for <img src="/tex/cec901e2962c50e80af4cfde53675570.svg?invert_in_darkmode&sanitize=true" align=middle width=90.81016394999999pt height=24.65753399999998pt/> is equal to <img src="/tex/59efeb0f4f5d484a9b8a404d5bdac544.svg?invert_in_darkmode&sanitize=true" align=middle width=14.97150929999999pt height=14.15524440000002pt/> if `relative_goals`
 is False and is defined by the equation above if set to True.
 
-The final form of hindsight employed by the original article, namely 
-**sub-goal testing**, is not implemented within this repository and it assumes 
-a specific structure to the intrinsic reward function; namely a return of -1 if 
-the environmental goal is not achieved and 0 if it is. Instead, in order 
-further promote exploration when using hindsight, we store the original 
-(non-hindsight) sample in the replay buffer as well. The use of this extra 
-transition is justified empirically in **TODO**.
+Finally, **sub-goal testing** promotes exploration when using hindsight by 
+storing the original (non-hindsight) sample in the replay buffer as well. This 
+happens at a rate defined by the `subgoal_testing_rate` term.
 
 In order to use hindsight action and goal transitions when training a 
 hierarchical policy, set the `hindsight` parameter to True:
@@ -550,7 +546,9 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # include hindsight action and goal transitions in the replay buffer
-        "hindsight": True
+        "hindsight": True,
+        # specify the sub-goal testing rate
+        "subgoal_testing_rate": 0.3
     }
 )
 ```
