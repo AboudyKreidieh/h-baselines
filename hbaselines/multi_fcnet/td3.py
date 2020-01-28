@@ -22,6 +22,10 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     Attributes
     ----------
+    noise : float
+        scaling term to the range of the action space, that is subsequently
+        used as the standard deviation of Gaussian noise added to the action if
+        `apply_noise` is set to True in `get_action`
     target_policy_noise : float
         standard deviation term to the noise from the output of the target
         actor policy. See TD3 paper for more.
@@ -162,8 +166,26 @@ class MultiFeedForwardPolicy(BasePolicy):
             trying to zero the fingerprint elements.
         """
         # Instantiate a few terms (needed if MADDPG is used).
-        self.target_policy_noise = target_policy_noise
-        self.target_noise_clip = target_noise_clip
+        if shared:
+            # action magnitudes
+            ac_mag = 0.5 * (ac_space.high - ac_space.low)
+
+            self.noise = noise * ac_mag
+            self.target_policy_noise = np.array([ac_mag * target_policy_noise])
+            self.target_noise_clip = np.array([ac_mag * target_noise_clip])
+        else:
+            self.noise = {}
+            self.target_policy_noise = {}
+            self.target_noise_clip = {}
+            for key in ac_space.keys():
+                # action magnitudes
+                ac_mag = 0.5 * (ac_space[key].high - ac_space[key].low)
+
+                self.noise[key] = noise * ac_mag
+                self.target_policy_noise[key] = \
+                    np.array([ac_mag * target_policy_noise])
+                self.target_noise_clip[key] = \
+                    np.array([ac_mag * target_noise_clip])
 
         # variables to be initialized later (if MADDPG is used)
         self.replay_buffer = None
@@ -224,6 +246,11 @@ class MultiFeedForwardPolicy(BasePolicy):
             shape=(None,) + self.all_ob_space.shape,
             name='all_obs')
 
+        self.all_obs1_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None,) + self.all_ob_space.shape,
+            name='all_obs1')
+
         if self.shared:
             # Create an input placeholder for the full actions.
             self.all_action_ph = tf.compat.v1.placeholder(
@@ -238,6 +265,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                     ob_space=self.ob_space,
                     ac_space=self.ac_space,
                     co_space=self.co_space,
+                    target_policy_noise=self.target_policy_noise,
+                    target_noise_clip=self.target_noise_clip,
                 )
 
             # Store the new objects in their respective attributes.
@@ -327,6 +356,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                             ob_space=self.ob_space[key],
                             ac_space=self.ac_space[key],
                             co_space=self.co_space[key],
+                            target_policy_noise=self.target_policy_noise[key],
+                            target_noise_clip=self.target_noise_clip[key],
                         )
 
                 # Store the new objects in their respective attributes.
@@ -348,7 +379,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Combine all actor targets to create a centralized target actor.
             noisy_actor_target = tf.concat(actor_targets, axis=1)
-            print('noisy_actor_target', noisy_actor_target)
 
             # Now that we have all actor targets, we can start constructing
             # centralized critic targets and all update procedures.
@@ -362,7 +392,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             for key in sorted(self.ob_space.keys()):
                 # Append the key to the outer scope term.
                 scope_i = key if scope is None else "{}/{}".format(scope, key)
-                print('noisy_actor_target', noisy_actor_target)
 
                 with tf.compat.v1.variable_scope(key, reuse=False):
                     # Setup the target critic and critic update procedure.
@@ -398,7 +427,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                         actor_tf=self.actor_tf[key]
                     )
 
-    def _setup_agent(self, ob_space, ac_space, co_space):
+    def _setup_agent(self,
+                     ob_space,
+                     ac_space,
+                     co_space,
+                     target_policy_noise,
+                     target_noise_clip):
         """Create the components for an individual agent.
 
         Parameters
@@ -409,6 +443,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             the action space of the individual agent
         co_space : gym.spaces.*
             the context space of the individual agent
+        target_policy_noise : TODO
+            TODO
+        target_noise_clip : TODO
+            TODO
 
         Returns
         -------
@@ -495,9 +533,9 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # smooth target policy by adding clipped noise to target actions
             target_noise = tf.random.normal(
-                tf.shape(actor_target), stddev=self.target_policy_noise)
+                tf.shape(actor_target), stddev=target_policy_noise)
             target_noise = tf.clip_by_value(
-                target_noise, -self.target_noise_clip, self.target_noise_clip)
+                target_noise, -target_noise_clip, target_noise_clip)
 
             # clip the noisy action to remain in the bounds
             noisy_actor_target = tf.clip_by_value(
@@ -601,9 +639,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         Parameters
         ----------
         critic : tf.Variable
-            TODO
+            the output from the centralized critic of the agent
         actor_target : tf.Variable
-            TODO
+            the output from the combined target actors of all agents
         rew_ph : tf.compat.v1.placeholder
             placeholder for the rewards of the agent
         done1 : tf.compat.v1.placeholder
@@ -620,8 +658,6 @@ class MultiFeedForwardPolicy(BasePolicy):
         """
         if self.verbose >= 2:
             print('setting up critic optimizer')
-
-        print(actor_target, self.all_obs1_ph)
 
         # Create the centralized target critic policy.
         with tf.compat.v1.variable_scope("target", reuse=False):
