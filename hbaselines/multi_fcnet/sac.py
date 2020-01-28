@@ -483,10 +483,6 @@ class MultiFeedForwardPolicy(BasePolicy):
                 shape=(None,) + ob_dim,
                 name='obs1')
 
-        # logging of rewards to tensorboard
-        with tf.compat.v1.variable_scope("input_info", reuse=False):
-            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(rew_ph))
-
         # =================================================================== #
         # Step 3: Create actor and critic variables.                          #
         # =================================================================== #
