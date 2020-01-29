@@ -221,7 +221,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         # Setup the agents and the necessary objects and operations needed to
         # support the training procedure.
         if maddpg:
-            self._setup_maddpg(all_ob_space)
+            self._setup_maddpg(scope)
         else:
             self._setup_basic(scope)
 

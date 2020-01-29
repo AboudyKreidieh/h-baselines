@@ -443,9 +443,9 @@ class MultiFeedForwardPolicy(BasePolicy):
             the action space of the individual agent
         co_space : gym.spaces.*
             the context space of the individual agent
-        target_policy_noise : TODO
+        target_policy_noise : array_like
             TODO
-        target_noise_clip : TODO
+        target_noise_clip : array_like
             TODO
 
         Returns
@@ -663,7 +663,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         with tf.compat.v1.variable_scope("target", reuse=False):
             critic_target = [
                 self.make_critic(self.all_obs1_ph, actor_target,
-                                 scope="qf_{}".format(i))
+                                 scope="centralized_qf_{}".format(i))
                 for i in range(2)
             ]
 
@@ -687,7 +687,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         critic_optimizer = []
 
         for i, loss in enumerate(critic_loss):
-            scope_name = 'model/qf_{}/'.format(i)
+            scope_name = 'model/centralized_qf_{}'.format(i)
             if scope is not None:
                 scope_name = scope + '/' + scope_name
 
