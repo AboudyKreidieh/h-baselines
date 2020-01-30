@@ -431,12 +431,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Specifies whether to remove additional data from the replay buffer
         # sampling procedure. Since only a subset of algorithms use additional
         # data, removing it can speedup the other algorithms.
-        with_additional = self.off_policy_corrections
+        with_additional = self.off_policy_corrections or self.multistep_llp
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done, additional = \
             self.replay_buffer.sample(with_additional=with_additional)
+
+        if self.multistep_llp:
+            # Perform model-based relabeling.
+            w_obses, w_actions, w_rewards = self._multistep_llp_update(
+                meta_action=meta_act,
+                worker_obses=additional["worker_obses"],
+                worker_actions=additional["worker_actions"]
+            )
+
+            # Update the samples from the batch.
+            additional["worker_obses"] = w_obses
+            additional["worker_actions"] = w_actions
+            # TODO
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -454,19 +467,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
-                    obs0=meta_obs0,
-                    actions=meta_act,
-                    rewards=meta_rew,
-                    obs1=meta_obs1,
-                    terminals1=meta_done,
-                    update_actor=kwargs['update_meta_actor'],
-                    worker_obs0=worker_obs0,
-                    worker_obs1=worker_obs1,
-                    worker_actions=worker_act,
-                )
-            elif self.multistep_llp:
-                # Perform the multi-step LLP update procedure.
-                m_critic_loss, m_actor_loss = self._multistep_llp_update(
                     obs0=meta_obs0,
                     actions=meta_act,
                     rewards=meta_rew,
@@ -1037,16 +1037,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return rho, rho_logp
 
-    def _multistep_llp_update(self,
-                              obs0,
-                              actions,
-                              rewards,
-                              obs1,
-                              terminals1,
-                              worker_obs0,
-                              worker_obs1,
-                              worker_actions,
-                              update_actor=True):
+    def _multistep_llp_update(self, meta_action, worker_obses, worker_actions):
         """Perform the multi-step LLP update procedure.
 
         The Worker states and actions, as well as the intrinsic rewards, are
@@ -1055,26 +1046,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : np.ndarray
-            batch of manager observations
-        actions : numpy float
-            batch of manager actions executed given obs_batch
-        rewards : numpy float
-            manager rewards received as results of executing act_batch
-        obs1 : np.ndarray
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
+        meta_action : array_like
+            (batch_size, m_ac_dim) matrix of Manager actions (goals)
+            actions
+        worker_obses : array_like
+            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
+            observations
         worker_actions : array_like
-            batch of worker actions
-        update_actor : bool
-            specifies whether to update the actor policy of the manager. The
-            critic policy is still updated if this value is set to False.
+            (batch_size, w_ac_dim, meta_period) list of Worker actions
 
         Returns
         -------
