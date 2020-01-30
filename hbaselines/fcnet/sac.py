@@ -7,6 +7,8 @@ from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
+from hbaselines.utils.tf_util import gaussian_likelihood
+from hbaselines.utils.tf_util import apply_squashing_func
 
 
 # Cap the standard deviation of the actor
@@ -386,13 +388,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Reparameterization trick
         policy = policy_mean + tf.random.normal(tf.shape(policy_mean)) * std
-        logp_pi = self._gaussian_likelihood(policy, policy_mean, log_std)
-        logp_ac = self._gaussian_likelihood(action, policy_mean, log_std)
+        logp_pi = gaussian_likelihood(policy, policy_mean, log_std)
+        logp_ac = gaussian_likelihood(action, policy_mean, log_std)
 
         # Apply squashing and account for it in the probability
-        _, _, logp_ac = self._apply_squashing_func(
+        _, _, logp_ac = apply_squashing_func(
             policy_mean, action, logp_ac)
-        deterministic_policy, policy, logp_pi = self._apply_squashing_func(
+        deterministic_policy, policy, logp_pi = apply_squashing_func(
             policy_mean, policy, logp_pi)
 
         return deterministic_policy, policy, logp_pi, logp_ac

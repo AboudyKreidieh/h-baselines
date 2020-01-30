@@ -6,6 +6,7 @@ from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
     BaseGoalConditionedPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import gaussian_likelihood
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
@@ -46,6 +47,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  connected_gradients,
                  cg_weights,
+                 multistep_llp,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
@@ -152,6 +154,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             connected_gradients=connected_gradients,
             cg_weights=cg_weights,
+            multistep_llp=multistep_llp,
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
@@ -409,24 +412,24 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         """TODO"""
         with tf.compat.v1.variable_scope("multistep_llp", reuse=False):
             # Create placeholders for the model.
-            self.worker_obs_ph = None  # TODO
-            self.worker_obs1_ph = None  # TODO
-            self.worker_action_ph = None  # TODO
+            self.worker_obs_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + self.worker.ob_space.shape,
+                name="worker_obs0")
+            self.worker_obs1_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + self.worker.ob_space.shape,
+                name="worker_obs1")
+            self.worker_action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + self.worker.ac_space.shape,
+                name="worker_action")
 
             # Create a trainable model of the Worker dynamics.
             worker_model, logp = self._setup_worker_model(
                 obs=self.worker_obs_ph,
                 obs1=self.worker_obs1_ph,
                 action=self.worker_action_ph,
-                ob_space=self.ob_space,
-            )
-
-            # We will also need a dynamics model that is a function of the
-            # Manager's trainable parameters for training purposes.
-            worker_model_with_manager, _ = self._setup_worker_model(
-                obs=self.worker_obs_ph,
-                obs1=self.worker_obs1_ph,
-                action=None,  # TODO
                 ob_space=self.ob_space,
             )
 
@@ -523,6 +526,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
             # Computes the log probability of choosing a specific output - used
             # by the loss
-            rho_logp = None  # TODO
+            rho_logp = gaussian_likelihood(delta, rho_mean, rho_logstd)
 
         return rho, rho_logp

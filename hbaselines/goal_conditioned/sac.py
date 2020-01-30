@@ -41,10 +41,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  hindsight,
                  subgoal_testing_rate,
                  connected_gradients,
+                 cg_weights,
+                 multistep_llp,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
-                 cg_weights,
                  env_name=""):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -142,6 +143,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             connected_gradients=connected_gradients,
             cg_weights=cg_weights,
+            multistep_llp=multistep_llp,
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
