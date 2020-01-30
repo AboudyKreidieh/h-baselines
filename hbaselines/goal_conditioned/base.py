@@ -1143,7 +1143,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         worker_obs1 = worker_obs0 + delta
 
         # Compute the intrinsic reward.
-        worker_reward = self.worker_reward_fn(worker_obs0, goal, worker_obs1)
+        worker_reward = self.worker_reward_scale * \
+            self.worker_reward_fn(worker_obs0, goal, worker_obs1)
 
         # Compute the next step goal and add it to the observation.
         next_goal = self.goal_transition_fn(worker_obs0, goal, worker_obs1)
