@@ -112,6 +112,8 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # parameters of the manager. Only used if `connected_gradients` is set to
     # True.
     cg_weights=0.0005,
+    # whether to use the multi-step LLP update procedure. See: TODO
+    multistep_llp=False,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being

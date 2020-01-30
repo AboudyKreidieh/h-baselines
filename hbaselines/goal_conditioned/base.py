@@ -71,6 +71,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         weights for the gradients of the loss of the worker with respect to the
         parameters of the manager. Only used if `connected_gradients` is set to
         True.
+    multistep_llp : bool
+        whether to use the multi-step LLP update procedure. See: TODO
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
@@ -121,6 +123,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  subgoal_testing_rate,
                  connected_gradients,
                  cg_weights,
+                 multistep_llp,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
@@ -187,6 +190,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             weights for the gradients of the loss of the worker with respect to
             the parameters of the manager. Only used if `connected_gradients`
             is set to True.
+        multistep_llp : bool
+            whether to use the multi-step LLP update procedure. See: TODO
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -230,6 +235,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.subgoal_testing_rate = subgoal_testing_rate
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
+        self.multistep_llp = multistep_llp
         self.use_fingerprints = use_fingerprints
         self.fingerprint_range = fingerprint_range
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
@@ -374,6 +380,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         if self.connected_gradients:
             self._setup_connected_gradients()
 
+        if self.multistep_llp:
+            self._setup_multistep_llp()
+
     def initialize(self):
         """See parent class.
 
@@ -443,6 +452,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
+                    obs0=meta_obs0,
+                    actions=meta_act,
+                    rewards=meta_rew,
+                    obs1=meta_obs1,
+                    terminals1=meta_done,
+                    update_actor=kwargs['update_meta_actor'],
+                    worker_obs0=worker_obs0,
+                    worker_obs1=worker_obs1,
+                    worker_actions=worker_act,
+                )
+            elif self.multistep_llp:
+                # Perform the multi-step LLP update procedure.
+                m_critic_loss, m_actor_loss = self._multistep_llp_update(
                     obs0=meta_obs0,
                     actions=meta_act,
                     rewards=meta_rew,
@@ -867,6 +889,60 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         This procedure is similar to self.manager.update_from_batch, expect it
         runs the self.cg_optimizer operation instead of self.manager.optimizer,
         and utilizes some information from the worker samples as well.
+
+        Parameters
+        ----------
+        obs0 : np.ndarray
+            batch of manager observations
+        actions : numpy float
+            batch of manager actions executed given obs_batch
+        rewards : numpy float
+            manager rewards received as results of executing act_batch
+        obs1 : np.ndarray
+            set of next manager observations seen after executing act_batch
+        terminals1 : numpy bool
+            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
+            an episode and 0 otherwise.
+        worker_obs0 : array_like
+            batch of worker observations
+        worker_obs1 : array_like
+            batch of next worker observations
+        worker_actions : array_like
+            batch of worker actions
+        update_actor : bool
+            specifies whether to update the actor policy of the manager. The
+            critic policy is still updated if this value is set to False.
+
+        Returns
+        -------
+        [float, float]
+            manager critic loss
+        float
+            manager actor loss
+        """
+        raise NotImplementedError
+
+    # ======================================================================= #
+    #                  Auxiliary methods for Multi-Step LLP                   #
+    # ======================================================================= #
+
+    def _setup_multistep_llp(self):
+        """TODO."""
+        raise NotImplementedError
+
+    def _multistep_llp_update(self,
+                              obs0,
+                              actions,
+                              rewards,
+                              obs1,
+                              terminals1,
+                              worker_obs0,
+                              worker_obs1,
+                              worker_actions,
+                              update_actor=True):
+        """Perform the multi-step LLP update procedure.
+
+        TODO: description
 
         Parameters
         ----------

@@ -9,8 +9,6 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
 
-# Stabilizing term to avoid NaN (prevents division by zero or log of zero)
-EPS = 1e-6
 # Cap the standard deviation of the actor
 LOG_STD_MAX = 2
 LOG_STD_MIN = -20
@@ -510,67 +508,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 qf1, qf2 = None, None
 
         return qf1, qf2, value_fn
-
-    @staticmethod
-    def _gaussian_likelihood(input_, mu_, log_std):
-        """Compute log likelihood of a gaussian.
-
-        Here we assume this is a Diagonal Gaussian.
-
-        Parameters
-        ----------
-        input_ : tf.Variable
-            the action by the policy
-        mu_ : tf.Variable
-            the policy mean
-        log_std : tf.Variable
-            the policy log std
-
-        Returns
-        -------
-        tf.Variable
-            the log-probability of a given observation given the output action
-            from the policy
-        """
-        pre_sum = -0.5 * (((input_ - mu_) / (
-                    tf.exp(log_std) + EPS)) ** 2 + 2 * log_std + np.log(
-            2 * np.pi))
-        return tf.reduce_sum(pre_sum, axis=1)
-
-    @staticmethod
-    def _apply_squashing_func(mu_, pi_, logp_pi):
-        """Squash the output of the Gaussian distribution.
-
-        This method also accounts for that in the log probability.
-
-        The squashed mean is also returned for using deterministic actions.
-
-        Parameters
-        ----------
-        mu_ : tf.Variable
-            mean of the gaussian
-        pi_ : tf.Variable
-            output of the policy (or action) before squashing
-        logp_pi : tf.Variable
-            log probability before squashing
-
-        Returns
-        -------
-        tf.Variable
-            the output from the squashed deterministic policy
-        tf.Variable
-            the output from the squashed stochastic policy
-        tf.Variable
-            the log probability of a given squashed action
-        """
-        # Squash the output
-        deterministic_policy = tf.nn.tanh(mu_)
-        policy = tf.nn.tanh(pi_)
-
-        # Squash correction (from original implementation)
-        logp_pi -= tf.reduce_sum(tf.math.log(1 - policy ** 2 + EPS), axis=1)
-
-        return deterministic_policy, policy, logp_pi
 
     def update(self, **kwargs):
         """Perform a gradient update step.

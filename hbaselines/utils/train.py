@@ -60,6 +60,7 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "connected_gradients": args.connected_gradients,
             "cg_weights": args.cg_weights,
+            "multistep_llp": args.multistep_llp,
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
         })
@@ -309,5 +310,10 @@ def create_goal_conditioned_parser(parser):
         help="weights for the gradients of the loss of the worker with "
              "respect to the parameters of the manager. Only used if "
              "`connected_gradients` is set to True.")
+    parser.add_argument(
+        "--multistep_llp",
+        action="store_true",
+        help="whether to use the multi-step LLP update procedure. See: "
+             "TODO")
 
     return parser

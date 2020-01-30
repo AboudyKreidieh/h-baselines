@@ -400,3 +400,129 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         actor_loss = _vals[2] if update_actor else 0
 
         return critic_loss, actor_loss
+
+    # ======================================================================= #
+    #                  Auxiliary methods for Multi-Step LLP                   #
+    # ======================================================================= #
+
+    def _setup_multistep_llp(self):
+        """TODO"""
+        with tf.compat.v1.variable_scope("multistep_llp", reuse=False):
+            # Create placeholders for the model.
+            self.worker_obs_ph = None  # TODO
+            self.worker_obs1_ph = None  # TODO
+            self.worker_action_ph = None  # TODO
+
+            # Create a trainable model of the Worker dynamics.
+            worker_model, logp = self._setup_worker_model(
+                obs=self.worker_obs_ph,
+                obs1=self.worker_obs1_ph,
+                action=self.worker_action_ph,
+                ob_space=self.ob_space,
+            )
+
+            # We will also need a dynamics model that is a function of the
+            # Manager's trainable parameters for training purposes.
+            worker_model_with_manager, _ = self._setup_worker_model(
+                obs=self.worker_obs_ph,
+                obs1=self.worker_obs1_ph,
+                action=None,  # TODO
+                ob_space=self.ob_space,
+            )
+
+            # Create the model loss.
+            self.worker_model_loss = -tf.reduce_mean(logp)
+
+            # Create an optimizer object.
+            optimizer = tf.train.AdamOptimizer(self.actor_lr)
+
+            # Create the model optimization technique.
+            self.worker_model_optimizer = optimizer.minimize(
+                self.worker_model_loss,
+                var_list=get_trainable_vars('multistep_llp'))
+
+    def _multistep_llp_update(self,
+                              obs0,
+                              actions,
+                              rewards,
+                              obs1,
+                              terminals1,
+                              worker_obs0,
+                              worker_obs1,
+                              worker_actions,
+                              update_actor=True):
+        """TODO"""
+        pass
+
+    def _setup_worker_model(self,
+                            obs,
+                            obs1,
+                            action,
+                            ob_space,
+                            reuse=False,
+                            scope="rho"):
+        """Create the trainable parameters of the Worker dynamics model.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the last step observation, not including the context
+        obs1 : tf.compat.v1.placeholder
+            the current step observation, not including the context
+        action : tf.compat.v1.placeholder
+            the action from the Worker policy. May be a function of the
+            Manager's trainable parameters
+        ob_space : gym.spaces.*
+            the observation space, not including the context space
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
+
+        Returns
+        -------
+        tf.Variable
+            the output from the Worker dynamics model
+        """
+        if self.verbose >= 2:
+            print('setting up Worker dynamics model')
+
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            # Concatenate the observations and actions.
+            rho_h = tf.concat([obs, action], axis=-1)
+
+            # Create the hidden layers.
+            for i, layer_size in enumerate(self.layers):
+                rho_h = self._layer(
+                    rho_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
+
+            # Create the output mean.
+            rho_mean = self._layer(
+                rho_h, 2 * ob_space.shape, 'rho_mean',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+            # Create the output logstd term.
+            rho_logstd = self._layer(
+                rho_h, 2 * ob_space.shape, 'rho_logstd',
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+            rho_std = tf.exp(rho_logstd)
+
+            # The model samples from its distribution.
+            rho = rho_mean + tf.random.normal(tf.shape(rho_mean)) * rho_std
+
+            # The worker model is trained to learn the change in state between
+            # two time-steps.
+            delta = obs1 - obs
+
+            # Computes the log probability of choosing a specific output - used
+            # by the loss
+            rho_logp = None  # TODO
+
+        return rho, rho_logp
