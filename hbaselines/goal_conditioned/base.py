@@ -1053,13 +1053,65 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
             observations
         worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) list of Worker actions
+            (batch_size, w_ac_dim, meta_period) matrix of Worker actions
 
         Returns
         -------
-        [float, float]
-            manager critic loss
-        float
-            manager actor loss
+        array_like
+            (batch_size, w_obs_dim, meta_period + 1) matrix of relabeled Worker
+            observations
+        array_like
+            (batch_size, w_ac_dim, meta_period) matrix of relabeled Worker
+            actions
+        array_like
+            (batch_size, meta_period) matrix of relabeled Worker rewards
         """
-        pass  # TODO
+        # Collect dimensions.
+        batch_size, m_ac_dim = meta_action.shape
+        _, w_obs_dim, _ = worker_obses.shape
+        _, w_ac_dim, meta_period = worker_actions.shape
+
+        # The relabeled samples will be stored here.
+        new_worker_obses = np.zeros((batch_size, w_obs_dim, meta_period + 1))
+        new_worker_actions = np.zeros((batch_size, w_ac_dim, meta_period))
+        new_worker_rewards = np.zeros((batch_size, meta_period))
+
+        for i in range(batch_size):
+            # Collect the initial samples.
+            goal = meta_action[i, :]
+            obs0 = worker_obses[i, :, 0]
+            action, obs1, goal, rew = self._get_model_next_step(obs0, goal)
+
+            # Add the initial samples.
+            new_worker_actions[i, :, 0] = obs0
+            new_worker_obses[i, :, 0] = obs0
+            new_worker_obses[i, :, 1] = obs1
+            new_worker_rewards[i, 0] = rew
+
+            for j in range(1, meta_period):
+                pass
+
+        return new_worker_obses, new_worker_actions, new_worker_rewards
+
+    def _get_model_next_step(self, obs0, goal):
+        """TODO
+
+        Parameters
+        ----------
+        obs0 : array_like
+            TODO
+        goal : array_like
+            TODO
+
+        Returns
+        -------
+        array_like
+            TODO
+        array_like
+            TODO
+        array_like
+            the next step goal
+        float
+            the intrinsic reward
+        """
+        pass
