@@ -446,10 +446,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 worker_actions=additional["worker_actions"]
             )
 
-            # Update the samples from the batch.
+            # Update the samples from the batch.  TODO: meta_obs1?
+            meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew = \
+                self._sample_from_relabeled(
+                    worker_obses=w_obses,
+                    worker_actions=w_actions,
+                    worker_rewards=w_rewards
+                )
             additional["worker_obses"] = w_obses
             additional["worker_actions"] = w_actions
-            # TODO
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -1088,6 +1093,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             new_worker_rewards[i, 0] = rew
             obs0 = obs1.copy()
 
+            # TODO: if it ends prematurely?
             for j in range(1, meta_period):
                 # Compute the next step variables.
                 action, obs1, rew = self._get_model_next_step(obs0)
@@ -1145,24 +1151,55 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return worker_action, worker_obs1, worker_reward
 
-    @staticmethod
-    def _sample_from_relabeled(worker_obses, worker_actions, worker_rewards):
-        """TODO
+    def _sample_from_relabeled(self,
+                               worker_obses,
+                               worker_actions,
+                               worker_rewards):
+        """Collect a batch of samples from the relabeled samples.
 
         Parameters
         ----------
-        worker_obses : TODO
-            TODO
-        worker_actions : TODO
-            TODO
-        worker_rewards : TODO
-            TODO
+        worker_obses : array_like
+            (batch_size, w_obs_dim, meta_period + 1) matrix of relabeled Worker
+            observations
+        worker_actions : array_like
+            (batch_size, w_ac_dim, meta_period) matrix of relabeled Worker
+            actions
+        worker_rewards : array_like
+            (batch_size, meta_period) matrix of relabeled Worker rewards
 
         Returns
         -------
-        TODO
-            TODO
+        array_like
+            (batch_size, m_obs_dim) matrix of relabeled next step Manager
+            observations
+        array_like
+            (batch_size, worker_obs) matrix of relabeled Worker observations
+        array_like
+            (batch_size, worker_obs) matrix of relabeled next step Worker
+            observations
+        array_like
+            (batch_size, worker_ac) matrix of relabeled Worker actions
+        array_like
+            (batch_size,) vector of relabeled Worker rewards
         """
-        meta_obs1 = None
+        batch_size, w_obs_dim, _ = worker_obses.shape
+        _, w_ac_dim, _ = worker_actions.shape
+        goal_dim = self.manager.ac_space.shape[0]
 
-        return meta_obs1
+        meta_obs1 = np.array((batch_size, goal_dim))
+        worker_obs0 = np.array((batch_size, w_obs_dim))
+        worker_obs1 = np.array((batch_size, w_obs_dim))
+        worker_act = np.array((batch_size, w_ac_dim))
+        worker_rew = np.array(batch_size)
+
+        for i in range(batch_size):
+            indx_val = random.randint(0, worker_obses.shape[2] - 2)
+            meta_obs1 = worker_obses[i, -goal_dim:, -1]
+            worker_obs0[i, :] = worker_obses[i, :, indx_val]
+            worker_obs1[i, :] = worker_obses[i, :, indx_val + 1]
+            worker_act[i, :] = worker_actions[i, :, indx_val]
+            worker_rew[i] = worker_rewards[i, indx_val]
+
+        # TODO: done mask?
+        return meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew
