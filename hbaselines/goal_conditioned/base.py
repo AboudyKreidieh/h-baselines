@@ -946,7 +946,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 name="worker_action")
 
             # Create a trainable model of the Worker dynamics.
-            worker_model, logp = self._setup_worker_model(
+            self.worker_model, logp = self._setup_worker_model(
                 obs=self.worker_obs_ph,
                 obs1=self.worker_obs1_ph,
                 action=self.worker_action_ph,
@@ -1102,7 +1102,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return new_worker_obses, new_worker_actions, new_worker_rewards
 
     def _get_model_next_step(self, obs0):
-        """TODO
+        """Compute the next-step information using the trained model.
 
         Parameters
         ----------
@@ -1112,13 +1112,38 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            TODO
+            current step Worker action
         array_like
-            TODO
+            next step Worker observation
         float
             the intrinsic reward
         """
-        pass
+        # Separate the observation and goal.
+        goal_dim = self.manager.ac_space.shape[0]
+        worker_obs0 = obs0[:goal_dim]
+        goal = obs0[:goal_dim]
+
+        # Compute the action using the current instantiation of the policy.
+        worker_action = self.worker.get_action(worker_obs0, goal, False, False)
+
+        # Use the model to compute the next step observation.
+        delta = self.sess.run(
+            self.worker_model,
+            feed_dict={
+                self.worker_obs_ph: worker_obs0,
+                self.worker_action_ph: worker_action
+            }
+        )
+        worker_obs1 = worker_obs0 + delta
+
+        # Compute the intrinsic reward.
+        worker_reward = self.worker_reward_fn(worker_obs0, goal, worker_obs1)
+
+        # Compute the next step goal and add it to the observation.
+        next_goal = self.goal_transition_fn(worker_obs0, goal, worker_obs1)
+        worker_obs1 = np.append(worker_obs1, next_goal)
+
+        return worker_action, worker_obs1, worker_reward
 
     @staticmethod
     def _sample_from_relabeled(worker_obses, worker_actions, worker_rewards):
