@@ -1078,30 +1078,36 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         for i in range(batch_size):
             # Collect the initial samples.
-            goal = meta_action[i, :]
             obs0 = worker_obses[i, :, 0]
-            action, obs1, goal, rew = self._get_model_next_step(obs0, goal)
+            action, obs1, rew = self._get_model_next_step(obs0)
 
             # Add the initial samples.
             new_worker_actions[i, :, 0] = obs0
             new_worker_obses[i, :, 0] = obs0
             new_worker_obses[i, :, 1] = obs1
             new_worker_rewards[i, 0] = rew
+            obs0 = obs1.copy()
 
             for j in range(1, meta_period):
-                pass
+                # Compute the next step variables.
+                action, obs1, rew = self._get_model_next_step(obs0)
+
+                # Add the next step samples.
+                new_worker_actions[i, :, j] = obs0
+                new_worker_obses[i, :, j] = obs0
+                new_worker_obses[i, :, j + 1] = obs1
+                new_worker_rewards[i, j] = rew
+                obs0 = obs1.copy()
 
         return new_worker_obses, new_worker_actions, new_worker_rewards
 
-    def _get_model_next_step(self, obs0, goal):
+    def _get_model_next_step(self, obs0):
         """TODO
 
         Parameters
         ----------
         obs0 : array_like
-            TODO
-        goal : array_like
-            TODO
+            the current step worker observation, including the goal
 
         Returns
         -------
@@ -1109,9 +1115,29 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             TODO
         array_like
             TODO
-        array_like
-            the next step goal
         float
             the intrinsic reward
         """
         pass
+
+    @staticmethod
+    def _sample_from_relabeled(worker_obses, worker_actions, worker_rewards):
+        """TODO
+
+        Parameters
+        ----------
+        worker_obses : TODO
+            TODO
+        worker_actions : TODO
+            TODO
+        worker_rewards : TODO
+            TODO
+
+        Returns
+        -------
+        TODO
+            TODO
+        """
+        meta_obs1 = None
+
+        return meta_obs1
