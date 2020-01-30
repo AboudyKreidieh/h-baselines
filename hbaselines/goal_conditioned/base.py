@@ -1201,5 +1201,4 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             worker_act[i, :] = worker_actions[i, :, indx_val]
             worker_rew[i] = worker_rewards[i, indx_val]
 
-        # TODO: done mask?
         return meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew
