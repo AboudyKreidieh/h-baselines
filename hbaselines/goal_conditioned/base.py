@@ -1049,7 +1049,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                               update_actor=True):
         """Perform the multi-step LLP update procedure.
 
-        TODO: description
+        The Worker states and actions, as well as the intrinsic rewards, are
+        relabeled using a trained dynamics model. The last Worker observation
+        is also used to relabel the Manager next step observation.
 
         Parameters
         ----------
