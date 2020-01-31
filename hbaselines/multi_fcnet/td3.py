@@ -245,194 +245,197 @@ class MultiFeedForwardPolicy(BasePolicy):
             tf.float32,
             shape=(None,) + self.all_ob_space.shape,
             name='all_obs')
-
         self.all_obs1_ph = tf.compat.v1.placeholder(
             tf.float32,
             shape=(None,) + self.all_ob_space.shape,
             name='all_obs1')
 
         if self.shared:
-            # Create an input placeholder for the full actions.
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
-                name='all_actions')
+            self._setup_maddpg_shared(scope)
+        else:
+            self._setup_maddpg_independent(scope)
 
-            # Create actor and critic networks for the shared policy.
-            replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
-                obs1_ph, actor_tf, critic_tf, noisy_actor_target = \
-                self._setup_agent(
-                    ob_space=self.ob_space,
-                    ac_space=self.ac_space,
-                    co_space=self.co_space,
-                    target_policy_noise=self.target_policy_noise,
-                    target_noise_clip=self.target_noise_clip,
-                )
+    def _setup_maddpg_shared(self, scope):
+        """Perform shared form of MADDPG setup."""
+        # Create an input placeholder for the full actions.
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+            name='all_actions')
+
+        # Create the shared replay buffer.
+        self.replay_buffer = None  # TODO
+
+        # Create actor and critic networks for the shared policy.
+        _, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, actor_tf, \
+            critic_tf, noisy_actor_target = self._setup_agent(
+                ob_space=self.ob_space,
+                ac_space=self.ac_space,
+                co_space=self.co_space,
+                target_policy_noise=self.target_policy_noise,
+                target_noise_clip=self.target_noise_clip,
+                create_replay_buffer=False,
+            )
+
+        # Store the new objects in their respective attributes.
+        self.terminals1 = terminals1
+        self.rew_ph = rew_ph
+        self.action_ph = action_ph
+        self.obs_ph = obs_ph
+        self.obs1_ph = obs1_ph
+        self.actor_tf = actor_tf
+        self.critic_tf = critic_tf
+        self.actor_target = noisy_actor_target
+
+        # Setup the target critic and critic update procedure.
+        loss, optimizer = self._setup_critic_update(
+            critic=self.critic_tf,
+            actor_target=None,  # TODO
+            rew_ph=self.rew_ph,
+            done1=self.terminals1,
+            scope=scope,
+        )
+        self.critic_loss = loss
+        self.critic_optimizer = optimizer
+
+        # Create the target update operations.
+        init, soft = self._setup_target_updates(
+            'model', 'target', scope, self.tau, self.verbose)
+        self.target_init_updates = init
+        self.target_soft_updates = soft
+
+        # Setup the actor update procedure.
+        loss, optimizer = self._setup_actor_update(
+            combined_actors=None,  # FIXME
+            scope=scope,
+        )
+        self.actor_loss = loss
+        self.actor_optimizer = optimizer
+
+        # Setup the running means and standard deviations of the model
+        # inputs and outputs.
+        self._setup_stats(
+            rew_ph=self.rew_ph,
+            actor_loss=self.actor_loss,
+            critic_loss=self.critic_loss,
+            critic_tf=self.critic_tf,
+            actor_tf=self.actor_tf
+        )
+
+    def _setup_maddpg_independent(self, scope):
+        """Perform independent form of MADDPG setup."""
+        # Create an input placeholder for the full actions.
+        all_ac_dim = sum(self.ac_space[key].shape[0]
+                         for key in self.ac_space.keys())
+
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, all_ac_dim),
+            name='all_actions')
+
+        self.replay_buffer = {}
+        self.terminals1 = {}
+        self.rew_ph = {}
+        self.action_ph = {}
+        self.obs_ph = {}
+        self.obs1_ph = {}
+        self.actor_tf = {}
+        self.critic_tf = {}
+        self.actor_target = {}
+        actors = []
+        actor_targets = []
+
+        # We move through the keys in a sorted fashion so that we may collect
+        # the observations and actions for the full state in a sorted manner.
+        for key in sorted(self.ob_space.keys()):
+            # Create actor and critic networks for the the individual
+            # policies.
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
+                    obs1_ph, actor_tf, critic_tf, noisy_actor_target = \
+                    self._setup_agent(
+                        ob_space=self.ob_space[key],
+                        ac_space=self.ac_space[key],
+                        co_space=self.co_space[key],
+                        target_policy_noise=self.target_policy_noise[key],
+                        target_noise_clip=self.target_noise_clip[key],
+                        create_replay_buffer=True,
+                    )
 
             # Store the new objects in their respective attributes.
-            self.replay_buffer = replay_buffer
-            self.terminals1 = terminals1
-            self.rew_ph = rew_ph
-            self.action_ph = action_ph
-            self.obs_ph = obs_ph
-            self.obs1_ph = obs1_ph
-            self.actor_tf = actor_tf
-            self.critic_tf = critic_tf
-            self.actor_target = noisy_actor_target
+            self.replay_buffer[key] = replay_buffer
+            self.terminals1[key] = terminals1
+            self.rew_ph[key] = rew_ph
+            self.action_ph[key] = action_ph
+            self.obs_ph[key] = obs_ph
+            self.obs1_ph[key] = obs1_ph
+            self.actor_tf[key] = actor_tf
+            self.critic_tf[key] = critic_tf
+            self.actor_target[key] = noisy_actor_target
+            actors.append(actor_tf)
+            actor_targets.append(noisy_actor_target)
 
-            # Create an input placeholder for the full next step actions. Used
-            # when computing the critic target.
-            self.all_action1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
-                name='all_actions')
+        # Combine all actors for when creating a centralized differentiable
+        # critic.
+        combined_actors = tf.concat(actors, axis=1)
 
-            # Setup the target critic and critic update procedure.
-            loss, optimizer = self._setup_critic_update(
-                critic=self.critic_tf,
-                actor_target=self.all_action1_ph,
-                rew_ph=self.rew_ph,
-                done1=self.terminals1,
-                scope=scope,
-            )
-            self.critic_loss = loss
-            self.critic_optimizer = optimizer
+        # Combine all actor targets to create a centralized target actor.
+        noisy_actor_target = tf.concat(actor_targets, axis=1)
 
-            # Create the target update operations.
-            init, soft = self._setup_target_updates(
-                'model', 'target', scope, self.tau, self.verbose)
-            self.target_init_updates = init
-            self.target_soft_updates = soft
+        # Now that we have all actor targets, we can start constructing
+        # centralized critic targets and all update procedures.
+        self.critic_loss = {}
+        self.critic_optimizer = {}
+        self.target_init_updates = {}
+        self.target_soft_updates = {}
+        self.actor_loss = {}
+        self.actor_optimizer = {}
 
-            # Setup the actor update procedure.
-            loss, optimizer = self._setup_actor_update(
-                combined_actors=self.all_action_ph,  # FIXME
-                scope=scope,
-            )
-            self.actor_loss = loss
-            self.actor_optimizer = optimizer
+        for key in sorted(self.ob_space.keys()):
+            # Append the key to the outer scope term.
+            scope_i = key if scope is None else "{}/{}".format(scope, key)
 
-            # Setup the running means and standard deviations of the model
-            # inputs and outputs.
-            self._setup_stats(
-                rew_ph=self.rew_ph,
-                actor_loss=self.actor_loss,
-                critic_loss=self.critic_loss,
-                critic_tf=self.critic_tf,
-                actor_tf=self.actor_tf
-            )
-        else:
-            # Create an input placeholder for the full actions.
-            all_ac_dim = sum(self.ac_space[key].shape[0]
-                             for key in self.ac_space.keys())
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                # Setup the target critic and critic update procedure.
+                loss, optimizer = self._setup_critic_update(
+                    critic=self.critic_tf[key],
+                    actor_target=noisy_actor_target,
+                    rew_ph=self.rew_ph[key],
+                    done1=self.terminals1[key],
+                    scope=scope_i
+                )
+                self.critic_loss[key] = loss
+                self.critic_optimizer[key] = optimizer
 
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, all_ac_dim),
-                name='all_actions')
+                # Create the target update operations.
+                init, soft = self._setup_target_updates(
+                    'model', 'target', scope_i, self.tau, self.verbose)
+                self.target_init_updates[key] = init
+                self.target_soft_updates[key] = soft
 
-            self.replay_buffer = {}
-            self.terminals1 = {}
-            self.rew_ph = {}
-            self.action_ph = {}
-            self.obs_ph = {}
-            self.obs1_ph = {}
-            self.actor_tf = {}
-            self.critic_tf = {}
-            self.actor_target = {}
-            actors = []
-            actor_targets = []
+                # Setup the actor update procedure.
+                loss, optimizer = self._setup_actor_update(
+                    combined_actors=combined_actors, scope=scope_i)
+                self.actor_loss[key] = loss
+                self.actor_optimizer[key] = optimizer
 
-            # We move through the keys in a sorted fashion so that we may
-            # collect the observations and actions for the full state in a
-            # sorted manner as well.
-            for key in sorted(self.ob_space.keys()):
-                # Create actor and critic networks for the the individual
-                # policies.
-                with tf.compat.v1.variable_scope(key, reuse=False):
-                    replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
-                        obs1_ph, actor_tf, critic_tf, noisy_actor_target = \
-                        self._setup_agent(
-                            ob_space=self.ob_space[key],
-                            ac_space=self.ac_space[key],
-                            co_space=self.co_space[key],
-                            target_policy_noise=self.target_policy_noise[key],
-                            target_noise_clip=self.target_noise_clip[key],
-                        )
-
-                # Store the new objects in their respective attributes.
-                self.replay_buffer[key] = replay_buffer
-                self.terminals1[key] = terminals1
-                self.rew_ph[key] = rew_ph
-                self.action_ph[key] = action_ph
-                self.obs_ph[key] = obs_ph
-                self.obs1_ph[key] = obs1_ph
-                self.actor_tf[key] = actor_tf
-                self.critic_tf[key] = critic_tf
-                self.actor_target[key] = noisy_actor_target
-                actors.append(actor_tf)
-                actor_targets.append(noisy_actor_target)
-
-            # Combine all actors for when creating a centralized differentiable
-            # critic.
-            combined_actors = tf.concat(actors, axis=1)
-
-            # Combine all actor targets to create a centralized target actor.
-            noisy_actor_target = tf.concat(actor_targets, axis=1)
-
-            # Now that we have all actor targets, we can start constructing
-            # centralized critic targets and all update procedures.
-            self.critic_loss = {}
-            self.critic_optimizer = {}
-            self.target_init_updates = {}
-            self.target_soft_updates = {}
-            self.actor_loss = {}
-            self.actor_optimizer = {}
-
-            for key in sorted(self.ob_space.keys()):
-                # Append the key to the outer scope term.
-                scope_i = key if scope is None else "{}/{}".format(scope, key)
-
-                with tf.compat.v1.variable_scope(key, reuse=False):
-                    # Setup the target critic and critic update procedure.
-                    loss, optimizer = self._setup_critic_update(
-                        critic=self.critic_tf[key],
-                        actor_target=noisy_actor_target,
-                        rew_ph=self.rew_ph[key],
-                        done1=self.terminals1[key],
-                        scope=scope_i
-                    )
-                    self.critic_loss[key] = loss
-                    self.critic_optimizer[key] = optimizer
-
-                    # Create the target update operations.
-                    init, soft = self._setup_target_updates(
-                        'model',  'target', scope_i, self.tau, self.verbose)
-                    self.target_init_updates[key] = init
-                    self.target_soft_updates[key] = soft
-
-                    # Setup the actor update procedure.
-                    loss, optimizer = self._setup_actor_update(
-                        combined_actors=combined_actors, scope=scope_i)
-                    self.actor_loss[key] = loss
-                    self.actor_optimizer[key] = optimizer
-
-                    # Setup the running means and standard deviations of the
-                    # model inputs and outputs.
-                    self._setup_stats(
-                        rew_ph=self.rew_ph[key],
-                        actor_loss=self.actor_loss[key],
-                        critic_loss=self.critic_loss[key],
-                        critic_tf=self.critic_tf[key],
-                        actor_tf=self.actor_tf[key]
-                    )
+                # Setup the running means and standard deviations of the model
+                # inputs and outputs.
+                self._setup_stats(
+                    rew_ph=self.rew_ph[key],
+                    actor_loss=self.actor_loss[key],
+                    critic_loss=self.critic_loss[key],
+                    critic_tf=self.critic_tf[key],
+                    actor_tf=self.actor_tf[key]
+                )
 
     def _setup_agent(self,
                      ob_space,
                      ac_space,
                      co_space,
                      target_policy_noise,
-                     target_noise_clip):
+                     target_noise_clip,
+                     create_replay_buffer):
         """Create the components for an individual agent.
 
         Parameters
@@ -444,9 +447,14 @@ class MultiFeedForwardPolicy(BasePolicy):
         co_space : gym.spaces.*
             the context space of the individual agent
         target_policy_noise : array_like
-            TODO
+            standard deviation term to the noise from the output of the target
+            actor policy of the individual agent. See TD3 paper for more.
         target_noise_clip : array_like
-            TODO
+            clipping term for the noise injected in the target actor policy of
+            the individual agent
+        create_replay_buffer : bool
+            whether to create a replay buffer as well. The replay buffer is
+            only needed by independent policies.
 
         Returns
         -------
@@ -478,16 +486,17 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Step 1: Create a replay buffer object.                              #
         # =================================================================== #
 
-        replay_buffer = MultiReplayBuffer(
-            buffer_size=self.buffer_size,
-            batch_size=self.batch_size,
-            obs_dim=ob_dim[0],
-            ac_dim=ac_space.shape[0],
-            all_obs_dim=self.all_obs_ph.shape[-1],
-            all_ac_dim=self.all_action_ph.shape[-1],
-            shared=self.shared,
-            n_agents=self.n_agents,
-        )
+        if create_replay_buffer:
+            replay_buffer = MultiReplayBuffer(
+                buffer_size=self.buffer_size,
+                batch_size=self.batch_size,
+                obs_dim=ob_dim[0],
+                ac_dim=ac_space.shape[0],
+                all_obs_dim=self.all_obs_ph.shape[-1],
+                all_ac_dim=self.all_action_ph.shape[-1],
+            )
+        else:
+            replay_buffer = None
 
         # =================================================================== #
         # Step 2: Create input variables.                                     #

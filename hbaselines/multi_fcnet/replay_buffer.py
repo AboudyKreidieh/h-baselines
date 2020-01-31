@@ -15,9 +15,7 @@ class MultiReplayBuffer(object):
                  obs_dim,
                  ac_dim,
                  all_obs_dim,
-                 all_ac_dim,
-                 shared,
-                 n_agents):
+                 all_ac_dim):
         """Instantiate a buffer.
 
         Parameters
@@ -35,10 +33,6 @@ class MultiReplayBuffer(object):
             number of elements in the full state observations
         all_ac_dim : int
             number of elements in the actions of all agents
-        shared : TODO
-            TODO
-        n_agents : TODO
-            TODO
         """
         self._maxsize = buffer_size
         self._size = 0
