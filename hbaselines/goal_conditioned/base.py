@@ -1143,7 +1143,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             action, obs1, rew = self._get_model_next_step(obs0)
 
             # Add the initial samples.
-            new_worker_actions[i, :, 0] = obs0
+            new_worker_actions[i, :, 0] = action
             new_worker_obses[i, :, 0] = obs0
             new_worker_obses[i, :, 1] = obs1
             new_worker_rewards[i, 0] = rew
@@ -1155,7 +1155,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 action, obs1, rew = self._get_model_next_step(obs0)
 
                 # Add the next step samples.
-                new_worker_actions[i, :, j] = obs0
+                new_worker_actions[i, :, j] = action
                 new_worker_obses[i, :, j] = obs0
                 new_worker_obses[i, :, j + 1] = obs1
                 new_worker_rewards[i, j] = rew
@@ -1182,20 +1182,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Separate the observation and goal.
         goal_dim = self.manager.ac_space.shape[0]
-        worker_obs0 = obs0[:goal_dim]
-        goal = obs0[:goal_dim]
+        worker_obs0 = obs0[:-goal_dim]
+        goal = obs0[-goal_dim:]
 
         # Compute the action using the current instantiation of the policy.
-        worker_action = self.worker.get_action(worker_obs0, goal, False, False)
+        worker_action = self.worker.get_action(
+            obs=np.asarray([worker_obs0]),
+            context=np.asarray([goal]),
+            apply_noise=False,
+            random_actions=False
+        )[0]
 
         # Use the model to compute the next step observation.
         delta = self.sess.run(
             self.worker_model,
             feed_dict={
-                self.worker_obs_ph: worker_obs0,
-                self.worker_action_ph: worker_action
+                self.worker_obs_ph: np.asarray([worker_obs0]),
+                self.worker_action_ph: np.asarray([worker_action])
             }
-        )
+        )[0]
         worker_obs1 = worker_obs0 + delta
 
         # Compute the intrinsic reward.
@@ -1203,7 +1208,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.worker_reward_fn(worker_obs0, goal, worker_obs1)
 
         # Compute the next step goal and add it to the observation.
-        next_goal = self.goal_transition_fn(worker_obs0, goal, worker_obs1)
+        next_goal = self.goal_transition_fn(
+            obs0=worker_obs0[:goal_dim],
+            goal=goal,
+            obs1=worker_obs1[:goal_dim]
+        )
         worker_obs1 = np.append(worker_obs1, next_goal)
 
         return worker_action, worker_obs1, worker_reward
