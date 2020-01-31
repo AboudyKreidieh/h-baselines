@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from copy import deepcopy
 import random
+from functools import reduce
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
@@ -10,6 +11,7 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
+from hbaselines.utils.tf_util import reduce_std
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):
@@ -383,7 +385,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self._setup_connected_gradients()
 
         if self.multistep_llp:
+            # Create the Worker dynamics model and training procedure.
             self._setup_multistep_llp()
+        else:
+            # Default values if the specific algorithm is not called.
+            self.worker_obs_ph = None
+            self.worker_obs1_ph = None
+            self.worker_action_ph = None
+            self.worker_model = None
+            self.worker_model_loss = None
+            self.worker_model_optimizer = None
 
     def initialize(self):
         """See parent class.
@@ -935,6 +946,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def _setup_multistep_llp(self):
         """Create the trainable features of the multi-step LLP algorithm."""
+        if self.verbose >= 2:
+            print('setting up Worker dynamics model')
+
         with tf.compat.v1.variable_scope("multistep_llp", reuse=False):
             # Create placeholders for the model.
             self.worker_obs_ph = tf.compat.v1.placeholder(
@@ -962,12 +976,30 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.worker_model_loss = -tf.reduce_mean(logp)
 
             # Create an optimizer object.
-            optimizer = tf.train.AdamOptimizer(self.actor_lr)
+            optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
             # Create the model optimization technique.
             self.worker_model_optimizer = optimizer.minimize(
                 self.worker_model_loss,
                 var_list=get_trainable_vars('multistep_llp'))
+
+            # Add the model loss and dynamics to the tensorboard log.
+            tf.compat.v1.summary.scalar(
+                'worker_model_loss', self.worker_model_loss)
+            tf.compat.v1.summary.scalar(
+                'worker_model_mean', tf.reduce_mean(self.worker_model))
+            tf.compat.v1.summary.scalar(
+                'worker_model_std', reduce_std(self.worker_model))
+
+        # Print the shapes of the generated models.
+        if self.verbose >= 2:
+            scope_name = 'multistep_llp/rho'
+            critic_shapes = [var.get_shape().as_list()
+                             for var in get_trainable_vars(scope_name)]
+            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                    for shape in critic_shapes])
+            print('  model shapes: {}'.format(critic_shapes))
+            print('  model params: {}'.format(critic_nb_params))
 
     def _setup_worker_model(self,
                             obs,
@@ -999,9 +1031,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the Worker dynamics model
         """
-        if self.verbose >= 2:
-            print('setting up Worker dynamics model')
-
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # Concatenate the observations and actions.
             rho_h = tf.concat([obs, action], axis=-1)
@@ -1045,9 +1074,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def _multistep_llp_update(self, meta_action, worker_obses, worker_actions):
         """Perform the multi-step LLP update procedure.
 
-        The Worker states and actions, as well as the intrinsic rewards, are
-        relabeled using a trained dynamics model. The last Worker observation
-        is also used to relabel the Manager next step observation.
+        This method performs the following two operations:
+
+        1. The Worker states and actions, as well as the intrinsic rewards, are
+           relabeled using trained dynamic model. The last Worker observation
+           is also used to relabel the Manager next step observation.
+        2. The original goal-less states and actions are used to train the
+           Worker dynamics model.
 
         Parameters
         ----------
