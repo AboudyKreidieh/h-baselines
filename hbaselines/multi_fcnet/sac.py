@@ -253,140 +253,146 @@ class MultiFeedForwardPolicy(BasePolicy):
             name='all_obs')
 
         if self.shared:
-            # Create an input placeholder for the full actions.
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
-                name='all_actions')
+            self._setup_maddpg_shared(scope)
+        else:
+            self._setup_maddpg_independent(scope)
 
-            # Create actor and critic networks for the shared policy.
-            replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
-                deterministic_action, policy_out, logp_pi, logp_action, qf1, \
-                qf2, value_fn, log_alpha, alpha, value_target = \
-                self._setup_agent(
-                    ob_space=self.ob_space,
-                    ac_space=self.ac_space,
-                    co_space=self.co_space,
-                )
+    def _setup_maddpg_shared(self, scope):
+        # Create an input placeholder for the full actions.
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+            name='all_actions')
+
+        # Create actor and critic networks for the shared policy.
+        replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
+            deterministic_action, policy_out, logp_pi, logp_action, qf1, \
+            qf2, value_fn, log_alpha, alpha, value_target = \
+            self._setup_agent(
+                ob_space=self.ob_space,
+                ac_space=self.ac_space,
+                co_space=self.co_space,
+            )
+
+        # Store the new objects in their respective attributes.
+        self.replay_buffer = replay_buffer
+        self.terminals1 = terminals1
+        self.rew_ph = rew_ph
+        self.action_ph = action_ph
+        self.obs_ph = obs_ph
+        self.obs1_ph = obs1_ph
+        self.deterministic_action = deterministic_action
+        self.policy_out = policy_out
+        self.logp_pi = logp_pi
+        self.logp_action = logp_action
+        self.qf1 = qf1
+        self.qf2 = qf2
+        self.value_fn = value_fn
+        self.log_alpha = log_alpha
+        self.alpha = alpha
+        self.value_target = value_target
+
+        # Setup the target critic and critic update procedure.
+        self.critic_loss, self.critic_optimizer = \
+            self._setup_critic_updates_shared(self.value_target)
+
+        # Create the target update operations.
+        init, soft = self._setup_target_updates_shared(scope)
+        self.target_init_updates = init
+        self.target_soft_updates = soft
+
+        # Setup the alpha and actor update procedures.
+        l1, o1, l2, o2 = self._setup_actor_updates_shared()
+        self.alpha_loss = l1
+        self.alpha_optimizer = o1
+        self.actor_loss = l2
+        self.actor_optimizer = o2
+
+        # Setup the running means and standard deviations of the model
+        # inputs and outputs.
+        self._setup_stats_shared(scope or "Model")
+
+    def _setup_maddpg_independent(self, scope):
+        # Create an input placeholder for the full actions.
+        all_ac_dim = sum(self.ac_space[key].shape[0]
+                         for key in self.ac_space.keys())
+
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, all_ac_dim),
+            name='all_actions')
+
+        self.replay_buffer = {}
+        self.terminals1 = {}
+        self.rew_ph = {}
+        self.action_ph = {}
+        self.obs_ph = {}
+        self.obs1_ph = {}
+        self.deterministic_action = {}
+        self.policy_out = {}
+        self.logp_pi = {}
+        self.logp_action = {}
+        self.qf1 = {}
+        self.qf2 = {}
+        self.value_fn = {}
+        self.log_alpha = {}
+        self.alpha = {}
+        self.value_target = {}
+
+        # We move through the keys in a sorted fashion so that we may
+        # collect the observations and actions for the full state in a
+        # sorted manner as well.
+        for key in sorted(self.ob_space.keys()):
+            # Create actor and critic networks for the the individual
+            # policies.
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
+                    obs1_ph, deterministic_action, policy_out, logp_pi, \
+                    logp_action, qf1, qf2, value_fn, log_alpha, alpha, \
+                    value_target = \
+                    self._setup_agent(
+                        ob_space=self.ob_space[key],
+                        ac_space=self.ac_space[key],
+                        co_space=self.co_space[key],
+                    )
 
             # Store the new objects in their respective attributes.
-            self.replay_buffer = replay_buffer
-            self.terminals1 = terminals1
-            self.rew_ph = rew_ph
-            self.action_ph = action_ph
-            self.obs_ph = obs_ph
-            self.obs1_ph = obs1_ph
-            self.deterministic_action = deterministic_action
-            self.policy_out = policy_out
-            self.logp_pi = logp_pi
-            self.logp_action = logp_action
-            self.qf1 = qf1
-            self.qf2 = qf2
-            self.value_fn = value_fn
-            self.log_alpha = log_alpha
-            self.alpha = alpha
-            self.value_target = value_target
+            self.replay_buffer[key] = replay_buffer
+            self.terminals1[key] = terminals1
+            self.rew_ph[key] = rew_ph
+            self.action_ph[key] = action_ph
+            self.obs_ph[key] = obs_ph
+            self.obs1_ph[key] = obs1_ph
+            self.deterministic_action[key] = deterministic_action
+            self.policy_out[key] = policy_out
+            self.logp_pi[key] = logp_pi
+            self.logp_action[key] = logp_action
+            self.qf1[key] = qf1
+            self.qf2[key] = qf2
+            self.value_fn[key] = value_fn
+            self.log_alpha[key] = log_alpha
+            self.alpha[key] = alpha
+            self.value_target[key] = value_target
 
-            # Setup the target critic and critic update procedure.
-            self.critic_loss, self.critic_optimizer = \
-                self._setup_critic_updates_shared(self.value_target)
+        # Setup the target critic and critic update procedure.
+        self.critic_loss, self.critic_optimizer = \
+            self._setup_critic_updates_nonshared(self.value_target)
 
-            # Create the target update operations.
-            init, soft = self._setup_target_updates_shared(scope)
-            self.target_init_updates = init
-            self.target_soft_updates = soft
+        # Create the target update operations.
+        init, soft = self._setup_target_updates_nonshared(scope)
+        self.target_init_updates = init
+        self.target_soft_updates = soft
 
-            # Setup the alpha and actor update procedures.
-            l1, o1, l2, o2 = self._setup_actor_updates_shared()
-            self.alpha_loss = l1
-            self.alpha_optimizer = o1
-            self.actor_loss = l2
-            self.actor_optimizer = o2
+        # Setup the alpha and actor update procedures.
+        l1, o1, l2, o2 = self._setup_actor_updates_nonshared()
+        self.alpha_loss = l1
+        self.alpha_optimizer = o1
+        self.actor_loss = l2
+        self.actor_optimizer = o2
 
-            # Setup the running means and standard deviations of the model
-            # inputs and outputs.
-            self._setup_stats_shared(scope or "Model")
-        else:
-            # Create an input placeholder for the full actions.
-            all_ac_dim = sum(self.ac_space[key].shape[0]
-                             for key in self.ac_space.keys())
-
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, all_ac_dim),
-                name='all_actions')
-
-            self.replay_buffer = {}
-            self.terminals1 = {}
-            self.rew_ph = {}
-            self.action_ph = {}
-            self.obs_ph = {}
-            self.obs1_ph = {}
-            self.deterministic_action = {}
-            self.policy_out = {}
-            self.logp_pi = {}
-            self.logp_action = {}
-            self.qf1 = {}
-            self.qf2 = {}
-            self.value_fn = {}
-            self.log_alpha = {}
-            self.alpha = {}
-            self.value_target = {}
-
-            # We move through the keys in a sorted fashion so that we may
-            # collect the observations and actions for the full state in a
-            # sorted manner as well.
-            for key in sorted(self.ob_space.keys()):
-                # Create actor and critic networks for the the individual
-                # policies.
-                with tf.compat.v1.variable_scope(key, reuse=False):
-                    replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
-                        obs1_ph, deterministic_action, policy_out, logp_pi, \
-                        logp_action, qf1, qf2, value_fn, log_alpha, alpha, \
-                        value_target = \
-                        self._setup_agent(
-                            ob_space=self.ob_space[key],
-                            ac_space=self.ac_space[key],
-                            co_space=self.co_space[key],
-                        )
-
-                # Store the new objects in their respective attributes.
-                self.replay_buffer[key] = replay_buffer
-                self.terminals1[key] = terminals1
-                self.rew_ph[key] = rew_ph
-                self.action_ph[key] = action_ph
-                self.obs_ph[key] = obs_ph
-                self.obs1_ph[key] = obs1_ph
-                self.deterministic_action[key] = deterministic_action
-                self.policy_out[key] = policy_out
-                self.logp_pi[key] = logp_pi
-                self.logp_action[key] = logp_action
-                self.qf1[key] = qf1
-                self.qf2[key] = qf2
-                self.value_fn[key] = value_fn
-                self.log_alpha[key] = log_alpha
-                self.alpha[key] = alpha
-                self.value_target[key] = value_target
-
-            # Setup the target critic and critic update procedure.
-            self.critic_loss, self.critic_optimizer = \
-                self._setup_critic_updates_nonshared(self.value_target)
-
-            # Create the target update operations.
-            init, soft = self._setup_target_updates_nonshared(scope)
-            self.target_init_updates = init
-            self.target_soft_updates = soft
-
-            # Setup the alpha and actor update procedures.
-            l1, o1, l2, o2 = self._setup_actor_updates_nonshared()
-            self.alpha_loss = l1
-            self.alpha_optimizer = o1
-            self.actor_loss = l2
-            self.actor_optimizer = o2
-
-            # Setup the running means and standard deviations of the model
-            # inputs and outputs.
-            self._setup_stats_nonshared(scope or "Model")
+        # Setup the running means and standard deviations of the model
+        # inputs and outputs.
+        self._setup_stats_nonshared(scope or "Model")
 
     def _setup_agent(self, ob_space, ac_space, co_space):
         """Create the components for an individual agent.
