@@ -31,7 +31,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         actor policy. See TD3 paper for more.
     target_noise_clip : float
         clipping term for the noise injected in the target actor policy
-    replay_buffer : hbaselines.multi_fcnet.replay_buffer.MultiReplayBuffer
+    replay_buffer : MultiReplayBuffer or SharedReplayBuffer
         the replay buffer for each agent
     terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals for each agent
