@@ -1016,14 +1016,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Create the output mean.
             rho_mean = self._layer(
-                rho_h, 2 * ob_space.shape, 'rho_mean',
+                rho_h, ob_space.shape[0], 'rho_mean',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)
             )
 
             # Create the output logstd term.
             rho_logstd = self._layer(
-                rho_h, 2 * ob_space.shape, 'rho_logstd',
+                rho_h, ob_space.shape[0], 'rho_logstd',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)
             )

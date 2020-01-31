@@ -1,10 +1,13 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
+import tensorflow as tf
 import numpy as np
 from gym.spaces import Box
+
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
+from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
@@ -496,6 +499,29 @@ class TestMisc(unittest.TestCase):
         # test for bottleneck2
         state_indices = get_state_indices(env_name="bottleneck2", **params)
         del state_indices  # TODO
+
+
+class TestTFUtil(unittest.TestCase):
+
+    def setUp(self):
+        self.sess = tf.compat.v1.Session()
+
+    def tearDown(self):
+        self.sess.close()
+
+    def test_gaussian_likelihood(self):
+        """Check the functionality of the gaussian_likelihood() method."""
+        input_ = tf.constant([[0, 1, 2]], dtype=tf.float32)
+        mu_ = tf.constant([[0, 0, 0]], dtype=tf.float32)
+        log_std = tf.constant([[-4, -3, -2]], dtype=tf.float32)
+        val = gaussian_likelihood(input_, mu_, log_std)
+        expected = -304.65784
+
+        self.assertAlmostEqual(self.sess.run(val)[0], expected, places=4)
+
+    def test_apply_squashing(self):
+        """Check the functionality of the apply_squashing() method."""
+        pass  # TODO
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

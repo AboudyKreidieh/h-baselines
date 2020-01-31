@@ -472,22 +472,6 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.target_entropy,
                          self.policy_params['target_entropy'])
 
-    def test_gaussian_likelihood(self):
-        """Check the functionality of the _gaussian_likelihood() method."""
-        policy = SACFeedForwardPolicy(**self.policy_params)
-
-        input_ = tf.constant([[0, 1, 2]], dtype=tf.float32)
-        mu_ = tf.constant([[0, 0, 0]], dtype=tf.float32)
-        log_std = tf.constant([[-4, -3, -2]], dtype=tf.float32)
-        val = policy._gaussian_likelihood(input_, mu_, log_std)
-        expected = -304.65784
-
-        self.assertAlmostEqual(policy.sess.run(val)[0], expected, places=4)
-
-    def test_apply_squashing(self):
-        """Check the functionality of the _apply_squashing() method."""
-        pass  # TODO
-
     def test_initialize(self):
         """Check the functionality of the initialize() method.
 
@@ -820,6 +804,107 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                  orig_goals.flatten()]
             )
         )
+
+    def test_setup_multistep_llp(self):
+        """Check the functionality of the _setup_multistep_llp() method.
+
+        This test validates that the Worker model is introduced to the graph
+        when `multistep_llp` is set to True.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["multistep_llp"] = True
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['Manager/model/pi/fc0/bias:0',
+             'Manager/model/pi/fc0/kernel:0',
+             'Manager/model/pi/fc1/bias:0',
+             'Manager/model/pi/fc1/kernel:0',
+             'Manager/model/pi/output/bias:0',
+             'Manager/model/pi/output/kernel:0',
+             'Manager/model/qf_0/fc0/bias:0',
+             'Manager/model/qf_0/fc0/kernel:0',
+             'Manager/model/qf_0/fc1/bias:0',
+             'Manager/model/qf_0/fc1/kernel:0',
+             'Manager/model/qf_0/qf_output/bias:0',
+             'Manager/model/qf_0/qf_output/kernel:0',
+             'Manager/model/qf_1/fc0/bias:0',
+             'Manager/model/qf_1/fc0/kernel:0',
+             'Manager/model/qf_1/fc1/bias:0',
+             'Manager/model/qf_1/fc1/kernel:0',
+             'Manager/model/qf_1/qf_output/bias:0',
+             'Manager/model/qf_1/qf_output/kernel:0',
+             'Manager/target/pi/fc0/bias:0',
+             'Manager/target/pi/fc0/kernel:0',
+             'Manager/target/pi/fc1/bias:0',
+             'Manager/target/pi/fc1/kernel:0',
+             'Manager/target/pi/output/bias:0',
+             'Manager/target/pi/output/kernel:0',
+             'Manager/target/qf_0/fc0/bias:0',
+             'Manager/target/qf_0/fc0/kernel:0',
+             'Manager/target/qf_0/fc1/bias:0',
+             'Manager/target/qf_0/fc1/kernel:0',
+             'Manager/target/qf_0/qf_output/bias:0',
+             'Manager/target/qf_0/qf_output/kernel:0',
+             'Manager/target/qf_1/fc0/bias:0',
+             'Manager/target/qf_1/fc0/kernel:0',
+             'Manager/target/qf_1/fc1/bias:0',
+             'Manager/target/qf_1/fc1/kernel:0',
+             'Manager/target/qf_1/qf_output/bias:0',
+             'Manager/target/qf_1/qf_output/kernel:0',
+             'Worker/model/pi/fc0/bias:0',
+             'Worker/model/pi/fc0/kernel:0',
+             'Worker/model/pi/fc1/bias:0',
+             'Worker/model/pi/fc1/kernel:0',
+             'Worker/model/pi/output/bias:0',
+             'Worker/model/pi/output/kernel:0',
+             'Worker/model/qf_0/fc0/bias:0',
+             'Worker/model/qf_0/fc0/kernel:0',
+             'Worker/model/qf_0/fc1/bias:0',
+             'Worker/model/qf_0/fc1/kernel:0',
+             'Worker/model/qf_0/qf_output/bias:0',
+             'Worker/model/qf_0/qf_output/kernel:0',
+             'Worker/model/qf_1/fc0/bias:0',
+             'Worker/model/qf_1/fc0/kernel:0',
+             'Worker/model/qf_1/fc1/bias:0',
+             'Worker/model/qf_1/fc1/kernel:0',
+             'Worker/model/qf_1/qf_output/bias:0',
+             'Worker/model/qf_1/qf_output/kernel:0',
+             'Worker/target/pi/fc0/bias:0',
+             'Worker/target/pi/fc0/kernel:0',
+             'Worker/target/pi/fc1/bias:0',
+             'Worker/target/pi/fc1/kernel:0',
+             'Worker/target/pi/output/bias:0',
+             'Worker/target/pi/output/kernel:0',
+             'Worker/target/qf_0/fc0/bias:0',
+             'Worker/target/qf_0/fc0/kernel:0',
+             'Worker/target/qf_0/fc1/bias:0',
+             'Worker/target/qf_0/fc1/kernel:0',
+             'Worker/target/qf_0/qf_output/bias:0',
+             'Worker/target/qf_0/qf_output/kernel:0',
+             'Worker/target/qf_1/fc0/bias:0',
+             'Worker/target/qf_1/fc0/kernel:0',
+             'Worker/target/qf_1/fc1/bias:0',
+             'Worker/target/qf_1/fc1/kernel:0',
+             'Worker/target/qf_1/qf_output/bias:0',
+             'Worker/target/qf_1/qf_output/kernel:0',
+             'multistep_llp/rho/fc0/bias:0',
+             'multistep_llp/rho/fc0/kernel:0',
+             'multistep_llp/rho/fc1/bias:0',
+             'multistep_llp/rho/fc1/kernel:0',
+             'multistep_llp/rho/rho_logstd/bias:0',
+             'multistep_llp/rho/rho_logstd/kernel:0',
+             'multistep_llp/rho/rho_mean/bias:0',
+             'multistep_llp/rho/rho_mean/kernel:0']
+        )
+
+        # Check the size of the output from the Worker model.
+        self.assertTupleEqual(
+            tuple(i.value for i in policy.worker_model.shape),
+            (None, policy.worker.ob_space.shape[0]))
 
 
 class TestTD3GoalConditionedPolicy(unittest.TestCase):
