@@ -60,10 +60,11 @@ class TestTrain(unittest.TestCase):
             'hindsight': False,
             'subgoal_testing_rate':
                 GOAL_CONDITIONED_PARAMS['subgoal_testing_rate'],
-            'use_fingerprints': False,
-            'centralized_value_functions': False,
             'connected_gradients': False,
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'multistep_llp': False,
+            'use_fingerprints': False,
+            'centralized_value_functions': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -103,10 +104,11 @@ class TestTrain(unittest.TestCase):
             '--off_policy_corrections',
             '--hindsight',
             '--subgoal_testing_rate', '25',
-            '--use_fingerprints',
-            '--centralized_value_functions',
             '--connected_gradients',
             '--cg_weights', '26',
+            '--multistep_llp',
+            '--use_fingerprints',
+            '--centralized_value_functions',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
@@ -138,10 +140,11 @@ class TestTrain(unittest.TestCase):
                 'off_policy_corrections': True,
                 'hindsight': True,
                 'subgoal_testing_rate': 25.0,
-                'use_fingerprints': True,
-                'centralized_value_functions': True,
                 'connected_gradients': True,
                 'cg_weights': 26,
+                'multistep_llp': True,
+                'use_fingerprints': True,
+                'centralized_value_functions': True,
             }
         }
         self.assertDictEqual(hp, expected_hp)
