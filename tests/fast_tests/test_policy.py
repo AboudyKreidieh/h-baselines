@@ -472,22 +472,6 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
         self.assertEqual(policy.target_entropy,
                          self.policy_params['target_entropy'])
 
-    def test_gaussian_likelihood(self):
-        """Check the functionality of the _gaussian_likelihood() method."""
-        policy = SACFeedForwardPolicy(**self.policy_params)
-
-        input_ = tf.constant([[0, 1, 2]], dtype=tf.float32)
-        mu_ = tf.constant([[0, 0, 0]], dtype=tf.float32)
-        log_std = tf.constant([[-4, -3, -2]], dtype=tf.float32)
-        val = policy._gaussian_likelihood(input_, mu_, log_std)
-        expected = -304.65784
-
-        self.assertAlmostEqual(policy.sess.run(val)[0], expected, places=4)
-
-    def test_apply_squashing(self):
-        """Check the functionality of the _apply_squashing() method."""
-        pass  # TODO
-
     def test_initialize(self):
         """Check the functionality of the initialize() method.
 

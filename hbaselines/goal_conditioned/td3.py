@@ -336,13 +336,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         Parameters
         ----------
-        obs0 : np.ndarray
+        obs0 : array_like
             batch of manager observations
         actions : numpy float
             batch of manager actions executed given obs_batch
         rewards : numpy float
             manager rewards received as results of executing act_batch
-        obs1 : np.ndarray
+        obs1 : array_like
             set of next manager observations seen after executing act_batch
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
