@@ -450,8 +450,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.replay_buffer.sample(with_additional=with_additional)
 
         if self.multistep_llp:
+            # Train the model from sampled data.
+            self._train_worker_model(worker_obs0, worker_obs1, worker_act)
+
             # Perform model-based relabeling.
-            w_obses, w_actions, w_rewards = self._multistep_llp_update(
+            w_obses, w_actions, w_rewards = self._relabel_low_samples(
                 meta_action=meta_act,
                 worker_obses=additional["worker_obses"],
                 worker_actions=additional["worker_actions"]
@@ -1071,16 +1074,36 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return rho, rho_logp
 
-    def _multistep_llp_update(self, meta_action, worker_obses, worker_actions):
-        """Perform the multi-step LLP update procedure.
+    def _train_worker_model(self, worker_obs0, worker_obs1, worker_act):
+        """Train the Worker dynamics model.
 
-        This method performs the following two operations:
+        The original goal-less states and actions are used to train the model.
 
-        1. The Worker states and actions, as well as the intrinsic rewards, are
-           relabeled using trained dynamic model. The last Worker observation
-           is also used to relabel the Manager next step observation.
-        2. The original goal-less states and actions are used to train the
-           Worker dynamics model.
+        Parameters
+        ----------
+        worker_obs0 : array_like
+            batch of worker observations
+        worker_obs1 : array_like
+            batch of next worker observations
+        worker_act : array_like
+            batch of worker actions
+        """
+        # The goal-less states end at this index.
+        obs_dim = self.worker.ob_space.shape[0]
+
+        # Perform the training operation.
+        self.sess.run(self.worker_model_optimizer, feed_dict={
+            self.worker_obs_ph: worker_obs0[:, :obs_dim],
+            self.worker_obs1_ph: worker_obs1[:, :obs_dim],
+            self.worker_action_ph: worker_act
+        })
+
+    def _relabel_low_samples(self, meta_action, worker_obses, worker_actions):
+        """Perform lower-level relabeling.
+
+        The Worker states and actions, as well as the intrinsic rewards, are
+        relabeled using trained dynamic model. The last Worker observation is
+        also used to relabel the Manager next step observation.
 
         Parameters
         ----------
