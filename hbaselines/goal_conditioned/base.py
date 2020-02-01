@@ -461,7 +461,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             )
 
             # Update the samples from the batch.  TODO: meta_obs1?
-            meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew = \
+            new_meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew = \
                 self._sample_from_relabeled(
                     worker_obses=w_obses,
                     worker_actions=w_actions,
@@ -469,6 +469,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 )
             additional["worker_obses"] = w_obses
             additional["worker_actions"] = w_actions
+
+            # In case the Manager observation also contains a contextual term.
+            new_shape = new_meta_obs1.shape
+            meta_obs1[:new_shape[0], :new_shape[1]] = new_meta_obs1.copy()
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -1253,15 +1257,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         _, w_ac_dim, _ = worker_actions.shape
         goal_dim = self.manager.ac_space.shape[0]
 
-        meta_obs1 = np.array((batch_size, goal_dim))
-        worker_obs0 = np.array((batch_size, w_obs_dim))
-        worker_obs1 = np.array((batch_size, w_obs_dim))
-        worker_act = np.array((batch_size, w_ac_dim))
-        worker_rew = np.array(batch_size)
+        meta_obs1 = np.zeros((batch_size, w_obs_dim - goal_dim))
+        worker_obs0 = np.zeros((batch_size, w_obs_dim))
+        worker_obs1 = np.zeros((batch_size, w_obs_dim))
+        worker_act = np.zeros((batch_size, w_ac_dim))
+        worker_rew = np.zeros(batch_size)
 
         for i in range(batch_size):
             indx_val = random.randint(0, worker_obses.shape[2] - 2)
-            meta_obs1 = worker_obses[i, -goal_dim:, -1]
+            meta_obs1[i, :] = worker_obses[i, :-goal_dim, -1]
             worker_obs0[i, :] = worker_obses[i, :, indx_val]
             worker_obs1[i, :] = worker_obses[i, :, indx_val + 1]
             worker_act[i, :] = worker_actions[i, :, indx_val]
