@@ -665,6 +665,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         td_map.update(self.worker.get_td_map_from_batch(
             worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
 
+        if self.multistep_llp:
+            td_map.update({
+                self.worker_obs_ph:
+                    worker_obs0[:, :-self.manager.ac_space.shape[0]],
+                self.worker_obs1_ph:
+                    worker_obs1[:, :-self.manager.ac_space.shape[0]],
+                self.worker_action_ph: worker_act
+            })
+
         return td_map
 
     # ======================================================================= #
@@ -1141,29 +1150,28 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         new_worker_actions = np.zeros((batch_size, w_ac_dim, meta_period))
         new_worker_rewards = np.zeros((batch_size, meta_period))
 
-        for i in range(batch_size):
-            # Collect the initial samples.
-            obs0 = worker_obses[i, :, 0]
+        # Collect the initial samples.
+        obs0 = worker_obses[:, :, 0]
+        action, obs1, rew = self._get_model_next_step(obs0)
+
+        # Add the initial samples.
+        new_worker_actions[:, :, 0] = action
+        new_worker_obses[:, :, 0] = obs0
+        new_worker_obses[:, :, 1] = obs1
+        new_worker_rewards[:, 0] = rew
+        obs0 = obs1.copy()
+
+        # TODO: if it ends prematurely?
+        for i in range(1, meta_period):
+            # Compute the next step variables.
             action, obs1, rew = self._get_model_next_step(obs0)
 
-            # Add the initial samples.
-            new_worker_actions[i, :, 0] = action
-            new_worker_obses[i, :, 0] = obs0
-            new_worker_obses[i, :, 1] = obs1
-            new_worker_rewards[i, 0] = rew
+            # Add the next step samples.
+            new_worker_actions[:, :, i] = action
+            new_worker_obses[:, :, i] = obs0
+            new_worker_obses[:, :, i + 1] = obs1
+            new_worker_rewards[:, i] = rew
             obs0 = obs1.copy()
-
-            # TODO: if it ends prematurely?
-            for j in range(1, meta_period):
-                # Compute the next step variables.
-                action, obs1, rew = self._get_model_next_step(obs0)
-
-                # Add the next step samples.
-                new_worker_actions[i, :, j] = action
-                new_worker_obses[i, :, j] = obs0
-                new_worker_obses[i, :, j + 1] = obs1
-                new_worker_rewards[i, j] = rew
-                obs0 = obs1.copy()
 
         return new_worker_obses, new_worker_actions, new_worker_rewards
 
@@ -1186,38 +1194,44 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Separate the observation and goal.
         goal_dim = self.manager.ac_space.shape[0]
-        worker_obs0 = obs0[:-goal_dim]
-        goal = obs0[-goal_dim:]
+        worker_obs0 = obs0[:, :-goal_dim]
+        goal = obs0[:, -goal_dim:]
 
         # Compute the action using the current instantiation of the policy.
         worker_action = self.worker.get_action(
-            obs=np.asarray([worker_obs0]),
-            context=np.asarray([goal]),
+            obs=worker_obs0,
+            context=goal,
             apply_noise=False,
             random_actions=False
-        )[0]
+        )
 
         # Use the model to compute the next step observation.
         delta = self.sess.run(
             self.worker_model,
             feed_dict={
-                self.worker_obs_ph: np.asarray([worker_obs0]),
-                self.worker_action_ph: np.asarray([worker_action])
+                self.worker_obs_ph: worker_obs0,
+                self.worker_action_ph: worker_action
             }
-        )[0]
+        )
         worker_obs1 = worker_obs0 + delta
 
         # Compute the intrinsic reward.
-        worker_reward = self.worker_reward_scale * \
-            self.worker_reward_fn(worker_obs0, goal, worker_obs1)
+        worker_reward = np.array([
+            self.worker_reward_scale * self.worker_reward_fn(
+                states=worker_obs0[i, :],
+                goals=goal[i, :],
+                next_states=worker_obs1[i, :]
+            )
+            for i in range(obs0.shape[0])
+        ])
 
         # Compute the next step goal and add it to the observation.
         next_goal = self.goal_transition_fn(
-            obs0=worker_obs0[:goal_dim],
+            obs0=worker_obs0[:, :goal_dim],
             goal=goal,
-            obs1=worker_obs1[:goal_dim]
+            obs1=worker_obs1[:, :goal_dim]
         )
-        worker_obs1 = np.append(worker_obs1, next_goal)
+        worker_obs1 = np.concatenate((worker_obs1, next_goal), axis=1)
 
         return worker_action, worker_obs1, worker_reward
 
