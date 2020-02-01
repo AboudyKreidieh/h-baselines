@@ -1,5 +1,6 @@
 """Base goal-conditioned hierarchical policy."""
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 from copy import deepcopy
 import random
@@ -10,7 +11,6 @@ from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_goal_indices
 from hbaselines.utils.tf_util import get_trainable_vars
-from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import reduce_std
 
 
@@ -980,7 +980,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Computes the log probability of choosing a specific output - used
             # by the loss
-            rho_logp = gaussian_likelihood(delta, rho_mean, rho_logstd)
+            dist = tfp.distributions.MultivariateNormalDiag(
+                loc=rho_mean,
+                scale_diag=tf.exp(rho_logstd)
+            )
+            rho_logp = dist.log_prob(delta)
 
             # Create the model loss.
             self.worker_model_loss = -tf.reduce_mean(rho_logp)
