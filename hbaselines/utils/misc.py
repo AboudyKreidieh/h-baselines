@@ -129,11 +129,11 @@ def get_manager_ac_space(ob_space,
     return manager_ac_space
 
 
-def get_state_indices(ob_space,
-                      env_name,
-                      use_fingerprints,
-                      fingerprint_dim):
-    """Return the state indices for the worker rewards.
+def get_goal_indices(ob_space,
+                     env_name,
+                     use_fingerprints,
+                     fingerprint_dim):
+    """Return the state indices that correspond to components in the goal.
 
     This assigns the indices of the state that are assigned goals, and
     subsequently rewarded for performing those goals.

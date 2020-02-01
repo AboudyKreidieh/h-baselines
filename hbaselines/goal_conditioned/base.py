@@ -8,7 +8,7 @@ from functools import reduce
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
+from hbaselines.utils.misc import get_manager_ac_space, get_goal_indices
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import reduce_std
@@ -366,14 +366,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             )
 
         # Collect the state indices for the worker rewards.
-        state_indices = get_state_indices(
+        self.goal_indices = get_goal_indices(
             ob_space, env_name, use_fingerprints, self.fingerprint_dim)
 
         # reward function for the worker
         def worker_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
-                state_indices=state_indices,
+                state_indices=self.goal_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
@@ -459,20 +459,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 worker_obses=additional["worker_obses"],
                 worker_actions=additional["worker_actions"]
             )
+            additional["worker_obses"][:, self.goal_indices] = w_obses
+            additional["worker_actions"] = w_actions
 
-            # Update the samples from the batch.  TODO: meta_obs1?
-            new_meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew = \
+            # Update the samples from the batch.
+            worker_obs0, worker_obs1, worker_act, worker_rew = \
                 self._sample_from_relabeled(
-                    worker_obses=w_obses,
+                    worker_obses=additional["worker_obses"],
                     worker_actions=w_actions,
                     worker_rewards=w_rewards
                 )
-            additional["worker_obses"] = w_obses
-            additional["worker_actions"] = w_actions
-
-            # In case the Manager observation also contains a contextual term.
-            new_shape = new_meta_obs1.shape
-            meta_obs1[:new_shape[0], :new_shape[1]] = new_meta_obs1.copy()
 
         # Update the Manager policy.
         if kwargs['update_meta']:
@@ -514,14 +510,24 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             m_critic_loss, m_actor_loss = [0, 0], 0
 
         # Update the Worker policy.
-        w_critic_loss, w_actor_loss = self.worker.update_from_batch(
-            obs0=worker_obs0,
-            actions=worker_act,
-            rewards=worker_rew,
-            obs1=worker_obs1,
-            terminals1=worker_done,
-            update_actor=update_actor,
-        )
+        if self.multistep_llp:  # FIXME
+            w_critic_loss, w_actor_loss = self.worker.update_from_batch(
+                obs0=worker_obs0,
+                actions=worker_act,
+                rewards=worker_rew,
+                obs1=worker_obs1,
+                terminals1=worker_done,
+                update_actor=update_actor,
+            )
+        else:
+            w_critic_loss, w_actor_loss = self.worker.update_from_batch(
+                obs0=worker_obs0,
+                actions=worker_act,
+                rewards=worker_rew,
+                obs1=worker_obs1,
+                terminals1=worker_done,
+                update_actor=update_actor,
+            )
 
         return (m_critic_loss, w_critic_loss), (m_actor_loss, w_actor_loss)
 
@@ -537,9 +543,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # function.
             goal_dim = self.meta_action.shape[1]
             self.meta_action = self.goal_transition_fn(
-                obs0=np.asarray([self._observations[-1][:goal_dim]]),
+                obs0=np.asarray([self._observations[-1][self.goal_indices]]),
                 goal=self.meta_action,
-                obs1=obs[:, :goal_dim]
+                obs1=obs[:, self.goal_indices]
             )
 
         # Return the worker action.
@@ -667,10 +673,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         if self.multistep_llp:
             td_map.update({
-                self.worker_obs_ph:
-                    worker_obs0[:, :-self.manager.ac_space.shape[0]],
-                self.worker_obs1_ph:
-                    worker_obs1[:, :-self.manager.ac_space.shape[0]],
+                self.worker_obs_ph: worker_obs0[:, self.goal_indices],
+                self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
                 self.worker_action_ph: worker_act
             })
 
@@ -969,11 +973,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Create placeholders for the model.
             self.worker_obs_ph = tf.compat.v1.placeholder(
                 tf.float32,
-                shape=(None,) + self.worker.ob_space.shape,
+                shape=(None,) + self.manager.ac_space.shape,
                 name="worker_obs0")
             self.worker_obs1_ph = tf.compat.v1.placeholder(
                 tf.float32,
-                shape=(None,) + self.worker.ob_space.shape,
+                shape=(None,) + self.manager.ac_space.shape,
                 name="worker_obs1")
             self.worker_action_ph = tf.compat.v1.placeholder(
                 tf.float32,
@@ -985,7 +989,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 obs=self.worker_obs_ph,
                 obs1=self.worker_obs1_ph,
                 action=self.worker_action_ph,
-                ob_space=self.ob_space,
+                ob_space=self.manager.ac_space,
             )
 
             # Create the model loss.
@@ -1101,13 +1105,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         worker_act : array_like
             batch of worker actions
         """
-        # The goal-less states end at this index.
-        obs_dim = self.worker.ob_space.shape[0]
-
-        # Perform the training operation.
         self.sess.run(self.worker_model_optimizer, feed_dict={
-            self.worker_obs_ph: worker_obs0[:, :obs_dim],
-            self.worker_obs1_ph: worker_obs1[:, :obs_dim],
+            self.worker_obs_ph: worker_obs0[:, self.goal_indices],
+            self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
             self.worker_action_ph: worker_act
         })
 
@@ -1142,11 +1142,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Collect dimensions.
         batch_size, m_ac_dim = meta_action.shape
-        _, w_obs_dim, _ = worker_obses.shape
         _, w_ac_dim, meta_period = worker_actions.shape
 
         # The relabeled samples will be stored here.
-        new_worker_obses = np.zeros((batch_size, w_obs_dim, meta_period + 1))
+        new_worker_obses = np.zeros((batch_size, m_ac_dim, meta_period + 1))
         new_worker_actions = np.zeros((batch_size, w_ac_dim, meta_period))
         new_worker_rewards = np.zeros((batch_size, meta_period))
 
@@ -1156,8 +1155,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Add the initial samples.
         new_worker_actions[:, :, 0] = action
-        new_worker_obses[:, :, 0] = obs0
-        new_worker_obses[:, :, 1] = obs1
+        new_worker_obses[:, :, 0] = obs0[:, self.goal_indices]
+        new_worker_obses[:, :, 1] = obs1[:, self.goal_indices]
         new_worker_rewards[:, 0] = rew
         obs0 = obs1.copy()
 
@@ -1168,8 +1167,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Add the next step samples.
             new_worker_actions[:, :, i] = action
-            new_worker_obses[:, :, i] = obs0
-            new_worker_obses[:, :, i + 1] = obs1
+            new_worker_obses[:, :, i + 1] = obs1[:, self.goal_indices]
             new_worker_rewards[:, i] = rew
             obs0 = obs1.copy()
 
@@ -1209,11 +1207,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         delta = self.sess.run(
             self.worker_model,
             feed_dict={
-                self.worker_obs_ph: worker_obs0,
+                self.worker_obs_ph: worker_obs0[:, self.goal_indices],
                 self.worker_action_ph: worker_action
             }
         )
-        worker_obs1 = worker_obs0 + delta
+        worker_obs1 = worker_obs0.copy()
+        worker_obs1[:, self.goal_indices] += delta
 
         # Compute the intrinsic reward.
         worker_reward = np.array([
@@ -1227,9 +1226,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Compute the next step goal and add it to the observation.
         next_goal = self.goal_transition_fn(
-            obs0=worker_obs0[:, :goal_dim],
+            obs0=worker_obs0[:, self.goal_indices],
             goal=goal,
-            obs1=worker_obs1[:, :goal_dim]
+            obs1=worker_obs1[:, self.goal_indices]
         )
         worker_obs1 = np.concatenate((worker_obs1, next_goal), axis=1)
 
@@ -1255,9 +1254,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            (batch_size, m_obs_dim) matrix of relabeled next step Manager
-            observations
-        array_like
             (batch_size, worker_obs) matrix of relabeled Worker observations
         array_like
             (batch_size, worker_obs) matrix of relabeled next step Worker
@@ -1269,9 +1265,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         batch_size, w_obs_dim, _ = worker_obses.shape
         _, w_ac_dim, _ = worker_actions.shape
-        goal_dim = self.manager.ac_space.shape[0]
 
-        meta_obs1 = np.zeros((batch_size, w_obs_dim - goal_dim))
         worker_obs0 = np.zeros((batch_size, w_obs_dim))
         worker_obs1 = np.zeros((batch_size, w_obs_dim))
         worker_act = np.zeros((batch_size, w_ac_dim))
@@ -1279,10 +1273,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         for i in range(batch_size):
             indx_val = random.randint(0, worker_obses.shape[2] - 2)
-            meta_obs1[i, :] = worker_obses[i, :-goal_dim, -1]
             worker_obs0[i, :] = worker_obses[i, :, indx_val]
             worker_obs1[i, :] = worker_obses[i, :, indx_val + 1]
             worker_act[i, :] = worker_actions[i, :, indx_val]
             worker_rew[i] = worker_rewards[i, indx_val]
 
-        return meta_obs1, worker_obs0, worker_obs1, worker_act, worker_rew
+        return worker_obs0, worker_obs1, worker_act, worker_rew
