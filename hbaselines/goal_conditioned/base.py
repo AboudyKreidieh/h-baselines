@@ -449,27 +449,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             worker_obs1, worker_act, worker_rew, worker_done, additional = \
             self.replay_buffer.sample(with_additional=with_additional)
 
-        if self.multistep_llp:
-            # Train the model from sampled data.
-            self._train_worker_model(worker_obs0, worker_obs1, worker_act)
-
-            # Perform model-based relabeling.
-            w_obses, w_actions, w_rewards = self._relabel_low_samples(
-                meta_action=meta_act,
-                worker_obses=additional["worker_obses"],
-                worker_actions=additional["worker_actions"]
-            )
-            additional["worker_obses"][:, self.goal_indices] = w_obses
-            additional["worker_actions"] = w_actions
-
-            # Update the samples from the batch.
-            worker_obs0, worker_obs1, worker_act, worker_rew = \
-                self._sample_from_relabeled(
-                    worker_obses=additional["worker_obses"],
-                    worker_actions=w_actions,
-                    worker_rewards=w_rewards
-                )
-
         # Update the Manager policy.
         if kwargs['update_meta']:
             # Replace the goals with the most likely goals.
@@ -510,15 +489,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             m_critic_loss, m_actor_loss = [0, 0], 0
 
         # Update the Worker policy.
-        if self.multistep_llp:  # FIXME
-            w_critic_loss, w_actor_loss = self.worker.update_from_batch(
-                obs0=worker_obs0,
-                actions=worker_act,
-                rewards=worker_rew,
-                obs1=worker_obs1,
-                terminals1=worker_done,
-                update_actor=update_actor,
+        if self.multistep_llp:
+            self._train_worker_model(
+                worker_obses=additional["worker_obses"],
+                worker_obs0=worker_obs0,
+                worker_obs1=worker_obs1,
+                worker_act=worker_act
             )
+            w_critic_loss, w_actor_loss = [0, 0], 0  # FIXME
         else:
             w_critic_loss, w_actor_loss = self.worker.update_from_batch(
                 obs0=worker_obs0,
@@ -969,7 +947,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         if self.verbose >= 2:
             print('setting up Worker dynamics model')
 
-        with tf.compat.v1.variable_scope("multistep_llp", reuse=False):
+        # =================================================================== #
+        # Part 1. Create the model.                                           #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("Worker/model/multistep_llp"):
             # Create placeholders for the model.
             self.worker_obs_ph = tf.compat.v1.placeholder(
                 tf.float32,
@@ -985,15 +967,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 name="worker_action")
 
             # Create a trainable model of the Worker dynamics.
-            self.worker_model, logp = self._setup_worker_model(
+            self.worker_model, rho_mean, rho_logstd = self._setup_worker_model(
                 obs=self.worker_obs_ph,
-                obs1=self.worker_obs1_ph,
                 action=self.worker_action_ph,
-                ob_space=self.manager.ac_space,
+                ob_space=self.manager.ac_space
             )
 
+            # The worker model is trained to learn the change in state between
+            # two time-steps.
+            delta = self.worker_obs1_ph - self.worker_obs_ph
+
+            # Computes the log probability of choosing a specific output - used
+            # by the loss
+            rho_logp = gaussian_likelihood(delta, rho_mean, rho_logstd)
+
             # Create the model loss.
-            self.worker_model_loss = -tf.reduce_mean(logp)
+            self.worker_model_loss = -tf.reduce_mean(rho_logp)
 
             # Create an optimizer object.
             optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -1001,7 +990,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Create the model optimization technique.
             self.worker_model_optimizer = optimizer.minimize(
                 self.worker_model_loss,
-                var_list=get_trainable_vars('multistep_llp'))
+                var_list=get_trainable_vars('Worker/model/multistep_llp'))
 
             # Add the model loss and dynamics to the tensorboard log.
             tf.compat.v1.summary.scalar(
@@ -1011,19 +1000,83 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             tf.compat.v1.summary.scalar(
                 'worker_model_std', reduce_std(self.worker_model))
 
-        # Print the shapes of the generated models.
-        if self.verbose >= 2:
-            scope_name = 'multistep_llp/rho'
-            critic_shapes = [var.get_shape().as_list()
-                             for var in get_trainable_vars(scope_name)]
-            critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                    for shape in critic_shapes])
-            print('  model shapes: {}'.format(critic_shapes))
-            print('  model params: {}'.format(critic_nb_params))
+            # Print the shapes of the generated models.
+            if self.verbose >= 2:
+                scope_name = 'Worker/model/multistep_llp/rho'
+                critic_shapes = [var.get_shape().as_list()
+                                 for var in get_trainable_vars(scope_name)]
+                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                        for shape in critic_shapes])
+                print('  model shapes: {}'.format(critic_shapes))
+                print('  model params: {}'.format(critic_nb_params))
+
+        # =================================================================== #
+        # Part 2. Create the Worker optimization scheme.                      #
+        # =================================================================== #
+
+        # Collect the observation space of the Worker.
+        ob_dim = self._get_ob_dim(self.worker.ob_space, self.worker.co_space)
+
+        # Create a placeholder to store all worker observations for a given
+        # meta-period.
+        self.worker_obses_ph = tf.placeholder(
+            tf.float32,
+            shape=(None, ob_dim[0], self.meta_period + 1),
+            name='all_worker_obses')
+
+        # Compute the cumulative, discounted model-based loss using outputs
+        # from the Worker's trainable model.
+        with tf.compat.v1.variable_scope("Worker/model"):
+            # Create the initial Worker.
+            action = self.worker.make_actor(
+                obs=self.worker_obses_ph[:, :, 0],
+                reuse=True
+            )
+
+            goal_dim = self.manager.ac_space.shape[0]
+
+            # Initial step observation from the perspective of the model.
+            # FIXME: goal_indices
+            obs = self.worker_obses_ph[:, :goal_dim, 0]
+
+            # The initial goal is provided by this placeholder.
+            # FIXME: goal_indices
+            goal = self.worker_obses_ph[:, -goal_dim:, 0]
+
+            # Collect the first step loss, and the next observation and goal.
+            loss, obs1, goal = self._get_step_loss(obs, action, goal)
+
+            # Repeat the process for the meta-period.
+            for i in range(1, self.meta_period):
+                # Replace a subset of the next placeholder with the previous
+                # step dynamic and goal.
+                # FIXME: goal_indices
+                obs = tf.concat((
+                    obs1, self.worker_obses_ph[:, goal_dim:-goal_dim, i], goal
+                ), axis=1)
+
+                # Create the next-step Worker actor.
+                action = self.worker.make_actor(obs, reuse=True)
+
+                # Collect the next loss, observation, and goal.
+                next_loss, obs1, goal = self._get_step_loss(obs1, action, goal)
+
+                # Add the next loss to the discounted sum.
+                loss += self.worker.gamma ** i * next_loss
+
+            # Add the final loss for tensorboard logging.
+            tf.compat.v1.summary.scalar('worker_multistep_llp_loss', loss)
+
+        # Create an optimizer object.
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+
+        # Create the model optimization technique.
+        self._multistep_llp_optimizer = optimizer.minimize(
+            loss,
+            var_list=get_trainable_vars('Worker/model'))
 
     def _setup_worker_model(self,
                             obs,
-                            obs1,
                             action,
                             ob_space,
                             reuse=False,
@@ -1034,8 +1087,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         ----------
         obs : tf.compat.v1.placeholder
             the last step observation, not including the context
-        obs1 : tf.compat.v1.placeholder
-            the current step observation, not including the context
         action : tf.compat.v1.placeholder
             the action from the Worker policy. May be a function of the
             Manager's trainable parameters
@@ -1050,6 +1101,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         -------
         tf.Variable
             the output from the Worker dynamics model
+        tf.Variable
+            the mean of the Worker dynamics model
+        tf.Variable
+            the log std of the Worker dynamics model
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # Concatenate the observations and actions.
@@ -1081,17 +1136,57 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # The model samples from its distribution.
             rho = rho_mean + tf.random.normal(tf.shape(rho_mean)) * rho_std
 
-            # The worker model is trained to learn the change in state between
-            # two time-steps.
-            delta = obs1 - obs
+        return rho, rho_mean, rho_logstd
 
-            # Computes the log probability of choosing a specific output - used
-            # by the loss
-            rho_logp = gaussian_likelihood(delta, rho_mean, rho_logstd)
+    def _get_step_loss(self, obs, action, goal):
+        """Compute the next-step model-based loss.
 
-        return rho, rho_logp
+        The inputs and outputs here are tf.Variable in order to propagate
+        losses through them.
 
-    def _train_worker_model(self, worker_obs0, worker_obs1, worker_act):
+        Parameters
+        ----------
+        obs : tf.Variable
+            TODO
+        action : tf.Variable
+            TODO
+        goal : tf.Variable
+            TODO
+
+        Returns
+        -------
+        tf.Variable
+            the next-step loss
+        tf.Variable
+            the next-step observation
+        tf.Variable
+            the next-step goal
+        """
+        # Compute the next observation.
+        with tf.compat.v1.variable_scope("multistep_llp"):
+            next_obs, *_ = self._setup_worker_model(
+                obs=obs,
+                action=action,
+                ob_space=self.manager.ac_space,
+                reuse=True
+            )
+
+        goal_dim = self.manager.ac_space.shape[0]
+        loss_fn = tf.compat.v1.losses.mean_squared_error
+
+        # Compute the loss associated with this obs0/obs1/action tuple, as well
+        # as the next goal.
+        # FIXME: goal_indices
+        if self.relative_goals:
+            loss = -loss_fn(obs[:, :goal_dim] + goal, next_obs[:, :goal_dim])
+            next_goal = obs[:, :goal_dim] + goal - next_obs[:, :goal_dim]
+        else:
+            loss = -loss_fn(goal, next_obs[:, :goal_dim])
+            next_goal = goal
+
+        return loss, next_obs, next_goal
+
+    def _train_worker_model(self, worker_obses, worker_obs0, worker_obs1, worker_act):
         """Train the Worker dynamics model.
 
         The original goal-less states and actions are used to train the model.
@@ -1105,177 +1200,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         worker_act : array_like
             batch of worker actions
         """
-        self.sess.run(self.worker_model_optimizer, feed_dict={
-            self.worker_obs_ph: worker_obs0[:, self.goal_indices],
-            self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
-            self.worker_action_ph: worker_act
-        })
-
-    def _relabel_low_samples(self, meta_action, worker_obses, worker_actions):
-        """Perform lower-level relabeling.
-
-        The Worker states and actions, as well as the intrinsic rewards, are
-        relabeled using trained dynamic model. The last Worker observation is
-        also used to relabel the Manager next step observation.
-
-        Parameters
-        ----------
-        meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions (goals)
-            actions
-        worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
-            observations
-        worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) matrix of Worker actions
-
-        Returns
-        -------
-        array_like
-            (batch_size, w_obs_dim, meta_period + 1) matrix of relabeled Worker
-            observations
-        array_like
-            (batch_size, w_ac_dim, meta_period) matrix of relabeled Worker
-            actions
-        array_like
-            (batch_size, meta_period) matrix of relabeled Worker rewards
-        """
-        # Collect dimensions.
-        batch_size, m_ac_dim = meta_action.shape
-        _, w_ac_dim, meta_period = worker_actions.shape
-
-        # The relabeled samples will be stored here.
-        new_worker_obses = np.zeros((batch_size, m_ac_dim, meta_period + 1))
-        new_worker_actions = np.zeros((batch_size, w_ac_dim, meta_period))
-        new_worker_rewards = np.zeros((batch_size, meta_period))
-
-        # Collect the initial samples.
-        obs0 = worker_obses[:, :, 0]
-        action, obs1, rew = self._get_model_next_step(obs0)
-
-        # Add the initial samples.
-        new_worker_actions[:, :, 0] = action
-        new_worker_obses[:, :, 0] = obs0[:, self.goal_indices]
-        new_worker_obses[:, :, 1] = obs1[:, self.goal_indices]
-        new_worker_rewards[:, 0] = rew
-        obs0 = obs1.copy()
-
-        # TODO: if it ends prematurely?
-        for i in range(1, meta_period):
-            # Compute the next step variables.
-            action, obs1, rew = self._get_model_next_step(obs0)
-
-            # Add the next step samples.
-            new_worker_actions[:, :, i] = action
-            new_worker_obses[:, :, i + 1] = obs1[:, self.goal_indices]
-            new_worker_rewards[:, i] = rew
-            obs0 = obs1.copy()
-
-        return new_worker_obses, new_worker_actions, new_worker_rewards
-
-    def _get_model_next_step(self, obs0):
-        """Compute the next-step information using the trained model.
-
-        Parameters
-        ----------
-        obs0 : array_like
-            the current step worker observation, including the goal
-
-        Returns
-        -------
-        array_like
-            current step Worker action
-        array_like
-            next step Worker observation
-        float
-            the intrinsic reward
-        """
-        # Separate the observation and goal.
-        goal_dim = self.manager.ac_space.shape[0]
-        worker_obs0 = obs0[:, :-goal_dim]
-        goal = obs0[:, -goal_dim:]
-
-        # Compute the action using the current instantiation of the policy.
-        worker_action = self.worker.get_action(
-            obs=worker_obs0,
-            context=goal,
-            apply_noise=False,
-            random_actions=False
-        )
-
-        # Use the model to compute the next step observation.
-        delta = self.sess.run(
-            self.worker_model,
+        self.sess.run(
+            [self.worker_model_optimizer, self._multistep_llp_optimizer],
             feed_dict={
+                self.worker_obses_ph: worker_obses,
                 self.worker_obs_ph: worker_obs0[:, self.goal_indices],
-                self.worker_action_ph: worker_action
+                self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
+                self.worker_action_ph: worker_act
             }
         )
-        worker_obs1 = worker_obs0.copy()
-        worker_obs1[:, self.goal_indices] += delta
-
-        # Compute the intrinsic reward.
-        worker_reward = np.array([
-            self.worker_reward_scale * self.worker_reward_fn(
-                states=worker_obs0[i, :],
-                goals=goal[i, :],
-                next_states=worker_obs1[i, :]
-            )
-            for i in range(obs0.shape[0])
-        ])
-
-        # Compute the next step goal and add it to the observation.
-        next_goal = self.goal_transition_fn(
-            obs0=worker_obs0[:, self.goal_indices],
-            goal=goal,
-            obs1=worker_obs1[:, self.goal_indices]
-        )
-        worker_obs1 = np.concatenate((worker_obs1, next_goal), axis=1)
-
-        return worker_action, worker_obs1, worker_reward
-
-    def _sample_from_relabeled(self,
-                               worker_obses,
-                               worker_actions,
-                               worker_rewards):
-        """Collect a batch of samples from the relabeled samples.
-
-        Parameters
-        ----------
-        worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period + 1) matrix of relabeled Worker
-            observations
-        worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) matrix of relabeled Worker
-            actions
-        worker_rewards : array_like
-            (batch_size, meta_period) matrix of relabeled Worker rewards
-
-        Returns
-        -------
-        array_like
-            (batch_size, worker_obs) matrix of relabeled Worker observations
-        array_like
-            (batch_size, worker_obs) matrix of relabeled next step Worker
-            observations
-        array_like
-            (batch_size, worker_ac) matrix of relabeled Worker actions
-        array_like
-            (batch_size,) vector of relabeled Worker rewards
-        """
-        batch_size, w_obs_dim, _ = worker_obses.shape
-        _, w_ac_dim, _ = worker_actions.shape
-
-        worker_obs0 = np.zeros((batch_size, w_obs_dim))
-        worker_obs1 = np.zeros((batch_size, w_obs_dim))
-        worker_act = np.zeros((batch_size, w_ac_dim))
-        worker_rew = np.zeros(batch_size)
-
-        for i in range(batch_size):
-            indx_val = random.randint(0, worker_obses.shape[2] - 2)
-            worker_obs0[i, :] = worker_obses[i, :, indx_val]
-            worker_obs1[i, :] = worker_obses[i, :, indx_val + 1]
-            worker_act[i, :] = worker_actions[i, :, indx_val]
-            worker_rew[i] = worker_rewards[i, indx_val]
-
-        return worker_obs0, worker_obs1, worker_act, worker_rew

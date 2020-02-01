@@ -274,17 +274,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""
-        goal_dim = self.manager.ac_space.shape[0]
-
         if self.relative_goals:
             # The observation from the perspective of the manager can be
             # collected from the first goal_dim elements of the observation. We
             # use goal_dim in case the goal-specific observations are not the
             # entire observation space.
-            obs_t = self.manager.obs_ph[:, :goal_dim]
+            obs_t = self.manager.obs_ph[:, self.goal_indices]
             # We collect the observation of the worker in a similar fashion as
             # above.
-            obs_tpi = self.worker.obs_ph[:, :goal_dim]
+            obs_tpi = self.worker.obs_ph[:, self.goal_indices]
             # Relative goal formulation as per HIRO.
             goal = obs_t + self.manager.actor_tf - obs_tpi
         else:
@@ -304,11 +302,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         # used to provide feedback to the worker
         if self.relative_goals:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                self.worker.obs_ph[:, :goal_dim] + goal,
-                self.worker.obs1_ph[:, :goal_dim])
+                self.worker.obs_ph[:, self.goal_indices] + goal,
+                self.worker.obs1_ph[:, self.goal_indices])
         else:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, self.worker.obs1_ph[:, :goal_dim])
+                goal, self.worker.obs1_ph[:, self.goal_indices])
 
         # compute the worker loss with respect to the manager actions
         self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
