@@ -490,13 +490,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Update the Worker policy.
         if self.multistep_llp:
-            self._train_worker_model(
+            w_actor_loss = self._train_worker_model(
                 worker_obses=additional["worker_obses"],
                 worker_obs0=worker_obs0,
                 worker_obs1=worker_obs1,
                 worker_act=worker_act
             )
-            w_critic_loss, w_actor_loss = [0, 0], 0  # FIXME
+            # The Q-function is not trained.
+            w_critic_loss = [0, 0]
         else:
             w_critic_loss, w_actor_loss = self.worker.update_from_batch(
                 obs0=worker_obs0,
@@ -1064,6 +1065,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 # Add the next loss to the discounted sum.
                 loss += self.worker.gamma ** i * next_loss
 
+            # Create a variable for the loss for logging purposes.
+            self._multistep_llp_loss = loss
+
             # Add the final loss for tensorboard logging.
             tf.compat.v1.summary.scalar('worker_multistep_llp_loss', loss)
 
@@ -1205,9 +1209,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             batch of next worker observations
         worker_act : array_like
             batch of worker actions
+
+        Returns
+        -------
+        float
+            Worker loss
         """
-        self.sess.run(
-            [self.worker_model_optimizer, self._multistep_llp_optimizer],
+        worker_loss, *_ = self.sess.run(
+            [
+                self._multistep_llp_loss,
+                self._multistep_llp_optimizer,
+                self.worker_model_optimizer,
+            ],
             feed_dict={
                 self.worker_obses_ph: worker_obses,
                 self.worker_obs_ph: worker_obs0[:, self.goal_indices],
@@ -1215,3 +1228,5 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 self.worker_action_ph: worker_act
             }
         )
+
+        return worker_loss
