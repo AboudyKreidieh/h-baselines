@@ -855,6 +855,14 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
              'Manager/target/qf_1/fc1/kernel:0',
              'Manager/target/qf_1/qf_output/bias:0',
              'Manager/target/qf_1/qf_output/kernel:0',
+             'Worker/model/multistep_llp/rho/fc0/bias:0',
+             'Worker/model/multistep_llp/rho/fc0/kernel:0',
+             'Worker/model/multistep_llp/rho/fc1/bias:0',
+             'Worker/model/multistep_llp/rho/fc1/kernel:0',
+             'Worker/model/multistep_llp/rho/rho_logstd/bias:0',
+             'Worker/model/multistep_llp/rho/rho_logstd/kernel:0',
+             'Worker/model/multistep_llp/rho/rho_mean/bias:0',
+             'Worker/model/multistep_llp/rho/rho_mean/kernel:0',
              'Worker/model/pi/fc0/bias:0',
              'Worker/model/pi/fc0/kernel:0',
              'Worker/model/pi/fc1/bias:0',
@@ -890,15 +898,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
              'Worker/target/qf_1/fc1/bias:0',
              'Worker/target/qf_1/fc1/kernel:0',
              'Worker/target/qf_1/qf_output/bias:0',
-             'Worker/target/qf_1/qf_output/kernel:0',
-             'multistep_llp/rho/fc0/bias:0',
-             'multistep_llp/rho/fc0/kernel:0',
-             'multistep_llp/rho/fc1/bias:0',
-             'multistep_llp/rho/fc1/kernel:0',
-             'multistep_llp/rho/rho_logstd/bias:0',
-             'multistep_llp/rho/rho_logstd/kernel:0',
-             'multistep_llp/rho/rho_mean/bias:0',
-             'multistep_llp/rho/rho_mean/kernel:0']
+             'Worker/target/qf_1/qf_output/kernel:0']
         )
 
         # Check the size of the output from the Worker model.

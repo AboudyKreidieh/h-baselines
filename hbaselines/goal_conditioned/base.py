@@ -1147,11 +1147,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         obs : tf.Variable
-            TODO
+            the previous step observation, as relevant to the Worker model
         action : tf.Variable
-            TODO
+            the most recent action performed by the Worker
         goal : tf.Variable
-            TODO
+            the most recent goal
 
         Returns
         -------
@@ -1186,13 +1186,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return loss, next_obs, next_goal
 
-    def _train_worker_model(self, worker_obses, worker_obs0, worker_obs1, worker_act):
-        """Train the Worker dynamics model.
+    def _train_worker_model(self,
+                            worker_obses,
+                            worker_obs0,
+                            worker_obs1,
+                            worker_act):
+        """Train the Worker actor and dynamics model.
 
         The original goal-less states and actions are used to train the model.
 
         Parameters
         ----------
+        worker_obses : array_like
+            full meta-period worker observations
         worker_obs0 : array_like
             batch of worker observations
         worker_obs1 : array_like
