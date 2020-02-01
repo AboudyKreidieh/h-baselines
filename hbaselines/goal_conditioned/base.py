@@ -986,7 +986,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.worker_model_loss = -tf.reduce_mean(rho_logp)
 
             # Create an optimizer object.
-            optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+            optimizer = tf.compat.v1.train.AdamOptimizer(1e-5)  # FIXME
 
             # Create the model optimization technique.
             self.worker_model_optimizer = optimizer.minimize(
@@ -1123,18 +1123,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 )
 
             # Create the output mean.
-            rho_mean = self._layer(
-                rho_h, ob_space.shape[0], 'rho_mean',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+            rho_mean = self._layer(rho_h, ob_space.shape[0], 'rho_mean')
 
             # Create the output logstd term.
-            rho_logstd = self._layer(
-                rho_h, ob_space.shape[0], 'rho_logstd',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+            rho_logstd = self._layer(rho_h, ob_space.shape[0], 'rho_logstd')
             rho_std = tf.exp(rho_logstd)
 
             # The model samples from its distribution.
