@@ -641,8 +641,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Get a batch.
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done, _ = \
-            self.replay_buffer.sample()
+            worker_obs1, worker_act, worker_rew, worker_done, additional = \
+            self.replay_buffer.sample(with_additional=True)
 
         td_map = {}
         td_map.update(self.manager.get_td_map_from_batch(
@@ -654,7 +654,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             td_map.update({
                 self.worker_obs_ph: worker_obs0[:, self.goal_indices],
                 self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
-                self.worker_action_ph: worker_act
+                self.worker_action_ph: worker_act,
+                self.worker_obses_ph: additional["worker_obses"]
             })
 
         return td_map
@@ -990,7 +991,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.worker_model_loss = -tf.reduce_mean(rho_logp)
 
             # Create an optimizer object.
-            optimizer = tf.compat.v1.train.AdamOptimizer(1e-5)  # FIXME
+            optimizer = tf.compat.v1.train.AdamOptimizer(1e-6)  # FIXME
 
             # Create the model optimization technique.
             self.worker_model_optimizer = optimizer.minimize(
@@ -1024,7 +1025,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Create a placeholder to store all worker observations for a given
         # meta-period.
-        self.worker_obses_ph = tf.placeholder(
+        self.worker_obses_ph = tf.compat.v1.placeholder(
             tf.float32,
             shape=(None, ob_dim[0], self.meta_period + 1),
             name='all_worker_obses')
@@ -1040,12 +1041,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             goal_dim = self.manager.ac_space.shape[0]
 
-            # Initial step observation from the perspective of the model.
             # FIXME: goal_indices
+            # Initial step observation from the perspective of the model.
             obs = self.worker_obses_ph[:, :goal_dim, 0]
 
-            # The initial goal is provided by this placeholder.
             # FIXME: goal_indices
+            # The initial goal is provided by this placeholder.
             goal = self.worker_obses_ph[:, -goal_dim:, 0]
 
             # Collect the first step loss, and the next observation and goal.
@@ -1053,9 +1054,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Repeat the process for the meta-period.
             for i in range(1, self.meta_period):
+                # FIXME: goal_indices
                 # Replace a subset of the next placeholder with the previous
                 # step dynamic and goal.
-                # FIXME: goal_indices
                 obs = tf.concat((
                     obs1, self.worker_obses_ph[:, goal_dim:-goal_dim, i], goal
                 ), axis=1)
@@ -1162,21 +1163,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         tf.Variable
             the next-step goal
         """
-        # Compute the next observation.
+        goal_dim = self.manager.ac_space.shape[0]
+        loss_fn = tf.compat.v1.losses.mean_squared_error
+
         with tf.compat.v1.variable_scope("multistep_llp"):
-            next_obs, *_ = self._setup_worker_model(
+            # Compute the delta term.
+            delta, *_ = self._setup_worker_model(
                 obs=obs,
                 action=action,
                 ob_space=self.manager.ac_space,
                 reuse=True
             )
 
-        goal_dim = self.manager.ac_space.shape[0]
-        loss_fn = tf.compat.v1.losses.mean_squared_error
+            # Compute the next observation.
+            next_obs = tf.concat(
+                (obs[:, :goal_dim] + delta, obs[:, goal_dim:]), axis=1)
 
+        # FIXME: goal_indices
         # Compute the loss associated with this obs0/obs1/action tuple, as well
         # as the next goal.
-        # FIXME: goal_indices
         if self.relative_goals:
             loss = -loss_fn(obs[:, :goal_dim] + goal, next_obs[:, :goal_dim])
             next_goal = obs[:, :goal_dim] + goal - next_obs[:, :goal_dim]
