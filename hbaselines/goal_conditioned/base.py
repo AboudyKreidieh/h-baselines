@@ -128,6 +128,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  connected_gradients,
                  cg_weights,
                  multistep_llp,
+                 num_ensembles,
+                 num_particles,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
@@ -196,6 +198,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             is set to True.
         multistep_llp : bool
             whether to use the multi-step LLP update procedure. See: TODO
+        num_ensembles : int
+            number of ensemble models for the Worker dynamics
+        num_particles : int
+            number of particles used to generate the forward estimate of the
+            model. See: TODO
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -240,6 +247,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
         self.multistep_llp = multistep_llp
+        self.num_ensembles = num_ensembles
+        self.num_particles = num_particles
         self.use_fingerprints = use_fingerprints
         self.fingerprint_range = fingerprint_range
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
@@ -952,6 +961,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Part 1. Create the model.                                           #
         # =================================================================== #
 
+        self.worker_model = []
+        self.worker_model_loss = []
+        self.worker_model_optimizer = []
+
         with tf.compat.v1.variable_scope("Worker/model/multistep_llp"):
             # Create placeholders for the model.
             self.worker_obs_ph = tf.compat.v1.placeholder(
@@ -968,7 +981,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 name="worker_action")
 
             # Create clipping terms for the model logstd. See:
-            # https://arxiv.org/abs/1804.06424v1
+            # TODO
             self.max_logstd = tf.Variable(
                 np.ones([1, self.manager.ac_space.shape[0]]) / 2.,
                 dtype=tf.float32,
@@ -978,58 +991,67 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 dtype=tf.float32,
                 name="max_log_std")
 
-            # Create a trainable model of the Worker dynamics.
-            self.worker_model, rho_mean, rho_logstd = self._setup_worker_model(
-                obs=self.worker_obs_ph,
-                action=self.worker_action_ph,
-                ob_space=self.manager.ac_space
-            )
+            for i in range(self.num_ensembles):
+                # Create a trainable model of the Worker dynamics.
+                worker_model, mean, logstd = self._setup_worker_model(
+                    obs=self.worker_obs_ph,
+                    action=self.worker_action_ph,
+                    ob_space=self.manager.ac_space,
+                    scope="rho_{}".format(i)
+                )
+                self.worker_model.append(worker_model)
 
-            # The worker model is trained to learn the change in state between
-            # two time-steps.
-            delta = self.worker_obs1_ph - self.worker_obs_ph
+                # The worker model is trained to learn the change in state
+                # between two time-steps.
+                delta = self.worker_obs1_ph - self.worker_obs_ph
 
-            # Computes the log probability of choosing a specific output - used
-            # by the loss
-            dist = tfp.distributions.MultivariateNormalDiag(
-                loc=rho_mean,
-                scale_diag=tf.exp(rho_logstd)
-            )
-            rho_logp = dist.log_prob(delta)
+                # Computes the log probability of choosing a specific output -
+                # used by the loss
+                dist = tfp.distributions.MultivariateNormalDiag(
+                    loc=mean,
+                    scale_diag=tf.exp(logstd)
+                )
+                rho_logp = dist.log_prob(delta)
 
-            # Create the model loss.
-            self.worker_model_loss = -tf.reduce_mean(rho_logp)
+                # Create the model loss.
+                worker_model_loss = -tf.reduce_mean(rho_logp)
 
-            # The additional loss term is in accordance with:
-            # https://github.com/kchua/handful-of-trials
-            self.worker_model_loss += 0.01 * tf.reduce_sum(self.max_logstd) \
-                - 0.01 * tf.reduce_sum(self.min_logstd)
+                # The additional loss term is in accordance with:
+                # https://github.com/kchua/handful-of-trials
+                worker_model_loss += \
+                    0.01 * tf.reduce_sum(self.max_logstd) \
+                    - 0.01 * tf.reduce_sum(self.min_logstd)
 
-            # Create an optimizer object.
-            optimizer = tf.compat.v1.train.AdamOptimizer(1e-6)  # FIXME
+                self.worker_model_loss.append(worker_model_loss)
 
-            # Create the model optimization technique.
-            self.worker_model_optimizer = optimizer.minimize(
-                self.worker_model_loss,
-                var_list=get_trainable_vars('Worker/model/multistep_llp'))
+                # Create an optimizer object.
+                optimizer = tf.compat.v1.train.AdamOptimizer(1e-6)  # FIXME
 
-            # Add the model loss and dynamics to the tensorboard log.
-            tf.compat.v1.summary.scalar(
-                'worker_model_loss', self.worker_model_loss)
-            tf.compat.v1.summary.scalar(
-                'worker_model_mean', tf.reduce_mean(self.worker_model))
-            tf.compat.v1.summary.scalar(
-                'worker_model_std', reduce_std(self.worker_model))
+                # Create the model optimization technique.
+                worker_model_optimizer = optimizer.minimize(
+                    worker_model_loss,
+                    var_list=get_trainable_vars(
+                        'Worker/model/multistep_llp/rho_{}'.format(i))
+                )
+                self.worker_model_optimizer.append(worker_model_optimizer)
 
-            # Print the shapes of the generated models.
-            if self.verbose >= 2:
-                scope_name = 'Worker/model/multistep_llp/rho'
-                critic_shapes = [var.get_shape().as_list()
-                                 for var in get_trainable_vars(scope_name)]
-                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                        for shape in critic_shapes])
-                print('  model shapes: {}'.format(critic_shapes))
-                print('  model params: {}'.format(critic_nb_params))
+                # Add the model loss and dynamics to the tensorboard log.
+                tf.compat.v1.summary.scalar(
+                    'model_{}_loss'.format(i), worker_model_loss)
+                tf.compat.v1.summary.scalar(
+                    'model_{}_mean'.format(i), tf.reduce_mean(worker_model))
+                tf.compat.v1.summary.scalar(
+                    'model_{}_std'.format(i), reduce_std(worker_model))
+
+                # Print the shapes of the generated models.
+                if self.verbose >= 2:
+                    scope_name = 'Worker/model/multistep_llp/rho_{}'.format(i)
+                    critic_shapes = [var.get_shape().as_list()
+                                     for var in get_trainable_vars(scope_name)]
+                    critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                            for shape in critic_shapes])
+                    print('  model shapes: {}'.format(critic_shapes))
+                    print('  model params: {}'.format(critic_nb_params))
 
         # =================================================================== #
         # Part 2. Create the Worker optimization scheme.                      #
@@ -1047,46 +1069,56 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Compute the cumulative, discounted model-based loss using outputs
         # from the Worker's trainable model.
+        self._multistep_llp_loss = 0
         with tf.compat.v1.variable_scope("Worker/model"):
-            # Create the initial Worker.
-            action = self.worker.make_actor(
-                obs=self.worker_obses_ph[:, :, 0],
-                reuse=True
-            )
+            for i in range(self.num_particles):
+                # FIXME: should we choose dynamically?
+                # Choose a model index to compute the trajectory over.
+                model_index = i % self.num_ensembles
 
-            goal_dim = self.manager.ac_space.shape[0]
+                # Create the initial Worker.
+                action = self.worker.make_actor(
+                    obs=self.worker_obses_ph[:, :, 0],
+                    reuse=True
+                )
 
-            # FIXME: goal_indices
-            # Initial step observation from the perspective of the model.
-            obs = self.worker_obses_ph[:, :goal_dim, 0]
+                goal_dim = self.manager.ac_space.shape[0]
 
-            # FIXME: goal_indices
-            # The initial goal is provided by this placeholder.
-            goal = self.worker_obses_ph[:, -goal_dim:, 0]
-
-            # Collect the first step loss, and the next observation and goal.
-            loss, obs1, goal = self._get_step_loss(obs, action, goal)
-
-            # Repeat the process for the meta-period.
-            for i in range(1, self.meta_period):
                 # FIXME: goal_indices
-                # Replace a subset of the next placeholder with the previous
-                # step dynamic and goal.
-                obs = tf.concat((
-                    obs1, self.worker_obses_ph[:, goal_dim:-goal_dim, i], goal
-                ), axis=1)
+                # Initial step observation from the perspective of the model.
+                obs = self.worker_obses_ph[:, :goal_dim, 0]
 
-                # Create the next-step Worker actor.
-                action = self.worker.make_actor(obs, reuse=True)
+                # FIXME: goal_indices
+                # The initial goal is provided by this placeholder.
+                goal = self.worker_obses_ph[:, -goal_dim:, 0]
 
-                # Collect the next loss, observation, and goal.
-                next_loss, obs1, goal = self._get_step_loss(obs1, action, goal)
+                # Collect the first step loss, and the next state and goal.
+                loss, obs1, goal = self._get_step_loss(
+                    obs, action, goal, model_index)
 
-                # Add the next loss to the discounted sum.
-                loss += self.worker.gamma ** i * next_loss
+                # Repeat the process for the meta-period.
+                for j in range(1, self.meta_period):
+                    # FIXME: goal_indices
+                    # Replace a subset of the next placeholder with the
+                    # previous step dynamic and goal.
+                    obs = tf.concat((
+                        obs1,
+                        self.worker_obses_ph[:, goal_dim:-goal_dim, j],
+                        goal
+                    ), axis=1)
 
-            # Create a variable for the loss for logging purposes.
-            self._multistep_llp_loss = loss
+                    # Create the next-step Worker actor.
+                    action = self.worker.make_actor(obs, reuse=True)
+
+                    # Collect the next loss, observation, and goal.
+                    next_loss, obs1, goal = self._get_step_loss(
+                        obs1, action, goal, model_index)
+
+                    # Add the next loss to the discounted sum.
+                    loss += self.worker.gamma ** j * next_loss
+
+                # Add the next loss to the multi-step LLP loss.
+                self._multistep_llp_loss += loss / self.num_particles
 
             # Add the final loss for tensorboard logging.
             tf.compat.v1.summary.scalar('worker_multistep_llp_loss', loss)
@@ -1149,7 +1181,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             rho_logstd = self._layer(rho_h, ob_space.shape[0], 'rho_logstd')
 
             # Perform log-std clipping as describe in Appendix A.1 of:
-            # https://arxiv.org/abs/1804.06424v1
+            # TODO
             rho_logstd = self.max_logstd - tf.nn.softplus(
                 self.max_logstd - rho_logstd)
             rho_logstd = self.min_logstd + tf.nn.softplus(
@@ -1162,7 +1194,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return rho, rho_mean, rho_logstd
 
-    def _get_step_loss(self, obs, action, goal):
+    def _get_step_loss(self, obs, action, goal, model_index):
         """Compute the next-step model-based loss.
 
         The inputs and outputs here are tf.Variable in order to propagate
@@ -1176,6 +1208,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             the most recent action performed by the Worker
         goal : tf.Variable
             the most recent goal
+        model_index : int
+            the index number of the model used to update the Worker dynamics
 
         Returns
         -------
@@ -1195,7 +1229,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 obs=obs,
                 action=action,
                 ob_space=self.manager.ac_space,
-                reuse=True
+                reuse=True,
+                scope="rho_{}".format(model_index)
             )
 
             # Compute the next observation.
