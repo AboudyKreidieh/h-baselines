@@ -77,6 +77,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         True.
     multistep_llp : bool
         whether to use the multi-step LLP update procedure. See: TODO
+    num_ensembles : int
+        number of ensemble models for the Worker dynamics
+    num_particles : int
+        number of particles used to generate the forward estimate of the model.
+        See: TODO
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations

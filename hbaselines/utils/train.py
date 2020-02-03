@@ -61,6 +61,8 @@ def get_hyperparameters(args, policy):
             "connected_gradients": args.connected_gradients,
             "cg_weights": args.cg_weights,
             "multistep_llp": args.multistep_llp,
+            "num_ensembles": args.num_ensembles,
+            "num_particles": args.num_particles,
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
         })
@@ -315,5 +317,16 @@ def create_goal_conditioned_parser(parser):
         action="store_true",
         help="whether to use the multi-step LLP update procedure. See: "
              "TODO")
+    parser.add_argument(
+        "--num_ensembles",
+        type=int,
+        default=GOAL_CONDITIONED_PARAMS["num_ensembles"],
+        help="number of ensemble models for the Worker dynamics")
+    parser.add_argument(
+        "--num_particles",
+        type=int,
+        default=GOAL_CONDITIONED_PARAMS["num_particles"],
+        help="number of particles used to generate the forward estimate of "
+             "the model. See: TODO")
 
     return parser

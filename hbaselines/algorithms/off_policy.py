@@ -114,6 +114,11 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     cg_weights=0.0005,
     # whether to use the multi-step LLP update procedure. See: TODO
     multistep_llp=False,
+    # number of ensemble models for the Worker dynamics
+    num_ensembles=1,
+    # number of particles used to generate the forward estimate of the model.
+    # See: TODO
+    num_particles=1,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being

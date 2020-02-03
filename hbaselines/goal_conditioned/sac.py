@@ -43,6 +43,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  connected_gradients,
                  cg_weights,
                  multistep_llp,
+                 num_ensembles,
+                 num_particles,
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
@@ -109,6 +111,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the worker with respect to
             the parameters of the manager. Only used if `connected_gradients`
             is set to True.
+        multistep_llp : bool
+            whether to use the multi-step LLP update procedure. See: TODO
+        num_ensembles : int
+            number of ensemble models for the Worker dynamics
+        num_particles : int
+            number of particles used to generate the forward estimate of the
+            model. See: TODO
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -144,6 +153,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             connected_gradients=connected_gradients,
             cg_weights=cg_weights,
             multistep_llp=multistep_llp,
+            num_ensembles=num_ensembles,
+            num_particles=num_particles,
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
