@@ -499,12 +499,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Update the Worker policy.
         if self.multistep_llp:
-            w_actor_loss = self._train_worker_model(
-                worker_obses=additional["worker_obses"],
-                worker_obs0=worker_obs0,
-                worker_obs1=worker_obs1,
-                worker_act=worker_act
-            )
+            w_actor_loss = self._train_worker_model(additional["worker_obses"])
+
             # The Q-function is not trained.
             w_critic_loss = [0, 0]
         else:
@@ -964,22 +960,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.worker_model = []
         self.worker_model_loss = []
         self.worker_model_optimizer = []
+        self.worker_obs_ph = []
+        self.worker_obs1_ph = []
+        self.worker_action_ph = []
 
         with tf.compat.v1.variable_scope("Worker/model/multistep_llp"):
-            # Create placeholders for the model.
-            self.worker_obs_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + self.manager.ac_space.shape,
-                name="worker_obs0")
-            self.worker_obs1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + self.manager.ac_space.shape,
-                name="worker_obs1")
-            self.worker_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + self.worker.ac_space.shape,
-                name="worker_action")
-
             # Create clipping terms for the model logstd. See:
             # TODO
             self.max_logstd = tf.Variable(
@@ -992,10 +977,24 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 name="max_log_std")
 
             for i in range(self.num_ensembles):
+                # Create placeholders for the model.
+                self.worker_obs_ph.append(tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.manager.ac_space.shape,
+                    name="worker_obs0_{}".format(i)))
+                self.worker_obs1_ph.append(tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.manager.ac_space.shape,
+                    name="worker_obs1_{}".format(i)))
+                self.worker_action_ph.append(tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.worker.ac_space.shape,
+                    name="worker_action_{}".format(i)))
+
                 # Create a trainable model of the Worker dynamics.
                 worker_model, mean, logstd = self._setup_worker_model(
-                    obs=self.worker_obs_ph,
-                    action=self.worker_action_ph,
+                    obs=self.worker_obs_ph[-1],
+                    action=self.worker_action_ph[-1],
                     ob_space=self.manager.ac_space,
                     scope="rho_{}".format(i)
                 )
@@ -1003,7 +1002,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 # The worker model is trained to learn the change in state
                 # between two time-steps.
-                delta = self.worker_obs1_ph - self.worker_obs_ph
+                delta = self.worker_obs1_ph[-1] - self.worker_obs_ph[-1]
 
                 # Computes the log probability of choosing a specific output -
                 # used by the loss
@@ -1249,11 +1248,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return loss, next_obs, next_goal
 
-    def _train_worker_model(self,
-                            worker_obses,
-                            worker_obs0,
-                            worker_obs1,
-                            worker_act):
+    def _train_worker_model(self, worker_obses):
         """Train the Worker actor and dynamics model.
 
         The original goal-less states and actions are used to train the model.
@@ -1262,30 +1257,39 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         ----------
         worker_obses : array_like
             full meta-period worker observations
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_act : array_like
-            batch of worker actions
 
         Returns
         -------
         float
             Worker loss
         """
-        worker_loss, *_ = self.sess.run(
-            [
-                self._multistep_llp_loss,
-                self._multistep_llp_optimizer,
-                self.worker_model_optimizer,
-            ],
-            feed_dict={
-                self.worker_obses_ph: worker_obses,
-                self.worker_obs_ph: worker_obs0[:, self.goal_indices],
-                self.worker_obs1_ph: worker_obs1[:, self.goal_indices],
-                self.worker_action_ph: worker_act
-            }
-        )
+        step_ops = [
+            self._multistep_llp_loss,
+            self._multistep_llp_optimizer
+        ]
+
+        feed_dict = {
+            self.worker_obses_ph: worker_obses,
+        }
+
+        # Add the step ops and samples for each of the model training
+        # operations in the ensemble.
+        for i in range(self.num_ensembles):
+            # Sample new data for this model.
+            _, _, _, _, _, worker_obs0, worker_obs1, worker_act, _, _, _ = \
+                self.replay_buffer.sample(with_additional=False)
+
+            # Add the training operation.
+            step_ops.append(self.worker_model_optimizer[i])
+
+            # Add the samples to the feed_dict.
+            feed_dict.update({
+                self.worker_obs_ph[i]: worker_obs0[:, self.goal_indices],
+                self.worker_obs1_ph[i]: worker_obs1[:, self.goal_indices],
+                self.worker_action_ph[i]: worker_act
+            })
+
+        # Run the training operations.
+        worker_loss, *_ = self.sess.run(step_ops, feed_dict=feed_dict)
 
         return worker_loss
