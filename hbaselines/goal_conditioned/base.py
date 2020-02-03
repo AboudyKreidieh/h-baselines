@@ -520,7 +520,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         else:
             # Update the meta-action in accordance with the fixed transition
             # function.
-            goal_dim = self.meta_action.shape[1]
             self.meta_action = self.goal_transition_fn(
                 obs0=np.asarray([self._observations[-1][self.goal_indices]]),
                 goal=self.meta_action,
@@ -968,6 +967,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 shape=(None,) + self.worker.ac_space.shape,
                 name="worker_action")
 
+            # Create clipping terms for the model logstd. See:
+            # https://arxiv.org/abs/1804.06424v1
+            self.max_logstd = tf.Variable(
+                np.ones([1, self.manager.ac_space.shape[0]]) / 2.,
+                dtype=tf.float32,
+                name="max_log_std")
+            self.min_logstd = tf.Variable(
+                -np.ones([1, self.manager.ac_space.shape[0]]) * 10.,
+                dtype=tf.float32,
+                name="max_log_std")
+
             # Create a trainable model of the Worker dynamics.
             self.worker_model, rho_mean, rho_logstd = self._setup_worker_model(
                 obs=self.worker_obs_ph,
@@ -989,6 +999,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Create the model loss.
             self.worker_model_loss = -tf.reduce_mean(rho_logp)
+
+            # The additional loss term is in accordance with:
+            # https://github.com/kchua/handful-of-trials
+            self.worker_model_loss += 0.01 * tf.reduce_sum(self.max_logstd) \
+                - 0.01 * tf.reduce_sum(self.min_logstd)
 
             # Create an optimizer object.
             optimizer = tf.compat.v1.train.AdamOptimizer(1e-6)  # FIXME
@@ -1132,6 +1147,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Create the output logstd term.
             rho_logstd = self._layer(rho_h, ob_space.shape[0], 'rho_logstd')
+
+            # Perform log-std clipping as describe in Appendix A.1 of:
+            # https://arxiv.org/abs/1804.06424v1
+            rho_logstd = self.max_logstd - tf.nn.softplus(
+                self.max_logstd - rho_logstd)
+            rho_logstd = self.min_logstd + tf.nn.softplus(
+                rho_logstd - self.min_logstd)
+
             rho_std = tf.exp(rho_logstd)
 
             # The model samples from its distribution.
