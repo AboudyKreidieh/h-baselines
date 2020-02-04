@@ -1025,13 +1025,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 rho_logp = dist.log_prob(delta)
 
                 # Create the model loss.
-                worker_model_loss = tf.reduce_mean(rho_logp)
+                worker_model_loss = -tf.reduce_mean(rho_logp)
 
                 # The additional loss term is in accordance with:
                 # https://github.com/kchua/handful-of-trials
-                #worker_model_loss += \
-                #    0.01 * tf.reduce_sum(self.max_logstd) \
-                #    - 0.01 * tf.reduce_sum(self.min_logstd)
+                worker_model_loss += \
+                    0.01 * tf.reduce_sum(self.max_logstd) \
+                    - 0.01 * tf.reduce_sum(self.min_logstd)
 
                 self.worker_model_loss.append(worker_model_loss)
 
