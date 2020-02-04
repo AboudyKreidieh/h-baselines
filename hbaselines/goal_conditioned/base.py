@@ -976,7 +976,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         goal_dim = self.manager.ac_space.shape[0]
         ob_dim = self.worker.ob_space.shape[0]
 
-        with tf.compat.v1.variable_scope("Worker/multistep_llp"):
+        with tf.compat.v1.variable_scope("Worker/dynamics"):
             # Create clipping terms for the model logstd. See:
             # TODO
             self.max_logstd = tf.Variable(
@@ -1042,7 +1042,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 worker_model_optimizer = optimizer.minimize(
                     worker_model_loss,
                     var_list=get_trainable_vars(
-                        'Worker/multistep_llp/rho_{}'.format(i))
+                        'Worker/dynamics/rho_{}'.format(i))
                 )
                 self.worker_model_optimizer.append(worker_model_optimizer)
 
@@ -1056,7 +1056,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 # Print the shapes of the generated models.
                 if self.verbose >= 2:
-                    scope_name = 'Worker/multistep_llp/rho_{}'.format(i)
+                    scope_name = 'Worker/dynamics/rho_{}'.format(i)
                     critic_shapes = [var.get_shape().as_list()
                                      for var in get_trainable_vars(scope_name)]
                     critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
@@ -1081,57 +1081,56 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Compute the cumulative, discounted model-based loss using outputs
         # from the Worker's trainable model.
         self._multistep_llp_loss = 0
-        with tf.compat.v1.variable_scope("Worker"):
 
-            for i in range(self.num_particles):
-                # FIXME: should we choose dynamically?
-                # Choose a model index to compute the trajectory over.
-                model_index = i % self.num_ensembles
+        for i in range(self.num_particles):
+            # FIXME: should we choose dynamically?
+            # Choose a model index to compute the trajectory over.
+            model_index = i % self.num_ensembles
 
-                # Create the initial Worker.
-                with tf.compat.v1.variable_scope("model"):
-                    action = self.worker.make_actor(
-                        obs=self.worker_obses_ph[:, :, 0], reuse=True)
+            # Create the initial Worker.
+            with tf.compat.v1.variable_scope("Worker/model"):
+                action = self.worker.make_actor(
+                    obs=self.worker_obses_ph[:, :, 0], reuse=True)
 
-                goal_dim = self.manager.ac_space.shape[0]
+            goal_dim = self.manager.ac_space.shape[0]
 
+            # FIXME: goal_indices
+            # Initial step observation from the perspective of the model.
+            obs = self.worker_obses_ph[:, :-goal_dim, 0]
+
+            # FIXME: goal_indices
+            # The initial goal is provided by this placeholder.
+            goal = self.worker_obses_ph[:, -goal_dim:, 0]
+
+            # Collect the first step loss, and the next state and goal.
+            loss, obs1, goal = self._get_step_loss(
+                obs, action, goal, model_index)
+
+            # Repeat the process for the meta-period.
+            for j in range(1, self.meta_period):
                 # FIXME: goal_indices
-                # Initial step observation from the perspective of the model.
-                obs = self.worker_obses_ph[:, :-goal_dim, 0]
+                # TODO: why is this necessary
+                # Replace a subset of the next placeholder with the
+                # previous step dynamic and goal.
+                obs = tf.concat((obs1, goal), axis=1)
 
-                # FIXME: goal_indices
-                # The initial goal is provided by this placeholder.
-                goal = self.worker_obses_ph[:, -goal_dim:, 0]
+                # Create the next-step Worker actor.
+                with tf.compat.v1.variable_scope("Worker/model"):
+                    action = self.worker.make_actor(obs, reuse=True)
 
-                # Collect the first step loss, and the next state and goal.
-                loss, obs1, goal = self._get_step_loss(
-                    obs, action, goal, model_index)
+                # Collect the next loss, observation, and goal.
+                next_loss, obs1, goal = self._get_step_loss(
+                    obs1, action, goal, model_index)
 
-                # Repeat the process for the meta-period.
-                for j in range(1, self.meta_period):
-                    # FIXME: goal_indices
-                    # TODO: why is this necessary
-                    # Replace a subset of the next placeholder with the
-                    # previous step dynamic and goal.
-                    obs = tf.concat((obs1, goal), axis=1)
+                # Add the next loss to the discounted sum.
+                loss += self.worker.gamma ** j * next_loss
 
-                    # Create the next-step Worker actor.
-                    with tf.compat.v1.variable_scope("model"):
-                        action = self.worker.make_actor(obs, reuse=True)
-
-                    # Collect the next loss, observation, and goal.
-                    next_loss, obs1, goal = self._get_step_loss(
-                        obs1, action, goal, model_index)
-
-                    # Add the next loss to the discounted sum.
-                    loss += self.worker.gamma ** j * next_loss
-
-                # Add the next loss to the multi-step LLP loss.
-                self._multistep_llp_loss += loss / self.num_particles
+            # Add the next loss to the multi-step LLP loss.
+            self._multistep_llp_loss += loss / self.num_particles
 
             # Add the final loss for tensorboard logging.
             tf.compat.v1.summary.scalar(
-                'worker_multistep_llp_loss', self._multistep_llp_loss)
+                'worker_model_loss', self._multistep_llp_loss)
 
         # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -1139,7 +1138,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Create the model optimization technique.
         self._multistep_llp_optimizer = optimizer.minimize(
             self._multistep_llp_loss,
-            var_list=get_trainable_vars('Worker/model'))
+            var_list=get_trainable_vars('Worker/model/pi'))
 
     def _setup_worker_model(self,
                             obs,
@@ -1235,7 +1234,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         goal_dim = self.manager.ac_space.shape[0]
         loss_fn = tf.compat.v1.losses.mean_squared_error
 
-        with tf.compat.v1.variable_scope("multistep_llp"):
+        with tf.compat.v1.variable_scope("Worker/dynamics"):
             # Compute the delta term.
             delta, *_ = self._setup_worker_model(
                 obs=obs,
