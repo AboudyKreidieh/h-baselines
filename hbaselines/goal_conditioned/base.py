@@ -976,7 +976,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         goal_dim = self.manager.ac_space.shape[0]
         ob_dim = self.worker.ob_space.shape[0]
 
-        with tf.compat.v1.variable_scope("Worker/model/multistep_llp"):
+        with tf.compat.v1.variable_scope("Worker/multistep_llp"):
             # Create clipping terms for the model logstd. See:
             # TODO
             self.max_logstd = tf.Variable(
@@ -1042,7 +1042,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 worker_model_optimizer = optimizer.minimize(
                     worker_model_loss,
                     var_list=get_trainable_vars(
-                        'Worker/model/multistep_llp/rho_{}'.format(i))
+                        'Worker/multistep_llp/rho_{}'.format(i))
                 )
                 self.worker_model_optimizer.append(worker_model_optimizer)
 
@@ -1056,7 +1056,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 # Print the shapes of the generated models.
                 if self.verbose >= 2:
-                    scope_name = 'Worker/model/multistep_llp/rho_{}'.format(i)
+                    scope_name = 'Worker/multistep_llp/rho_{}'.format(i)
                     critic_shapes = [var.get_shape().as_list()
                                      for var in get_trainable_vars(scope_name)]
                     critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
@@ -1081,17 +1081,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Compute the cumulative, discounted model-based loss using outputs
         # from the Worker's trainable model.
         self._multistep_llp_loss = 0
-        with tf.compat.v1.variable_scope("Worker/model"):
+        with tf.compat.v1.variable_scope("Worker"):
             for i in range(self.num_particles):
                 # FIXME: should we choose dynamically?
                 # Choose a model index to compute the trajectory over.
                 model_index = i % self.num_ensembles
 
                 # Create the initial Worker.
-                action = self.worker.make_actor(
-                    obs=self.worker_obses_ph[:, :, 0],
-                    reuse=True
-                )
+                with tf.compat.v1.variable_scope("model"):
+                    action = self.worker.make_actor(
+                        obs=self.worker_obses_ph[:, :, 0], reuse=True)
 
                 goal_dim = self.manager.ac_space.shape[0]
 
@@ -1116,7 +1115,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     obs = tf.concat((obs1, goal), axis=1)
 
                     # Create the next-step Worker actor.
-                    action = self.worker.make_actor(obs, reuse=True)
+                    with tf.compat.v1.variable_scope("model"):
+                        action = self.worker.make_actor(obs, reuse=True)
 
                     # Collect the next loss, observation, and goal.
                     next_loss, obs1, goal = self._get_step_loss(
@@ -1129,14 +1129,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 self._multistep_llp_loss += loss / self.num_particles
 
             # Add the final loss for tensorboard logging.
-            tf.compat.v1.summary.scalar('worker_multistep_llp_loss', loss)
+            tf.compat.v1.summary.scalar('worker_multistep_llp_loss', self._multistep_llp_loss)
 
         # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
         # Create the model optimization technique.
         self._multistep_llp_optimizer = optimizer.minimize(
-            loss,
+            self._multistep_llp_loss,
             var_list=get_trainable_vars('Worker/model'))
 
     def _setup_worker_model(self,
@@ -1256,7 +1256,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             loss = loss_fn(goal, next_obs[:, :goal_dim])
             next_goal = goal
 
-        return loss, next_obs, next_goal
+        return loss * 0, next_obs, next_goal
 
     def _train_worker_model(self, worker_obses):
         """Train the Worker actor and dynamics model.
