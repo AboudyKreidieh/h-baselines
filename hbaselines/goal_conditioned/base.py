@@ -1082,6 +1082,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # from the Worker's trainable model.
         self._multistep_llp_loss = 0
         with tf.compat.v1.variable_scope("Worker"):
+
             for i in range(self.num_particles):
                 # FIXME: should we choose dynamically?
                 # Choose a model index to compute the trajectory over.
@@ -1129,7 +1130,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 self._multistep_llp_loss += loss / self.num_particles
 
             # Add the final loss for tensorboard logging.
-            tf.compat.v1.summary.scalar('worker_multistep_llp_loss', self._multistep_llp_loss)
+            tf.compat.v1.summary.scalar(
+                'worker_multistep_llp_loss', self._multistep_llp_loss)
 
         # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -1256,7 +1258,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             loss = loss_fn(goal, next_obs[:, :goal_dim])
             next_goal = goal
 
-        return loss * 0, next_obs, next_goal
+        return loss, next_obs, next_goal
 
     def _train_worker_model(self, worker_obses):
         """Train the Worker actor and dynamics model.
