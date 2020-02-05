@@ -5,11 +5,15 @@ import numpy as np
 from gym.spaces import Box
 import gym
 
+import sys
+sys.path.append("/home/aboudy/Documents/TerrainRLSim/simAdapter")
+
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
+import terrainRLSim
 from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
@@ -118,6 +122,13 @@ def get_manager_ac_space(ob_space,
             manager_ac_space = Box(-.5, .5, shape=(17,), dtype=np.float32)
         else:
             manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
+    elif env_name == "PD-Biped3D-HLC-Soccer-v1":
+        manager_ac_space = Box(
+            low=np.array([-1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+                          -2]),
+            high=np.array([1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            dtype=np.float32
+        )
     else:
         if use_fingerprints:
             low = np.array(ob_space.low)[:-fingerprint_dim[0]]
@@ -177,6 +188,8 @@ def get_state_indices(ob_space,
         state_indices = [5 * i for i in range(13)]
     elif env_name == "merge2":
         state_indices = [5 * i for i in range(17)]
+    elif env_name == "PD-Biped3D-HLC-Soccer-v1":
+        state_indices = [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59]
     elif use_fingerprints:
         # Remove the last element to compute the reward.
         state_indices = list(np.arange(
@@ -341,6 +354,10 @@ def create_env(env, render=False, evaluate=False):
             },
             render=render
         )
+
+    # FIXME: not needed?
+    elif env == "PD-Biped3D-HLC-Soccer-v1":
+        env = gym.make("PD-Biped3D-HLC-Soccer-v1")
 
     elif isinstance(env, str):
         # This is assuming the environment is registered with OpenAI gym.
