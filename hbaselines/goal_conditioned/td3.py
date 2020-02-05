@@ -277,7 +277,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         manager_obs1 = self.crop_to_goal(self.manager.obs1_ph)
         worker_obs0 = self.crop_to_goal(self.worker.obs_ph)
         worker_obs1 = self.crop_to_goal(self.worker.obs1_ph)
-        print(worker_obs1)
 
         if self.relative_goals:
             # Relative goal formulation as per HIRO.

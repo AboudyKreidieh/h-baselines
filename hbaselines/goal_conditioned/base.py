@@ -298,12 +298,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # maintain a fixed absolute position of the goal.
         if relative_goals:
             def goal_transition_fn(obs0, goal, obs1):
-                if len(obs0.shape) == 1:
-                    return obs0[self.goal_indices] + goal - obs1[
-                        self.goal_indices]
-                else:
-                    return obs0[:, self.goal_indices] + goal - obs1[
-                        :, self.goal_indices]
+                return obs0 + goal - obs1
         else:
             def goal_transition_fn(obs0, goal, obs1):
                 return goal
