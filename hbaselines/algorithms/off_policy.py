@@ -575,8 +575,13 @@ class OffPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            # Prepare everything.
-            self.obs = self.env.reset()
+            if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
+                # Prepare everything.
+                self.obs = self.env.reset()[0]
+            else:
+                # Prepare everything.
+                self.obs = self.env.reset()
+
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
                 self.obs, self.total_steps, total_timesteps)
@@ -724,7 +729,12 @@ class OffPolicyRLAlgorithm(object):
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
-            new_obs, reward, done, info = self.env.step(action)
+            if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
+                new_obs, reward, done, info = self.env.step(np.array([action]))
+                new_obs = new_obs[0]
+                reward = reward[0][0]
+            else:
+                new_obs, reward, done, info = self.env.step(action)
 
             # Visualize the current step.
             if self.render:
@@ -777,7 +787,10 @@ class OffPolicyRLAlgorithm(object):
                 self.episodes += 1
 
                 # Reset the environment.
-                self.obs = self.env.reset()
+                if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
+                    self.obs = self.env.reset()[0]
+                else:
+                    self.obs = self.env.reset()
 
                 # Add the fingerprint term, if needed.
                 self.obs = self._add_fingerprint(
