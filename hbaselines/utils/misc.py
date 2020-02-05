@@ -124,9 +124,9 @@ def get_manager_ac_space(ob_space,
             manager_ac_space = Box(0, 1, shape=(17,), dtype=np.float32)
     elif env_name == "PD-Biped3D-HLC-Soccer-v1":
         manager_ac_space = Box(
-            low=np.array([-1, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
-            high=np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         )
     else:
