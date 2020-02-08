@@ -4,23 +4,29 @@ import errno
 import numpy as np
 from gym.spaces import Box
 import gym
-
 import sys
-sys.path.append("/home/aboudy/Documents/TerrainRLSim/simAdapter")
+
+from hbaselines.envs.deeploco.envs import BipedalSoccer
+from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import AntFall
+from hbaselines.envs.efficient_hrl.envs import AntPush
+from hbaselines.envs.efficient_hrl.envs import AntFourRooms
+from hbaselines.envs.hac.envs import UR5, Pendulum
+
+try:
+    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+except (ImportError, ModuleNotFoundError):
+    pass
 
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
-import terrainRLSim
-from hbaselines.envs.efficient_hrl.envs import AntMaze
-from hbaselines.envs.efficient_hrl.envs import AntFall
-from hbaselines.envs.efficient_hrl.envs import AntPush
-from hbaselines.envs.efficient_hrl.envs import AntFourRooms
-from hbaselines.envs.hac.envs import UR5, Pendulum
+
 try:
-    from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+    sys.path.append(os.path.join(os.environ["TERRAINRL_PATH"], "simAdapter"))
+    import terrainRLSim
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -355,9 +361,8 @@ def create_env(env, render=False, evaluate=False):
             render=render
         )
 
-    # FIXME: not needed?
-    elif env == "PD-Biped3D-HLC-Soccer-v1":
-        env = gym.make("PD-Biped3D-HLC-Soccer-v1")
+    elif env == "BipedalSoccer":
+        env = BipedalSoccer(render=render)
 
     elif isinstance(env, str):
         # This is assuming the environment is registered with OpenAI gym.

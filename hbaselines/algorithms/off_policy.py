@@ -575,12 +575,8 @@ class OffPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
-                # Prepare everything.
-                self.obs = self.env.reset()[0]
-            else:
-                # Prepare everything.
-                self.obs = self.env.reset()
+            # Prepare everything.
+            self.obs = self.env.reset()
 
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
@@ -729,12 +725,7 @@ class OffPolicyRLAlgorithm(object):
             assert action.shape == self.env.action_space.shape
 
             # Execute next action.
-            if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
-                new_obs, reward, done, info = self.env.step(np.array([action]))
-                new_obs = new_obs[0]
-                reward = reward[0][0]
-            else:
-                new_obs, reward, done, info = self.env.step(action)
+            new_obs, reward, done, info = self.env.step(action)
 
             # Visualize the current step.
             if self.render:
@@ -787,10 +778,7 @@ class OffPolicyRLAlgorithm(object):
                 self.episodes += 1
 
                 # Reset the environment.
-                if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
-                    self.obs = self.env.reset()[0]
-                else:
-                    self.obs = self.env.reset()
+                self.obs = self.env.reset()
 
                 # Add the fingerprint term, if needed.
                 self.obs = self._add_fingerprint(
@@ -883,10 +871,7 @@ class OffPolicyRLAlgorithm(object):
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
-            if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
-                eval_obs = env.reset()[0]
-            else:
-                eval_obs = env.reset()
+            eval_obs = env.reset()
 
             # Add the fingerprint term, if needed.
             eval_obs = self._add_fingerprint(
@@ -907,12 +892,7 @@ class OffPolicyRLAlgorithm(object):
                     apply_noise=not self.eval_deterministic,
                     random_actions=False, compute_q=False)
 
-                if self.env_name == "PD-Biped3D-HLC-Soccer-v1":
-                    obs, eval_r, done, info = env.step(np.array([eval_action]))
-                    obs = obs[0]
-                    eval_r = eval_r[0][0]
-                else:
-                    obs, eval_r, done, info = env.step(eval_action)
+                obs, eval_r, done, info = env.step(eval_action)
 
                 # Visualize the current step.
                 if self.render_eval:
