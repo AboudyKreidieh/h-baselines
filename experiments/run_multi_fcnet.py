@@ -8,7 +8,8 @@ from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 
-EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
+# FIXME
+EXAMPLE_USAGE = 'python run_multi_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 
 
 def run_exp(env,
@@ -83,20 +84,20 @@ def main(args, base_dir):
 
         # Get the policy class.
         if args.alg == "TD3":
-            from hbaselines.fcnet.td3 import FeedForwardPolicy
+            from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
         elif args.alg == "SAC":
-            from hbaselines.fcnet.sac import FeedForwardPolicy
+            from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
         # Get the hyperparameters.
-        hp = get_hyperparameters(args, FeedForwardPolicy)
+        hp = get_hyperparameters(args, MultiFeedForwardPolicy)
 
-        # Add the seed for logging purposes.
+        # add the seed for logging purposes
         params_with_extra = hp.copy()
         params_with_extra['seed'] = seed
         params_with_extra['env_name'] = args.env_name
-        params_with_extra['policy_name'] = "FeedForwardPolicy"
+        params_with_extra['policy_name'] = "MultiFeedForwardPolicy"
         params_with_extra['algorithm'] = args.alg
         params_with_extra['date/time'] = now
 
@@ -106,7 +107,7 @@ def main(args, base_dir):
 
         run_exp(
             env=args.env_name,
-            policy=FeedForwardPolicy,
+            policy=MultiFeedForwardPolicy,
             hp=hp,
             steps=args.total_steps,
             dir_name=dir_name,
@@ -128,4 +129,4 @@ if __name__ == '__main__':
     )
 
     # execute the training procedure
-    main(args, 'data/fcnet')
+    main(args, 'data/multi-fcnet')
