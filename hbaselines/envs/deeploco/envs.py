@@ -7,7 +7,7 @@ import sys
 try:
     sys.path.append(os.path.join(os.environ["TERRAINRL_PATH"], "simAdapter"))
     import terrainRLSim  # noqa: F401
-except (ImportError, ModuleNotFoundError):
+except (KeyError, ImportError, ModuleNotFoundError):
     pass
 
 
