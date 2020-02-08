@@ -1,3 +1,4 @@
+"""Script containing the DeepLoco environments."""
 import gym
 import numpy as np
 import os
