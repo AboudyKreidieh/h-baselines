@@ -4,6 +4,7 @@ import numpy as np
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 # from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 # from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
+# from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):
@@ -58,6 +59,7 @@ class TestReplayBuffer(unittest.TestCase):
         np.testing.assert_array_almost_equal(done, [False])
 
 
+# TODO
 # class TestHierReplayBuffer(unittest.TestCase):
 #     """Tests for the HierReplayBuffer object."""
 #
@@ -68,11 +70,23 @@ class TestReplayBuffer(unittest.TestCase):
 #         del self.replay_buffer
 
 
+# TODO
 # class TestMultiReplayBuffer(unittest.TestCase):
 #     """Tests for the MultiReplayBuffer object."""
 #
 #     def setUp(self):
 #         self.replay_buffer = MultiReplayBuffer(size=2)
+#
+#     def tearDown(self):
+#         del self.replay_buffer
+
+
+# TODO
+# class TestSharedReplayBuffer(unittest.TestCase):
+#     """Tests for the SharedReplayBuffer object."""
+#
+#     def setUp(self):
+#         self.replay_buffer = SharedReplayBuffer(size=2)
 #
 #     def tearDown(self):
 #         del self.replay_buffer
