@@ -1,10 +1,13 @@
 """SAC-compatible multi-agent feedforward policy."""
 import tensorflow as tf
 import numpy as np
+from functools import reduce
 
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import reduce_std
 
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
@@ -28,7 +31,7 @@ class MultiFeedForwardPolicy(BasePolicy):
     ----------
     target_entropy : float
         target entropy used when learning the entropy coefficient
-    replay_buffer : hbaselines.multi_fcnet.replay_buffer.MultiReplayBuffer
+    replay_buffer : MultiReplayBuffer or SharedReplayBuffer
         the replay buffer for each agent
     terminals1 : tf.compat.v1.placeholder
         placeholder for the next step terminals for each agent
@@ -253,142 +256,200 @@ class MultiFeedForwardPolicy(BasePolicy):
             name='all_obs')
 
         if self.shared:
-            # Create an input placeholder for the full actions.
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
-                name='all_actions')
+            self._setup_maddpg_shared(scope)
+        else:
+            self._setup_maddpg_independent(scope)
 
-            # Create actor and critic networks for the shared policy.
-            replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
-                deterministic_action, policy_out, logp_pi, logp_action, qf1, \
-                qf2, value_fn, log_alpha, alpha, value_target = \
-                self._setup_agent(
-                    ob_space=self.ob_space,
-                    ac_space=self.ac_space,
-                    co_space=self.co_space,
-                )
+    def _setup_maddpg_shared(self, scope):
+        # Create an input placeholder for the full actions.
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+            name='all_actions')
+
+        # Create the shared replay buffer.
+        self.replay_buffer = None  # TODO
+
+        # Create actor and critic networks for the shared policy.
+        _, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
+            deterministic_action, policy_out, logp_pi, logp_action, qf1, \
+            qf2, value_fn, log_alpha, alpha, value_target = \
+            self._setup_agent(
+                ob_space=self.ob_space,
+                ac_space=self.ac_space,
+                co_space=self.co_space,
+                create_replay_buffer=False
+            )
+
+        # Store the new objects in their respective attributes.
+        self.terminals1 = terminals1
+        self.rew_ph = rew_ph
+        self.action_ph = action_ph
+        self.obs_ph = obs_ph
+        self.obs1_ph = obs1_ph
+        self.deterministic_action = deterministic_action
+        self.policy_out = policy_out
+        self.logp_pi = logp_pi
+        self.logp_action = logp_action
+        self.qf1 = qf1
+        self.qf2 = qf2
+        self.value_fn = value_fn
+        self.log_alpha = log_alpha
+        self.alpha = alpha
+        self.value_target = value_target
+
+    def _setup_maddpg_independent(self, scope):
+        # Create an input placeholder for the full actions.
+        all_ac_dim = sum(self.ac_space[key].shape[0]
+                         for key in self.ac_space.keys())
+
+        self.all_action_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, all_ac_dim),
+            name='all_actions')
+
+        self.replay_buffer = {}
+        self.terminals1 = {}
+        self.rew_ph = {}
+        self.action_ph = {}
+        self.obs_ph = {}
+        self.obs1_ph = {}
+        self.deterministic_action = {}
+        self.policy_out = {}
+        self.logp_pi = {}
+        self.logp_action = {}
+        self.qf1 = {}
+        self.qf2 = {}
+        self.value_fn = {}
+        self.log_alpha = {}
+        self.alpha = {}
+        self.value_target = {}
+        actors = []
+
+        # We move through the keys in a sorted fashion so that we may collect
+        # the observations and actions for the full state in a sorted manner.
+        for key in sorted(self.ob_space.keys()):
+            # Create actor and critic networks for the the individual
+            # policies.
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
+                    obs1_ph, deterministic_action, policy_out, logp_pi, \
+                    logp_action, qf1, qf2, value_fn, log_alpha, alpha, \
+                    value_target = \
+                    self._setup_agent(
+                        ob_space=self.ob_space[key],
+                        ac_space=self.ac_space[key],
+                        co_space=self.co_space[key],
+                        create_replay_buffer=True
+                    )
 
             # Store the new objects in their respective attributes.
-            self.replay_buffer = replay_buffer
-            self.terminals1 = terminals1
-            self.rew_ph = rew_ph
-            self.action_ph = action_ph
-            self.obs_ph = obs_ph
-            self.obs1_ph = obs1_ph
-            self.deterministic_action = deterministic_action
-            self.policy_out = policy_out
-            self.logp_pi = logp_pi
-            self.logp_action = logp_action
-            self.qf1 = qf1
-            self.qf2 = qf2
-            self.value_fn = value_fn
-            self.log_alpha = log_alpha
-            self.alpha = alpha
-            self.value_target = value_target
+            self.replay_buffer[key] = replay_buffer
+            self.terminals1[key] = terminals1
+            self.rew_ph[key] = rew_ph
+            self.action_ph[key] = action_ph
+            self.obs_ph[key] = obs_ph
+            self.obs1_ph[key] = obs1_ph
+            self.deterministic_action[key] = deterministic_action
+            self.policy_out[key] = policy_out
+            self.logp_pi[key] = logp_pi
+            self.logp_action[key] = logp_action
+            self.qf1[key] = qf1
+            self.qf2[key] = qf2
+            self.value_fn[key] = value_fn
+            self.log_alpha[key] = log_alpha
+            self.alpha[key] = alpha
+            self.value_target[key] = value_target
+            actors.append(policy_out)
 
-            # Setup the target critic and critic update procedure.
-            self.critic_loss, self.critic_optimizer = \
-                self._setup_critic_updates_shared(self.value_target)
+        # Combine all actors for when creating a centralized differentiable
+        # critic.
+        combined_actors = tf.concat(actors, axis=1)
 
-            # Create the target update operations.
-            init, soft = self._setup_target_updates_shared(scope)
-            self.target_init_updates = init
-            self.target_soft_updates = soft
+        # Now that we have all actors, we can start constructing centralized
+        # critic targets and all update procedures.
+        self.critic_loss = {}
+        self.critic_optimizer = {}
+        self.target_init_updates = {}
+        self.target_soft_updates = {}
+        self.alpha_loss = {}
+        self.alpha_optimizer = {}
+        self.actor_loss = {}
+        self.actor_optimizer = {}
 
-            # Setup the alpha and actor update procedures.
-            l1, o1, l2, o2 = self._setup_actor_updates_shared()
-            self.alpha_loss = l1
-            self.alpha_optimizer = o1
-            self.actor_loss = l2
-            self.actor_optimizer = o2
+        for key in sorted(self.ob_space.keys()):
+            # Append the key to the outer scope term.
+            scope_i = key if scope is None else "{}/{}".format(scope, key)
 
-            # Setup the running means and standard deviations of the model
-            # inputs and outputs.
-            self._setup_stats_shared(scope or "Model")
-        else:
-            # Create an input placeholder for the full actions.
-            all_ac_dim = sum(self.ac_space[key].shape[0]
-                             for key in self.ac_space.keys())
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                # Create the differentiable critics for the agent.
+                with tf.compat.v1.variable_scope("model", reuse=False):
+                    qf1_pi, qf2_pi, _ = self.make_critic(
+                        self.all_obs_ph, combined_actors,
+                        scope="centralized_value_fns",
+                        create_qf=True, create_vf=False, reuse=True
+                    )
 
-            self.all_action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, all_ac_dim),
-                name='all_actions')
+                # Setup the target critic and critic update procedure.
+                loss, optimizer = self._setup_critic_update(
+                    qf1_pi=qf1_pi,
+                    qf2_pi=qf2_pi,
+                    rew_ph=self.rew_ph[key],
+                    terminals1=self.terminals1[key],
+                    value_target=self.value_target[key],
+                    qf1=self.qf1[key],
+                    qf2=self.qf2[key],
+                    alpha=self.alpha[key],
+                    logp_pi=self.logp_pi[key],
+                    value_fn=self.value_fn[key],
+                    scope=scope_i
+                )
+                self.critic_loss[key] = loss
+                self.critic_optimizer[key] = optimizer
 
-            self.replay_buffer = {}
-            self.terminals1 = {}
-            self.rew_ph = {}
-            self.action_ph = {}
-            self.obs_ph = {}
-            self.obs1_ph = {}
-            self.deterministic_action = {}
-            self.policy_out = {}
-            self.logp_pi = {}
-            self.logp_action = {}
-            self.qf1 = {}
-            self.qf2 = {}
-            self.value_fn = {}
-            self.log_alpha = {}
-            self.alpha = {}
-            self.value_target = {}
+                # Create the target update operations.
+                init, soft = self._setup_target_updates(
+                    model_scope='model/centralized_value_fns/vf',
+                    target_scope='target/centralized_value_fns/vf',
+                    scope=scope_i,
+                    tau=self.tau,
+                    verbose=self.verbose
+                )
+                self.target_init_updates[key] = init
+                self.target_soft_updates[key] = soft
 
-            # We move through the keys in a sorted fashion so that we may
-            # collect the observations and actions for the full state in a
-            # sorted manner as well.
-            for key in sorted(self.ob_space.keys()):
-                # Create actor and critic networks for the the individual
-                # policies.
-                with tf.compat.v1.variable_scope(key, reuse=False):
-                    replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
-                        obs1_ph, deterministic_action, policy_out, logp_pi, \
-                        logp_action, qf1, qf2, value_fn, log_alpha, alpha, \
-                        value_target = \
-                        self._setup_agent(
-                            ob_space=self.ob_space[key],
-                            ac_space=self.ac_space[key],
-                            co_space=self.co_space[key],
-                        )
+                # Setup the actor update procedure.
+                l1, o1, l2, o2 = self._setup_actor_update(
+                    qf1_pi=qf1_pi,
+                    qf2_pi=qf2_pi,
+                    log_alpha=self.log_alpha[key],
+                    alpha=self.alpha[key],
+                    logp_pi=self.logp_pi[key],
+                    target_entropy=self.target_entropy[key],
+                    scope=scope_i
+                )
+                self.alpha_loss[key] = l1
+                self.alpha_optimizer[key] = o1
+                self.actor_loss[key] = l2
+                self.actor_optimizer[key] = o2
 
-                # Store the new objects in their respective attributes.
-                self.replay_buffer[key] = replay_buffer
-                self.terminals1[key] = terminals1
-                self.rew_ph[key] = rew_ph
-                self.action_ph[key] = action_ph
-                self.obs_ph[key] = obs_ph
-                self.obs1_ph[key] = obs1_ph
-                self.deterministic_action[key] = deterministic_action
-                self.policy_out[key] = policy_out
-                self.logp_pi[key] = logp_pi
-                self.logp_action[key] = logp_action
-                self.qf1[key] = qf1
-                self.qf2[key] = qf2
-                self.value_fn[key] = value_fn
-                self.log_alpha[key] = log_alpha
-                self.alpha[key] = alpha
-                self.value_target[key] = value_target
+                # Setup the running means and standard deviations of the model
+                # inputs and outputs.
+                self._setup_stats(
+                    rew_ph=self.rew_ph[key],
+                    alpha_loss=self.alpha_loss[key],
+                    actor_loss=self.actor_loss[key],
+                    critic_loss=self.critic_loss[key],
+                    qf1=self.qf1[key],
+                    qf2=self.qf2[key],
+                    value_fn=self.value_fn[key],
+                    qf1_pi=qf1_pi,
+                    qf2_pi=qf2_pi,
+                    policy_out=self.policy_out[key],
+                    logp_pi=self.logp_pi[key]
+                )
 
-            # Setup the target critic and critic update procedure.
-            self.critic_loss, self.critic_optimizer = \
-                self._setup_critic_updates_nonshared(self.value_target)
-
-            # Create the target update operations.
-            init, soft = self._setup_target_updates_nonshared(scope)
-            self.target_init_updates = init
-            self.target_soft_updates = soft
-
-            # Setup the alpha and actor update procedures.
-            l1, o1, l2, o2 = self._setup_actor_updates_nonshared()
-            self.alpha_loss = l1
-            self.alpha_optimizer = o1
-            self.actor_loss = l2
-            self.actor_optimizer = o2
-
-            # Setup the running means and standard deviations of the model
-            # inputs and outputs.
-            self._setup_stats_nonshared(scope or "Model")
-
-    def _setup_agent(self, ob_space, ac_space, co_space):
+    def _setup_agent(self, ob_space, ac_space, co_space, create_replay_buffer):
         """Create the components for an individual agent.
 
         Parameters
@@ -399,6 +460,9 @@ class MultiFeedForwardPolicy(BasePolicy):
             the action space of the individual agent
         co_space : gym.spaces.*
             the context space of the individual agent
+        create_replay_buffer : bool
+            whether to create a replay buffer as well. The replay buffer is
+            only needed by independent policies.
 
         Returns
         -------
@@ -446,16 +510,17 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Step 1: Create a replay buffer object.                              #
         # =================================================================== #
 
-        replay_buffer = MultiReplayBuffer(
-            buffer_size=self.buffer_size,
-            batch_size=self.batch_size,
-            obs_dim=ob_dim[0],
-            ac_dim=ac_space.shape[0],
-            all_obs_dim=self.all_obs_ph.shape[-1],
-            all_ac_dim=self.all_action_ph.shape[-1],
-            shared=self.shared,
-            n_agents=self.n_agents,
-        )
+        if create_replay_buffer:
+            replay_buffer = MultiReplayBuffer(
+                buffer_size=self.buffer_size,
+                batch_size=self.batch_size,
+                obs_dim=ob_dim[0],
+                ac_dim=ac_space.shape[0],
+                all_obs_dim=self.all_obs_ph.shape[-1],
+                all_ac_dim=self.all_action_ph.shape[-1],
+            )
+        else:
+            replay_buffer = None
 
         # =================================================================== #
         # Step 2: Create input variables.                                     #
@@ -688,125 +753,276 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return qf1, qf2, value_fn
 
-    def _setup_critic_updates_shared(self, value_target):
-        """TODO
+    def _setup_critic_update(self,
+                             qf1_pi,
+                             qf2_pi,
+                             rew_ph,
+                             terminals1,
+                             value_target,
+                             qf1,
+                             qf2,
+                             alpha,
+                             logp_pi,
+                             value_fn,
+                             scope):
+        """Create the critic loss and optimization process.
 
         Parameters
         ----------
+        qf1_pi : tf.Variable
+            the output from the first Q-function with the action provided
+            directly by the actor policy
+        qf2_pi : tf.Variable
+            the output from the second Q-function with the action provided
+            directly by the actor policy
+        rew_ph : tf.compat.v1.placeholder
+            a placeholder for the rewards of an agent
+        terminals1 : tf.compat.v1.placeholder
+            placeholder for the next step terminals for each agent
         value_target : tf.Variable
             the output from the shared target value function
+        qf1 : tf.Variable
+            the output from the first Q-function
+        qf2 : tf.Variable
+            the output from the second Q-function
+        alpha : tf.Variable
+            the entropy coefficient
+        logp_pi : tf.Variable
+            the log-probability of a given observation given the output action
+            from the policy
+        value_fn : tf.Variable
+            the output from the value function
+        scope : str
+            an outer scope term
 
         Returns
         -------
-        tf.Variable
-            output from the centralized critic target with inputs from the
-            actor target
         tf.Operation
             the operation that returns the loss of the critic
         tf.Operation
             the operation that updates the trainable parameters of the critic
         """
-        pass  # TODO
+        if self.verbose >= 2:
+            print('setting up critic optimizer')
 
-    def _setup_critic_updates_nonshared(self, value_targets):
-        """TODO
+        scope_name = 'model/centralized_value_fns'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            for name in ['qf1', 'qf2', 'vf']:
+                actor_shapes = [
+                    var.get_shape().as_list() for var in
+                    get_trainable_vars('{}/{}'.format(scope_name, name))]
+                actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                       for shape in actor_shapes])
+                print('  {} shapes: {}'.format(name, actor_shapes))
+                print('  {} params: {}'.format(name, actor_nb_params))
+
+        # Take the min of the two Q-Values (Double-Q Learning)
+        min_qf_pi = tf.minimum(qf1_pi, qf2_pi)
+
+        # Target for Q value regression
+        q_backup = tf.stop_gradient(
+            rew_ph + (1 - terminals1) * self.gamma * value_target)
+
+        # choose the loss function
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
+        # Compute Q-Function loss
+        qf1_loss = loss_fn(q_backup, qf1)
+        qf2_loss = loss_fn(q_backup, qf2)
+
+        # Target for value fn regression
+        # We update the vf towards the min of two Q-functions in order to
+        # reduce overestimation bias from function approximation error.
+        v_backup = tf.stop_gradient(min_qf_pi - alpha * logp_pi)
+        value_loss = loss_fn(value_fn, v_backup)
+
+        critic_loss = (qf1_loss, qf2_loss, value_loss)
+
+        # Critic train op
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
+        critic_optimizer = optimizer.minimize(
+            qf1_loss + qf2_loss + value_loss,
+            var_list=get_trainable_vars(scope_name))
+
+        return critic_loss, critic_optimizer
+
+    def _setup_actor_update(self,
+                            qf1_pi,
+                            qf2_pi,
+                            log_alpha,
+                            alpha,
+                            logp_pi,
+                            target_entropy,
+                            scope):
+        """Create the actor and alpha loss and optimization process.
 
         Parameters
         ----------
-        value_targets : dict <str, tf.Variable>
-            the output from all target value functions
+        qf1_pi : tf.Variable
+            the output from the first Q-function with the action provided
+            directly by the actor policy
+        qf2_pi : tf.Variable
+            the output from the second Q-function with the action provided
+            directly by the actor policy
+        log_alpha : tf.Variable
+            the log of the entropy coefficient
+        alpha : tf.Variable
+            the entropy coefficient
+        logp_pi : tf.Variable
+            the log-probability of a given observation given the output action
+            from the policy
+        target_entropy : float
+            target entropy used when learning the entropy coefficient
+        scope : str
+            an outer scope term
 
         Returns
         -------
-        dict <str, tf.Variable>
-            output from the centralized critic target with inputs from the
-            actor target
-        dict <str, tf.Operation>
+        tf.Operation
+            the operation that returns the loss of the alpha term
+        tf.Operation
+            the operation that updates the alpha term
+        tf.Operation
+            the operation that returns the loss of the actor
+        tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        if self.verbose >= 2:
+            print('setting up actor and alpha optimizers')
+
+        scope_name = 'model/pi/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            actor_shapes = [var.get_shape().as_list()
+                            for var in get_trainable_vars(scope_name)]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
+            print('  actor shapes: {}'.format(actor_shapes))
+            print('  actor params: {}'.format(actor_nb_params))
+
+        # Take the min of the two Q-Values (Double-Q Learning)
+        min_qf_pi = tf.minimum(qf1_pi, qf2_pi)
+
+        # Compute the entropy temperature loss.
+        alpha_loss = -tf.reduce_mean(
+            log_alpha * tf.stop_gradient(logp_pi + target_entropy))
+
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+
+        alpha_optimizer = optimizer.minimize(
+            alpha_loss,
+            var_list=log_alpha)
+
+        # Compute the policy loss
+        actor_loss = tf.reduce_mean(alpha * logp_pi - min_qf_pi)
+
+        # Policy train op (has to be separate from value train op, because
+        # min_qf_pi appears in policy_loss)
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+
+        actor_optimizer = optimizer.minimize(
+            actor_loss,
+            var_list=get_trainable_vars(scope_name))
+
+        return alpha_loss, alpha_optimizer, actor_loss, actor_optimizer
+
+    @staticmethod
+    def _setup_stats(rew_ph,
+                     alpha_loss,
+                     actor_loss,
+                     critic_loss,
+                     qf1,
+                     qf2,
+                     value_fn,
+                     qf1_pi,
+                     qf2_pi,
+                     policy_out,
+                     logp_pi):
+        """Prepare tensorboard logging for attributes of the agent.
+
+        Parameters
+        ----------
+        rew_ph : tf.compat.v1.placeholder
+            a placeholder for the rewards of an agent
+        alpha_loss : tf.Operation
+            the operation that returns the loss of the actor
+        actor_loss : tf.Operation
+            the operation that returns the loss of the actor
+        critic_loss : list of tf.Operation
             the operation that returns the loss of the critic
-        dict <str, tf.Operation>
-            the operation that updates the trainable parameters of the critic
+        qf1 : tf.Variable
+            the output from the first Q-function
+        qf2 : tf.Variable
+            the output from the second Q-function
+        value_fn : tf.Variable
+            the output from the value function
+        qf1_pi : tf.Variable
+            the output from the first Q-function with the action provided
+            directly by the actor policy
+        qf2_pi : tf.Variable
+            the output from the second Q-function with the action provided
+            directly by the actor policy
+        policy_out : tf.Variable
+            the output from the stochastic actor
+        logp_pi : tf.Variable
+            the log-probability of a given observation given the output action
+            from the policy
         """
-        pass  # TODO
+        # rewards
+        tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(rew_ph))
 
-    def _setup_target_updates_shared(self, scope):
-        """TODO
+        # actor and critic losses
+        tf.compat.v1.summary.scalar('alpha_loss', alpha_loss)
+        tf.compat.v1.summary.scalar('actor_loss', actor_loss)
+        tf.compat.v1.summary.scalar('Q1_loss', critic_loss[0])
+        tf.compat.v1.summary.scalar('Q2_loss', critic_loss[1])
+        tf.compat.v1.summary.scalar('value_loss', critic_loss[1])
 
-        Parameters
-        ----------
-        scope : str
-            an upper-level scope term
+        # critic dynamics
+        tf.compat.v1.summary.scalar(
+            'reference_Q1_mean', tf.reduce_mean(qf1))
+        tf.compat.v1.summary.scalar(
+            'reference_Q1_std', reduce_std(qf1))
 
-        Returns
-        -------
-        tf.Operation
-            an operation that sets the values of the trainable parameters of
-            the target actor/critic to match those actual actor/critic
-        tf.Operation
-            soft target update function
-        """
-        pass  # TODO
+        tf.compat.v1.summary.scalar(
+            'reference_Q2_mean', tf.reduce_mean(qf2))
+        tf.compat.v1.summary.scalar(
+            'reference_Q2_std', reduce_std(qf2))
 
-    def _setup_target_updates_nonshared(self, scope):
-        """TODO
+        tf.compat.v1.summary.scalar(
+            'reference_value_mean', tf.reduce_mean(value_fn))
+        tf.compat.v1.summary.scalar(
+            'reference_value_mean', reduce_std(value_fn))
 
-        Parameters
-        ----------
-        scope : str
-            an upper-level scope term
+        tf.compat.v1.summary.scalar(
+            'reference_actor_Q1_mean', tf.reduce_mean(qf1_pi))
+        tf.compat.v1.summary.scalar(
+            'reference_actor_Q1_std', reduce_std(qf1_pi))
 
-        Returns
-        -------
-        dict <str, tf.Operation>
-            an operation that sets the values of the trainable parameters of
-            the target actor/critic to match those actual actor/critic
-        dict <str, tf.Operation>
-            soft target update function
-        """
-        pass  # TODO
+        tf.compat.v1.summary.scalar(
+            'reference_actor_Q2_mean', tf.reduce_mean(qf2_pi))
+        tf.compat.v1.summary.scalar(
+            'reference_actor_Q2_std', reduce_std(qf2_pi))
 
-    def _setup_actor_updates_shared(self):
-        """TODO
+        # actor dynamics
+        tf.compat.v1.summary.scalar(
+            'reference_action_mean', tf.reduce_mean(policy_out))
+        tf.compat.v1.summary.scalar(
+            'reference_action_std', reduce_std(policy_out))
 
-        Returns
-        -------
-        tf.Operation
-            the operation that returns the loss of the actor
-        tf.Operation
-            the operation that updates the trainable parameters of the actor
-        """
-        pass  # TODO
-
-    def _setup_actor_updates_nonshared(self):
-        """TODO
-
-        Returns
-        -------
-        dict <str, tf.Operation>
-            the operation that returns the loss of the actor
-        dict <str, tf.Operation>
-            the operation that updates the trainable parameters of the actor
-        """
-        pass  # TODO
-
-    def _setup_stats_shared(self, base):
-        """TODO
-
-        Parameters
-        ----------
-        base : str
-            an upper-level scope term
-        """
-        pass  # TODO
-
-    def _setup_stats_nonshared(self, base):
-        """TODO
-
-        Parameters
-        ----------
-        base : str
-            an upper-level scope term
-        """
-        pass  # TODO
+        # log probability dynamics
+        tf.compat.v1.summary.scalar(
+            'reference_log_probability_mean', tf.reduce_mean(logp_pi))
+        tf.compat.v1.summary.scalar(
+            'reference_log_probability_std', reduce_std(logp_pi))
 
     @staticmethod
     def _gaussian_likelihood(input_, mu_, log_std):
