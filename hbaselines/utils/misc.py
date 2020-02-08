@@ -4,7 +4,6 @@ import errno
 import numpy as np
 from gym.spaces import Box
 import gym
-import sys
 
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.efficient_hrl.envs import AntMaze
@@ -23,12 +22,6 @@ try:
     from hbaselines.envs.mixed_autonomy import FlowEnv
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
-
-try:
-    sys.path.append(os.path.join(os.environ["TERRAINRL_PATH"], "simAdapter"))
-    import terrainRLSim
-except (ImportError, ModuleNotFoundError):
-    pass
 
 
 def ensure_dir(path):

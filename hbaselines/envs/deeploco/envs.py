@@ -1,5 +1,13 @@
 import gym
 import numpy as np
+import os
+import sys
+
+try:
+    sys.path.append(os.path.join(os.environ["TERRAINRL_PATH"], "simAdapter"))
+    import terrainRLSim  # noqa: F401
+except (ImportError, ModuleNotFoundError):
+    pass
 
 
 class BipedalSoccer(gym.Env):
