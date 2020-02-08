@@ -236,7 +236,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 goal_diff = worker_obses_per_sample[:-1, :] - np.tile(
                     worker_obses_per_sample[0, :], (meta_period, 1))
                 tiled_goals_per_sample += \
-                    np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
+                    np.tile(goal_diff, (num_samples, 1))[:, self.goal_indices]
 
             # Compute the actions the Worker would perform given a specific
             # observation/goal for the current instantiation of the policy.
@@ -272,19 +272,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_connected_gradients(self):
         """Create the updated manager optimization with connected gradients."""
-        goal_dim = self.manager.ac_space.shape[0]
+        # Index relevant variables based on self.goal_indices
+        manager_obs0 = self.crop_to_goal(self.manager.obs_ph)
+        manager_obs1 = self.crop_to_goal(self.manager.obs1_ph)
+        worker_obs0 = self.crop_to_goal(self.worker.obs_ph)
+        worker_obs1 = self.crop_to_goal(self.worker.obs1_ph)
 
         if self.relative_goals:
-            # The observation from the perspective of the manager can be
-            # collected from the first goal_dim elements of the observation. We
-            # use goal_dim in case the goal-specific observations are not the
-            # entire observation space.
-            obs_t = self.manager.obs_ph[:, :goal_dim]
-            # We collect the observation of the worker in a similar fashion as
-            # above.
-            obs_tpi = self.worker.obs_ph[:, :goal_dim]
             # Relative goal formulation as per HIRO.
-            goal = obs_t + self.manager.actor_tf - obs_tpi
+            goal = manager_obs0 + self.manager.actor_tf - manager_obs1
         else:
             # Goal is the direct output from the manager in this case.
             goal = self.manager.actor_tf
@@ -302,11 +298,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         # used to provide feedback to the worker
         if self.relative_goals:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                self.worker.obs_ph[:, :goal_dim] + goal,
-                self.worker.obs1_ph[:, :goal_dim])
+                worker_obs0 + goal, worker_obs1)
         else:
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, self.worker.obs1_ph[:, :goal_dim])
+                goal, worker_obs1)
 
         # compute the worker loss with respect to the manager actions
         self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn

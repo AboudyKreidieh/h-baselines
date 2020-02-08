@@ -577,6 +577,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
             self.obs = self.env.reset()
+
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
                 self.obs, self.total_steps, total_timesteps)
