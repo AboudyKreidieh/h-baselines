@@ -7,8 +7,8 @@ from hbaselines.fcnet.base import ActorCriticPolicy
 class MultiFeedForwardPolicy(ActorCriticPolicy):
     """Multi-agent fully connected neural network policy.
 
-    This policy supports training TD3-variants of three popular multi-agent
-    algorithms:
+    This policy supports training off-policy variants of three popular
+    multi-agent algorithms:
 
     * Independent learners: Independent (or Naive) learners provide a separate
       policy with independent parameters to each agent in an environment.
