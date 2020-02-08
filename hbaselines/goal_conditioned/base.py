@@ -254,6 +254,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             worker_ac_dim=ac_space.shape[0],
         )
 
+        # Collect the state indices for the worker rewards.
+        self.goal_indices = get_state_indices(
+            ob_space, env_name, use_fingerprints, self.fingerprint_dim)
+
+        # Utility method for indexing the goal out of an observation variable.
+        self.crop_to_goal = lambda g: tf.gather(
+            g,
+            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
+                    [self.batch_size, 1]),
+            batch_dims=1, axis=1)
+
         # =================================================================== #
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
@@ -355,15 +366,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 **(additional_params or {}),
             )
 
-        # Collect the state indices for the worker rewards.
-        state_indices = get_state_indices(
-            ob_space, env_name, use_fingerprints, self.fingerprint_dim)
-
         # reward function for the worker
         def worker_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
-                state_indices=state_indices,
+                state_indices=self.goal_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
@@ -488,11 +495,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         else:
             # Update the meta-action in accordance with the fixed transition
             # function.
-            goal_dim = self.meta_action.shape[1]
             self.meta_action = self.goal_transition_fn(
-                obs0=np.asarray([self._observations[-1][:goal_dim]]),
+                obs0=np.asarray([self._observations[-1][self.goal_indices]]),
                 goal=self.meta_action,
-                obs1=obs[:, :goal_dim]
+                obs1=obs[:, self.goal_indices]
             )
 
         # Return the worker action.
@@ -716,7 +722,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Compute the mean and std for the Gaussian distribution to sample
         # from, and well as the maxima and minima.
-        loc = meta_obs1[:, :goal_dim] - meta_obs0[:, :goal_dim]
+        loc = meta_obs1[:, self.goal_indices] - meta_obs0[:, self.goal_indices]
         scale = [sc * spec_range / 2]
         minimum, maximum = [goal_space.low], [goal_space.high]
 
@@ -818,7 +824,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         observations = deepcopy(initial_observations)
         rewards = deepcopy(initial_rewards)
         hindsight_goal = 0 if self.relative_goals \
-            else observations[-1][:goal_dim]
+            else observations[-1][self.goal_indices]
         obs_tp1 = observations[-1]
 
         for i in range(1, len(observations) + 1):
@@ -828,7 +834,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # If not, the hindsight goal is simply a subset of the
             # final state observation.
             if self.relative_goals:
-                hindsight_goal += obs_tp1[:goal_dim] - obs_t[:goal_dim]
+                hindsight_goal += \
+                    obs_tp1[self.goal_indices] - obs_t[self.goal_indices]
 
             # Modify the Worker intrinsic rewards based on the new
             # hindsight goal.

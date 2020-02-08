@@ -182,21 +182,21 @@ class Environment(gym.Env):
 
         obs = self.get_state()
 
-        # FIXME: this is hacky
-        # The reward is not covered here (computed by the algorithm instead).
-        reward = 0
+        # check whether the goal is reached.
+        is_success = all(
+            np.absolute(self.project_state_to_end_goal(self.sim, obs)
+                        - self.current_context)
+            < self.end_goal_thresholds)
+
+        # Reward of 0 when the goal is reached, and -1 otherwise.
+        reward = self.contextual_reward(obs, self.current_context, obs)
 
         # If the time horizon is met, set done to True.
-        done = self.num_steps >= self.max_actions
+        done = self.num_steps >= self.max_actions or is_success
 
         # Success is defined as getting within a distance threshold from the
         # target.
-        info_dict = {
-            'is_success':
-                all(np.absolute(self.project_state_to_end_goal(self.sim, obs)
-                                - self.current_context)
-                    < self.end_goal_thresholds)
-        }
+        info_dict = {'is_success': is_success}
 
         return obs, reward, done, info_dict
 
@@ -226,6 +226,11 @@ class Environment(gym.Env):
     def render(self, mode='human'):
         """Render the environment."""
         self.viewer.render()  # pragma: no cover
+
+    @property
+    def horizon(self):
+        """Return the environment horizon."""
+        return self.max_actions
 
     @property
     def context_space(self):
