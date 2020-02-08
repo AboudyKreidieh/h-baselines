@@ -6,6 +6,7 @@ from functools import reduce
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
+from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
@@ -267,8 +268,19 @@ class MultiFeedForwardPolicy(BasePolicy):
             shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
             name='all_actions')
 
+        # Compute the shape of the input observation space, which may include
+        # the contextual term.
+        ob_dim = self._get_ob_dim(self.ob_space, self.co_space)
+
         # Create the shared replay buffer.
-        self.replay_buffer = None  # TODO
+        self.replay_buffer = SharedReplayBuffer(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            obs_dim=ob_dim[0],
+            ac_dim=self.ac_space.shape[0],
+            n_agents=self.n_agents,
+            all_obs_dim=self.all_obs_ph.shape[0]
+        )
 
         # Create actor and critic networks for the shared policy.
         _, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
