@@ -414,15 +414,30 @@ class TestMixedAutonomy(unittest.TestCase):
                 "simulator": "traci",
                 "multiagent": True
             },
+            multiagent=True,
+            shared=False,
             version=1
         )
         env.reset()
 
+        # test the agent IDs.
+        self.assertListEqual(env.agents, ["rl_0_0"])
+
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space["rl_0_0"],
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -435,15 +450,31 @@ class TestMixedAutonomy(unittest.TestCase):
                 "horizon": 1500,
                 "simulator": "traci",
                 "multiagent": True
-            }
+            },
+            multiagent=True,
+            shared=True,
         )
         env.reset()
 
+        # test the agent IDs.
+        self.assertListEqual(
+            env.agents, ["rl_0_0", "rl_1_0", "rl_2_0", "rl_3_0"])
+
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()

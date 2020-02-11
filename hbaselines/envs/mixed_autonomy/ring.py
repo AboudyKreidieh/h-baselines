@@ -1,6 +1,6 @@
 """Ring road example."""
 from flow.envs import WaveAttenuationPOEnv
-from flow.envs.multiagent import MultiWaveAttenuationPOEnv
+from flow.envs.multiagent import MultiAgentWaveAttenuationPOEnv
 from flow.networks import RingNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
@@ -107,7 +107,7 @@ def get_flow_params(num_automated=1,
         exp_tag="stabilizing_the_ring",
 
         # name of the flow environment the experiment is running on
-        env_name=(MultiWaveAttenuationPOEnv if multiagent else
+        env_name=(MultiAgentWaveAttenuationPOEnv if multiagent else
                   WaveAttenuationPOEnv),
 
         # name of the network class the experiment is running on

@@ -326,7 +326,10 @@ def create_env(env, render=False, evaluate=False):
         if evaluate:
             env = [
                 FlowEnv(
-                    "ring", render=render,
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=True,  # FIXME?
                     env_params={
                         "ring_length": [230, 230],
                         "evaluate": True,
@@ -334,7 +337,10 @@ def create_env(env, render=False, evaluate=False):
                     }
                 ),
                 FlowEnv(
-                    "ring", render=render,
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=True,  # FIXME?
                     env_params={
                         "ring_length": [260, 260],
                         "evaluate": True,
@@ -342,7 +348,10 @@ def create_env(env, render=False, evaluate=False):
                     }
                 ),
                 FlowEnv(
-                    "ring", render=render,
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=True,  # FIXME?
                     env_params={
                         "ring_length": [290, 290],
                         "evaluate": True,
@@ -352,7 +361,10 @@ def create_env(env, render=False, evaluate=False):
             ]
         else:
             env = FlowEnv(
-                "ring", render=render,
+                "ring",
+                render=render,
+                multiagent=env[:10] == "multiagent",
+                shared=True,  # FIXME?
                 env_params={
                     "evaluate": evaluate,
                     "multiagent": env[:10] == "multiagent"
@@ -363,7 +375,10 @@ def create_env(env, render=False, evaluate=False):
                  "multiagent-merge1", "multiagent-merge2"]:
         env_num = int(env[-1])
         env = FlowEnv(
-            "merge", render=render,
+            "merge",
+            render=render,
+            multiagent=env[:10] == "multiagent",
+            shared=True,  # FIXME?
             env_params={
                 "exp_num": env_num,
                 "horizon": 6000,
@@ -377,7 +392,10 @@ def create_env(env, render=False, evaluate=False):
                  "multiagent-figureeight02"]:
         env_num = int(env[-1])
         env = FlowEnv(
-            "figure_eight", render=render,
+            "figure_eight",
+            render=render,
+            multiagent=env[:10] == "multiagent",
+            shared=True,  # FIXME?
             env_params={
                 "num_automated": [1, 7, 14][env_num],
                 "horizon": 1500,
