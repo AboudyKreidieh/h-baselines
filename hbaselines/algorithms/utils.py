@@ -13,12 +13,14 @@ from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
 
 def is_td3_policy(policy):
     """Check whether a policy is for designed to support TD3."""
-    return policy in [TD3FeedForward, TD3GoalConditioned]
+    return policy in [
+        TD3FeedForward, TD3GoalConditioned, TD3MultiFeedForwardPolicy]
 
 
 def is_sac_policy(policy):
     """Check whether a policy is for designed to support SAC."""
-    return policy in [SACFeedForward, SACGoalConditioned]
+    return policy in [
+        SACFeedForward, SACGoalConditioned, SACMultiFeedForwardPolicy]
 
 
 def is_feedforward_policy(policy):

@@ -22,6 +22,7 @@ import tensorflow as tf
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
+from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir, create_env
 
@@ -339,6 +340,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
+        elif is_multiagent_policy(policy):
+            self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
