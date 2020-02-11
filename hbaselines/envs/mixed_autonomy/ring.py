@@ -1,6 +1,6 @@
 """Ring road example."""
 from flow.envs import WaveAttenuationPOEnv
-from flow.envs.multiagent import MultiWaveAttenuationPOEnv
+from flow.envs.multiagent import MultiAgentWaveAttenuationPOEnv
 from flow.networks import RingNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
@@ -14,8 +14,10 @@ MAX_DECEL = 1
 
 
 def get_flow_params(num_automated=1,
-                    horizon=1500,
+                    horizon=7500,
+                    ring_length=None,
                     simulator="traci",
+                    evaluate=False,
                     multiagent=False):
     """Return the flow-specific parameters of the ring road network.
 
@@ -37,8 +39,13 @@ def get_flow_params(num_automated=1,
         number of automated (RL) vehicles
     horizon : int
         time horizon of a single rollout
+    ring_length : [int, int]
+        the minimum and maximum ring indices during simulation. Set the two to
+        the same value to get a single deterministic radius.
     simulator : str
         the simulator used, one of {'traci', 'aimsun'}
+    evaluate : bool
+        whether to compute the evaluation reward
     multiagent : bool
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
@@ -100,7 +107,7 @@ def get_flow_params(num_automated=1,
         exp_tag="stabilizing_the_ring",
 
         # name of the flow environment the experiment is running on
-        env_name=(MultiWaveAttenuationPOEnv if multiagent else
+        env_name=(MultiAgentWaveAttenuationPOEnv if multiagent else
                   WaveAttenuationPOEnv),
 
         # name of the network class the experiment is running on
@@ -111,19 +118,20 @@ def get_flow_params(num_automated=1,
 
         # sumo-related parameters (see flow.core.params.SumoParams)
         sim=SumoParams(
-            sim_step=0.2,
+            sim_step=0.1,
             render=False,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
             horizon=horizon,
-            warmup_steps=1500,
+            warmup_steps=750,
             clip_actions=False,
+            evaluate=evaluate,
             additional_params={
                 "max_accel": MAX_ACCEL,
                 "max_decel": MAX_DECEL,
-                "ring_length": [220, 270],
+                "ring_length": ring_length or [220, 270],
             },
         ),
 

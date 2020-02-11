@@ -1,6 +1,6 @@
 """Figure eight example."""
 from flow.envs import AccelEnv
-from flow.envs.multiagent import MultiAgentAccelEnv
+from flow.envs.multiagent import MultiAgentAccelPOEnv
 from flow.networks import FigureEightNetwork
 from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
@@ -113,7 +113,7 @@ def get_flow_params(num_automated=1,
         exp_tag='figure_eight',
 
         # name of the flow environment the experiment is running on
-        env_name=MultiAgentAccelEnv if multiagent else AccelEnv,
+        env_name=MultiAgentAccelPOEnv if multiagent else AccelEnv,
 
         # name of the network class the experiment is running on
         network=FigureEightNetwork,
