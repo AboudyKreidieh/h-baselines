@@ -24,7 +24,13 @@ class FlowEnv(gym.Env):
         the environment's time horizon
     """
 
-    def __init__(self, env_name, env_params=None, render=False, version=0):
+    def __init__(self,
+                 env_name,
+                 env_params=None,
+                 multiagent=False,
+                 shared=False,
+                 render=False,
+                 version=0):
         """Create the environment.
 
         Parameters
@@ -33,6 +39,11 @@ class FlowEnv(gym.Env):
             the name of the environment to create
         env_params : dict
             environment-specific parameters
+        multiagent : bool
+            whether the environment is a multi-agent environment
+        shared : bool
+            whether the policies in the environment are shared or independent.
+            This is only relevant if `shared` is set to True.
         render : bool
             whether to render the environment
         version : int
@@ -50,6 +61,10 @@ class FlowEnv(gym.Env):
         """
         assert env_name in ["ring", "merge", "figure_eight"]
 
+        # Initialize some variables.
+        self.multiagent = multiagent
+        self.shared = shared
+
         # default to empty dictionary if not passed
         env_params = env_params or {}
 
@@ -66,6 +81,10 @@ class FlowEnv(gym.Env):
         create_env, _ = make_create_env(flow_params, version, render)
         self.wrapped_env = create_env()
 
+        # Collect the IDs of individual vehicles if using a multi-agent env.
+        if self.multiagent:
+            self.agents = list(self.wrapped_env.reset().keys())
+
         # for tracking the time horizon
         self.step_number = 0
         self.horizon = self.wrapped_env.env_params.horizon
@@ -73,12 +92,19 @@ class FlowEnv(gym.Env):
     @property
     def action_space(self):
         """See wrapped environment."""
-        return self.wrapped_env.action_space
+        if self.multiagent and not self.shared:
+            return {key: self.wrapped_env.action_space for key in self.agents}
+        else:
+            return self.wrapped_env.action_space
 
     @property
     def observation_space(self):
         """See wrapped environment."""
-        return self.wrapped_env.observation_space
+        if self.multiagent and not self.shared:
+            return {
+                key: self.wrapped_env.observation_space for key in self.agents}
+        else:
+            return self.wrapped_env.observation_space
 
     def step(self, action):
         """See wrapped environment.
@@ -90,6 +116,11 @@ class FlowEnv(gym.Env):
         # Check if the time horizon has been met.
         self.step_number += 1
         done = done or self.step_number == self.horizon
+
+        # In case of a multi-agent shared environment, all policies should have
+        # the same reward.
+        if self.multiagent and self.shared:
+            reward = reward[self.agents[0]]
 
         return obs, reward, done, info_dict
 
