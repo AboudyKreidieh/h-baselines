@@ -9,6 +9,8 @@ from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
+from hbaselines.utils.tf_util import gaussian_likelihood
+from hbaselines.utils.tf_util import apply_squashing_func
 
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
@@ -282,38 +284,87 @@ class MultiFeedForwardPolicy(BasePolicy):
             all_obs_dim=self.all_obs_ph.shape[0]
         )
 
-        # Create actor and critic networks for the shared policy.
-        _, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
-            deterministic_action, policy_out, logp_pi, logp_action, qf1, \
-            qf2, value_fn, log_alpha, alpha, value_target = \
-            self._setup_agent(
-                ob_space=self.ob_space,
-                ac_space=self.ac_space,
-                co_space=self.co_space,
-                create_replay_buffer=False
-            )
+        # Initialize some attributes.
+        self.terminals1 = []
+        self.rew_ph = []
+        self.action_ph = []
+        self.obs_ph = []
+        self.obs1_ph = []
+        self.deterministic_action = []
+        self.policy_out = []
+        self.logp_pi = []
+        self.logp_action = []
+        self.qf1 = []
+        self.qf2 = []
+        self.value_fn = []
+        self.log_alpha = []
+        self.alpha = []
+        self.value_target = []
 
-        # Store the new objects in their respective attributes.
-        self.terminals1 = terminals1
-        self.rew_ph = rew_ph
-        self.action_ph = action_ph
-        self.obs_ph = obs_ph
-        self.obs1_ph = obs1_ph
-        self.deterministic_action = deterministic_action
-        self.policy_out = policy_out
-        self.logp_pi = logp_pi
-        self.logp_action = logp_action
-        self.qf1 = qf1
-        self.qf2 = qf2
-        self.value_fn = value_fn
-        self.log_alpha = log_alpha
-        self.alpha = alpha
-        self.value_target = value_target
+        # Compute the shape of the input observation space, which may
+        # include the contextual term.
+        ob_dim = self._get_ob_dim(self.ob_space, self.co_space)
+
+        for i in range(self.n_agents):
+            # Create input variables for the current agent. The policies
+            # parameters will still be shared by all agents.
+            with tf.compat.v1.variable_scope("agent_{}".format(i)):
+                terminals1 = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='terminals1')
+                rew_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='rewards')
+                action_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.ac_space.shape,
+                    name='actions')
+                obs_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs0')
+                obs1_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs1')
+
+            # Create actor and critic networks for the shared policy.
+            deterministic_action, policy_out, logp_pi, logp_action, qf1, qf2, \
+                value_fn, log_alpha, alpha, value_target = \
+                self._setup_agent(
+                    obs_ph=obs_ph,
+                    action_ph=action_ph,
+                    ac_space=self.ac_space,
+                    reuse=True,
+                )
+
+            # Store the new objects in their respective attributes.
+            self.terminals1.append(terminals1)
+            self.rew_ph.append(rew_ph)
+            self.action_ph.append(action_ph)
+            self.obs_ph.append(obs_ph)
+            self.obs1_ph.append(obs1_ph)
+            self.deterministic_action.append(deterministic_action)
+            self.policy_out.append(policy_out)
+            self.logp_pi.append(logp_pi)
+            self.logp_action.append(logp_action)
+            self.qf1.append(qf1)
+            self.qf2.append(qf2)
+            self.value_fn.append(value_fn)
+            self.log_alpha.append(log_alpha)
+            self.alpha.append(alpha)
+            self.value_target.append(value_target)
+
+        # Combine all actors for when creating a centralized differentiable
+        # critic.
+        # combined_actors = tf.concat(self.policy_out, axis=1)
 
     def _setup_maddpg_independent(self, scope):
         # Create an input placeholder for the full actions.
-        all_ac_dim = sum(self.ac_space[key].shape[0]
-                         for key in self.ac_space.keys())
+        all_ac_dim = sum(
+            self.ac_space[key].shape[0] for key in self.ac_space.keys())
 
         self.all_action_ph = tf.compat.v1.placeholder(
             tf.float32,
@@ -341,18 +392,53 @@ class MultiFeedForwardPolicy(BasePolicy):
         # We move through the keys in a sorted fashion so that we may collect
         # the observations and actions for the full state in a sorted manner.
         for key in sorted(self.ob_space.keys()):
-            # Create actor and critic networks for the the individual
-            # policies.
+            # Compute the shape of the input observation space, which may
+            # include the contextual term.
+            ob_dim = self._get_ob_dim(
+                self.ob_space[key], self.co_space[key])
+
+            # Create a replay buffer object.
+            replay_buffer = MultiReplayBuffer(
+                buffer_size=self.buffer_size,
+                batch_size=self.batch_size,
+                obs_dim=ob_dim[0],
+                ac_dim=self.ac_space[key].shape[0],
+                all_obs_dim=self.all_obs_ph.shape[-1],
+                all_ac_dim=self.all_action_ph.shape[-1],
+            )
+
             with tf.compat.v1.variable_scope(key, reuse=False):
-                replay_buffer, terminals1, rew_ph, action_ph, obs_ph, \
-                    obs1_ph, deterministic_action, policy_out, logp_pi, \
-                    logp_action, qf1, qf2, value_fn, log_alpha, alpha, \
-                    value_target = \
+                # Create input variables.
+                terminals1 = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='terminals1')
+                rew_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='rewards')
+                action_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.ac_space[key].shape,
+                    name='actions')
+                obs_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs0')
+                obs1_ph = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs1')
+
+                # Create actor and critic networks for the the individual
+                # policies.
+                deterministic_action, policy_out, logp_pi, logp_action, qf1, \
+                    qf2, value_fn, log_alpha, alpha, value_target = \
                     self._setup_agent(
-                        ob_space=self.ob_space[key],
+                        obs_ph=obs_ph,
+                        action_ph=action_ph,
                         ac_space=self.ac_space[key],
-                        co_space=self.co_space[key],
-                        create_replay_buffer=True
+                        reuse=False,
                     )
 
             # Store the new objects in their respective attributes.
@@ -461,35 +547,23 @@ class MultiFeedForwardPolicy(BasePolicy):
                     logp_pi=self.logp_pi[key]
                 )
 
-    def _setup_agent(self, ob_space, ac_space, co_space, create_replay_buffer):
-        """Create the components for an individual agent.
+    def _setup_agent(self, obs_ph, action_ph, ac_space, reuse):
+        """Create the actor and critic variables for an individual agent.
 
         Parameters
         ----------
-        ob_space : gym.spaces.*
-            the observation space of the individual agent
+        obs_ph : tf.compat.v1.placeholder
+            placeholder for the observations for each agent
+        action_ph : tf.compat.v1.placeholder
+            placeholder for the actions for each agent
         ac_space : gym.spaces.*
             the action space of the individual agent
-        co_space : gym.spaces.*
-            the context space of the individual agent
-        create_replay_buffer : bool
-            whether to create a replay buffer as well. The replay buffer is
-            only needed by independent policies.
+        reuse : bool
+            whether to reuse the policy. This is set to True when creating
+            shared policies.
 
         Returns
         -------
-        MultiReplayBuffer
-            the replay buffer object for each agent
-        tf.compat.v1.placeholder
-            placeholder for the next step terminals for each agent
-        tf.compat.v1.placeholder
-            placeholder for the rewards for each agent
-        tf.compat.v1.placeholder
-            placeholder for the actions for each agent
-        tf.compat.v1.placeholder
-            placeholder for the observations for each agent
-        tf.compat.v1.placeholder
-            placeholder for the next step observations for each agent
         tf.Variable
             the output from the deterministic actor
         tf.Variable
@@ -514,58 +588,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             the output from the target value function. Takes as input the
             next-step observations
         """
-        # Compute the shape of the input observation space, which may include
-        # the contextual term.
-        ob_dim = self._get_ob_dim(ob_space, co_space)
-
-        # =================================================================== #
-        # Step 1: Create a replay buffer object.                              #
-        # =================================================================== #
-
-        if create_replay_buffer:
-            replay_buffer = MultiReplayBuffer(
-                buffer_size=self.buffer_size,
-                batch_size=self.batch_size,
-                obs_dim=ob_dim[0],
-                ac_dim=ac_space.shape[0],
-                all_obs_dim=self.all_obs_ph.shape[-1],
-                all_ac_dim=self.all_action_ph.shape[-1],
-            )
-        else:
-            replay_buffer = None
-
-        # =================================================================== #
-        # Step 2: Create input variables.                                     #
-        # =================================================================== #
-
-        with tf.compat.v1.variable_scope("input", reuse=False):
-            terminals1 = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='terminals1')
-            rew_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='rewards')
-            action_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ac_space.shape,
-                name='actions')
-            obs_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ob_dim,
-                name='obs0')
-            obs1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ob_dim,
-                name='obs1')
-
-        # =================================================================== #
-        # Step 3: Create actor and critic variables.                          #
-        # =================================================================== #
-
         # Create networks and core TF parts that are shared across setup parts.
-        with tf.compat.v1.variable_scope("model", reuse=False):
+        with tf.compat.v1.variable_scope("model", reuse=reuse):
             deterministic_action, policy_out, logp_pi, logp_action = \
                 self.make_actor(obs_ph, ac_space, action_ph)
             qf1, qf2, value_fn = self.make_critic(
@@ -581,15 +605,14 @@ class MultiFeedForwardPolicy(BasePolicy):
                 initializer=0.0)
             alpha = tf.exp(log_alpha)
 
-        with tf.compat.v1.variable_scope("target", reuse=False):
+        with tf.compat.v1.variable_scope("target", reuse=reuse):
             # Create the value network
             _, _, value_target = self.make_critic(
                 self.all_obs_ph,
                 scope="centralized_value_fns", create_qf=False, create_vf=True)
 
-        return replay_buffer, terminals1, rew_ph, action_ph, obs_ph, obs1_ph, \
-            deterministic_action, policy_out, logp_pi, logp_action, qf1, qf2, \
-            value_fn, log_alpha, alpha, value_target
+        return deterministic_action, policy_out, logp_pi, logp_action, qf1, \
+            qf2, value_fn, log_alpha, alpha, value_target
 
     def make_actor(self, obs, ac_space, action, reuse=False, scope="pi"):
         """Create the actor variables.
@@ -651,13 +674,13 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         # Reparameterization trick
         policy = policy_mean + tf.random.normal(tf.shape(policy_mean)) * std
-        logp_pi = self._gaussian_likelihood(policy, policy_mean, log_std)
-        logp_ac = self._gaussian_likelihood(action, policy_mean, log_std)
+        logp_pi = gaussian_likelihood(policy, policy_mean, log_std)
+        logp_ac = gaussian_likelihood(action, policy_mean, log_std)
 
         # Apply squashing and account for it in the probability
-        _, _, logp_ac = self._apply_squashing_func(
+        _, _, logp_ac = apply_squashing_func(
             policy_mean, action, logp_ac)
-        deterministic_policy, policy, logp_pi = self._apply_squashing_func(
+        deterministic_policy, policy, logp_pi = apply_squashing_func(
             policy_mean, policy, logp_pi)
 
         return deterministic_policy, policy, logp_pi, logp_ac
@@ -1035,66 +1058,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             'reference_log_probability_mean', tf.reduce_mean(logp_pi))
         tf.compat.v1.summary.scalar(
             'reference_log_probability_std', reduce_std(logp_pi))
-
-    @staticmethod
-    def _gaussian_likelihood(input_, mu_, log_std):
-        """Compute log likelihood of a gaussian.
-
-        Here we assume this is a Diagonal Gaussian.
-
-        Parameters
-        ----------
-        input_ : tf.Variable
-            the action by the policy
-        mu_ : tf.Variable
-            the policy mean
-        log_std : tf.Variable
-            the policy log std
-
-        Returns
-        -------
-        tf.Variable
-            the log-probability of a given observation given the output action
-            from the policy
-        """
-        pre_sum = -0.5 * (((input_ - mu_) / (
-                    tf.exp(log_std) + EPS)) ** 2 + 2 * log_std + np.log(
-            2 * np.pi))
-        return tf.reduce_sum(pre_sum, axis=1)
-
-    @staticmethod
-    def _apply_squashing_func(mu_, pi_, logp_pi):
-        """Squash the output of the Gaussian distribution.
-
-        This method also accounts for that in the log probability. The squashed
-        mean is also returned for using deterministic actions.
-
-        Parameters
-        ----------
-        mu_ : tf.Variable
-            mean of the gaussian
-        pi_ : tf.Variable
-            output of the policy (or action) before squashing
-        logp_pi : tf.Variable
-            log probability before squashing
-
-        Returns
-        -------
-        tf.Variable
-            the output from the squashed deterministic policy
-        tf.Variable
-            the output from the squashed stochastic policy
-        tf.Variable
-            the log probability of a given squashed action
-        """
-        # Squash the output
-        deterministic_policy = tf.nn.tanh(mu_)
-        policy = tf.nn.tanh(pi_)
-
-        # Squash correction (from original implementation)
-        logp_pi -= tf.reduce_sum(tf.math.log(1 - policy ** 2 + EPS), axis=1)
-
-        return deterministic_policy, policy, logp_pi
 
     def _initialize_maddpg(self):
         """See initialize."""
