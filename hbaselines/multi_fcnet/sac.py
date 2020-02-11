@@ -1,6 +1,4 @@
 """SAC-compatible multi-agent feedforward policy."""
-import tensorflow as tf
-
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 
