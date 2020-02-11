@@ -323,6 +323,7 @@ def create_goal_conditioned_parser(parser):
 
 
 def create_multi_feedforward_parser(parser):
+    """Add the multi-agent policy hyperparameters to the parser."""
     parser.add_argument(
         "--shared",
         action="store_true",
