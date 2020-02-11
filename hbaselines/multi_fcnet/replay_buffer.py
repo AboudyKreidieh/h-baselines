@@ -52,9 +52,9 @@ class MultiReplayBuffer(object):
         self.all_obs_t = np.zeros(
             (buffer_size, all_obs_dim), dtype=np.float32)
         self.all_action_t = np.zeros(
-            (buffer_size, all_obs_dim), dtype=np.float32)
-        self.all_obs_tp1 = np.zeros(
             (buffer_size, all_ac_dim), dtype=np.float32)
+        self.all_obs_tp1 = np.zeros(
+            (buffer_size, all_obs_dim), dtype=np.float32)
 
     def __len__(self):
         """Return the number of elements stored."""
@@ -100,11 +100,11 @@ class MultiReplayBuffer(object):
         ----------
         obs_t : array_like
             the last observation of an individual agent
-        action : list of array_like
+        action : array_like
             the action of an individual agent
         reward : float
             the reward of an individual agent
-        obs_tp1 : list of array_like
+        obs_tp1 : array_like
             the current observation of an individual agent
         done : float
             the done mask of an individual agent
