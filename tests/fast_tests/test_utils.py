@@ -174,6 +174,9 @@ class TestTrain(unittest.TestCase):
                 'gamma': 19.0,
                 'layer_norm': True,
                 'use_huber': True,
+                'noise': 20.0,
+                'target_policy_noise': 21.0,
+                'target_noise_clip': 22.0,
                 'shared': True,
                 'maddpg': True,
             }
