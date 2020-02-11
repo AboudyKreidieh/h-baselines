@@ -104,16 +104,18 @@ def main(args, base_dir):
         with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
             json.dump(params_with_extra, f, sort_keys=True, indent=4)
 
-        run_exp(env=args.env_name,
-                policy=GoalConditionedPolicy,
-                hp=hp,
-                steps=args.total_steps,
-                dir_name=dir_name,
-                evaluate=args.evaluate,
-                seed=seed,
-                eval_interval=args.eval_interval,
-                log_interval=args.log_interval,
-                save_interval=args.save_interval)
+        run_exp(
+            env=args.env_name,
+            policy=GoalConditionedPolicy,
+            hp=hp,
+            steps=args.total_steps,
+            dir_name=dir_name,
+            evaluate=args.evaluate,
+            seed=seed,
+            eval_interval=args.eval_interval,
+            log_interval=args.log_interval,
+            save_interval=args.save_interval
+        )
 
 
 if __name__ == '__main__':

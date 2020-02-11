@@ -81,7 +81,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
     logp_pi : tf.Variable
         the log-probability of a given observation given the output action from
         the policy
-    logp_pi : tf.Variable
+    logp_action : tf.Variable
         the log-probability of a given observation given a fixed action. Used
         by the hierarchical policy to perform off-policy corrections.
     qf1 : tf.Variable
@@ -312,6 +312,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
             tf.compat.v1.summary.scalar('Q1_loss', self.critic_loss[0])
             tf.compat.v1.summary.scalar('Q2_loss', self.critic_loss[1])
+            tf.compat.v1.summary.scalar('value_loss', self.critic_loss[2])
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
