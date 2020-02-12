@@ -1290,6 +1290,20 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
 
         del policy  # TODO
 
+    def test_store_transition_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_store_transition_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
     def test_get_td_map_1(self):
         """Check the functionality of the get_td_map() method.
 
@@ -1309,6 +1323,20 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
     def test_get_td_map_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        del policy  # TODO
+
+    def test_get_td_map_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         del policy  # TODO
