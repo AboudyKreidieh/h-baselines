@@ -104,7 +104,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multi-ring0",
+            "multiagent-ring0",
             "--total_steps", "2000"])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
@@ -120,7 +120,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multi-ring0",
+            "multiagent-ring0",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -138,7 +138,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_failure_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multi-ring0",
+            "multiagent-ring0",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -152,7 +152,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multi-ring0",
+            "multiagent-ring0",
             "--shared",
             "--total_steps", "2000"
         ])
@@ -170,7 +170,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multi-ring0",
+            "multiagent-ring0",
             "--shared",
             "--total_steps", "2000",
             "--alg", "SAC"
