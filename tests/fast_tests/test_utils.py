@@ -9,6 +9,7 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
@@ -64,6 +65,8 @@ class TestTrain(unittest.TestCase):
             'centralized_value_functions': False,
             'connected_gradients': False,
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'shared': False,
+            'maddpg': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -107,6 +110,8 @@ class TestTrain(unittest.TestCase):
             '--centralized_value_functions',
             '--connected_gradients',
             '--cg_weights', '26',
+            '--shared',
+            '--maddpg',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
@@ -142,6 +147,38 @@ class TestTrain(unittest.TestCase):
                 'centralized_value_functions': True,
                 'connected_gradients': True,
                 'cg_weights': 26,
+            }
+        }
+        self.assertDictEqual(hp, expected_hp)
+        self.assertEqual(args.log_interval, 4)
+        self.assertEqual(args.eval_interval, 5)
+
+        hp = get_hyperparameters(args, MultiFeedForwardPolicy)
+        expected_hp = {
+            'nb_train_steps': 7,
+            'nb_rollout_steps': 8,
+            'nb_eval_episodes': 9,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'reward_scale': 10.0,
+            'render': True,
+            'render_eval': True,
+            'verbose': 11,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': 14,
+                'batch_size': 15,
+                'actor_lr': 16.0,
+                'critic_lr': 17.0,
+                'tau': 18.0,
+                'gamma': 19.0,
+                'layer_norm': True,
+                'use_huber': True,
+                'noise': 20.0,
+                'target_policy_noise': 21.0,
+                'target_noise_clip': 22.0,
+                'shared': True,
+                'maddpg': True,
             }
         }
         self.assertDictEqual(hp, expected_hp)

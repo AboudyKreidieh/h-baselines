@@ -508,8 +508,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return worker_action
 
     def value(self, obs, context, action):
-        """See parent class."""
-        return 0, 0  # FIXME
+        """See parent class.
+
+        In this case we return a tuple of the Manager and Worker rewards,
+        respectively.
+        """
+        meta_value = self.manager.value(obs, context, self.meta_action)
+        worker_value = self.worker.value(obs, self.meta_action, action)
+        return meta_value, worker_value
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):

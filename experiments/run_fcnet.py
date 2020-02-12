@@ -121,8 +121,8 @@ def main(args, base_dir):
 if __name__ == '__main__':
     # collect arguments
     args = parse_options(
-        description='Test the performance of TD3 with fully connected network '
-                    'models on various environments.',
+        description='Test the performance of fully connected network models '
+                    'on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
