@@ -298,7 +298,6 @@ class MultiFeedForwardPolicy(BasePolicy):
         )
 
         # Initialize some attributes.
-        self.terminals1 = []
         self.action_ph = []
         self.obs_ph = []
         self.obs1_ph = []
@@ -510,8 +509,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             # Append the key to the outer scope term.
             scope_i = key if scope is None else "{}/{}".format(scope, key)
 
+            # Create the policy update and logging operations of the agent.
             with tf.compat.v1.variable_scope(key, reuse=False):
-                # Create the policy update and logging operations of the agent.
                 (self.critic_loss[key],
                  self.critic_optimizer[key],
                  self.target_init_updates[key],
