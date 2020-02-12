@@ -452,7 +452,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         actor_loss = {}
         critic_loss = {}
         for key in self.agents.keys():
-            c, a = self.agents[key].update(update_actor, **kwargs)
+            c, a = self.agents[key].update(update_actor=update_actor, **kwargs)
             critic_loss[key] = c
             actor_loss[key] = a
 
