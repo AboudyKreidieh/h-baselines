@@ -192,6 +192,19 @@ class MultiFeedForwardPolicy(BasePolicy):
         else:
             self.target_entropy = target_entropy
 
+        if shared:
+            self._ac_mean = 0.5 * (ac_space.high + ac_space.low)
+            self._ac_mag = 0.5 * (ac_space.high - ac_space.low)
+        else:
+            self._ac_mean = {
+                key: 0.5 * (ac_space[key].high + ac_space[key].low)
+                for key in ac_space.keys()
+            }
+            self._ac_mag = {
+                key: 0.5 * (ac_space[key].high - ac_space[key].low)
+                for key in ac_space.keys()
+            }
+
         # variables to be initialized later (if MADDPG is used)
         self.replay_buffer = None
         self.terminals1 = None
@@ -1171,7 +1184,11 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _initialize_maddpg(self):
         """See initialize."""
-        self.sess.run(self.target_init_updates)
+        if self.shared:
+            self.sess.run(self.target_init_updates)
+        else:
+            self.sess.run([self.target_init_updates[key]
+                           for key in self.target_init_updates.keys()])
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
@@ -1179,7 +1196,50 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
-        pass  # TODO
+        actions = {}
+
+        if random_actions:
+            for key in obs.keys():
+                # Get the action space of the specific agent.
+                ac_space = self.ac_space if self.shared else self.ac_space[key]
+
+                # Sample a random action.
+                actions[key] = ac_space.sample()
+
+        else:
+            for key in obs.keys():
+                # Add the contextual observation, if applicable.
+                obs[key] = self._get_obs(
+                    obs[key],
+                    None if context is None else context[key], axis=1)
+
+                if apply_noise:
+                    if self.shared:
+                        normalized_action = self.sess.run(
+                            self.policy_out,
+                            feed_dict={self.obs_ph[0]: obs[key]})
+                    else:
+                        normalized_action = self.sess.run(
+                            self.policy_out[key],
+                            feed_dict={self.obs_ph[key]: obs[key]})
+                else:
+                    if self.shared:
+                        normalized_action = self.sess.run(
+                            self.deterministic_action,
+                            feed_dict={self.obs_ph[0]: obs[key]})
+                    else:
+                        normalized_action = self.sess.run(
+                            self.deterministic_action[key],
+                            feed_dict={self.obs_ph[key]: obs[key]})
+
+                # Get the scaling terms for the actions.
+                ac_mag = self._ac_mag if self.shared else self._ac_mag[key]
+                ac_mean = self._ac_mean if self.shared else self._ac_mean[key]
+
+                # Scale by the action space.
+                actions[key] = ac_mag * normalized_action + ac_mean
+
+        return actions
 
     def _value_maddpg(self, obs, context, action):
         """See value."""
@@ -1198,7 +1258,45 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  all_obs1,
                                  evaluate):
         """See store_transition."""
-        pass  # TODO
+        if self.shared:
+            # Collect the observations and actions in order as listed by their
+            # agent IDs. FIXME: this could cause problems in the merge.
+            list_obs0, list_obs1, list_action = [], [], []
+            for key in obs0.keys():
+                list_obs0.append(self._get_obs(
+                    obs0[key], None if context0 is None else context0[key]))
+                list_obs1.append(self._get_obs(
+                    obs1[key], None if context1 is None else context0[key]))
+                list_action.append(action[key])
+
+            # Store the new sample.
+            self.replay_buffer.add(
+                obs_t=list_obs0,
+                action=list_action,
+                reward=reward,
+                obs_tp1=list_obs1,
+                done=float(done),
+                all_obs_t=all_obs0,
+                all_obs_tp1=all_obs1
+            )
+        else:
+            # Collect the actions in order as listed by their agent IDs.
+            # FIXME: this could cause problems in the merge.
+            combines_actions = np.array(
+                [action[key] for key in sorted(list(action.keys()))])
+
+            # Store the new samples in their replay buffer.
+            for key in obs0.keys():
+                self.replay_buffer[key].add(
+                    obs_t=obs0[key],
+                    action=action[key],
+                    reward=reward[key],
+                    obs_tp1=obs1[key],
+                    done=float(done[key]),
+                    all_obs_t=all_obs0,
+                    all_action_t=combines_actions,
+                    all_obs_tp1=all_obs1
+                )
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""

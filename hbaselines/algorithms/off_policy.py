@@ -124,18 +124,6 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     centralized_value_functions=False,
 ))
 
-# =========================================================================== #
-#    Policy parameters for MultiFeedForwardPolicy (shared by TD3 and SAC)     #
-# =========================================================================== #
-
-MULTI_FEEDFORWARD_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTI_FEEDFORWARD_PARAMS.update(dict(
-    # whether to use a shared policy for all agents
-    shared=False,
-    # whether to use an algorithm-specific variant of the MADDPG algorithm
-    maddpg=False,
-))
-
 
 # =========================================================================== #
 #    Policy parameters for MultiFeedForwardPolicy (shared by TD3 and SAC)     #

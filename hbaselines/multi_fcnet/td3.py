@@ -835,8 +835,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         if self.shared:
             self.sess.run(self.target_init_updates)
         else:
-            for key in self.target_init_updates.keys():
-                self.sess.run(self.target_init_updates[key])
+            self.sess.run([self.target_init_updates[key]
+                           for key in self.target_init_updates.keys()])
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
@@ -860,20 +860,22 @@ class MultiFeedForwardPolicy(BasePolicy):
                 ac_space = self.ac_space if self.shared else self.ac_space[key]
 
                 # Compute the deterministic action.
-                action = self.sess.run(
-                    self.actor_tf[key],
-                    feed_dict={self.obs_ph[key]: obs[key]})
+                if self.shared:
+                    action = self.sess.run(
+                        self.actor_tf,
+                        feed_dict={self.obs_ph[0]: obs[key]})
+                else:
+                    action = self.sess.run(
+                        self.actor_tf[key],
+                        feed_dict={self.obs_ph[key]: obs[key]})
 
+                # compute noisy action
                 if apply_noise:
-                    # compute noisy action
-                    if apply_noise:
-                        action += np.random.normal(
-                            0, self.noise[key], action.shape)
+                    action += np.random.normal(
+                        0, self.noise[key], action.shape)
 
-                    # clip by bounds
-                    action = np.clip(action, ac_space.low, ac_space.high)
-
-                actions[key] = action
+                # clip by bounds
+                actions[key] = np.clip(action, ac_space.low, ac_space.high)
 
         return actions
 
@@ -894,7 +896,45 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  all_obs1,
                                  evaluate):
         """See store_transition."""
-        pass  # TODO
+        if self.shared:
+            # Collect the observations and actions in order as listed by their
+            # agent IDs. FIXME: this could cause problems in the merge.
+            list_obs0, list_obs1, list_action = [], [], []
+            for key in obs0.keys():
+                list_obs0.append(self._get_obs(
+                    obs0[key], None if context0 is None else context0[key]))
+                list_obs1.append(self._get_obs(
+                    obs1[key], None if context1 is None else context0[key]))
+                list_action.append(action[key])
+
+            # Store the new sample.
+            self.replay_buffer.add(
+                obs_t=list_obs0,
+                action=list_action,
+                reward=reward,
+                obs_tp1=list_obs1,
+                done=float(done and not is_final_step),
+                all_obs_t=all_obs0,
+                all_obs_tp1=all_obs1
+            )
+        else:
+            # Collect the actions in order as listed by their agent IDs.
+            # FIXME: this could cause problems in the merge.
+            combines_actions = np.array(
+                [action[key] for key in sorted(list(action.keys()))])
+
+            # Store the new samples in their replay buffer.
+            for key in obs0.keys():
+                self.replay_buffer[key].add(
+                    obs_t=obs0[key],
+                    action=action[key],
+                    reward=reward[key],
+                    obs_tp1=obs1[key],
+                    done=float(done[key] and not is_final_step),
+                    all_obs_t=all_obs0,
+                    all_action_t=combines_actions,
+                    all_obs_tp1=all_obs1
+                )
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
