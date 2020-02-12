@@ -552,7 +552,8 @@ class OffPolicyRLAlgorithm(object):
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
         """
-        # Scale the rewards by the provided term.
+        # Scale the rewards by the provided term. Rewards are dictionaries when
+        # training independent multi-agent policies.
         if isinstance(reward, dict):
             reward = {k: self.reward_scale * reward[k] for k in reward.keys()}
         else:
