@@ -191,6 +191,11 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             the number of fingerprint elements in the observation. Used when
             trying to zero the fingerprint elements.
         """
+        # In case no context space was passed and not using shared policies,
+        # create a dictionary of no contexts.
+        if co_space is None and not shared:
+            co_space = {key: None for key in ob_space.keys()}
+
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -325,6 +330,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                          obs1,
                          context1,
                          done,
+                         is_final_step,
                          all_obs0=None,
                          all_obs1=None,
                          evaluate=False):
@@ -348,6 +354,10 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             context is provided by the environment.
         done : dict of float
             is the episode done for each agent
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
         all_obs0 : array_like
             the last full-state observation
         all_obs1 : array_like
@@ -358,11 +368,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """
         if self.maddpg:
             self._store_transition_maddpg(
-                obs0, context0, action, reward, obs1, context1, done, all_obs0,
-                all_obs1, evaluate)
+                obs0, context0, action, reward, obs1, context1, done,
+                is_final_step, all_obs0, all_obs1, evaluate)
         else:
             self._store_transition_basic(
-                obs0, context0, action, reward, obs1, context1, done, evaluate)
+                obs0, context0, action, reward, obs1, context1, done,
+                is_final_step, evaluate)
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
@@ -450,9 +461,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # corresponding policy otherwise.
             agent = self.agents["agent"] if self.shared else self.agents[key]
 
+            # Get the contextual term. This accounts for cases when the context
+            # is set to None.
+            context_i = context if context is None else context[key]
+
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs[key], context[key], apply_noise, random_actions)
+                obs[key], context_i, apply_noise, random_actions)
 
         return actions
 
@@ -465,8 +480,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # corresponding policy otherwise.
             agent = self.agents["agent"] if self.shared else self.agents[key]
 
+            # Get the contextual term. This accounts for cases when the context
+            # is set to None.
+            context_i = context if context is None else context[key]
+
             # Compute the value of the provided observation.
-            values[key] = agent.value(obs[key], context[key], action[key])
+            values[key] = agent.value(obs[key], context_i, action[key])
 
         return values
 
@@ -478,6 +497,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                                 obs1,
                                 context1,
                                 done,
+                                is_final_step,
                                 evaluate):
         """See store_transition."""
         for key in obs0.keys():
@@ -488,15 +508,21 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             # Collect variables that might be shared across agents.
             agent_reward = reward if self.shared else reward[key]
 
+            # Get the contextual term. This accounts for cases when the context
+            # is set to None.
+            context0_i = context0 if context0 is None else context0[key]
+            context1_i = context0 if context1 is None else context1[key]
+
             # Store the individual samples.
             agent.store_transition(
                 obs0=obs0[key],
-                context0=context0[key],
+                context0=context0_i,
                 action=action[key],
                 reward=agent_reward,
                 obs1=obs1[key],
-                context1=context1[key],
+                context1=context1_i,
                 done=done[key],
+                is_final_step=is_final_step,
                 evaluate=evaluate,
             )
 
@@ -546,6 +572,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                                  obs1,
                                  context1,
                                  done,
+                                 is_final_step,
                                  all_obs0,
                                  all_obs1,
                                  evaluate):

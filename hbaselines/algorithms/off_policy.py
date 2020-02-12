@@ -315,10 +315,14 @@ class OffPolicyRLAlgorithm(object):
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
+        shared = policy_kwargs.get("shared", False)
+
         self.policy = policy
         self.env_name = deepcopy(env)
-        self.env = create_env(env, render, evaluate=False)
-        self.eval_env = create_env(eval_env, render_eval, evaluate=True)
+        self.env = create_env(
+            env, render, shared, evaluate=False)
+        self.eval_env = create_env(
+            eval_env, render_eval, shared,  evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -475,7 +479,20 @@ class OffPolicyRLAlgorithm(object):
         float
             the critic value
         """
-        obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+        # Reshape the observation to match the input structure of the policy.
+        if isinstance(obs, dict):
+            # In multi-agent environments, observations come in dict form
+            for key in obs.keys():
+                # Shared policies with have one observation space, while
+                # independent policies have a different observation space based
+                # on their agent ID.
+                if isinstance(self.observation_space, dict):
+                    ob_shape = self.observation_space[key].shape
+                else:
+                    ob_shape = self.observation_space.shape
+                obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
+        else:
+            obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
 
         action = self.policy_tf.get_action(
             obs, context,
@@ -486,7 +503,13 @@ class OffPolicyRLAlgorithm(object):
         q_value = self.policy_tf.value(obs, context, action) if compute_q \
             else None
 
-        return action.flatten(), q_value
+        # Flatten the actions. Dictionaries correspond to multi-agent policies.
+        if isinstance(action, dict):
+            action = {key: action[key].flatten() for key in action.keys()}
+        else:
+            action = action.flatten()
+
+        return action, q_value
 
     def _store_transition(self,
                           obs0,
@@ -521,11 +544,23 @@ class OffPolicyRLAlgorithm(object):
             If so, the data is not stored in the replay buffer.
         """
         # Scale the rewards by the provided term.
-        reward *= self.reward_scale
+        if isinstance(reward, dict):
+            reward = {k: self.reward_scale * reward[k] for k in reward.keys()}
+        else:
+            reward *= self.reward_scale
 
+        # TODO: add all_obs0 and all_obs1
         self.policy_tf.store_transition(
-            obs0, context0, action, reward, obs1, context1, terminal1,
-            is_final_step, evaluate)
+            obs0=obs0,
+            context0=context0,
+            action=action,
+            reward=reward,
+            obs1=obs1,
+            context1=context1,
+            done=terminal1,
+            is_final_step=is_final_step,
+            evaluate=evaluate
+        )
 
     def learn(self,
               total_timesteps,
@@ -732,12 +767,11 @@ class OffPolicyRLAlgorithm(object):
 
             # Predict next action. Use random actions when initializing the
             # replay buffer.
-            action, (q1_value, q2_value) = self._policy(
+            action, vf_value = self._policy(
                 self.obs, context,
                 apply_noise=True,
                 random_actions=random_actions,
                 compute_q=True)
-            assert action.shape == self.env.action_space.shape
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
@@ -776,8 +810,10 @@ class OffPolicyRLAlgorithm(object):
             self.episode_reward += reward
             self.episode_step += 1
             self.epoch_actions.append(action)
-            self.epoch_q1s.append(q1_value)
-            self.epoch_q2s.append(q2_value)
+            if not is_multiagent_policy(self.policy):
+                q1_value, q2_value = vf_value
+                self.epoch_q1s.append(q1_value)
+                self.epoch_q2s.append(q2_value)
 
             # Update the current observation.
             self.obs = new_obs.copy()
