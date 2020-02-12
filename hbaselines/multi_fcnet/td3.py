@@ -137,7 +137,7 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _setup_maddpg(self, scope):
         """See setup."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _initialize_maddpg(self):
         """See initialize.
@@ -145,19 +145,19 @@ class MultiFeedForwardPolicy(BasePolicy):
         This method initializes the target parameters to match the model
         parameters.
         """
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _value_maddpg(self, obs, context, action):
         """See value."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _store_transition_maddpg(self,
                                  obs0,
@@ -167,12 +167,13 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  obs1,
                                  context1,
                                  done,
+                                 is_final_step,
                                  all_obs0,
                                  all_obs1,
                                  evaluate):
         """See store_transition."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
-        raise NotImplementedError  # TODO
+        pass  # TODO
