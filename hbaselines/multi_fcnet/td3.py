@@ -261,7 +261,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Create an input placeholder for the full actions.
         self.all_action_ph = tf.compat.v1.placeholder(
             tf.float32,
-            shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+            shape=(None,) + (self.ac_space.shape[0] * self.n_agents,),
             name='all_actions')
 
         # Compute the shape of the input observation space, which may include
@@ -275,7 +275,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             obs_dim=ob_dim[0],
             ac_dim=self.ac_space.shape[0],
             n_agents=self.n_agents,
-            all_obs_dim=self.all_obs_ph.shape[0]
+            all_obs_dim=self.all_ob_space.shape[0]
         )
 
         # Initialize some attributes.
@@ -315,6 +315,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 ac_space=self.ac_space,
                 target_policy_noise=self.target_policy_noise,
                 target_noise_clip=self.target_noise_clip,
+                reuse=i != 0,
             )
 
             # Store the new objects in their respective attributes.
@@ -421,11 +422,12 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # Create actor and critic networks for the shared policy.
                 actor_tf, critic_tf, noisy_actor_target = self._setup_agent(
-                    obs_ph=self.obs_ph[key],
-                    obs1_ph=self.obs1_ph[key],
+                    obs_ph=obs_ph,
+                    obs1_ph=obs1_ph,
                     ac_space=self.ac_space[key],
                     target_policy_noise=self.target_policy_noise[key],
                     target_noise_clip=self.target_noise_clip[key],
+                    reuse=False,
                 )
 
             # Store the new objects in their respective attributes.
@@ -484,7 +486,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                      obs1_ph,
                      ac_space,
                      target_policy_noise,
-                     target_noise_clip):
+                     target_noise_clip,
+                     reuse):
         """Create the actor and critic variables for an individual agent.
 
         Parameters
@@ -508,7 +511,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         tf.Variable
             the output from a noise target actor network
         """
-        with tf.compat.v1.variable_scope("model", reuse=False):
+        with tf.compat.v1.variable_scope("model", reuse=reuse):
             actor_tf = self.make_actor(obs_ph, ac_space)
             critic_tf = [
                 self.make_critic(self.all_obs_ph, self.all_action_ph,
@@ -516,7 +519,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 for i in range(2)
             ]
 
-        with tf.compat.v1.variable_scope("target", reuse=False):
+        with tf.compat.v1.variable_scope("target", reuse=reuse):
             # create the target actor policy
             actor_target = self.make_actor(obs1_ph, ac_space)
 

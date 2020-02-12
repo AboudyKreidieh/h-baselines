@@ -280,7 +280,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Create an input placeholder for the full actions.
         self.all_action_ph = tf.compat.v1.placeholder(
             tf.float32,
-            shape=(None,) + (self.all_ob_space.shape[0] * self.n_agents,),
+            shape=(None,) + (self.ac_space.shape[0] * self.n_agents,),
             name='all_actions')
 
         # Compute the shape of the input observation space, which may include
@@ -294,7 +294,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             obs_dim=ob_dim[0],
             ac_dim=self.ac_space.shape[0],
             n_agents=self.n_agents,
-            all_obs_dim=self.all_obs_ph.shape[0]
+            all_obs_dim=self.all_ob_space.shape[0]
         )
 
         # Initialize some attributes.
@@ -339,7 +339,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     obs_ph=obs_ph,
                     action_ph=action_ph,
                     ac_space=self.ac_space,
-                    reuse=True,
+                    reuse=i != 0,
                 )
 
             # Store the new objects in their respective attributes.
