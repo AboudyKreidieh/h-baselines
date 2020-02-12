@@ -596,7 +596,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         with tf.compat.v1.variable_scope("target", reuse=reuse):
             # Create the value network
             _, _, value_target = self.make_critic(
-                self.all_obs_ph,
+                self.all_obs1_ph,
                 scope="centralized_value_fns", create_qf=False, create_vf=True)
 
         return deterministic_action, policy_out, logp_pi, logp_action, qf1, \
@@ -1242,7 +1242,41 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _value_maddpg(self, obs, context, action):
         """See value."""
-        pass  # TODO
+        for key in sorted(list(action.keys())):
+            # Get the scaling terms for the actions.
+            ac_mag = self._ac_mag if self.shared else self._ac_mag[key]
+            ac_mean = self._ac_mean if self.shared else self._ac_mean[key]
+
+            # Normalize the action (bounded between [-1, 1]).
+            action[key] = (action[key] - ac_mean) / ac_mag
+
+        # Combine all actions under one variable. This is done by order of
+        # agent IDs in alphabetical order.
+        # FIXME: this could cause problems in the merge.
+        all_actions = np.concatenate(
+            [action[key] for key in sorted(list(action.keys()))], axis=1)
+
+        if self.shared:
+            value = self.sess.run(
+                [self.qf1, self.qf2],  # , self.value_fn],  FIXME
+                feed_dict={
+                    self.all_obs_ph: obs,
+                    self.all_action_ph: all_actions
+                }
+            )
+        else:
+            # Loop through all agent.
+            value = {}
+            for key in action.keys():
+                value[key] = self.sess.run(
+                    [self.qf1[key], self.qf2[key]],  # , self.value_fn],  FIXME
+                    feed_dict={
+                        self.all_obs_ph: obs,
+                        self.all_action_ph: all_actions
+                    }
+                )
+
+        return value
 
     def _store_transition_maddpg(self,
                                  obs0,
@@ -1299,4 +1333,59 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
-        pass  # TODO
+        if self.shared:
+            # Not enough samples in the replay buffer.
+            if not self.replay_buffer.can_sample():
+                return {}
+
+            # Get a batch.
+            obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
+                self.replay_buffer.sample()
+
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = rewards.reshape(-1, 1)
+            done1 = done1.reshape(-1, 1)
+
+            td_map = {
+                self.all_obs_ph: all_obs0,
+                self.all_obs1_ph: all_obs1,
+                self.rew_ph: rewards,
+                self.terminals1: done1
+            }
+
+            # Add the agent-level placeholders and variables.
+            td_map.update({
+                self.obs_ph[i]: obs0[i] for i in self.n_agents})
+            td_map.update({
+                self.action_ph[i]: actions[i] for i in self.n_agents})
+            td_map.update({
+                self.obs1_ph[i]: obs1[i] for i in self.n_agents})
+
+        else:
+            # Loop through all agent.
+            td_map = {}
+            for key in self.replay_buffer.keys():
+                # Not enough samples in the replay buffer.
+                if not self.replay_buffer[key].can_sample():
+                    return {}
+
+                # Get a batch.
+                obs0, actions, rewards, obs1, done1, all_obs0, all_actions, \
+                    all_obs1 = self.replay_buffer[key].sample()
+
+                # Reshape to match previous behavior and placeholder shape.
+                rewards = rewards.reshape(-1, 1)
+                done1 = done1.reshape(-1, 1)
+
+                # Add the agent-level placeholders and variables.
+                td_map.update({
+                    self.rew_ph[key]: rewards,
+                    self.terminals1[key]: done1,
+                    self.obs_ph[key]: obs0,
+                    self.action_ph[key]: actions,
+                    self.obs1_ph[key]: obs1[key],
+                    self.all_obs_ph[key]: all_obs0,
+                    self.all_obs1_ph[key]: all_obs1,
+                })
+
+        return td_map
