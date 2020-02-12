@@ -124,6 +124,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     centralized_value_functions=False,
 ))
 
+
 # =========================================================================== #
 #    Policy parameters for MultiFeedForwardPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #

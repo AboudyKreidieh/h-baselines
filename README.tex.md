@@ -20,6 +20,7 @@ available [here]().
 * [Supported Models/Algorithms](#supported-modelsalgorithms)
   * [Off-Policy RL Algorithms](#off-policy-rl-algorithms)
   * [Fully Connected Neural Networks](#fully-connected-neural-networks)
+  * [Multi-Agent Fully Connected Networks](#multi-agent-fully-connected-networks)
   * [Goal-Conditioned HRL](#goal-conditioned-hrl)
   * [Meta Period](#meta-period)
   * [Intrinsic Rewards](#intrinsic-rewards)
@@ -271,6 +272,88 @@ print(TD3_PARAMS)
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 print(SAC_PARAMS)
 ```
+
+### Multi-Agent Fully Connected Networks
+
+In order to train multiple workers in a triangular hierarchical structure, this
+repository also supports the training of multi-agent policies as well. These 
+policies are import via the following commands:
+
+```python
+# for TD3
+from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+
+# for SAC
+from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
+```
+
+These policy supports training off-policy variants of three popular multi-agent
+algorithms:
+
+* **Independent learners**: Independent (or Naive) learners provide a separate
+  policy with independent parameters to each agent in an environment.
+  Within this setting, agents are provided separate observations and reward
+  signals, and store their samples and perform updates separately. A review
+  of independent learners in reinforcement learning can be found here:
+  https://hal.archives-ouvertes.fr/hal-00720669/document
+
+  To train a policy using independent learners, do not modify any
+  policy-specific attributes:
+
+  ```python
+  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  
+  alg = OffPolicyRLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={}
+  )
+  ```
+
+* **Shared policies**: Unlike the independent learners formulation, shared
+  policies utilize a single policy with shared parameters for all agents
+  within the network. Moreover, the samples experienced by all agents are
+  stored within one unified replay buffer. See the following link for an
+  early review of the benefit of shared policies:
+  https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.8066&rep=rep1&type=pdf
+
+  To train a policy using the shared policy feature, set the `shared`
+  attribute to True:
+  
+  ```python
+  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  
+  alg = OffPolicyRLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={
+          "shared": True,
+      }
+  )
+  ```
+
+* **MADDPG**: We implement algorithmic-variants of MAPPG for all supported
+  off-policy RL algorithms. See: https://arxiv.org/pdf/1706.02275.pdf
+
+  To train a policy using their MADDPG variants as opposed to independent
+  learners, algorithm, set the `maddpg` attribute to True:
+  
+  ```python
+  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  
+    alg = OffPolicyRLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={
+          "maddpg": True,
+          "shared": False,  # or True
+      }
+  )
+  ```
+
+  This works for both shared and non-shared policies. For shared policies,
+  we use a single centralized value function instead of a value function
+  for each agent.
 
 ### Goal-Conditioned HRL
 
