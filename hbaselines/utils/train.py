@@ -6,6 +6,7 @@ from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy, is_td3_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
+from hbaselines.algorithms.utils import is_multiagent_policy
 
 
 def get_hyperparameters(args, policy):
@@ -62,6 +63,13 @@ def get_hyperparameters(args, policy):
             "cg_weights": args.cg_weights,
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
+        })
+
+    # add MultiFeedForwardPolicy parameters
+    if is_multiagent_policy(policy):
+        policy_kwargs.update({
+            "shared": args.shared,
+            "maddpg": args.maddpg,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -124,6 +132,7 @@ def parse_options(description, example_usage, args):
     parser = create_sac_parser(parser)
     parser = create_feedforward_parser(parser)
     parser = create_goal_conditioned_parser(parser)
+    parser = create_multi_feedforward_parser(parser)
 
     flags, _ = parser.parse_known_args(args)
 
@@ -309,5 +318,20 @@ def create_goal_conditioned_parser(parser):
         help="weights for the gradients of the loss of the worker with "
              "respect to the parameters of the manager. Only used if "
              "`connected_gradients` is set to True.")
+
+    return parser
+
+
+def create_multi_feedforward_parser(parser):
+    """Add the multi-agent policy hyperparameters to the parser."""
+    parser.add_argument(
+        "--shared",
+        action="store_true",
+        help="whether to use a shared policy for all agents")
+    parser.add_argument(
+        "--maddpg",
+        action="store_true",
+        help="whether to use an algorithm-specific variant of the MADDPG "
+             "algorithm")
 
     return parser

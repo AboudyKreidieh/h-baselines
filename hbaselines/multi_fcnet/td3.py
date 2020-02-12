@@ -889,6 +889,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  obs1,
                                  context1,
                                  done,
+                                 is_final_step,
                                  all_obs0,
                                  all_obs1,
                                  evaluate):

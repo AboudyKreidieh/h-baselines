@@ -200,7 +200,7 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env, render=False, evaluate=False):
+def create_env(env, render=False, shared=False, evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -209,6 +209,9 @@ def create_env(env, render=False, evaluate=False):
         the environment, or the name of a registered environment.
     render : bool
         whether to render the environment
+    shared : bool
+        specifies whether agents in an environment are meant to share policies.
+        This is solely used by multi-agent Flow environments.
     evaluate : bool
         specifies whether this is a training or evaluation environment
 
@@ -322,36 +325,86 @@ def create_env(env, render=False, evaluate=False):
         # Create the environment.
         env = create_env()
 
-    elif env in ["ring0", "multi-ring0"]:
-        env = FlowEnv("ring", render=render)  # FIXME
+    elif env in ["ring0", "multiagent-ring0"]:
+        if evaluate:
+            env = [
+                FlowEnv(
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=shared,
+                    env_params={
+                        "ring_length": [230, 230],
+                        "evaluate": True,
+                        "multiagent": env[:10] == "multiagent"
+                    }
+                ),
+                FlowEnv(
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=shared,
+                    env_params={
+                        "ring_length": [260, 260],
+                        "evaluate": True,
+                        "multiagent": env[:10] == "multiagent"
+                    }
+                ),
+                FlowEnv(
+                    "ring",
+                    render=render,
+                    multiagent=env[:10] == "multiagent",
+                    shared=shared,
+                    env_params={
+                        "ring_length": [290, 290],
+                        "evaluate": True,
+                        "multiagent": env[:10] == "multiagent"
+                    }
+                )
+            ]
+        else:
+            env = FlowEnv(
+                "ring",
+                render=render,
+                multiagent=env[:10] == "multiagent",
+                shared=shared,
+                env_params={
+                    "evaluate": evaluate,
+                    "multiagent": env[:10] == "multiagent"
+                }
+            )
 
-    elif env in ["merge0", "merge1", "merge2", "multi-merge0", "multi-merge1",
-                 "multi-merge2"]:
+    elif env in ["merge0", "merge1", "merge2", "multiagent-merge0",
+                 "multiagent-merge1", "multiagent-merge2"]:
         env_num = int(env[-1])
         env = FlowEnv(
             "merge",
+            render=render,
+            multiagent=env[:10] == "multiagent",
+            shared=shared,
             env_params={
                 "exp_num": env_num,
                 "horizon": 6000,
                 "simulator": "traci",
-                "multiagent": env[:5] == "multi"
-            },
-            render=render
+                "multiagent": env[:10] == "multiagent"
+            }
         )
 
     elif env in ["figureeight0", "figureeight1", "figureeight02",
-                 "multi-figureeight0", "multi-figureeight1",
-                 "multi-figureeight02"]:
+                 "multiagent-figureeight0", "multiagent-figureeight1",
+                 "multiagent-figureeight02"]:
         env_num = int(env[-1])
         env = FlowEnv(
             "figure_eight",
+            render=render,
+            multiagent=env[:10] == "multiagent",
+            shared=shared,
             env_params={
                 "num_automated": [1, 7, 14][env_num],
-                "horizon": 750,
+                "horizon": 1500,
                 "simulator": "traci",
-                "multiagent": env[:5] == "multi"
-            },
-            render=render
+                "multiagent": env[:10] == "multiagent"
+            }
         )
 
     elif env == "BipedalSoccer":

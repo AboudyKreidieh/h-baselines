@@ -224,7 +224,7 @@ class TestTD3(unittest.TestCase):
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
         self.assertEqual(alg.epoch, 0)
-        self.assertEqual(len(alg.episode_rewards_history), 0)
+        self.assertEqual(len(alg.episode_rew_history), 0)
         self.assertEqual(alg.epoch_episodes, 0)
         self.assertEqual(len(alg.epoch_actions), 0)
         self.assertEqual(len(alg.epoch_q1s), 0)

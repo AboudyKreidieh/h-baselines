@@ -1,4 +1,4 @@
-"""A runner script for fcnet models."""
+"""A runner script for multi-agent fcnet models."""
 import os
 import json
 from time import strftime
@@ -8,8 +8,8 @@ from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 
-# FIXME
-EXAMPLE_USAGE = 'python run_multi_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
+EXAMPLE_USAGE = \
+    'python run_multi_fcnet.py "multiagent-ring0" --total_steps 1e6'
 
 
 def run_exp(env,
@@ -122,8 +122,8 @@ def main(args, base_dir):
 if __name__ == '__main__':
     # collect arguments
     args = parse_options(
-        description='Test the performance of TD3 with fully connected network '
-                    'models on various environments.',
+        description='Test the performance of multi-agent fully connected '
+                    'network models on various environments.',
         example_usage=EXAMPLE_USAGE,
         args=sys.argv[1:]
     )
