@@ -286,20 +286,10 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         # Initialize some attributes.
         self.terminals1 = []
-        self.rew_ph = []
         self.action_ph = []
         self.obs_ph = []
         self.obs1_ph = []
-        self.deterministic_action = []
-        self.policy_out = []
-        self.logp_pi = []
-        self.logp_action = []
-        self.qf1 = []
-        self.qf2 = []
-        self.value_fn = []
-        self.log_alpha = []
-        self.alpha = []
-        self.value_target = []
+        actors = []
 
         # Compute the shape of the input observation space, which may
         # include the contextual term.
@@ -341,25 +331,52 @@ class MultiFeedForwardPolicy(BasePolicy):
                 )
 
             # Store the new objects in their respective attributes.
-            self.terminals1.append(terminals1)
-            self.rew_ph.append(rew_ph)
-            self.action_ph.append(action_ph)
+            self.action_ph.append(action_ph)  # TODO: maybe not?
             self.obs_ph.append(obs_ph)
-            self.obs1_ph.append(obs1_ph)
-            self.deterministic_action.append(deterministic_action)
-            self.policy_out.append(policy_out)
-            self.logp_pi.append(logp_pi)
-            self.logp_action.append(logp_action)
-            self.qf1.append(qf1)
-            self.qf2.append(qf2)
-            self.value_fn.append(value_fn)
-            self.log_alpha.append(log_alpha)
-            self.alpha.append(alpha)
-            self.value_target.append(value_target)
+            self.obs1_ph.append(obs1_ph)  # TODO: maybe not?
+            if i == 0:
+                self.terminals1 = terminals1
+                self.rew_ph = rew_ph
+                self.deterministic_action = deterministic_action
+                self.policy_out = policy_out
+                self.logp_pi = logp_pi
+                self.logp_action = logp_action
+                self.qf1 = qf1
+                self.qf2 = qf2
+                self.value_fn = value_fn
+                self.log_alpha = log_alpha
+                self.alpha = alpha
+                self.value_target = value_target
+            actors.append(policy_out)
 
         # Combine all actors for when creating a centralized differentiable
         # critic.
-        # combined_actors = tf.concat(self.policy_out, axis=1)
+        combined_actors = tf.concat(actors, axis=1)
+
+        # Create the policy update and logging operations of the agent.
+        (self.critic_loss,
+         self.critic_optimizer,
+         self.target_init_updates,
+         self.target_soft_updates,
+         self.alpha_loss,
+         self.alpha_optimizer,
+         self.actor_loss,
+         self.actor_optimizer) = self._setup_agent_ops(
+            scope=scope,
+            all_obs_ph=self.all_obs_ph,
+            combined_actors=combined_actors,
+            rew_ph=self.rew_ph,
+            terminals1=self.terminals1,
+            value_target=self.value_target,
+            qf1=self.qf1,
+            qf2=self.qf2,
+            alpha=self.alpha,
+            logp_pi=self.logp_pi,
+            value_fn=self.value_fn,
+            log_alpha=self.log_alpha,
+            target_entropy=self.target_entropy,
+            policy_out=self.policy_out
+        )
 
     def _setup_maddpg_independent(self, scope):
         # Create an input placeholder for the full actions.
@@ -475,23 +492,24 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.actor_loss = {}
         self.actor_optimizer = {}
 
+        # Loop through all agents.
         for key in sorted(self.ob_space.keys()):
             # Append the key to the outer scope term.
             scope_i = key if scope is None else "{}/{}".format(scope, key)
 
             with tf.compat.v1.variable_scope(key, reuse=False):
-                # Create the differentiable critics for the agent.
-                with tf.compat.v1.variable_scope("model", reuse=False):
-                    qf1_pi, qf2_pi, _ = self.make_critic(
-                        self.all_obs_ph, combined_actors,
-                        scope="centralized_value_fns",
-                        create_qf=True, create_vf=False, reuse=True
-                    )
-
-                # Setup the target critic and critic update procedure.
-                loss, optimizer = self._setup_critic_update(
-                    qf1_pi=qf1_pi,
-                    qf2_pi=qf2_pi,
+                # Create the policy update and logging operations of the agent.
+                (self.critic_loss[key],
+                 self.critic_optimizer[key],
+                 self.target_init_updates[key],
+                 self.target_soft_updates[key],
+                 self.alpha_loss[key],
+                 self.alpha_optimizer[key],
+                 self.actor_loss[key],
+                 self.actor_optimizer[key]) = self._setup_agent_ops(
+                    scope=scope_i,
+                    all_obs_ph=self.all_obs_ph,
+                    combined_actors=combined_actors,
                     rew_ph=self.rew_ph[key],
                     terminals1=self.terminals1[key],
                     value_target=self.value_target[key],
@@ -500,51 +518,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                     alpha=self.alpha[key],
                     logp_pi=self.logp_pi[key],
                     value_fn=self.value_fn[key],
-                    scope=scope_i
-                )
-                self.critic_loss[key] = loss
-                self.critic_optimizer[key] = optimizer
-
-                # Create the target update operations.
-                init, soft = self._setup_target_updates(
-                    model_scope='model/centralized_value_fns/vf',
-                    target_scope='target/centralized_value_fns/vf',
-                    scope=scope_i,
-                    tau=self.tau,
-                    verbose=self.verbose
-                )
-                self.target_init_updates[key] = init
-                self.target_soft_updates[key] = soft
-
-                # Setup the actor update procedure.
-                l1, o1, l2, o2 = self._setup_actor_update(
-                    qf1_pi=qf1_pi,
-                    qf2_pi=qf2_pi,
                     log_alpha=self.log_alpha[key],
-                    alpha=self.alpha[key],
-                    logp_pi=self.logp_pi[key],
                     target_entropy=self.target_entropy[key],
-                    scope=scope_i
-                )
-                self.alpha_loss[key] = l1
-                self.alpha_optimizer[key] = o1
-                self.actor_loss[key] = l2
-                self.actor_optimizer[key] = o2
-
-                # Setup the running means and standard deviations of the model
-                # inputs and outputs.
-                self._setup_stats(
-                    rew_ph=self.rew_ph[key],
-                    alpha_loss=self.alpha_loss[key],
-                    actor_loss=self.actor_loss[key],
-                    critic_loss=self.critic_loss[key],
-                    qf1=self.qf1[key],
-                    qf2=self.qf2[key],
-                    value_fn=self.value_fn[key],
-                    qf1_pi=qf1_pi,
-                    qf2_pi=qf2_pi,
-                    policy_out=self.policy_out[key],
-                    logp_pi=self.logp_pi[key]
+                    policy_out=self.policy_out[key]
                 )
 
     def _setup_agent(self, obs_ph, action_ph, ac_space, reuse):
@@ -613,6 +589,140 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return deterministic_action, policy_out, logp_pi, logp_action, qf1, \
             qf2, value_fn, log_alpha, alpha, value_target
+
+    def _setup_agent_ops(self,
+                         scope,
+                         all_obs_ph,
+                         combined_actors,
+                         rew_ph,
+                         terminals1,
+                         value_target,
+                         qf1,
+                         qf2,
+                         alpha,
+                         logp_pi,
+                         value_fn,
+                         log_alpha,
+                         target_entropy,
+                         policy_out):
+        """Create the optimizer and logging operations for a single agent.
+
+        Parameters
+        ----------
+        scope : str
+            an outer scope term, with the appended agent ID in the case of
+            independent policies
+        all_obs_ph : tf.compat.v1.placeholder
+            placeholder for the last step full state observations
+        combined_actors : tf.Variable
+            the output from the joint actors
+        rew_ph : tf.compat.v1.placeholder
+            a placeholder for the rewards of a given agent
+        terminals1 : tf.compat.v1.placeholder
+            placeholder for the next step terminals of a given agent
+        value_target : tf.Variable
+            the output from the shared target value function
+        qf1 : tf.Variable
+            the output from the first Q-function of a given agent
+        qf2 : tf.Variable
+            the output from the second Q-function of a given agent
+        alpha : tf.Variable
+            the entropy coefficient of a given agent
+        logp_pi : tf.Variable
+            the log-probability of a given observation given the output action
+            from the policy
+        value_fn : tf.Variable
+            the output from the value function of a given agent
+        log_alpha : tf.Variable
+            the log of the entropy coefficient of a given agent
+        target_entropy : tf.Variable or float
+            target entropy used when learning the entropy coefficient of a
+            given agent
+        policy_out : tf.Variable
+            the output from the stochastic actor of a given agent
+
+        Returns
+        -------
+        critic_loss : tf.Variable
+            the loss of the critic
+        critic_optimizer : tf.Operation
+            the operation that updates the trainable parameters of the critic
+        target_init_updates : tf.Operation
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        target_soft_updates : tf.Operation
+            soft target update function
+        alpha_loss : tf.Variable
+            the loss of the entropy term
+        alpha_optimizer : tf.Operation
+            the operation that updates the trainable parameters of the entropy
+            term
+        actor_loss : tf.Variable
+            the loss of the actor
+        actor_optimizer : tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        # Create the differentiable critics for the agent.
+        with tf.compat.v1.variable_scope("model", reuse=False):
+            qf1_pi, qf2_pi, _ = self.make_critic(
+                all_obs_ph, combined_actors,
+                scope="centralized_value_fns",
+                create_qf=True, create_vf=False, reuse=True
+            )
+
+        # Setup the target critic and critic update procedure.
+        critic_loss, critic_optimizer = self._setup_critic_update(
+            qf1_pi=qf1_pi,
+            qf2_pi=qf2_pi,
+            rew_ph=rew_ph,
+            terminals1=terminals1,
+            value_target=value_target,
+            qf1=qf1,
+            qf2=qf2,
+            alpha=alpha,
+            logp_pi=logp_pi,
+            value_fn=value_fn,
+            scope=scope
+        )
+
+        # Create the target update operations.
+        init, soft = self._setup_target_updates(
+            model_scope='model/centralized_value_fns/vf',
+            target_scope='target/centralized_value_fns/vf',
+            scope=scope,
+            tau=self.tau,
+            verbose=self.verbose
+        )
+
+        # Setup the actor update procedure.
+        alpha_l, alpha_o, actor_l, actor_o = self._setup_actor_update(
+            qf1_pi=qf1_pi,
+            qf2_pi=qf2_pi,
+            log_alpha=log_alpha,
+            alpha=alpha,
+            logp_pi=logp_pi,
+            target_entropy=target_entropy,
+            scope=scope
+        )
+
+        # Setup the running means and standard deviations of the model
+        # inputs and outputs.
+        self._setup_stats(
+            rew_ph=rew_ph,
+            alpha_loss=alpha_l,
+            actor_loss=actor_l,
+            critic_loss=critic_loss,
+            qf1=qf1,
+            qf2=qf2,
+            value_fn=value_fn,
+            qf1_pi=qf1_pi,
+            qf2_pi=qf2_pi,
+            policy_out=policy_out,
+            logp_pi=logp_pi
+        )
+
+        return critic_loss, critic_optimizer, init, soft, alpha_l, alpha_o, \
+            actor_l, actor_o
 
     def make_actor(self, obs, ac_space, action, reuse=False, scope="pi"):
         """Create the actor variables.
@@ -912,7 +1022,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         logp_pi : tf.Variable
             the log-probability of a given observation given the output action
             from the policy
-        target_entropy : float
+        target_entropy : float or tf.Variable
             target entropy used when learning the entropy coefficient
         scope : str
             an outer scope term
