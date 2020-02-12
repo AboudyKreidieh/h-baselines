@@ -508,8 +508,26 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return worker_action
 
     def value(self, obs, context, action):
-        """See parent class."""
-        return 0, 0  # FIXME
+        """See parent class.
+
+        In this case we return a tuple of the Manager and Worker rewards,
+        respectively.
+        """
+        # Add the contextual observation, if applicable.
+        meta_obs = self._get_obs(obs, context, axis=1)
+        worker_obs = self._get_obs(obs, self.meta_action, axis=1)
+
+        meta_value, worker_value = self.sess.run(
+            [self.manager.critic_tf, self.worker.critic_tf],
+            feed_dict={
+                self.manager.obs_ph: meta_obs,
+                self.manager.action_ph: self.meta_action,
+                self.worker.obs_ph: worker_obs,
+                self.worker.action_ph: action
+            }
+        )
+
+        return meta_value, worker_value
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):

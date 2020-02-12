@@ -258,9 +258,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             actor loss
         """
         if self.maddpg:
-            self._update_maddpg(update_actor, **kwargs)
+            return self._update_maddpg(update_actor, **kwargs)
         else:
-            self._update_basic(update_actor, **kwargs)
+            return self._update_basic(update_actor, **kwargs)
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """Call the actor methods to compute policy actions.
@@ -318,9 +318,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             observation of the individual agents
         """
         if self.maddpg:
-            self._value_maddpg(obs, context, action)
+            return self._value_maddpg(obs, context, action)
         else:
-            self._value_basic(obs, context, action)
+            return self._value_basic(obs, context, action)
 
     def store_transition(self,
                          obs0,
@@ -449,8 +449,14 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
     def _update_basic(self, update_actor=True, **kwargs):
         """See update."""
+        actor_loss = {}
+        critic_loss = {}
         for key in self.agents.keys():
-            self.agents[key].update(update_actor, **kwargs)
+            c, a = self.agents[key].update(update_actor, **kwargs)
+            critic_loss[key] = c
+            actor_loss[key] = a
+
+        return critic_loss, actor_loss
 
     def _get_action_basic(self, obs, context, apply_noise, random_actions):
         """See get_action."""
