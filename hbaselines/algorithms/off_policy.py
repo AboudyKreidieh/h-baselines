@@ -321,7 +321,8 @@ class OffPolicyRLAlgorithm(object):
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
         """
-        shared = policy_kwargs.get("shared", False)
+        shared = False if policy_kwargs is None else \
+            policy_kwargs.get("shared", False)
 
         self.policy = policy
         self.env_name = deepcopy(env)
