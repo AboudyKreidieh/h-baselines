@@ -1564,6 +1564,138 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         self.assertTrue(policy.shared)
         self.assertTrue(not policy.maddpg)
 
+    def test_init_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_qf_0/fc0/bias:0',
+             'a/model/centralized_qf_0/fc0/kernel:0',
+             'a/model/centralized_qf_0/fc1/bias:0',
+             'a/model/centralized_qf_0/fc1/kernel:0',
+             'a/model/centralized_qf_0/qf_output/bias:0',
+             'a/model/centralized_qf_0/qf_output/kernel:0',
+             'a/model/centralized_qf_1/fc0/bias:0',
+             'a/model/centralized_qf_1/fc0/kernel:0',
+             'a/model/centralized_qf_1/fc1/bias:0',
+             'a/model/centralized_qf_1/fc1/kernel:0',
+             'a/model/centralized_qf_1/qf_output/bias:0',
+             'a/model/centralized_qf_1/qf_output/kernel:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/output/bias:0',
+             'a/model/pi/output/kernel:0',
+             'a/target/pi/fc0/bias:0',
+             'a/target/pi/fc0/kernel:0',
+             'a/target/pi/fc1/bias:0',
+             'a/target/pi/fc1/kernel:0',
+             'a/target/pi/output/bias:0',
+             'a/target/pi/output/kernel:0',
+             'b/model/centralized_qf_0/fc0/bias:0',
+             'b/model/centralized_qf_0/fc0/kernel:0',
+             'b/model/centralized_qf_0/fc1/bias:0',
+             'b/model/centralized_qf_0/fc1/kernel:0',
+             'b/model/centralized_qf_0/qf_output/bias:0',
+             'b/model/centralized_qf_0/qf_output/kernel:0',
+             'b/model/centralized_qf_1/fc0/bias:0',
+             'b/model/centralized_qf_1/fc0/kernel:0',
+             'b/model/centralized_qf_1/fc1/bias:0',
+             'b/model/centralized_qf_1/fc1/kernel:0',
+             'b/model/centralized_qf_1/qf_output/bias:0',
+             'b/model/centralized_qf_1/qf_output/kernel:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/output/bias:0',
+             'b/model/pi/output/kernel:0',
+             'b/target/pi/fc0/bias:0',
+             'b/target/pi/fc0/kernel:0',
+             'b/target/pi/fc1/bias:0',
+             'b/target/pi/fc1/kernel:0',
+             'b/target/pi/output/bias:0',
+             'b/target/pi/output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        for key in policy.ac_space.keys():
+            self.assertEqual(int(policy.all_obs_ph[key].shape[-1]),
+                             policy.all_ob_space.shape[0])
+            self.assertEqual(int(policy.all_obs1_ph[key].shape[-1]),
+                             policy.all_ob_space.shape[0])
+            self.assertEqual(int(policy.all_action_ph[key].shape[-1]),
+                             sum(policy.ac_space[key].shape[0]
+                                 for key in policy.ac_space.keys()))
+            self.assertEqual(int(policy.action_ph[key].shape[-1]),
+                             policy.ac_space[key].shape[0])
+            self.assertEqual(int(policy.obs_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+            self.assertEqual(int(policy.obs1_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(policy.maddpg)
+
+    def test_init_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_qf_0/fc0/bias:0',
+             'model/centralized_qf_0/fc0/kernel:0',
+             'model/centralized_qf_0/fc1/bias:0',
+             'model/centralized_qf_0/fc1/kernel:0',
+             'model/centralized_qf_0/qf_output/bias:0',
+             'model/centralized_qf_0/qf_output/kernel:0',
+             'model/centralized_qf_1/fc0/bias:0',
+             'model/centralized_qf_1/fc0/kernel:0',
+             'model/centralized_qf_1/fc1/bias:0',
+             'model/centralized_qf_1/fc1/kernel:0',
+             'model/centralized_qf_1/qf_output/bias:0',
+             'model/centralized_qf_1/qf_output/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(int(policy.all_obs_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_obs1_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_action_ph.shape[-1]),
+                         policy.n_agents * policy.ac_space.shape[0])
+        self.assertEqual(int(policy.action_ph[0].shape[-1]),
+                         policy.ac_space.shape[0])
+        self.assertEqual(int(policy.obs_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+        self.assertEqual(int(policy.obs1_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(policy.shared)
+        self.assertTrue(policy.maddpg)
+
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
 
@@ -1945,6 +2077,165 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(not policy.maddpg)
+
+    def test_init_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = SACMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_value_fns/qf1/fc0/bias:0',
+             'a/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf1/fc1/bias:0',
+             'a/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc0/bias:0',
+             'a/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc1/bias:0',
+             'a/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'a/model/centralized_value_fns/vf/fc0/bias:0',
+             'a/model/centralized_value_fns/vf/fc0/kernel:0',
+             'a/model/centralized_value_fns/vf/fc1/bias:0',
+             'a/model/centralized_value_fns/vf/fc1/kernel:0',
+             'a/model/centralized_value_fns/vf/vf_output/bias:0',
+             'a/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'a/model/log_alpha:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/log_std/bias:0',
+             'a/model/pi/log_std/kernel:0',
+             'a/model/pi/mean/bias:0',
+             'a/model/pi/mean/kernel:0',
+             'a/target/centralized_value_fns/vf/fc0/bias:0',
+             'a/target/centralized_value_fns/vf/fc0/kernel:0',
+             'a/target/centralized_value_fns/vf/fc1/bias:0',
+             'a/target/centralized_value_fns/vf/fc1/kernel:0',
+             'a/target/centralized_value_fns/vf/vf_output/bias:0',
+             'a/target/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc0/bias:0',
+             'b/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc1/bias:0',
+             'b/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc0/bias:0',
+             'b/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc1/bias:0',
+             'b/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'b/model/centralized_value_fns/vf/fc0/bias:0',
+             'b/model/centralized_value_fns/vf/fc0/kernel:0',
+             'b/model/centralized_value_fns/vf/fc1/bias:0',
+             'b/model/centralized_value_fns/vf/fc1/kernel:0',
+             'b/model/centralized_value_fns/vf/vf_output/bias:0',
+             'b/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/log_alpha:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/log_std/bias:0',
+             'b/model/pi/log_std/kernel:0',
+             'b/model/pi/mean/bias:0',
+             'b/model/pi/mean/kernel:0',
+             'b/target/centralized_value_fns/vf/fc0/bias:0',
+             'b/target/centralized_value_fns/vf/fc0/kernel:0',
+             'b/target/centralized_value_fns/vf/fc1/bias:0',
+             'b/target/centralized_value_fns/vf/fc1/kernel:0',
+             'b/target/centralized_value_fns/vf/vf_output/bias:0',
+             'b/target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        for key in policy.ac_space.keys():
+            self.assertEqual(int(policy.all_obs_ph[key].shape[-1]),
+                             int(policy.all_ob_space.shape[0]))
+            self.assertEqual(int(policy.all_obs1_ph[key].shape[-1]),
+                             int(policy.all_ob_space.shape[0]))
+            self.assertEqual(int(policy.all_action_ph[key].shape[-1]),
+                             sum(policy.ac_space[key].shape[0]
+                                 for key in policy.ac_space.keys()))
+            self.assertEqual(int(policy.action_ph[key].shape[-1]),
+                             int(policy.ac_space[key].shape[0]))
+            self.assertEqual(int(policy.obs_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+            self.assertEqual(int(policy.obs1_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(policy.maddpg)
+
+    def test_init_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = SACMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_value_fns/qf1/fc0/bias:0',
+             'model/centralized_value_fns/qf1/fc0/kernel:0',
+             'model/centralized_value_fns/qf1/fc1/bias:0',
+             'model/centralized_value_fns/qf1/fc1/kernel:0',
+             'model/centralized_value_fns/qf1/qf_output/bias:0',
+             'model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'model/centralized_value_fns/qf2/fc0/bias:0',
+             'model/centralized_value_fns/qf2/fc0/kernel:0',
+             'model/centralized_value_fns/qf2/fc1/bias:0',
+             'model/centralized_value_fns/qf2/fc1/kernel:0',
+             'model/centralized_value_fns/qf2/qf_output/bias:0',
+             'model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'model/centralized_value_fns/vf/fc0/bias:0',
+             'model/centralized_value_fns/vf/fc0/kernel:0',
+             'model/centralized_value_fns/vf/fc1/bias:0',
+             'model/centralized_value_fns/vf/fc1/kernel:0',
+             'model/centralized_value_fns/vf/vf_output/bias:0',
+             'model/centralized_value_fns/vf/vf_output/kernel:0',
+             'model/log_alpha:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/log_std/bias:0',
+             'model/pi/log_std/kernel:0',
+             'model/pi/mean/bias:0',
+             'model/pi/mean/kernel:0',
+             'target/centralized_value_fns/vf/fc0/bias:0',
+             'target/centralized_value_fns/vf/fc0/kernel:0',
+             'target/centralized_value_fns/vf/fc1/bias:0',
+             'target/centralized_value_fns/vf/fc1/kernel:0',
+             'target/centralized_value_fns/vf/vf_output/bias:0',
+             'target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(int(policy.all_obs_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_obs1_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_action_ph.shape[-1]),
+                         policy.n_agents * policy.ac_space.shape[0])
+        self.assertEqual(int(policy.action_ph[0].shape[-1]),
+                         policy.ac_space.shape[0])
+        self.assertEqual(int(policy.obs_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+        self.assertEqual(int(policy.obs1_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(policy.shared)
+        self.assertTrue(policy.maddpg)
 
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
