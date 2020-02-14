@@ -1646,7 +1646,22 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        # TODO
+        for key in policy.ac_space.keys():
+            self.assertEqual(int(policy.all_obs_ph[key].shape[-1]),
+                             policy.all_ob_space.shape[0])
+            self.assertEqual(int(policy.all_obs1_ph[key].shape[-1]),
+                             policy.all_ob_space.shape[0])
+            self.assertEqual(int(policy.all_action_ph[key].shape[-1]),
+                             sum(policy.ac_space[key].shape[0]
+                                 for key in policy.ac_space.keys()))
+            self.assertEqual(int(policy.action_ph[key].shape[-1]),
+                             policy.ac_space[key].shape[0])
+            self.assertEqual(int(policy.obs_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+            self.assertEqual(int(policy.obs1_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
 
         # Check the instantiation of the class attributes.
         self.assertTrue(not policy.shared)
@@ -1698,7 +1713,20 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        # TODO
+        self.assertEqual(int(policy.all_obs_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_obs1_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_action_ph.shape[-1]),
+                         policy.n_agents * policy.ac_space.shape[0])
+        self.assertEqual(int(policy.action_ph[0].shape[-1]),
+                         policy.ac_space.shape[0])
+        self.assertEqual(int(policy.obs_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+        self.assertEqual(int(policy.obs1_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
 
         # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
@@ -2176,7 +2204,22 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        # TODO
+        for key in policy.ac_space.keys():
+            self.assertEqual(int(policy.all_obs_ph[key].shape[-1]),
+                             int(policy.all_ob_space.shape[0]))
+            self.assertEqual(int(policy.all_obs1_ph[key].shape[-1]),
+                             int(policy.all_ob_space.shape[0]))
+            self.assertEqual(int(policy.all_action_ph[key].shape[-1]),
+                             sum(policy.ac_space[key].shape[0]
+                                 for key in policy.ac_space.keys()))
+            self.assertEqual(int(policy.action_ph[key].shape[-1]),
+                             int(policy.ac_space[key].shape[0]))
+            self.assertEqual(int(policy.obs_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
+            self.assertEqual(int(policy.obs1_ph[key].shape[-1]),
+                             int(policy.ob_space[key].shape[0]
+                                 + policy.co_space[key].shape[0]))
 
         # Check the instantiation of the class attributes.
         self.assertTrue(not policy.shared)
@@ -2225,7 +2268,20 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        # TODO
+        self.assertEqual(int(policy.all_obs_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_obs1_ph.shape[-1]),
+                         policy.all_ob_space.shape[0])
+        self.assertEqual(int(policy.all_action_ph.shape[-1]),
+                         policy.n_agents * policy.ac_space.shape[0])
+        self.assertEqual(int(policy.action_ph[0].shape[-1]),
+                         policy.ac_space.shape[0])
+        self.assertEqual(int(policy.obs_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
+        self.assertEqual(int(policy.obs1_ph[0].shape[-1]),
+                         int(policy.ob_space.shape[0]
+                             + policy.co_space.shape[0]))
 
         # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)

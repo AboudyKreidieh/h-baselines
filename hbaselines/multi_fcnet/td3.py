@@ -241,6 +241,13 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _setup_maddpg(self, scope):
         """See setup."""
+        if self.shared:
+            self._setup_maddpg_shared(scope)
+        else:
+            self._setup_maddpg_independent(scope)
+
+    def _setup_maddpg_shared(self, scope):
+        """Perform shared form of MADDPG setup."""
         # Create an input placeholder for the full state observations.
         self.all_obs_ph = tf.compat.v1.placeholder(
             tf.float32,
@@ -251,13 +258,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             shape=(None,) + self.all_ob_space.shape,
             name='all_obs1')
 
-        if self.shared:
-            self._setup_maddpg_shared(scope)
-        else:
-            self._setup_maddpg_independent(scope)
-
-    def _setup_maddpg_shared(self, scope):
-        """Perform shared form of MADDPG setup."""
         # Create an input placeholder for the full actions.
         self.all_action_ph = tf.compat.v1.placeholder(
             tf.float32,
@@ -313,6 +313,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 obs_ph=obs_ph,
                 obs1_ph=obs1_ph,
                 ac_space=self.ac_space,
+                all_obs_ph=self.all_obs_ph,
+                all_action_ph=self.all_action_ph,
                 target_policy_noise=self.target_policy_noise,
                 target_noise_clip=self.target_noise_clip,
                 reuse=i != 0,
@@ -356,15 +358,9 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _setup_maddpg_independent(self, scope):
         """Perform independent form of MADDPG setup."""
-        # Create an input placeholder for the full actions.
-        all_ac_dim = sum(self.ac_space[key].shape[0]
-                         for key in self.ac_space.keys())
-
-        self.all_action_ph = tf.compat.v1.placeholder(
-            tf.float32,
-            shape=(None, all_ac_dim),
-            name='all_actions')
-
+        self.all_obs_ph = {}
+        self.all_obs1_ph = {}
+        self.all_action_ph = {}
         self.replay_buffer = {}
         self.terminals1 = {}
         self.rew_ph = {}
@@ -377,9 +373,29 @@ class MultiFeedForwardPolicy(BasePolicy):
         actors = []
         actor_targets = []
 
+        # The size of the full action space.
+        all_ac_dim = sum(
+            self.ac_space[key].shape[0] for key in self.ac_space.keys())
+
         # We move through the keys in a sorted fashion so that we may collect
         # the observations and actions for the full state in a sorted manner.
         for key in sorted(self.ob_space.keys()):
+            # Create an input placeholder for the full state observations.
+            self.all_obs_ph[key] = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + self.all_ob_space.shape,
+                name='all_obs')
+            self.all_obs1_ph[key] = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + self.all_ob_space.shape,
+                name='all_obs1')
+
+            # Create an input placeholder for the full actions.
+            self.all_action_ph[key] = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, all_ac_dim),
+                name='all_actions')
+
             # Compute the shape of the input observation space, which may
             # include the contextual term.
             ob_dim = self._get_ob_dim(
@@ -392,8 +408,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 batch_size=self.batch_size,
                 obs_dim=ob_dim[0],
                 ac_dim=self.ac_space[key].shape[0],
-                all_obs_dim=self.all_obs_ph.shape[-1],
-                all_ac_dim=self.all_action_ph.shape[-1],
+                all_obs_dim=self.all_ob_space.shape[0],
+                all_ac_dim=all_ac_dim,
             )
 
             with tf.compat.v1.variable_scope(key, reuse=False):
@@ -425,6 +441,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                     obs_ph=obs_ph,
                     obs1_ph=obs1_ph,
                     ac_space=self.ac_space[key],
+                    all_obs_ph=self.all_obs_ph[key],
+                    all_action_ph=self.all_action_ph[key],
                     target_policy_noise=self.target_policy_noise[key],
                     target_noise_clip=self.target_noise_clip[key],
                     reuse=False,
@@ -485,6 +503,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                      obs_ph,
                      obs1_ph,
                      ac_space,
+                     all_obs_ph,
+                     all_action_ph,
                      target_policy_noise,
                      target_noise_clip,
                      reuse):
@@ -492,14 +512,22 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         Parameters
         ----------
+        obs_ph : tf.compat.v1.placeholder
+            the input placeholder for the observation of the agent
         ac_space : gym.spaces.*
             the action space of the individual agent
+        all_obs_ph : tf.compat.v1.placeholder
+            placeholder for the last step full state observations
+        all_action_ph : tf.compat.v1.placeholder
+            placeholder for the actions of all agents
         target_policy_noise : array_like
             standard deviation term to the noise from the output of the target
             actor policy of the individual agent. See TD3 paper for more.
         target_noise_clip : array_like
             clipping term for the noise injected in the target actor policy of
             the individual agent
+        reuse : bool
+            whether to reuse policy objects
 
         Returns
         -------
@@ -514,7 +542,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         with tf.compat.v1.variable_scope("model", reuse=reuse):
             actor_tf = self.make_actor(obs_ph, ac_space)
             critic_tf = [
-                self.make_critic(self.all_obs_ph, self.all_action_ph,
+                self.make_critic(all_obs_ph, all_action_ph,
                                  scope="centralized_qf_{}".format(i))
                 for i in range(2)
             ]
