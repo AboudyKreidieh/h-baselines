@@ -299,20 +299,20 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs : dict of array_like
+        obs : array_like or dict < str, array_like >
             the observations of the individual agents. In the case of
             centralized value functions, this should be the full state
             information.
         context : array_like or None
             the contextual term. Set to None if no context is provided by the
             environment.
-        action : dict of array_like, optional
+        action : dict < str, array_like >
             the actions performed in the given observation for the individual
             agents
 
         Returns
         -------
-        array_like or dict of array_like
+        dict < str, array_like >
             computed value by the centralized critic if centralized value
             functions are being used; otherwise the value associated with the
             observation of the individual agents
