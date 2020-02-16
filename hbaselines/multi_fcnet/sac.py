@@ -625,6 +625,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             whether to create the Q-functions
         create_vf : bool
             whether to create the value function
+
         Returns
         -------
         tf.Variable
@@ -714,7 +715,50 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
-        pass  # TODO
+        actions = {}
+
+        if random_actions:
+            for key in obs.keys():
+                # Get the action space of the specific agent.
+                ac_space = self.ac_space if self.shared else self.ac_space[key]
+
+                # Sample a random action.
+                actions[key] = ac_space.sample()
+
+        else:
+            for key in obs.keys():
+                # Add the contextual observation, if applicable.
+                obs[key] = self._get_obs(
+                    obs[key],
+                    None if context is None else context[key], axis=1)
+
+                if apply_noise:
+                    if self.shared:
+                        normalized_action = self.sess.run(
+                            self.policy_out,
+                            feed_dict={self.obs_ph[0]: obs[key]})
+                    else:
+                        normalized_action = self.sess.run(
+                            self.policy_out[key],
+                            feed_dict={self.obs_ph[key]: obs[key]})
+                else:
+                    if self.shared:
+                        normalized_action = self.sess.run(
+                            self.deterministic_action,
+                            feed_dict={self.obs_ph[0]: obs[key]})
+                    else:
+                        normalized_action = self.sess.run(
+                            self.deterministic_action[key],
+                            feed_dict={self.obs_ph[key]: obs[key]})
+
+                # Get the scaling terms for the actions.
+                ac_mag = self._ac_mag if self.shared else self._ac_mag[key]
+                ac_mean = self._ac_mean if self.shared else self._ac_mean[key]
+
+                # Scale by the action space.
+                actions[key] = ac_mag * normalized_action + ac_mean
+
+        return actions
 
     def _value_maddpg(self, obs, context, action):
         """See value."""

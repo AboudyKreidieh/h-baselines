@@ -579,7 +579,40 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
-        pass  # TODO
+        actions = {}
+
+        if random_actions:
+            for key in obs.keys():
+                # Get the action space of the specific agent.
+                ac_space = self.ac_space if self.shared else self.ac_space[key]
+
+                # Sample a random action.
+                actions[key] = ac_space.sample()
+
+        else:
+            for key in obs.keys():
+                # Get the action space of the specific agent.
+                ac_space = self.ac_space if self.shared else self.ac_space[key]
+
+                # Compute the deterministic action.
+                if self.shared:
+                    action = self.sess.run(
+                        self.actor_tf,
+                        feed_dict={self.obs_ph[0]: obs[key]})
+                else:
+                    action = self.sess.run(
+                        self.actor_tf[key],
+                        feed_dict={self.obs_ph[key]: obs[key]})
+
+                # compute noisy action
+                if apply_noise:
+                    action += np.random.normal(
+                        0, self.noise[key], action.shape)
+
+                # clip by bounds
+                actions[key] = np.clip(action, ac_space.low, ac_space.high)
+
+        return actions
 
     def _value_maddpg(self, obs, context, action):
         """See value."""
