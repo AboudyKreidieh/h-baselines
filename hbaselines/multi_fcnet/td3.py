@@ -616,7 +616,37 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _value_maddpg(self, obs, context, action):
         """See value."""
-        pass  # TODO
+        # Combine all actions under one variable. This is done by order of
+        # agent IDs in alphabetical order.
+        # FIXME: this could cause problems in the merge.
+        all_actions = np.concatenate(
+            [action[key] for key in sorted(list(action.keys()))], axis=1)
+
+        if self.shared:
+            # Compute the shared value.
+            value_all = self.sess.run(
+                self.critic_tf,
+                feed_dict={
+                    self.all_obs_ph: obs,
+                    self.all_action_ph: all_actions
+                }
+            )
+
+            # Distribute across all agents.
+            value = {key: value_all for key in action.keys()}
+        else:
+            # Loop through all agent.
+            value = {}
+            for key in self.replay_buffer.keys():
+                value[key] = self.sess.run(
+                    self.critic_tf[key],
+                    feed_dict={
+                        self.all_obs_ph: obs,
+                        self.all_action_ph: all_actions
+                    }
+                )
+
+        return value
 
     def _store_transition_maddpg(self,
                                  obs0,
