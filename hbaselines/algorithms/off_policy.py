@@ -207,7 +207,8 @@ class OffPolicyRLAlgorithm(object):
         environment, this will be a dictionary of observations for each agent,
         indexed by the agen ID.
     all_obs : array_like or None
-        TODO
+        additional information, used by MADDPG variants of the multi-agent
+        policy to pass full-state information
     episode_step : int
         the number of steps since the most recent rollout began
     episodes : int
@@ -487,7 +488,7 @@ class OffPolicyRLAlgorithm(object):
             exploration purposes.
         all_obs : array_like or None
             additional information, used by MADDPG variants of the multi-agent
-            policy to pass all_obs
+            policy to pass full-state information
 
         Returns
         -------
