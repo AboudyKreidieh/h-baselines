@@ -12,7 +12,6 @@ from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 
-
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
 EPS = 1e-6
 # Cap the standard deviation of the actor
