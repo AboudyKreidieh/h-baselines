@@ -588,7 +588,7 @@ class OffPolicyRLAlgorithm(object):
             done=terminal1,
             is_final_step=is_final_step,
             evaluate=evaluate,
-            **(kwargs if self.policy_kwargs["maddpg"] else {}),
+            **(kwargs if self.policy_kwargs.get("maddpg", False) else {}),
         )
 
     def learn(self,
