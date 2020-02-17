@@ -661,7 +661,45 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  all_obs1,
                                  evaluate):
         """See store_transition."""
-        pass  # TODO
+        if self.shared:
+            # Collect the observations and actions in order as listed by their
+            # agent IDs. FIXME: this could cause problems in the merge.
+            list_obs0, list_obs1, list_action = [], [], []
+            for key in obs0.keys():
+                list_obs0.append(self._get_obs(
+                    obs0[key], None if context0 is None else context0[key]))
+                list_obs1.append(self._get_obs(
+                    obs1[key], None if context1 is None else context0[key]))
+                list_action.append(action[key])
+
+            # Store the new sample.
+            self.replay_buffer.add(
+                obs_t=list_obs0,
+                action=list_action,
+                reward=reward,
+                obs_tp1=list_obs1,
+                done=float(done and not is_final_step),
+                all_obs_t=all_obs0,
+                all_obs_tp1=all_obs1
+            )
+        else:
+            # Collect the actions in order as listed by their agent IDs.
+            # FIXME: this could cause problems in the merge.
+            combines_actions = np.array(
+                [action[key] for key in sorted(list(action.keys()))])
+
+            # Store the new samples in their replay buffer.
+            for key in obs0.keys():
+                self.replay_buffer[key].add(
+                    obs_t=obs0[key],
+                    action=action[key],
+                    reward=reward[key],
+                    obs_tp1=obs1[key],
+                    done=float(done[key] and not is_final_step),
+                    all_obs_t=all_obs0,
+                    all_action_t=combines_actions,
+                    all_obs_tp1=all_obs1
+                )
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""

@@ -207,7 +207,8 @@ class OffPolicyRLAlgorithm(object):
         environment, this will be a dictionary of observations for each agent,
         indexed by the agen ID.
     all_obs : array_like or None
-        TODO
+        additional information, used by MADDPG variants of the multi-agent
+        policy to pass full-state information
     episode_step : int
         the number of steps since the most recent rollout began
     episodes : int
@@ -487,7 +488,7 @@ class OffPolicyRLAlgorithm(object):
             exploration purposes.
         all_obs : array_like or None
             additional information, used by MADDPG variants of the multi-agent
-            policy to pass all_obs
+            policy to pass full-state information
 
         Returns
         -------
@@ -543,7 +544,8 @@ class OffPolicyRLAlgorithm(object):
                           context1,
                           terminal1,
                           is_final_step,
-                          evaluate=False):
+                          evaluate=False,
+                          **kwargs):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -565,6 +567,9 @@ class OffPolicyRLAlgorithm(object):
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
+        kwargs : dict
+            additional parameters, containing the current and next-step full
+            observations for policies using MADDPG
         """
         # Scale the rewards by the provided term. Rewards are dictionaries when
         # training independent multi-agent policies.
@@ -573,7 +578,6 @@ class OffPolicyRLAlgorithm(object):
         else:
             reward *= self.reward_scale
 
-        # TODO: add all_obs0 and all_obs1
         self.policy_tf.store_transition(
             obs0=obs0,
             context0=context0,
@@ -583,7 +587,8 @@ class OffPolicyRLAlgorithm(object):
             context1=context1,
             done=terminal1,
             is_final_step=is_final_step,
-            evaluate=evaluate
+            evaluate=evaluate,
+            **(kwargs if self.policy_kwargs.get("maddpg", False) else {}),
         )
 
     def learn(self,
@@ -834,7 +839,9 @@ class OffPolicyRLAlgorithm(object):
                 obs1=new_obs,
                 context1=context1,
                 terminal1=done,
-                is_final_step=self.episode_step >= self.horizon - 1
+                is_final_step=self.episode_step >= self.horizon - 1,
+                all_obs0=self.all_obs,
+                all_obs1=new_all_obs,
             )
 
             # Book-keeping.
@@ -1041,9 +1048,19 @@ class OffPolicyRLAlgorithm(object):
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
                 # of the policy.
-                self._store_transition(eval_obs, context0, eval_action,
-                                       eval_r, obs, context1,
-                                       False, False, evaluate=True)
+                self._store_transition(
+                    obs0=eval_obs,
+                    context0=context0,
+                    action=eval_action,
+                    reward=eval_r,
+                    obs1=obs,
+                    context1=context1,
+                    terminal1=False,
+                    is_final_step=False,
+                    all_obs0=eval_all_obs,
+                    all_obs1=all_obs,
+                    evaluate=True,
+                )
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
