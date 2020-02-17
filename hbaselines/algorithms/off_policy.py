@@ -206,6 +206,9 @@ class OffPolicyRLAlgorithm(object):
         the most recent training observation. If you are using a multi-agent
         environment, this will be a dictionary of observations for each agent,
         indexed by the agen ID.
+    all_obs : array_like or None
+        additional information, used by MADDPG variants of the multi-agent
+        policy to pass full-state information
     episode_step : int
         the number of steps since the most recent rollout began
     episodes : int
@@ -383,6 +386,7 @@ class OffPolicyRLAlgorithm(object):
         self.sess = None
         self.summary = None
         self.obs = None
+        self.all_obs = None
         self.episode_step = 0
         self.episodes = 0
         self.total_steps = 0
@@ -463,7 +467,8 @@ class OffPolicyRLAlgorithm(object):
                 context,
                 apply_noise=True,
                 compute_q=True,
-                random_actions=False):
+                random_actions=False,
+                all_obs=None):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -481,6 +486,9 @@ class OffPolicyRLAlgorithm(object):
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
+        all_obs : array_like or None
+            additional information, used by MADDPG variants of the multi-agent
+            policy to pass full-state information
 
         Returns
         -------
@@ -510,8 +518,14 @@ class OffPolicyRLAlgorithm(object):
             random_actions=random_actions
         )
 
-        q_value = self.policy_tf.value(obs, context, action) if compute_q \
-            else None
+        if compute_q:
+            # Use all_obs is using an MADDPG algorithm; and the official
+            # observation otherwise.
+            obs_q = obs if not self.policy_kwargs.get("maddpg", False) \
+                else all_obs
+            q_value = self.policy_tf.value(obs_q, context, action)
+        else:
+            q_value = None
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
         if isinstance(action, dict):
@@ -530,7 +544,8 @@ class OffPolicyRLAlgorithm(object):
                           context1,
                           terminal1,
                           is_final_step,
-                          evaluate=False):
+                          evaluate=False,
+                          **kwargs):
         """Store a transition in the replay buffer.
 
         Parameters
@@ -552,6 +567,9 @@ class OffPolicyRLAlgorithm(object):
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
+        kwargs : dict
+            additional parameters, containing the current and next-step full
+            observations for policies using MADDPG
         """
         # Scale the rewards by the provided term. Rewards are dictionaries when
         # training independent multi-agent policies.
@@ -560,7 +578,6 @@ class OffPolicyRLAlgorithm(object):
         else:
             reward *= self.reward_scale
 
-        # TODO: add all_obs0 and all_obs1
         self.policy_tf.store_transition(
             obs0=obs0,
             context0=context0,
@@ -570,7 +587,8 @@ class OffPolicyRLAlgorithm(object):
             context1=context1,
             done=terminal1,
             is_final_step=is_final_step,
-            evaluate=evaluate
+            evaluate=evaluate,
+            **(kwargs if self.policy_kwargs.get("maddpg", False) else {}),
         )
 
     def learn(self,
@@ -637,7 +655,8 @@ class OffPolicyRLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
-            self.obs = self.env.reset()
+            obs = self.env.reset()
+            self.obs, self.all_obs = self._get_obs(obs)
 
             # Add the fingerprint term, if needed.
             self.obs = self._add_fingerprint(
@@ -786,10 +805,13 @@ class OffPolicyRLAlgorithm(object):
                 self.obs, context,
                 apply_noise=True,
                 random_actions=random_actions,
-                compute_q=True)
+                compute_q=True,
+                all_obs=self.all_obs
+            )
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
+            new_obs, new_all_obs = self._get_obs(new_obs)
 
             # Visualize the current step.
             if self.render:
@@ -817,7 +839,9 @@ class OffPolicyRLAlgorithm(object):
                 obs1=new_obs,
                 context1=context1,
                 terminal1=done,
-                is_final_step=self.episode_step >= self.horizon - 1
+                is_final_step=self.episode_step >= self.horizon - 1,
+                all_obs0=self.all_obs,
+                all_obs1=new_all_obs,
             )
 
             # Book-keeping.
@@ -848,7 +872,7 @@ class OffPolicyRLAlgorithm(object):
                         if self.policy_kwargs["shared"] else reward[key]
 
                 # Done map for multi-agent policies is slightly different.
-                done = any(done[key] for key in done.keys())
+                done = done["__all__"]
 
             else:
                 q1_value, q2_value = vf_value
@@ -859,6 +883,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Update the current observation.
             self.obs = new_obs.copy()
+            self.all_obs = new_all_obs  # FIXME: copy?
 
             if done:
                 # Episode done.
@@ -874,7 +899,8 @@ class OffPolicyRLAlgorithm(object):
                 self.episodes += 1
 
                 # Reset the environment.
-                self.obs = self.env.reset()
+                obs = self.env.reset()
+                self.obs, self.all_obs = self._get_obs(obs)
 
                 # Add the fingerprint term, if needed.
                 self.obs = self._add_fingerprint(
@@ -978,6 +1004,7 @@ class OffPolicyRLAlgorithm(object):
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = env.reset()
+            eval_obs, eval_all_obs = self._get_obs(eval_obs)
 
             # Add the fingerprint term, if needed.
             eval_obs = self._add_fingerprint(
@@ -996,9 +1023,13 @@ class OffPolicyRLAlgorithm(object):
                 eval_action, _ = self._policy(
                     eval_obs, context,
                     apply_noise=not self.eval_deterministic,
-                    random_actions=False, compute_q=False)
+                    random_actions=False,
+                    compute_q=False,
+                    all_obs=eval_all_obs
+                )
 
                 obs, eval_r, done, info = env.step(eval_action)
+                obs, all_obs = self._get_obs(obs)
 
                 # Visualize the current step.
                 if self.render_eval:
@@ -1017,12 +1048,23 @@ class OffPolicyRLAlgorithm(object):
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
                 # of the policy.
-                self._store_transition(eval_obs, context0, eval_action,
-                                       eval_r, obs, context1,
-                                       False, False, evaluate=True)
+                self._store_transition(
+                    obs0=eval_obs,
+                    context0=context0,
+                    action=eval_action,
+                    reward=eval_r,
+                    obs1=obs,
+                    context1=context1,
+                    terminal1=False,
+                    is_final_step=False,
+                    all_obs0=eval_all_obs,
+                    all_obs1=all_obs,
+                    evaluate=True,
+                )
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
+                eval_all_obs = all_obs  # FIXME: copy?
 
                 # Add the fingerprint term, if needed.
                 eval_obs = self._add_fingerprint(
@@ -1123,6 +1165,35 @@ class OffPolicyRLAlgorithm(object):
         new_obs = np.concatenate((obs, fp), axis=0)
 
         return new_obs
+
+    @staticmethod
+    def _get_obs(obs):
+        """Get the observation from a (potentially unprocessed) variable.
+
+        We assume multi-agent MADDPG style policies return a dictionary
+        observations, containing the keys "obs" and "all_obs".
+
+        Parameters
+        ----------
+        obs : array_like
+            the current observation
+
+        Returns
+        -------
+        array_like
+            the agent-level observation. May be the initial observation
+        array_like or None
+            the full-state observation, if using environments that support
+            MADDPG. Otherwise, this variable is a None value.
+        """
+        if isinstance(obs, dict) and "all_obs" in obs.keys():
+            obs = obs["obs"]
+            all_obs = obs["all_obs"]
+        else:
+            obs = obs
+            all_obs = None
+
+        return obs, all_obs
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.

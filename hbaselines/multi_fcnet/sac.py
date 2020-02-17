@@ -1295,13 +1295,17 @@ class MultiFeedForwardPolicy(BasePolicy):
             [action[key] for key in sorted(list(action.keys()))], axis=1)
 
         if self.shared:
-            value = self.sess.run(
+            # Compute the shared value.
+            value_all = self.sess.run(
                 [self.qf1, self.qf2],  # , self.value_fn],  FIXME
                 feed_dict={
                     self.all_obs_ph: obs,
                     self.all_action_ph: all_actions
                 }
             )
+
+            # Distribute across all agents.
+            value = {key: value_all for key in action.keys()}
         else:
             # Loop through all agent.
             value = {}
@@ -1333,7 +1337,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             # Collect the observations and actions in order as listed by their
             # agent IDs. FIXME: this could cause problems in the merge.
             list_obs0, list_obs1, list_action = [], [], []
-            for key in obs0.keys():
+            for key in sorted(list(obs0.keys())):
                 list_obs0.append(self._get_obs(
                     obs0[key], None if context0 is None else context0[key]))
                 list_obs1.append(self._get_obs(
@@ -1384,8 +1388,14 @@ class MultiFeedForwardPolicy(BasePolicy):
             rewards = rewards.reshape(-1, 1)
             done1 = done1.reshape(-1, 1)
 
+            # Combine all actions under one variable. This is done by order of
+            # agent IDs in alphabetical order.
+            # FIXME: this could cause problems in the merge.
+            all_actions = np.concatenate(actions, axis=1)
+
             td_map = {
                 self.all_obs_ph: all_obs0,
+                self.all_action_ph: all_actions,
                 self.all_obs1_ph: all_obs1,
                 self.rew_ph: rewards,
                 self.terminals1: done1
@@ -1423,6 +1433,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.action_ph[key]: actions,
                     self.obs1_ph[key]: obs1[key],
                     self.all_obs_ph[key]: all_obs0,
+                    self.all_action_ph[key]: all_actions,
                     self.all_obs1_ph[key]: all_obs1,
                 })
 

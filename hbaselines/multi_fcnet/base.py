@@ -312,7 +312,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         Returns
         -------
-        array_like or dict < str, array_like >
+        dict < str, array_like >
             computed value by the centralized critic if centralized value
             functions are being used; otherwise the value associated with the
             observation of the individual agents
