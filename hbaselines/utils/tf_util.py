@@ -1,7 +1,7 @@
 """TensorFlow utility methods."""
 import tensorflow as tf
 import numpy as np
-
+from functools import reduce
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
 EPS = 1e-6
@@ -206,3 +206,19 @@ def apply_squashing_func(mu_, pi_, logp_pi):
     logp_pi -= tf.reduce_sum(tf.math.log(1 - policy ** 2 + EPS), axis=1)
 
     return deterministic_policy, policy, logp_pi
+
+
+def print_params_shape(scope, param_type):
+    """Print parameter shapes and number of parameters.
+
+    Parameters
+    ----------
+    scope : str
+        scope containing the parameters
+    param_type : str
+        the name of the parameter
+    """
+    shapes = [var.get_shape().as_list() for var in get_trainable_vars(scope)]
+    nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in shapes])
+    print('  {} shapes: {}'.format(param_type, shapes))
+    print('  {} params: {}'.format(param_type, nb_params))

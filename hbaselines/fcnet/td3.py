@@ -1,12 +1,12 @@
 """TD3-compatible feedforward policy."""
 import tensorflow as tf
 import numpy as np
-from functools import reduce
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
+from hbaselines.utils.tf_util import print_params_shape
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
@@ -323,20 +323,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
     def _setup_actor_optimizer(self, scope):
         """Create the actor loss, gradient, and optimizer."""
-        if self.verbose >= 2:
-            print('setting up actor optimizer')
-
         scope_name = 'model/pi/'
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
         if self.verbose >= 2:
-            actor_shapes = [var.get_shape().as_list()
-                            for var in get_trainable_vars(scope_name)]
-            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                   for shape in actor_shapes])
-            print('  actor shapes: {}'.format(actor_shapes))
-            print('  actor params: {}'.format(actor_nb_params))
+            print('setting up actor optimizer')
+            print_params_shape(scope_name, "actor")
 
         # compute the actor loss
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
@@ -379,12 +372,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 scope_name = scope + '/' + scope_name
 
             if self.verbose >= 2:
-                critic_shapes = [var.get_shape().as_list()
-                                 for var in get_trainable_vars(scope_name)]
-                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                        for shape in critic_shapes])
-                print('  critic shapes: {}'.format(critic_shapes))
-                print('  critic params: {}'.format(critic_nb_params))
+                print_params_shape(scope_name, "critic {}".format(i))
 
             # create an optimizer object
             optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
