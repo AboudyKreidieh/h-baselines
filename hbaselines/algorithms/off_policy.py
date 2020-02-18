@@ -817,6 +817,10 @@ class OffPolicyRLAlgorithm(object):
             new_obs, reward, done, info = self.env.step(action)
             new_obs, new_all_obs = self._get_obs(new_obs)
 
+            # Done map for multi-agent policies is slightly different.
+            if is_multiagent_policy(self.policy):
+                done = done["__all__"]
+
             # Visualize the current step.
             if self.render:
                 self.env.render()  # pragma: no cover
@@ -874,9 +878,6 @@ class OffPolicyRLAlgorithm(object):
                     self.epoch_actions[key].append(action[key])
                     self.episode_reward[key] += reward \
                         if self.policy_kwargs["shared"] else reward[key]
-
-                # Done map for multi-agent policies is slightly different.
-                done = done["__all__"]
 
             else:
                 q1_value, q2_value = vf_value

@@ -201,6 +201,112 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
+    def test_run_multi_fcnet_td3_maddpg_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring0",
+            "--maddpg",
+            "--total_steps", "2000"])
+        run_multi_fcnet(args, 'data/multi-fcnet')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-fcnet/multiagent-ring0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_fcnet_sac_maddpg_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring0",
+            "--maddpg",
+            "--total_steps", "2000",
+            "--alg", "SAC"
+        ])
+        run_multi_fcnet(args, 'data/multi-fcnet')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-fcnet/multiagent-ring0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_fcnet_failure_maddpg_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring0",
+            "--maddpg",
+            "--total_steps", "2000",
+            "--alg", "woops"
+        ])
+
+        self.assertRaises(ValueError, run_multi_fcnet,
+                          args=args, base_dir='data/multi-fcnet')
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_fcnet_td3_maddpg_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring0",
+            "--shared",
+            "--maddpg",
+            "--total_steps", "2000"
+        ])
+        run_multi_fcnet(args, 'data/multi-fcnet')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-fcnet/multiagent-ring0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_fcnet_sac_maddpg_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring0",
+            "--shared",
+            "--maddpg",
+            "--total_steps", "2000",
+            "--alg", "SAC"
+        ])
+        run_multi_fcnet(args, 'data/multi-fcnet')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-fcnet/multiagent-ring0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_fcnet_failure_maddpg_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "MountainCarContinuous-v0",
+            "--shared",
+            "--maddpg",
+            "--total_steps", "2000",
+            "--alg", "woops"
+        ])
+
+        self.assertRaises(ValueError, run_multi_fcnet,
+                          args=args, base_dir='data/multi-fcnet')
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
 
 if __name__ == '__main__':
     unittest.main()

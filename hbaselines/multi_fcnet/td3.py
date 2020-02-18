@@ -1,11 +1,14 @@
 """TD3-compatible multi-agent feedforward policy."""
 import tensorflow as tf
 import numpy as np
+from functools import reduce
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import reduce_std
 
 
 class MultiFeedForwardPolicy(BasePolicy):
@@ -54,6 +57,19 @@ class MultiFeedForwardPolicy(BasePolicy):
         training.
     actor_target : tf.Variable
         the output from a noisy version of the target actor network
+    critic_loss : tf.Operation
+        the operation that returns the loss of the critic
+    critic_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the critic
+    target_init_updates : tf.Operation
+        an operation that sets the values of the trainable parameters of the
+        target actor/critic to match those actual actor/critic
+    target_soft_updates : tf.Operation
+        soft target update function
+    actor_loss : tf.Operation
+        the operation that returns the loss of the actor
+    actor_optimizer : tf.Operation
+        the operation that updates the trainable parameters of the actor
     """
 
     def __init__(self,
@@ -185,6 +201,12 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.actor_tf = None
         self.critic_tf = None
         self.actor_target = None
+        self.critic_loss = None
+        self.critic_optimizer = None
+        self.target_init_updates = None
+        self.target_soft_updates = None
+        self.actor_loss = None
+        self.actor_optimizer = None
 
         super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
@@ -220,11 +242,11 @@ class MultiFeedForwardPolicy(BasePolicy):
     def _setup_maddpg(self, scope):
         """See setup."""
         if self.shared:
-            self._setup_maddpg_shared()
+            self._setup_maddpg_shared(scope)
         else:
-            self._setup_maddpg_independent()
+            self._setup_maddpg_independent(scope)
 
-    def _setup_maddpg_shared(self):
+    def _setup_maddpg_shared(self, scope):
         """Perform shared form of MADDPG setup."""
         # Create an input placeholder for the full state observations.
         self.all_obs_ph = tf.compat.v1.placeholder(
@@ -311,7 +333,32 @@ class MultiFeedForwardPolicy(BasePolicy):
             actors.append(actor_tf)
             actor_targets.append(noisy_actor_target)
 
-    def _setup_maddpg_independent(self):
+        # Combine all actors for when creating a centralized differentiable
+        # critic.
+        combined_actors = tf.concat(actors, axis=1)
+
+        # Combine all actor targets to create a centralized target actor.
+        noisy_actor_target = tf.concat(actor_targets, axis=1)
+
+        # Create the policy update and logging operations of the agent.
+        (self.critic_loss,
+         self.critic_optimizer,
+         self.target_init_updates,
+         self.target_soft_updates,
+         self.actor_loss,
+         self.actor_optimizer) = self._setup_agent_ops(
+            scope=scope,
+            actor_tf=self.actor_tf,
+            critic_tf=self.critic_tf,
+            noisy_actor_target=noisy_actor_target,
+            all_obs_ph=self.all_obs_ph,
+            all_obs1_ph=self.all_obs1_ph,
+            rew_ph=self.rew_ph,
+            terminals1=self.terminals1,
+            combined_actors=combined_actors
+        )
+
+    def _setup_maddpg_independent(self, scope):
         """Perform independent form of MADDPG setup."""
         self.all_obs_ph = {}
         self.all_obs1_ph = {}
@@ -325,6 +372,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.actor_tf = {}
         self.critic_tf = {}
         self.actor_target = {}
+        actors = []
+        actor_targets = []
 
         # The size of the full action space.
         all_ac_dim = sum(
@@ -367,27 +416,26 @@ class MultiFeedForwardPolicy(BasePolicy):
                     name='all_actions')
 
                 # Create input variables.
-                with tf.compat.v1.variable_scope("input", reuse=False):
-                    self.terminals1[key] = tf.compat.v1.placeholder(
-                        tf.float32,
-                        shape=(None, 1),
-                        name='terminals1')
-                    self.rew_ph[key] = tf.compat.v1.placeholder(
-                        tf.float32,
-                        shape=(None, 1),
-                        name='rewards')
-                    self.action_ph[key] = tf.compat.v1.placeholder(
-                        tf.float32,
-                        shape=(None,) + self.ac_space[key].shape,
-                        name='actions')
-                    self.obs_ph[key] = tf.compat.v1.placeholder(
-                        tf.float32,
-                        shape=(None,) + ob_dim,
-                        name='obs0')
-                    self.obs1_ph[key] = tf.compat.v1.placeholder(
-                        tf.float32,
-                        shape=(None,) + ob_dim,
-                        name='obs1')
+                self.terminals1[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='terminals1')
+                self.rew_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, 1),
+                    name='rewards')
+                self.action_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.ac_space[key].shape,
+                    name='actions')
+                self.obs_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs0')
+                self.obs1_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + ob_dim,
+                    name='obs1')
 
                 # Create actor and critic networks for the shared policy.
                 actor_tf, critic_tf, noisy_actor_target = self._setup_agent(
@@ -405,6 +453,48 @@ class MultiFeedForwardPolicy(BasePolicy):
             self.actor_tf[key] = actor_tf
             self.critic_tf[key] = critic_tf
             self.actor_target[key] = noisy_actor_target
+            actors.append(actor_tf)
+            actor_targets.append(noisy_actor_target)
+
+        # Combine all actors for when creating a centralized differentiable
+        # critic.
+        combined_actors = tf.concat(actors, axis=1)
+
+        # Combine all actor targets to create a centralized target actor.
+        noisy_actor_target = tf.concat(actor_targets, axis=1)
+
+        # Now that we have all actor targets, we can start constructing
+        # centralized critic targets and all update procedures.
+        self.critic_loss = {}
+        self.critic_optimizer = {}
+        self.target_init_updates = {}
+        self.target_soft_updates = {}
+        self.actor_loss = {}
+        self.actor_optimizer = {}
+
+        # Loop through all agents.
+        for key in self.ob_space.keys():
+            # Append the key to the outer scope term.
+            scope_i = key if scope is None else "{}/{}".format(scope, key)
+
+            # Create the policy update and logging operations of the agent.
+            with tf.compat.v1.variable_scope(key, reuse=False):
+                (self.critic_loss[key],
+                 self.critic_optimizer[key],
+                 self.target_init_updates[key],
+                 self.target_soft_updates[key],
+                 self.actor_loss[key],
+                 self.actor_optimizer[key]) = self._setup_agent_ops(
+                    scope=scope_i,
+                    actor_tf=self.actor_tf[key],
+                    critic_tf=self.critic_tf[key],
+                    noisy_actor_target=noisy_actor_target,
+                    all_obs_ph=self.all_obs_ph[key],
+                    all_obs1_ph=self.all_obs1_ph[key],
+                    rew_ph=self.rew_ph[key],
+                    terminals1=self.terminals1[key],
+                    combined_actors=combined_actors
+                )
 
     def _setup_agent(self,
                      obs_ph,
@@ -472,6 +562,90 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
 
         return actor_tf, critic_tf, noisy_actor_target
+
+    def _setup_agent_ops(self,
+                         scope,
+                         actor_tf,
+                         critic_tf,
+                         noisy_actor_target,
+                         all_obs_ph,
+                         all_obs1_ph,
+                         rew_ph,
+                         terminals1,
+                         combined_actors):
+        """Create the optimizer and logging operations for a single agent.
+
+        Parameters
+        ----------
+        scope : str
+            the outer scope term
+        actor_tf : tf.Variable
+            the output from the actor of a given agent
+        critic_tf : tf.Variable
+            the output from the critic of a given agent
+        noisy_actor_target : tf.Variable
+            the output from the shared noisy actor target
+        all_obs_ph : tf.compat.v1.placeholder
+            TODO
+        all_obs1_ph : tf.compat.v1.placeholder
+            TODO
+        rew_ph : tf.compat.v1.placeholder
+            placeholder for the rewards of the agent
+        terminals1 : tf.compat.v1.placeholder
+            placeholder for the done mask of the agent
+        combined_actors : tf.Variable
+            the output from all actors, as a function of the agent's policy
+            parameters
+
+        Returns
+        -------
+        tf.Variable
+            the loss of the critic
+        tf.Operation
+            the operation that updates the trainable parameters of the critic
+        tf.Operation
+            an operation that sets the values of the trainable parameters of
+            the target actor/critic to match those actual actor/critic
+        tf.Operation
+            soft target update function
+        tf.Variable
+            the loss of the actor
+        tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        # Setup the target critic and critic update procedure.
+        critic_loss, critic_optimizer = self._setup_critic_update(
+            critic=critic_tf,
+            all_obs1_ph=all_obs1_ph,
+            actor_target=noisy_actor_target,
+            rew_ph=rew_ph,
+            done1=terminals1,
+            scope=scope
+        )
+
+        # Create the target update operations.
+        init, soft = self._setup_target_updates(
+            'model', 'target', scope, self.tau, self.verbose)
+
+        # Setup the actor update procedure.
+        actor_loss, actor_optimizer = self._setup_actor_update(
+            all_obs_ph=all_obs_ph,
+            combined_actors=combined_actors,
+            scope=scope
+        )
+
+        # Setup the running means and standard deviations of the model
+        # inputs and outputs.
+        self._setup_stats(
+            rew_ph=rew_ph,
+            actor_loss=actor_loss,
+            critic_loss=critic_loss,
+            critic_tf=critic_tf,
+            actor_tf=actor_tf
+        )
+
+        return critic_loss, critic_optimizer, init, soft, actor_loss, \
+            actor_optimizer
 
     def make_actor(self, obs, ac_space, reuse=False, scope="pi"):
         """Create an actor tensor.
@@ -559,17 +733,310 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return qvalue_fn
 
+    def _setup_critic_update(self,
+                             critic,
+                             all_obs1_ph,
+                             actor_target,
+                             rew_ph,
+                             done1,
+                             scope):
+        """Create the critic loss and optimization process.
+
+        Parameters
+        ----------
+        critic : tf.Variable
+            the output from the centralized critic of the agent
+        all_obs1_ph : tf.compat.v1.placeholder
+            TODO
+        actor_target : tf.Variable
+            the output from the combined target actors of all agents
+        rew_ph : tf.compat.v1.placeholder
+            placeholder for the rewards of the agent
+        done1 : tf.compat.v1.placeholder
+            placeholder for the done mask of the agent
+        scope : str
+            an outer scope term
+
+        Returns
+        -------
+        tf.Operation
+            the operation that returns the loss of the critic
+        tf.Operation
+            the operation that updates the trainable parameters of the critic
+        """
+        if self.verbose >= 2:
+            print('setting up critic optimizer')
+
+        # Create the centralized target critic policy.
+        with tf.compat.v1.variable_scope("target", reuse=False):
+            critic_target = [
+                self.make_critic(all_obs1_ph, actor_target,
+                                 scope="centralized_qf_{}".format(i))
+                for i in range(2)
+            ]
+
+        # compute the target critic term
+        with tf.compat.v1.variable_scope("loss", reuse=False):
+            q_obs1 = tf.minimum(critic_target[0], critic_target[1])
+            target_q = tf.stop_gradient(
+                rew_ph + (1. - done1) * self.gamma * q_obs1)
+
+            tf.compat.v1.summary.scalar('critic_target',
+                                        tf.reduce_mean(target_q))
+
+        # choose the loss function
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
+        critic_loss = [loss_fn(q, target_q) for q in critic]
+
+        critic_optimizer = []
+
+        for i, loss in enumerate(critic_loss):
+            scope_name = 'model/centralized_qf_{}'.format(i)
+            if scope is not None:
+                scope_name = scope + '/' + scope_name
+
+            if self.verbose >= 2:
+                critic_shapes = [var.get_shape().as_list()
+                                 for var in get_trainable_vars(scope_name)]
+                critic_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                        for shape in critic_shapes])
+                print('  critic shapes: {}'.format(critic_shapes))
+                print('  critic params: {}'.format(critic_nb_params))
+
+            # create an optimizer object
+            optimizer = tf.compat.v1.train.AdamOptimizer(self.critic_lr)
+
+            # create the optimizer object
+            critic_optimizer.append(optimizer.minimize(
+                loss=loss,
+                var_list=get_trainable_vars(scope_name)))
+
+        return critic_loss, critic_optimizer
+
+    def _setup_actor_update(self, all_obs_ph, combined_actors, scope):
+        """Create the actor loss and optimization process.
+
+        Parameters
+        ----------
+        all_obs_ph : tf.compat.v1.placeholder
+            TODO
+        combined_actors : tf.Variable
+            the output from all actors, as a function of the agent's policy
+            parameters
+        scope : str
+            an outer scope term
+
+        Returns
+        -------
+        tf.Operation
+            the operation that returns the loss of the actor
+        tf.Operation
+            the operation that updates the trainable parameters of the actor
+        """
+        if self.verbose >= 2:
+            print('setting up actor optimizer')
+
+        scope_name = 'model/pi/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            actor_shapes = [var.get_shape().as_list()
+                            for var in get_trainable_vars(scope_name)]
+            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
+                                   for shape in actor_shapes])
+            print('  actor shapes: {}'.format(actor_shapes))
+            print('  actor params: {}'.format(actor_nb_params))
+
+        # Create a differentiable form of the critic.
+        with tf.compat.v1.variable_scope("model", reuse=False):
+            critic_with_actor_tf = [
+                self.make_critic(
+                    all_obs_ph, combined_actors,
+                    scope="centralized_qf_{}".format(i), reuse=True)
+                for i in range(2)
+            ]
+
+        # compute the actor loss
+        actor_loss = -tf.reduce_mean(critic_with_actor_tf[0])
+
+        # create an optimizer object
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+
+        actor_optimizer = optimizer.minimize(
+            loss=actor_loss,
+            var_list=get_trainable_vars(scope_name))
+
+        return actor_loss, actor_optimizer
+
+    @staticmethod
+    def _setup_stats(rew_ph, actor_loss, critic_loss, actor_tf, critic_tf):
+        """Prepare tensorboard logging for attributes of the agent.
+
+        Parameters
+        ----------
+        rew_ph : tf.compat.v1.placeholder
+            a placeholder for the rewards of an agent
+        actor_loss : tf.Operation
+            the operation that returns the loss of the actor
+        critic_loss : list of tf.Operation
+            the operation that returns the loss of the critic
+        actor_tf : tf.Variable
+            the output from the actor of the agent
+        critic_tf : tf.Variable
+            the output from the critics of the agent
+        """
+        # rewards
+        tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(rew_ph))
+
+        # actor and critic losses
+        tf.compat.v1.summary.scalar('actor_loss', actor_loss)
+        tf.compat.v1.summary.scalar('Q1_loss', critic_loss[0])
+        tf.compat.v1.summary.scalar('Q2_loss', critic_loss[1])
+
+        # critic dynamics
+        tf.compat.v1.summary.scalar(
+            'reference_Q1_mean', tf.reduce_mean(critic_tf[0]))
+        tf.compat.v1.summary.scalar(
+            'reference_Q1_std', reduce_std(critic_tf[0]))
+
+        tf.compat.v1.summary.scalar(
+            'reference_Q2_mean', tf.reduce_mean(critic_tf[1]))
+        tf.compat.v1.summary.scalar(
+            'reference_Q2_std', reduce_std(critic_tf[1]))
+
+        # actor dynamics
+        tf.compat.v1.summary.scalar(
+            'reference_action_mean', tf.reduce_mean(actor_tf))
+        tf.compat.v1.summary.scalar(
+            'reference_action_std', reduce_std(actor_tf))
+
     def _initialize_maddpg(self):
         """See initialize.
 
         This method initializes the target parameters to match the model
         parameters.
         """
-        pass  # TODO
+        if self.shared:
+            self.sess.run(self.target_init_updates)
+        else:
+            self.sess.run([self.target_init_updates[key]
+                           for key in self.target_init_updates.keys()])
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
-        pass  # TODO
+        # =================================================================== #
+        #                       Shared update procedure                       #
+        # =================================================================== #
+
+        if self.shared:
+            # Not enough samples in the replay buffer.
+            if not self.replay_buffer.can_sample():
+                return {"policy": [0, 0]}, {"policy": 0}
+
+            # Get a batch.
+            obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
+                self.replay_buffer.sample()
+
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = rewards.reshape(-1, 1)
+            done1 = done1.reshape(-1, 1)
+
+            # Update operations for the critic networks.
+            step_ops = [self.critic_loss,
+                        self.critic_optimizer[0],
+                        self.critic_optimizer[1]]
+
+            if update_actor:
+                # Actor updates and target soft update operation.
+                step_ops += [self.actor_loss,
+                             self.actor_optimizer,
+                             self.target_soft_updates]
+
+            # Prepare the feed_dict information.
+            feed_dict = {
+                self.all_obs_ph: all_obs0,
+                self.all_obs1_ph: all_obs1,
+                self.all_action_ph: np.concatenate(actions, axis=1),
+                self.rew_ph: rewards,
+                self.terminals1: done1
+            }
+
+            # Add the agent-level data to the feed dict.
+            feed_dict.update({
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
+
+            # Perform the update operations and collect the critic loss.
+            critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
+            critic_loss = {"policy": critic_loss}
+
+            # Extract the actor loss.
+            actor_loss = _vals[2] if update_actor else 0
+            actor_loss = {"policy": actor_loss}
+
+        # =================================================================== #
+        #                    Independent update procedure                     #
+        # =================================================================== #
+
+        else:
+            actor_loss = {}
+            critic_loss = {}
+
+            # Loop through all agent.
+            for key in self.replay_buffer.keys():
+                # Not enough samples in the replay buffer.
+                if not self.replay_buffer[key].can_sample():
+                    actor_loss[key] = 0
+                    critic_loss[key] = [0, 0]
+                    continue
+
+                # Get a batch.
+                obs0, actions, rewards, obs1, done1, all_obs0, all_actions, \
+                    all_obs1 = self.replay_buffer[key].sample()
+
+                # Reshape to match previous behavior and placeholder shape.
+                rewards = rewards.reshape(-1, 1)
+                done1 = done1.reshape(-1, 1)
+
+                # Update operations for the critic networks.
+                step_ops = [self.critic_loss[key],
+                            self.critic_optimizer[key][0],
+                            self.critic_optimizer[key][1]]
+
+                if update_actor:
+                    # Actor updates and target soft update operation.
+                    step_ops += [self.actor_loss[key],
+                                 self.actor_optimizer[key],
+                                 self.target_soft_updates[key]]
+
+                # Prepare the feed_dict information.
+                feed_dict = {
+                    self.obs_ph[key]: obs0,
+                    self.obs1_ph[key]: obs1,
+                    self.action_ph[key]: actions,
+                    self.all_obs_ph[key]: all_obs0,
+                    self.all_obs1_ph[key]: all_obs1,
+                    self.all_action_ph[key]: all_actions,
+                    self.rew_ph[key]: rewards,
+                    self.terminals1[key]: done1
+                }
+
+                # Perform the update operations and collect the critic loss.
+                critic_loss[key], *_vals = self.sess.run(
+                    step_ops, feed_dict=feed_dict)
+
+                # Extract the actor loss.
+                actor_loss[key] = _vals[2] if update_actor else 0
+
+        return critic_loss, actor_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
@@ -581,7 +1048,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 ac_space = self.ac_space if self.shared else self.ac_space[key]
 
                 # Sample a random action.
-                actions[key] = ac_space.sample()
+                actions[key] = np.array([ac_space.sample()])
 
         else:
             for key in obs.keys():
@@ -600,8 +1067,8 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # compute noisy action
                 if apply_noise:
-                    action += np.random.normal(
-                        0, self.noise[key], action.shape)
+                    noise = self.noise if self.shared else self.noise[key]
+                    action += np.random.normal(0, noise, action.shape)
 
                 # clip by bounds
                 actions[key] = np.clip(action, ac_space.low, ac_space.high)
@@ -635,8 +1102,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 value[key] = self.sess.run(
                     self.critic_tf[key],
                     feed_dict={
-                        self.all_obs_ph: obs,
-                        self.all_action_ph: all_actions
+                        self.all_obs_ph[key]: obs,
+                        self.all_action_ph[key]: all_actions
                     }
                 )
 
@@ -689,7 +1156,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     action=action[key],
                     reward=reward[key],
                     obs_tp1=obs1[key],
-                    done=float(done[key] and not is_final_step),
+                    done=float(done and not is_final_step),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
                     all_obs_tp1=all_obs1
@@ -725,11 +1192,11 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Add the agent-level placeholders and variables.
             td_map.update({
-                self.obs_ph[i]: obs0[i] for i in self.n_agents})
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
             td_map.update({
-                self.action_ph[i]: actions[i] for i in self.n_agents})
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
             td_map.update({
-                self.obs1_ph[i]: obs1[i] for i in self.n_agents})
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
         else:
             td_map = {}
 
@@ -753,7 +1220,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.terminals1[key]: done1,
                     self.obs_ph[key]: obs0,
                     self.action_ph[key]: actions,
-                    self.obs1_ph[key]: obs1[key],
+                    self.obs1_ph[key]: obs1,
                     self.all_obs_ph[key]: all_obs0,
                     self.all_action_ph[key]: all_actions,
                     self.all_obs1_ph[key]: all_obs1,

@@ -418,7 +418,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         self.agents = {}
         if self.shared:
             # One policy shared by all agents.
-            self.agents["agent"] = self.base_policy(
+            self.agents["policy"] = self.base_policy(
                 sess=self.sess,
                 ob_space=self.ob_space,
                 ac_space=self.ac_space,
@@ -465,7 +465,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         for key in obs.keys():
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
-            agent = self.agents["agent"] if self.shared else self.agents[key]
+            agent = self.agents["policy"] if self.shared else self.agents[key]
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -484,7 +484,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         for key in obs.keys():
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
-            agent = self.agents["agent"] if self.shared else self.agents[key]
+            agent = self.agents["policy"] if self.shared else self.agents[key]
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -509,7 +509,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         for key in obs0.keys():
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
-            agent = self.agents["agent"] if self.shared else self.agents[key]
+            agent = self.agents["policy"] if self.shared else self.agents[key]
 
             # Collect variables that might be shared across agents.
             agent_reward = reward if self.shared else reward[key]
@@ -527,7 +527,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 reward=agent_reward,
                 obs1=obs1[key],
                 context1=context1_i,
-                done=done[key],
+                done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
             )

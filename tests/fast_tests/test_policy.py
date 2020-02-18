@@ -1553,11 +1553,11 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        self.assertEqual(policy.agents['agent'].ac_space,
+        self.assertEqual(policy.agents['policy'].ac_space,
                          self.policy_params_shared['ac_space'])
-        self.assertEqual(policy.agents['agent'].ob_space,
+        self.assertEqual(policy.agents['policy'].ob_space,
                          self.policy_params_shared['ob_space'])
-        self.assertEqual(policy.agents['agent'].co_space,
+        self.assertEqual(policy.agents['policy'].co_space,
                          self.policy_params_shared['co_space'])
 
         # Check the instantiation of the class attributes.
@@ -1589,6 +1589,18 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
              'a/model/pi/fc1/kernel:0',
              'a/model/pi/output/bias:0',
              'a/model/pi/output/kernel:0',
+             'a/target/centralized_qf_0/fc0/bias:0',
+             'a/target/centralized_qf_0/fc0/kernel:0',
+             'a/target/centralized_qf_0/fc1/bias:0',
+             'a/target/centralized_qf_0/fc1/kernel:0',
+             'a/target/centralized_qf_0/qf_output/bias:0',
+             'a/target/centralized_qf_0/qf_output/kernel:0',
+             'a/target/centralized_qf_1/fc0/bias:0',
+             'a/target/centralized_qf_1/fc0/kernel:0',
+             'a/target/centralized_qf_1/fc1/bias:0',
+             'a/target/centralized_qf_1/fc1/kernel:0',
+             'a/target/centralized_qf_1/qf_output/bias:0',
+             'a/target/centralized_qf_1/qf_output/kernel:0',
              'a/target/pi/fc0/bias:0',
              'a/target/pi/fc0/kernel:0',
              'a/target/pi/fc1/bias:0',
@@ -1613,6 +1625,18 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
              'b/model/pi/fc1/kernel:0',
              'b/model/pi/output/bias:0',
              'b/model/pi/output/kernel:0',
+             'b/target/centralized_qf_0/fc0/bias:0',
+             'b/target/centralized_qf_0/fc0/kernel:0',
+             'b/target/centralized_qf_0/fc1/bias:0',
+             'b/target/centralized_qf_0/fc1/kernel:0',
+             'b/target/centralized_qf_0/qf_output/bias:0',
+             'b/target/centralized_qf_0/qf_output/kernel:0',
+             'b/target/centralized_qf_1/fc0/bias:0',
+             'b/target/centralized_qf_1/fc0/kernel:0',
+             'b/target/centralized_qf_1/fc1/bias:0',
+             'b/target/centralized_qf_1/fc1/kernel:0',
+             'b/target/centralized_qf_1/qf_output/bias:0',
+             'b/target/centralized_qf_1/qf_output/kernel:0',
              'b/target/pi/fc0/bias:0',
              'b/target/pi/fc0/kernel:0',
              'b/target/pi/fc1/bias:0',
@@ -1668,6 +1692,18 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
              'model/pi/fc1/kernel:0',
              'model/pi/output/bias:0',
              'model/pi/output/kernel:0',
+             'target/centralized_qf_0/fc0/bias:0',
+             'target/centralized_qf_0/fc0/kernel:0',
+             'target/centralized_qf_0/fc1/bias:0',
+             'target/centralized_qf_0/fc1/kernel:0',
+             'target/centralized_qf_0/qf_output/bias:0',
+             'target/centralized_qf_0/qf_output/kernel:0',
+             'target/centralized_qf_1/fc0/bias:0',
+             'target/centralized_qf_1/fc0/kernel:0',
+             'target/centralized_qf_1/fc1/bias:0',
+             'target/centralized_qf_1/fc1/kernel:0',
+             'target/centralized_qf_1/qf_output/bias:0',
+             'target/centralized_qf_1/qf_output/kernel:0',
              'target/pi/fc0/bias:0',
              'target/pi/fc0/kernel:0',
              'target/pi/fc1/bias:0',
@@ -1855,6 +1891,162 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'target/qf_1/fc1/kernel:0',
             'target/qf_1/qf_output/bias:0',
             'target/qf_1/qf_output/kernel:0'
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'a/model/centralized_qf_0/fc0/bias:0',
+            'a/model/centralized_qf_0/fc0/kernel:0',
+            'a/model/centralized_qf_0/fc1/bias:0',
+            'a/model/centralized_qf_0/fc1/kernel:0',
+            'a/model/centralized_qf_0/qf_output/bias:0',
+            'a/model/centralized_qf_0/qf_output/kernel:0',
+            'a/model/centralized_qf_1/fc0/bias:0',
+            'a/model/centralized_qf_1/fc0/kernel:0',
+            'a/model/centralized_qf_1/fc1/bias:0',
+            'a/model/centralized_qf_1/fc1/kernel:0',
+            'a/model/centralized_qf_1/qf_output/bias:0',
+            'a/model/centralized_qf_1/qf_output/kernel:0',
+            'a/model/pi/fc0/bias:0',
+            'a/model/pi/fc0/kernel:0',
+            'a/model/pi/fc1/bias:0',
+            'a/model/pi/fc1/kernel:0',
+            'a/model/pi/output/bias:0',
+            'a/model/pi/output/kernel:0',
+            'b/model/centralized_qf_0/fc0/bias:0',
+            'b/model/centralized_qf_0/fc0/kernel:0',
+            'b/model/centralized_qf_0/fc1/bias:0',
+            'b/model/centralized_qf_0/fc1/kernel:0',
+            'b/model/centralized_qf_0/qf_output/bias:0',
+            'b/model/centralized_qf_0/qf_output/kernel:0',
+            'b/model/centralized_qf_1/fc0/bias:0',
+            'b/model/centralized_qf_1/fc0/kernel:0',
+            'b/model/centralized_qf_1/fc1/bias:0',
+            'b/model/centralized_qf_1/fc1/kernel:0',
+            'b/model/centralized_qf_1/qf_output/bias:0',
+            'b/model/centralized_qf_1/qf_output/kernel:0',
+            'b/model/pi/fc0/bias:0',
+            'b/model/pi/fc0/kernel:0',
+            'b/model/pi/fc1/bias:0',
+            'b/model/pi/fc1/kernel:0',
+            'b/model/pi/output/bias:0',
+            'b/model/pi/output/kernel:0',
+        ]
+
+        target_var_list = [
+            'a/target/centralized_qf_0/fc0/bias:0',
+            'a/target/centralized_qf_0/fc0/kernel:0',
+            'a/target/centralized_qf_0/fc1/bias:0',
+            'a/target/centralized_qf_0/fc1/kernel:0',
+            'a/target/centralized_qf_0/qf_output/bias:0',
+            'a/target/centralized_qf_0/qf_output/kernel:0',
+            'a/target/centralized_qf_1/fc0/bias:0',
+            'a/target/centralized_qf_1/fc0/kernel:0',
+            'a/target/centralized_qf_1/fc1/bias:0',
+            'a/target/centralized_qf_1/fc1/kernel:0',
+            'a/target/centralized_qf_1/qf_output/bias:0',
+            'a/target/centralized_qf_1/qf_output/kernel:0',
+            'a/target/pi/fc0/bias:0',
+            'a/target/pi/fc0/kernel:0',
+            'a/target/pi/fc1/bias:0',
+            'a/target/pi/fc1/kernel:0',
+            'a/target/pi/output/bias:0',
+            'a/target/pi/output/kernel:0',
+            'b/target/centralized_qf_0/fc0/bias:0',
+            'b/target/centralized_qf_0/fc0/kernel:0',
+            'b/target/centralized_qf_0/fc1/bias:0',
+            'b/target/centralized_qf_0/fc1/kernel:0',
+            'b/target/centralized_qf_0/qf_output/bias:0',
+            'b/target/centralized_qf_0/qf_output/kernel:0',
+            'b/target/centralized_qf_1/fc0/bias:0',
+            'b/target/centralized_qf_1/fc0/kernel:0',
+            'b/target/centralized_qf_1/fc1/bias:0',
+            'b/target/centralized_qf_1/fc1/kernel:0',
+            'b/target/centralized_qf_1/qf_output/bias:0',
+            'b/target/centralized_qf_1/qf_output/kernel:0',
+            'b/target/pi/fc0/bias:0',
+            'b/target/pi/fc0/kernel:0',
+            'b/target/pi/fc1/bias:0',
+            'b/target/pi/fc1/kernel:0',
+            'b/target/pi/output/bias:0',
+            'b/target/pi/output/kernel:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = TD3MultiFeedForwardPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'model/centralized_qf_0/fc0/bias:0',
+            'model/centralized_qf_0/fc0/kernel:0',
+            'model/centralized_qf_0/fc1/bias:0',
+            'model/centralized_qf_0/fc1/kernel:0',
+            'model/centralized_qf_0/qf_output/bias:0',
+            'model/centralized_qf_0/qf_output/kernel:0',
+            'model/centralized_qf_1/fc0/bias:0',
+            'model/centralized_qf_1/fc0/kernel:0',
+            'model/centralized_qf_1/fc1/bias:0',
+            'model/centralized_qf_1/fc1/kernel:0',
+            'model/centralized_qf_1/qf_output/bias:0',
+            'model/centralized_qf_1/qf_output/kernel:0',
+            'model/pi/fc0/bias:0',
+            'model/pi/fc0/kernel:0',
+            'model/pi/fc1/bias:0',
+            'model/pi/fc1/kernel:0',
+            'model/pi/output/bias:0',
+            'model/pi/output/kernel:0',
+        ]
+
+        target_var_list = [
+            'target/centralized_qf_0/fc0/bias:0',
+            'target/centralized_qf_0/fc0/kernel:0',
+            'target/centralized_qf_0/fc1/bias:0',
+            'target/centralized_qf_0/fc1/kernel:0',
+            'target/centralized_qf_0/qf_output/bias:0',
+            'target/centralized_qf_0/qf_output/kernel:0',
+            'target/centralized_qf_1/fc0/bias:0',
+            'target/centralized_qf_1/fc0/kernel:0',
+            'target/centralized_qf_1/fc1/bias:0',
+            'target/centralized_qf_1/fc1/kernel:0',
+            'target/centralized_qf_1/qf_output/bias:0',
+            'target/centralized_qf_1/qf_output/kernel:0',
+            'target/pi/fc0/bias:0',
+            'target/pi/fc0/kernel:0',
+            'target/pi/fc1/bias:0',
+            'target/pi/fc1/kernel:0',
+            'target/pi/output/bias:0',
+            'target/pi/output/kernel:0',
         ]
 
         for model, target in zip(model_var_list, target_var_list):
@@ -2067,11 +2259,11 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        self.assertEqual(policy.agents['agent'].ac_space,
+        self.assertEqual(policy.agents['policy'].ac_space,
                          self.policy_params_shared['ac_space'])
-        self.assertEqual(policy.agents['agent'].ob_space,
+        self.assertEqual(policy.agents['policy'].ob_space,
                          self.policy_params_shared['ob_space'])
-        self.assertEqual(policy.agents['agent'].co_space,
+        self.assertEqual(policy.agents['policy'].co_space,
                          self.policy_params_shared['co_space'])
 
         # Check the instantiation of the class attributes.
@@ -2324,6 +2516,90 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'target/value_fns/vf/fc1/bias:0',
             'target/value_fns/vf/vf_output/kernel:0',
             'target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_3(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy = SACMultiFeedForwardPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'a/model/centralized_value_fns/vf/fc0/kernel:0',
+            'a/model/centralized_value_fns/vf/fc0/bias:0',
+            'a/model/centralized_value_fns/vf/fc1/kernel:0',
+            'a/model/centralized_value_fns/vf/fc1/bias:0',
+            'a/model/centralized_value_fns/vf/vf_output/kernel:0',
+            'a/model/centralized_value_fns/vf/vf_output/bias:0',
+            'b/model/centralized_value_fns/vf/fc0/kernel:0',
+            'b/model/centralized_value_fns/vf/fc0/bias:0',
+            'b/model/centralized_value_fns/vf/fc1/kernel:0',
+            'b/model/centralized_value_fns/vf/fc1/bias:0',
+            'b/model/centralized_value_fns/vf/vf_output/kernel:0',
+            'b/model/centralized_value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'a/target/centralized_value_fns/vf/fc0/kernel:0',
+            'a/target/centralized_value_fns/vf/fc0/bias:0',
+            'a/target/centralized_value_fns/vf/fc1/kernel:0',
+            'a/target/centralized_value_fns/vf/fc1/bias:0',
+            'a/target/centralized_value_fns/vf/vf_output/kernel:0',
+            'a/target/centralized_value_fns/vf/vf_output/bias:0',
+            'b/target/centralized_value_fns/vf/fc0/kernel:0',
+            'b/target/centralized_value_fns/vf/fc0/bias:0',
+            'b/target/centralized_value_fns/vf/fc1/kernel:0',
+            'b/target/centralized_value_fns/vf/fc1/bias:0',
+            'b/target/centralized_value_fns/vf/vf_output/kernel:0',
+            'b/target/centralized_value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
+
+    def test_initialize_4(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy = SACMultiFeedForwardPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'model/centralized_value_fns/vf/fc0/bias:0',
+            'model/centralized_value_fns/vf/fc0/kernel:0',
+            'model/centralized_value_fns/vf/fc1/bias:0',
+            'model/centralized_value_fns/vf/fc1/kernel:0',
+            'model/centralized_value_fns/vf/vf_output/bias:0',
+            'model/centralized_value_fns/vf/vf_output/kernel:0',
+        ]
+
+        target_var_list = [
+            'target/centralized_value_fns/vf/fc0/bias:0',
+            'target/centralized_value_fns/vf/fc0/kernel:0',
+            'target/centralized_value_fns/vf/fc1/bias:0',
+            'target/centralized_value_fns/vf/fc1/kernel:0',
+            'target/centralized_value_fns/vf/vf_output/bias:0',
+            'target/centralized_value_fns/vf/vf_output/kernel:0',
         ]
 
         for model, target in zip(model_var_list, target_var_list):
