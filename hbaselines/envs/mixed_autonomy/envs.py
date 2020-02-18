@@ -149,6 +149,7 @@ class FlowEnv(gym.Env):
         self.step_number = 0
 
         obs = self.wrapped_env.reset()
+
         # Add the full-state observation, if needed.
         if self.maddpg:
             obs = {

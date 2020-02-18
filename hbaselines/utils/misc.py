@@ -213,7 +213,8 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         specifies whether agents in an environment are meant to share policies.
         This is solely used by multi-agent Flow environments.
     maddpg : bool
-        TODO
+        whether to use an environment variant that is compatible with the
+        MADDPG algorithm
     evaluate : bool
         specifies whether this is a training or evaluation environment
 
