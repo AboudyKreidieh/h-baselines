@@ -1218,7 +1218,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
-                return [0, 0], 0
+                return {"policy": [0, 0]}, {"policy": 0}
 
             # Get a batch.
             obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
@@ -1265,7 +1265,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             # loss.
             q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
                 step_ops, feed_dict)
-            critic_loss = [q1_loss, q2_loss]
+            critic_loss = {"policy": [q1_loss, q2_loss]}
+            actor_loss = {"policy": actor_loss}
 
         # =================================================================== #
         #                    Independent update procedure                     #

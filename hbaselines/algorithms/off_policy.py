@@ -951,8 +951,7 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_q2_losses["worker"].append(critic_loss[1][1])
                 self.epoch_actor_losses["worker"].append(actor_loss[1])
 
-            elif is_multiagent_policy(self.policy) \
-                    and not self.policy_kwargs.get("shared", False):
+            elif is_multiagent_policy(self.policy):
                 # For multi-agent policies
                 for key in critic_loss.keys():
                     self.epoch_q1_losses[key].append(critic_loss[key][0])
