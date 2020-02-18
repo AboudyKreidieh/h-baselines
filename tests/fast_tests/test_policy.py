@@ -1553,11 +1553,11 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        self.assertEqual(policy.agents['agent'].ac_space,
+        self.assertEqual(policy.agents['policy'].ac_space,
                          self.policy_params_shared['ac_space'])
-        self.assertEqual(policy.agents['agent'].ob_space,
+        self.assertEqual(policy.agents['policy'].ob_space,
                          self.policy_params_shared['ob_space'])
-        self.assertEqual(policy.agents['agent'].co_space,
+        self.assertEqual(policy.agents['policy'].co_space,
                          self.policy_params_shared['co_space'])
 
         # Check the instantiation of the class attributes.
@@ -2259,11 +2259,11 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         )
 
         # Check observation/action/context spaces of the agents
-        self.assertEqual(policy.agents['agent'].ac_space,
+        self.assertEqual(policy.agents['policy'].ac_space,
                          self.policy_params_shared['ac_space'])
-        self.assertEqual(policy.agents['agent'].ob_space,
+        self.assertEqual(policy.agents['policy'].ob_space,
                          self.policy_params_shared['ob_space'])
-        self.assertEqual(policy.agents['agent'].co_space,
+        self.assertEqual(policy.agents['policy'].co_space,
                          self.policy_params_shared['co_space'])
 
         # Check the instantiation of the class attributes.
