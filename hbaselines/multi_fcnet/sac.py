@@ -1272,15 +1272,15 @@ class MultiFeedForwardPolicy(BasePolicy):
         # agent IDs in alphabetical order.
         # FIXME: this could cause problems in the merge.
         all_actions = np.concatenate(
-            [action[key] for key in sorted(list(action.keys()))], axis=1)
+            [action[key] for key in sorted(list(action.keys()))], axis=0)
 
         if self.shared:
             # Compute the shared value.
             value_all = self.sess.run(
                 [self.qf1, self.qf2],  # , self.value_fn],  FIXME
                 feed_dict={
-                    self.all_obs_ph: obs,
-                    self.all_action_ph: all_actions
+                    self.all_obs_ph: np.array([obs]),
+                    self.all_action_ph: np.array([all_actions])
                 }
             )
 
@@ -1293,8 +1293,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 value[key] = self.sess.run(
                     [self.qf1[key], self.qf2[key]],  # , self.value_fn],  FIXME
                     feed_dict={
-                        self.all_obs_ph[key]: obs,
-                        self.all_action_ph[key]: all_actions
+                        self.all_obs_ph[key]: np.array([obs]),
+                        self.all_action_ph[key]: np.array([all_actions])
                     }
                 )
 

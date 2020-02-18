@@ -1,4 +1,6 @@
 """Figure eight example."""
+import numpy as np
+
 from flow.envs import AccelEnv
 from flow.envs.multiagent import MultiAgentAccelPOEnv
 from flow.networks import FigureEightNetwork
@@ -7,13 +9,26 @@ from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import IDMController, ContinuousRouter, RLController
 from flow.networks.figure_eight import ADDITIONAL_NET_PARAMS
 
-
 # desired velocity for all vehicles in the network, in m/s
 TARGET_VELOCITY = 20
 # maximum acceleration for autonomous vehicles, in m/s^2
 MAX_ACCEL = 3
 # maximum deceleration for autonomous vehicles, in m/s^2
 MAX_DECEL = 3
+
+
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the velocities and absolute position of all
+    vehicles in the network. This assumes a constant number of vehicles.
+    """
+    speed = [env.k.vehicle.get_speed(veh_id) / env.k.network.max_speed()
+             for veh_id in env.sorted_ids]
+    pos = [env.k.vehicle.get_x_by_id(veh_id) / env.k.network.length()
+           for veh_id in env.sorted_ids]
+
+    return np.array(speed + pos)
 
 
 def get_flow_params(num_automated=1,
@@ -134,7 +149,8 @@ def get_flow_params(num_automated=1,
                 'target_velocity': TARGET_VELOCITY,
                 'max_accel': MAX_ACCEL,
                 'max_decel': MAX_DECEL,
-                'sort_vehicles': False
+                'sort_vehicles': False,
+                "full_observation_fn": full_observation_fn
             },
         ),
 

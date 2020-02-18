@@ -200,7 +200,7 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env, render=False, shared=False, evaluate=False):
+def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -212,6 +212,8 @@ def create_env(env, render=False, shared=False, evaluate=False):
     shared : bool
         specifies whether agents in an environment are meant to share policies.
         This is solely used by multi-agent Flow environments.
+    maddpg : bool
+        TODO
     evaluate : bool
         specifies whether this is a training or evaluation environment
 
@@ -333,6 +335,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
                     render=render,
                     multiagent=env[:10] == "multiagent",
                     shared=shared,
+                    maddpg=maddpg,
                     env_params={
                         "ring_length": [230, 230],
                         "evaluate": True,
@@ -344,6 +347,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
                     render=render,
                     multiagent=env[:10] == "multiagent",
                     shared=shared,
+                    maddpg=maddpg,
                     env_params={
                         "ring_length": [260, 260],
                         "evaluate": True,
@@ -355,6 +359,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
                     render=render,
                     multiagent=env[:10] == "multiagent",
                     shared=shared,
+                    maddpg=maddpg,
                     env_params={
                         "ring_length": [290, 290],
                         "evaluate": True,
@@ -368,6 +373,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
                 render=render,
                 multiagent=env[:10] == "multiagent",
                 shared=shared,
+                maddpg=maddpg,
                 env_params={
                     "evaluate": evaluate,
                     "multiagent": env[:10] == "multiagent"
@@ -382,6 +388,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
             render=render,
             multiagent=env[:10] == "multiagent",
             shared=shared,
+            maddpg=maddpg,
             env_params={
                 "exp_num": env_num,
                 "horizon": 6000,
@@ -399,6 +406,7 @@ def create_env(env, render=False, shared=False, evaluate=False):
             render=render,
             multiagent=env[:10] == "multiagent",
             shared=shared,
+            maddpg=maddpg,
             env_params={
                 "num_automated": [1, 7, 14][env_num],
                 "horizon": 1500,
