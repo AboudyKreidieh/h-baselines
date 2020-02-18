@@ -1,7 +1,6 @@
 """SAC-compatible feedforward policy."""
 import tensorflow as tf
 import numpy as np
-from functools import reduce
 
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
@@ -9,6 +8,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
+from hbaselines.utils.tf_util import print_params_shape
 
 
 # Cap the standard deviation of the actor
@@ -636,22 +636,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
         See Equations (5, 6) in [1], for further information of the Q-function
         update rule.
         """
-        if self.verbose >= 2:
-            print('setting up critic optimizer')
-
         scope_name = 'model/value_fns'
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
         if self.verbose >= 2:
+            print('setting up critic optimizer')
             for name in ['qf1', 'qf2', 'vf']:
-                actor_shapes = [
-                    var.get_shape().as_list() for var in
-                    get_trainable_vars('{}/{}'.format(scope_name, name))]
-                actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                       for shape in actor_shapes])
-                print('  {} shapes: {}'.format(name, actor_shapes))
-                print('  {} params: {}'.format(name, actor_nb_params))
+                scope_i = '{}/{}'.format(scope_name, name)
+                print_params_shape(scope_i, name)
 
         # Take the min of the two Q-Values (Double-Q Learning)
         min_qf_pi = tf.minimum(self.qf1_pi, self.qf2_pi)
@@ -697,20 +690,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         See Section 4.2 in [1], for further information of the policy update,
         and Section 5 in [1] for further information of the entropy update.
         """
-        if self.verbose >= 2:
-            print('setting up actor and alpha optimizers')
-
         scope_name = 'model/pi/'
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
         if self.verbose >= 2:
-            actor_shapes = [var.get_shape().as_list()
-                            for var in get_trainable_vars(scope_name)]
-            actor_nb_params = sum([reduce(lambda x, y: x * y, shape)
-                                   for shape in actor_shapes])
-            print('  actor shapes: {}'.format(actor_shapes))
-            print('  actor params: {}'.format(actor_nb_params))
+            print('setting up actor and alpha optimizers')
+            print_params_shape(scope_name, "actor")
 
         # Take the min of the two Q-Values (Double-Q Learning)
         min_qf_pi = tf.minimum(self.qf1_pi, self.qf2_pi)
