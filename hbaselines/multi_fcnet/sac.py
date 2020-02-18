@@ -1265,23 +1265,22 @@ class MultiFeedForwardPolicy(BasePolicy):
             # loss.
             q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
                 step_ops, feed_dict)
+            critic_loss = [q1_loss, q2_loss]
 
         # =================================================================== #
         #                    Independent update procedure                     #
         # =================================================================== #
 
         else:
-            q1_loss = {}
-            q2_loss = {}
             actor_loss = {}
+            critic_loss = {}
 
             # Loop through all agent.
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():
-                    q1_loss[key] = 0
-                    q2_loss[key] = 0
                     actor_loss[key] = 0
+                    critic_loss[key] = [0, 0]
                     continue
 
                 # Get a batch.
@@ -1291,6 +1290,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                 # Reshape to match previous behavior and placeholder shape.
                 rewards = rewards.reshape(-1, 1)
                 done1 = done1.reshape(-1, 1)
+
+                # Normalize the actions (bounded between [-1, 1]).
+                actions = (actions - self._ac_mean[key]) / self._ac_mag[key]
 
                 # Collect all update and loss call operations.
                 step_ops = [
@@ -1319,10 +1321,11 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # Perform the update operations and collect the actor and
                 # critic loss.
-                q1_loss[key], q2_loss[key], vf_loss, actor_loss[key], *_ = \
+                q1_loss, q2_loss, vf_loss, actor_loss[key], *_ = \
                     self.sess.run(step_ops, feed_dict)
+                critic_loss[key] = [q1_loss, q2_loss]
 
-        return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
+        return critic_loss, actor_loss  # FIXME: add vf_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
