@@ -527,7 +527,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 reward=agent_reward,
                 obs1=obs1[key],
                 context1=context1_i,
-                done=done[key],
+                done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
             )

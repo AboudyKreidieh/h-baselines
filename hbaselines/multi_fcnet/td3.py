@@ -1107,7 +1107,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     action=action[key],
                     reward=reward[key],
                     obs_tp1=obs1[key],
-                    done=float(done[key] and not is_final_step),
+                    done=float(done and not is_final_step),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
                     all_obs_tp1=all_obs1

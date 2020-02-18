@@ -1271,7 +1271,56 @@ class MultiFeedForwardPolicy(BasePolicy):
         # =================================================================== #
 
         else:
-            pass
+            q1_loss = {}
+            q2_loss = {}
+            actor_loss = {}
+
+            # Loop through all agent.
+            for key in self.replay_buffer.keys():
+                # Not enough samples in the replay buffer.
+                if not self.replay_buffer[key].can_sample():
+                    q1_loss[key] = 0
+                    q2_loss[key] = 0
+                    actor_loss[key] = 0
+                    continue
+
+                # Get a batch.
+                obs0, actions, rewards, obs1, done1, all_obs0, all_actions, \
+                    all_obs1 = self.replay_buffer[key].sample()
+
+                # Reshape to match previous behavior and placeholder shape.
+                rewards = rewards.reshape(-1, 1)
+                done1 = done1.reshape(-1, 1)
+
+                # Collect all update and loss call operations.
+                step_ops = [
+                    self.critic_loss[key][0],
+                    self.critic_loss[key][1],
+                    self.critic_loss[key][2],
+                    self.actor_loss[key],
+                    self.alpha_loss[key],
+                    self.critic_optimizer[key],
+                    self.actor_optimizer[key],
+                    self.alpha_optimizer[key],
+                    self.target_soft_updates[key],
+                ]
+
+                # Prepare the feed_dict information.
+                feed_dict = {
+                    self.rew_ph[key]: rewards,
+                    self.terminals1[key]: done1,
+                    self.obs_ph[key]: obs0,
+                    self.action_ph[key]: actions,
+                    self.obs1_ph[key]: obs1,
+                    self.all_obs_ph[key]: all_obs0,
+                    self.all_action_ph[key]: all_actions,
+                    self.all_obs1_ph[key]: all_obs1,
+                }
+
+                # Perform the update operations and collect the actor and
+                # critic loss.
+                q1_loss[key], q2_loss[key], vf_loss, actor_loss[key], *_ = \
+                    self.sess.run(step_ops, feed_dict)
 
         return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
 
@@ -1411,7 +1460,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     action=action[key],
                     reward=reward[key],
                     obs_tp1=obs1[key],
-                    done=float(done[key]),
+                    done=float(done),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
                     all_obs_tp1=all_obs1
@@ -1475,7 +1524,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.terminals1[key]: done1,
                     self.obs_ph[key]: obs0,
                     self.action_ph[key]: actions,
-                    self.obs1_ph[key]: obs1[key],
+                    self.obs1_ph[key]: obs1,
                     self.all_obs_ph[key]: all_obs0,
                     self.all_action_ph[key]: all_actions,
                     self.all_obs1_ph[key]: all_obs1,
