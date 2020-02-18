@@ -138,7 +138,8 @@ class FlowEnv(gym.Env):
         if self.maddpg:
             obs = {
                 "obs": obs,
-                "all_obs": self.full_observation_fn(self.wrapped_env)
+                "all_obs": np.asarray(
+                    [self.full_observation_fn(self.wrapped_env)])
             }
 
         return obs, reward, done, info_dict
@@ -152,7 +153,8 @@ class FlowEnv(gym.Env):
         if self.maddpg:
             obs = {
                 "obs": obs,
-                "all_obs": self.full_observation_fn(self.wrapped_env)
+                "all_obs": np.asarray(
+                    [self.full_observation_fn(self.wrapped_env)])
             }
 
         return obs

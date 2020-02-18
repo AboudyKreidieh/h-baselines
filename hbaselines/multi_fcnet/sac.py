@@ -1209,7 +1209,73 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
-        pass  # TODO
+        del update_actor  # unused by this method
+
+        # =================================================================== #
+        # Shared update procedure.
+
+        if self.shared:
+            # Not enough samples in the replay buffer.
+            if not self.replay_buffer.can_sample():
+                return [0, 0], 0
+
+            # Get a batch.
+            obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
+                self.replay_buffer.sample()
+
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = rewards.reshape(-1, 1)
+            done1 = done1.reshape(-1, 1)
+
+            # Normalize the actions (bounded between [-1, 1]).
+            actions = (actions - self._ac_mean) / self._ac_mag
+
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = rewards.reshape(-1, 1)
+            done1 = done1.reshape(-1, 1)
+
+            # Collect all update and loss call operations.
+            step_ops = [
+                self.critic_loss[0],
+                self.critic_loss[1],
+                self.critic_loss[2],
+                self.actor_loss,
+                self.alpha_loss,
+                self.critic_optimizer,
+                self.actor_optimizer,
+                self.alpha_optimizer,
+                self.target_soft_updates,
+            ]
+
+            # Prepare the feed_dict information.
+            feed_dict = {
+                self.all_obs_ph: all_obs0,
+                self.all_obs1_ph: all_obs1,
+                self.all_action_ph: np.concatenate(actions, axis=1),
+                self.rew_ph: rewards,
+                self.terminals1: done1
+            }
+
+            # Add the agent-level data to the feed dict.
+            feed_dict.update({
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
+
+            # Perform the update operations and collect the actor and critic
+            # loss.
+            q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
+                step_ops, feed_dict)
+
+        # =================================================================== #
+        # Independent update procedure.
+
+        else:
+            pass
+
+        return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
@@ -1221,7 +1287,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 ac_space = self.ac_space if self.shared else self.ac_space[key]
 
                 # Sample a random action.
-                actions[key] = ac_space.sample()
+                actions[key] = np.array([ac_space.sample()])
 
         else:
             for key in obs.keys():
@@ -1272,15 +1338,15 @@ class MultiFeedForwardPolicy(BasePolicy):
         # agent IDs in alphabetical order.
         # FIXME: this could cause problems in the merge.
         all_actions = np.concatenate(
-            [action[key] for key in sorted(list(action.keys()))], axis=0)
+            [action[key] for key in sorted(list(action.keys()))], axis=1)
 
         if self.shared:
             # Compute the shared value.
             value_all = self.sess.run(
                 [self.qf1, self.qf2],  # , self.value_fn],  FIXME
                 feed_dict={
-                    self.all_obs_ph: np.array([obs]),
-                    self.all_action_ph: np.array([all_actions])
+                    self.all_obs_ph: obs,
+                    self.all_action_ph: all_actions
                 }
             )
 
@@ -1293,8 +1359,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 value[key] = self.sess.run(
                     [self.qf1[key], self.qf2[key]],  # , self.value_fn],  FIXME
                     feed_dict={
-                        self.all_obs_ph[key]: np.array([obs]),
-                        self.all_action_ph[key]: np.array([all_actions])
+                        self.all_obs_ph[key]: obs,
+                        self.all_action_ph[key]: all_actions
                     }
                 )
 
@@ -1383,11 +1449,11 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Add the agent-level placeholders and variables.
             td_map.update({
-                self.obs_ph[i]: obs0[i] for i in self.n_agents})
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
             td_map.update({
-                self.action_ph[i]: actions[i] for i in self.n_agents})
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
             td_map.update({
-                self.obs1_ph[i]: obs1[i] for i in self.n_agents})
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
 
         else:
             # Loop through all agent.
