@@ -1,5 +1,8 @@
 """Script containing environment generator for modified Flow benchmarks."""
 import gym
+from gym.spaces import Box
+from copy import deepcopy
+import numpy as np
 from flow.utils.registry import make_create_env
 
 from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
@@ -29,6 +32,7 @@ class FlowEnv(gym.Env):
                  env_params=None,
                  multiagent=False,
                  shared=False,
+                 maddpg=False,
                  render=False,
                  version=0):
         """Create the environment.
@@ -64,6 +68,7 @@ class FlowEnv(gym.Env):
         # Initialize some variables.
         self.multiagent = multiagent
         self.shared = shared
+        self.maddpg = maddpg
 
         # default to empty dictionary if not passed
         env_params = env_params or {}
@@ -76,6 +81,13 @@ class FlowEnv(gym.Env):
             flow_params = ring(**env_params)
         elif env_name == "figure_eight":
             flow_params = figure_eight(**env_params)
+
+        if "full_observation_fn" in flow_params["env"].additional_params:
+            self.full_observation_fn = deepcopy(
+                flow_params["env"].additional_params["full_observation_fn"])
+            del flow_params["env"].additional_params["full_observation_fn"]
+        else:
+            self.full_observation_fn = None
 
         # create the wrapped environment
         create_env, _ = make_create_env(flow_params, version, render)
@@ -122,9 +134,41 @@ class FlowEnv(gym.Env):
         if self.multiagent and self.shared:
             reward = reward[self.agents[0]]
 
+        # Add the full-state observation, if needed.
+        if self.maddpg:
+            obs = {
+                "obs": obs,
+                "all_obs": np.asarray(
+                    [self.full_observation_fn(self.wrapped_env)])
+            }
+
         return obs, reward, done, info_dict
 
     def reset(self):
         """Reset the environment."""
         self.step_number = 0
-        return self.wrapped_env.reset()
+
+        obs = self.wrapped_env.reset()
+
+        # Add the full-state observation, if needed.
+        if self.maddpg:
+            obs = {
+                "obs": obs,
+                "all_obs": np.asarray(
+                    [self.full_observation_fn(self.wrapped_env)])
+            }
+
+        return obs
+
+    @property
+    def all_observation_space(self):
+        """Return the shape of the full observation space."""
+        if self.full_observation_fn is None:
+            return None
+        else:
+            return Box(
+                low=-float("inf"),
+                high=float("inf"),
+                shape=self.full_observation_fn(self.wrapped_env).shape,
+                dtype=np.float32,
+            )

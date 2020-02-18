@@ -1,4 +1,6 @@
 """Ring road example."""
+import numpy as np
+
 from flow.envs import WaveAttenuationPOEnv
 from flow.envs.multiagent import MultiAgentWaveAttenuationPOEnv
 from flow.networks import RingNetwork
@@ -6,11 +8,35 @@ from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers import RLController, IDMController, ContinuousRouter
 
-
 # maximum acceleration for autonomous vehicles, in m/s^2
 MAX_ACCEL = 1
 # maximum deceleration for autonomous vehicles, in m/s^2
 MAX_DECEL = 1
+
+
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the speeds and bumper-to-bumper headways of
+    all automated vehicles in the network.
+    """
+    obs = []
+    for rl_id in env.k.vehicle.get_rl_ids():
+        lead_id = env.k.vehicle.get_leader(rl_id) or rl_id
+
+        # normalizers
+        max_speed = 15.
+        max_length = env.env_params.additional_params['ring_length'][1]
+
+        obs.extend([
+            env.k.vehicle.get_speed(rl_id) / max_speed,
+            (env.k.vehicle.get_speed(lead_id) -
+             env.k.vehicle.get_speed(rl_id))
+            / max_speed,
+            env.k.vehicle.get_headway(rl_id) / max_length
+        ])
+
+    return np.asarray(obs)
 
 
 def get_flow_params(num_automated=1,
@@ -132,6 +158,7 @@ def get_flow_params(num_automated=1,
                 "max_accel": MAX_ACCEL,
                 "max_decel": MAX_DECEL,
                 "ring_length": ring_length or [220, 270],
+                "full_observation_fn": full_observation_fn
             },
         ),
 
