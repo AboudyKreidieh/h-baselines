@@ -1212,7 +1212,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         del update_actor  # unused by this method
 
         # =================================================================== #
-        # Shared update procedure.
+        #                       Shared update procedure                       #
+        # =================================================================== #
 
         if self.shared:
             # Not enough samples in the replay buffer.
@@ -1229,10 +1230,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Normalize the actions (bounded between [-1, 1]).
             actions = (actions - self._ac_mean) / self._ac_mag
-
-            # Reshape to match previous behavior and placeholder shape.
-            rewards = rewards.reshape(-1, 1)
-            done1 = done1.reshape(-1, 1)
 
             # Collect all update and loss call operations.
             step_ops = [
@@ -1270,7 +1267,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 step_ops, feed_dict)
 
         # =================================================================== #
-        # Independent update procedure.
+        #                    Independent update procedure                     #
+        # =================================================================== #
 
         else:
             pass

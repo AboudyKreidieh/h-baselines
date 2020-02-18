@@ -929,7 +929,65 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
-        pass  # TODO
+        # =================================================================== #
+        #                       Shared update procedure                       #
+        # =================================================================== #
+
+        if self.shared:
+            # Not enough samples in the replay buffer.
+            if not self.replay_buffer.can_sample():
+                return [0, 0], 0
+
+            # Get a batch.
+            obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
+                self.replay_buffer.sample()
+
+            # Reshape to match previous behavior and placeholder shape.
+            rewards = rewards.reshape(-1, 1)
+            done1 = done1.reshape(-1, 1)
+
+            # Update operations for the critic networks.
+            step_ops = [self.critic_loss,
+                        self.critic_optimizer[0],
+                        self.critic_optimizer[1]]
+
+            if update_actor:
+                # Actor updates and target soft update operation.
+                step_ops += [self.actor_loss,
+                             self.actor_optimizer,
+                             self.target_soft_updates]
+
+            # Prepare the feed_dict information.
+            feed_dict = {
+                self.all_obs_ph: all_obs0,
+                self.all_obs1_ph: all_obs1,
+                self.all_action_ph: np.concatenate(actions, axis=1),
+                self.rew_ph: rewards,
+                self.terminals1: done1
+            }
+
+            # Add the agent-level data to the feed dict.
+            feed_dict.update({
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
+            feed_dict.update({
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
+
+            # Perform the update operations and collect the critic loss.
+            critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
+
+            # Extract the actor loss.
+            actor_loss = _vals[2] if update_actor else 0
+
+        # =================================================================== #
+        #                    Independent update procedure                     #
+        # =================================================================== #
+
+        else:
+            pass
+
+        return critic_loss, actor_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
@@ -960,8 +1018,8 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # compute noisy action
                 if apply_noise:
-                    action += np.random.normal(
-                        0, self.noise[key], action.shape)
+                    noise = self.noise if self.shared else self.noise[key]
+                    action += np.random.normal(0, noise, action.shape)
 
                 # clip by bounds
                 actions[key] = np.clip(action, ac_space.low, ac_space.high)
@@ -1085,11 +1143,11 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Add the agent-level placeholders and variables.
             td_map.update({
-                self.obs_ph[i]: obs0[i] for i in self.n_agents})
+                self.obs_ph[i]: obs0[i] for i in range(self.n_agents)})
             td_map.update({
-                self.action_ph[i]: actions[i] for i in self.n_agents})
+                self.action_ph[i]: actions[i] for i in range(self.n_agents)})
             td_map.update({
-                self.obs1_ph[i]: obs1[i] for i in self.n_agents})
+                self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
         else:
             td_map = {}
 
