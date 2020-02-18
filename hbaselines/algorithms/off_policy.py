@@ -327,13 +327,15 @@ class OffPolicyRLAlgorithm(object):
         """
         shared = False if policy_kwargs is None else \
             policy_kwargs.get("shared", False)
+        maddpg = False if policy_kwargs is None else \
+            policy_kwargs.get("maddpg", False)
 
         self.policy = policy
         self.env_name = deepcopy(env)
         self.env = create_env(
-            env, render, shared, evaluate=False)
+            env, render, shared, maddpg, evaluate=False)
         self.eval_env = create_env(
-            eval_env, render_eval, shared,  evaluate=True)
+            eval_env, render_eval, shared, maddpg, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -357,6 +359,8 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs['env_name'] = self.env_name.__str__()
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
+            self.policy_kwargs["all_ob_space"] = getattr(
+                self.env, "all_observation_space", Box(-1, 1, (1,)))
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -1187,11 +1191,11 @@ class OffPolicyRLAlgorithm(object):
             MADDPG. Otherwise, this variable is a None value.
         """
         if isinstance(obs, dict) and "all_obs" in obs.keys():
-            obs = obs["obs"]
             all_obs = obs["all_obs"]
+            obs = obs["obs"]
         else:
-            obs = obs
             all_obs = None
+            obs = obs
 
         return obs, all_obs
 

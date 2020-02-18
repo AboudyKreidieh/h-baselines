@@ -333,22 +333,6 @@ class MultiFeedForwardPolicy(BasePolicy):
         # We move through the keys in a sorted fashion so that we may collect
         # the observations and actions for the full state in a sorted manner.
         for key in sorted(self.ob_space.keys()):
-            # Create an input placeholder for the full state observations.
-            self.all_obs_ph[key] = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + self.all_ob_space.shape,
-                name='all_obs')
-            self.all_obs1_ph[key] = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + self.all_ob_space.shape,
-                name='all_obs1')
-
-            # Create an input placeholder for the full actions.
-            self.all_action_ph[key] = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, all_ac_dim),
-                name='all_actions')
-
             # Compute the shape of the input observation space, which may
             # include the contextual term.
             ob_dim = self._get_ob_dim(
@@ -356,7 +340,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 None if self.co_space is None else self.co_space[key])
 
             # Create a replay buffer object.
-            replay_buffer = MultiReplayBuffer(
+            self.replay_buffer[key] = MultiReplayBuffer(
                 buffer_size=self.buffer_size,
                 batch_size=self.batch_size,
                 obs_dim=ob_dim[0],
@@ -366,33 +350,49 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
 
             with tf.compat.v1.variable_scope(key, reuse=False):
+                # Create an input placeholder for the full state observations.
+                self.all_obs_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.all_ob_space.shape,
+                    name='all_obs')
+                self.all_obs1_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None,) + self.all_ob_space.shape,
+                    name='all_obs1')
+
+                # Create an input placeholder for the full actions.
+                self.all_action_ph[key] = tf.compat.v1.placeholder(
+                    tf.float32,
+                    shape=(None, all_ac_dim),
+                    name='all_actions')
+
                 # Create input variables.
                 with tf.compat.v1.variable_scope("input", reuse=False):
-                    terminals1 = tf.compat.v1.placeholder(
+                    self.terminals1[key] = tf.compat.v1.placeholder(
                         tf.float32,
                         shape=(None, 1),
                         name='terminals1')
-                    rew_ph = tf.compat.v1.placeholder(
+                    self.rew_ph[key] = tf.compat.v1.placeholder(
                         tf.float32,
                         shape=(None, 1),
                         name='rewards')
-                    action_ph = tf.compat.v1.placeholder(
+                    self.action_ph[key] = tf.compat.v1.placeholder(
                         tf.float32,
                         shape=(None,) + self.ac_space[key].shape,
                         name='actions')
-                    obs_ph = tf.compat.v1.placeholder(
+                    self.obs_ph[key] = tf.compat.v1.placeholder(
                         tf.float32,
                         shape=(None,) + ob_dim,
                         name='obs0')
-                    obs1_ph = tf.compat.v1.placeholder(
+                    self.obs1_ph[key] = tf.compat.v1.placeholder(
                         tf.float32,
                         shape=(None,) + ob_dim,
                         name='obs1')
 
                 # Create actor and critic networks for the shared policy.
                 actor_tf, critic_tf, noisy_actor_target = self._setup_agent(
-                    obs_ph=obs_ph,
-                    obs1_ph=obs1_ph,
+                    obs_ph=self.obs_ph[key],
+                    obs1_ph=self.obs1_ph[key],
                     ac_space=self.ac_space[key],
                     all_obs_ph=self.all_obs_ph[key],
                     all_action_ph=self.all_action_ph[key],
@@ -402,12 +402,6 @@ class MultiFeedForwardPolicy(BasePolicy):
                 )
 
             # Store the new objects in their respective attributes.
-            self.replay_buffer[key] = replay_buffer
-            self.terminals1[key] = terminals1
-            self.rew_ph[key] = rew_ph
-            self.action_ph[key] = action_ph
-            self.obs_ph[key] = obs_ph
-            self.obs1_ph[key] = obs1_ph
             self.actor_tf[key] = actor_tf
             self.critic_tf[key] = critic_tf
             self.actor_target[key] = noisy_actor_target
