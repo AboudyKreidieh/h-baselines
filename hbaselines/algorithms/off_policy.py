@@ -690,7 +690,7 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_q2_losses = defaultdict(list)
                 self.epoch_episode_rewards = defaultdict(list)
 
-                for _ in range(log_interval):
+                for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
                     if self.total_steps >= total_timesteps:
@@ -817,7 +817,7 @@ class OffPolicyRLAlgorithm(object):
             new_obs, reward, done, info = self.env.step(action)
             new_obs, new_all_obs = self._get_obs(new_obs)
 
-            # Done map for multi-agent policies is slightly different.
+            # Done mask for multi-agent policies is slightly different.
             if is_multiagent_policy(self.policy):
                 done = done["__all__"]
 

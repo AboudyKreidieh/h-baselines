@@ -40,7 +40,7 @@ def full_observation_fn(env):
 
 
 def get_flow_params(num_automated=1,
-                    horizon=7500,
+                    horizon=1500,
                     ring_length=None,
                     simulator="traci",
                     evaluate=False,
