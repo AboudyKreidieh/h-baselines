@@ -54,6 +54,7 @@ def get_hyperparameters(args, policy):
     if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
             "meta_period": args.meta_period,
+            "worker_reward_type": args.worker_reward_type,
             "worker_reward_scale": args.worker_reward_scale,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
@@ -267,6 +268,14 @@ def create_goal_conditioned_parser(parser):
         type=int,
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
         help="manger action period")
+    parser.add_argument(
+        "--worker_reward_type",
+        type=str,
+        default=GOAL_CONDITIONED_PARAMS["worker_reward_type"],
+        help="the reward function to be used by the worker. Must be one of: "
+             "\"negative_distance\", \"scaled_negative_distance\", "
+             "\"exp_negative_distance\", or \"scaled_exp_negative_distance\". "
+             "See the base goal-conditioned policy for a description.")
     parser.add_argument(
         "--worker_reward_scale",
         type=float,

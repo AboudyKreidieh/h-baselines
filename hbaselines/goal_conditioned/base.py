@@ -114,6 +114,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  meta_period,
+                 worker_reward_type,
                  worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -167,6 +168,20 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             used instead
         meta_period : int
             manger action period
+        worker_reward_type : str
+            the reward function to be used by the worker. Must be one of:
+
+            * "negative_distance": the negative two norm between the states and
+              desired absolute or relative goals.
+            * "scaled_negative_distance": similar to the negative distance
+              reward where the states, goals, and next states are scaled by the
+              inverse of the action space of the manager policy
+            * "exp_negative_distance": equal to exp(-negative_distance^2). The
+              result is a reward between 0 and 1. This is useful for policies
+              that terminate early.
+            * "scaled_exp_negative_distance": similar to the previous worker
+              reward type but with states, actions, and next states that are
+              scaled.
         worker_reward_scale : float
             the value the intrinsic (Worker) reward should be scaled by
         relative_goals : bool
@@ -367,15 +382,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             )
 
         # reward function for the worker
-        def worker_reward_fn(states, goals, next_states):
-            return negative_distance(
-                states=states,
-                state_indices=self.goal_indices,
-                goals=goals,
-                next_states=next_states,
-                relative_context=relative_goals,
-                offset=0.0
-            )
+        if worker_reward_type.endswith("negative_distance"):
+            # Scale the outputs from the state by the meta-action space if you
+            # wish to scale the worker reward.
+            scale = 0.5 * (manager_ac_space.high - manager_ac_space.low) \
+                if worker_reward_type.startswith("scaled") else 1
+
+            def worker_reward_fn(states, goals, next_states):
+                return negative_distance(
+                    states=states,
+                    state_indices=self.goal_indices,
+                    goals=goals,
+                    next_states=next_states,
+                    relative_context=relative_goals,
+                    offset=0.0
+                )
+
+            # Perform the exponential and squashing operations to keep the
+            # intrinsic reward betweeen 0 and 1.
+            if "exp" in worker_reward_type:
+                def worker_reward_fn(states, goals, next_states):
+                    return np.exp(
+                        -1 * worker_reward_fn(states, goals, next_states) ** 2)
+        else:
+            raise ValueError("Unknown worker_reward_type {}".format(
+                worker_reward_type))
+
         self.worker_reward_fn = worker_reward_fn
 
         if self.connected_gradients:

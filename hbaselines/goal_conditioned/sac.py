@@ -35,6 +35,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_huber,
                  target_entropy,
                  meta_period,
+                 worker_reward_type,
                  worker_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -88,6 +89,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             to None, a heuristic value is used.
         meta_period : int
             manger action period
+        worker_reward_type : str
+            the reward function to be used by the worker. Must be one of:
+            "negative_distance", "scaled_negative_distance",
+            "exp_negative_distance", or "scaled_exp_negative_distance". See the
+            base goal-conditioned policy for a description.
         worker_reward_scale : float
             the value the intrinsic (Worker) reward should be scaled by
         relative_goals : bool
@@ -135,6 +141,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             act_fun=act_fun,
             use_huber=use_huber,
             meta_period=meta_period,
+            worker_reward_type=worker_reward_type,
             worker_reward_scale=worker_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,

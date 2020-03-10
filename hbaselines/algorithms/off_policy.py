@@ -93,6 +93,11 @@ GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
+    # the reward function to be used by the worker. Must be one of:
+    # "negative_distance", "scaled_negative_distance", "exp_negative_distance",
+    # or "scaled_exp_negative_distance". See the base goal-conditioned policy
+    # for a description.
+    worker_reward_type="negative_distance",
     # the value the intrinsic (Worker) reward should be scaled by
     worker_reward_scale=1,
     # specifies whether the goal issued by the Manager is meant to be a
