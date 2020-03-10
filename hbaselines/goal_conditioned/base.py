@@ -390,10 +390,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             def worker_reward_fn(states, goals, next_states):
                 return negative_distance(
-                    states=states,
-                    state_indices=self.goal_indices,
-                    goals=goals,
-                    next_states=next_states,
+                    states=states[self.goal_indices] / scale,
+                    goals=goals / scale,
+                    next_states=next_states[self.goal_indices] / scale,
                     relative_context=relative_goals,
                     offset=0.0
                 )
@@ -401,14 +400,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Perform the exponential and squashing operations to keep the
             # intrinsic reward betweeen 0 and 1.
             if "exp" in worker_reward_type:
-                def worker_reward_fn(states, goals, next_states):
+                def exp_worker_reward_fn(states, goals, next_states):
                     return np.exp(
                         -1 * worker_reward_fn(states, goals, next_states) ** 2)
+                self.worker_reward_fn = exp_worker_reward_fn
+            else:
+                self.worker_reward_fn = worker_reward_fn
         else:
             raise ValueError("Unknown worker_reward_type {}".format(
                 worker_reward_type))
-
-        self.worker_reward_fn = worker_reward_fn
 
         if self.connected_gradients:
             self._setup_connected_gradients()
