@@ -407,7 +407,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             else:
                 self.worker_reward_fn = worker_reward_fn
         else:
-            raise ValueError("Unknown worker_reward_type {}".format(
+            raise ValueError("Unknown worker_reward_type: {}".format(
                 worker_reward_type))
 
         if self.connected_gradients:
