@@ -16,6 +16,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000"
         ])
         run_fcnet(args, 'data/fcnet')
@@ -31,6 +32,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -47,6 +49,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it fails.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -73,9 +76,12 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_hrl_sac(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=["MountainCarContinuous-v0",
-                                           "--total_steps", "2000",
-                                           "--alg", "SAC"])
+        args = parse_options('', '', args=[
+            "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
+            "--total_steps", "2000",
+            "--alg", "SAC"
+        ])
         run_hrl(args, 'data/goal-conditioned')
 
         # Check that the folders were generated.
@@ -91,6 +97,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -105,7 +112,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
-            "--total_steps", "2000"])
+            "initial_exploration_steps", "1",
+            "--total_steps", "2000"
+        ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -121,6 +130,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -139,6 +149,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -154,6 +165,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--shared",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -172,6 +184,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--shared",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -191,6 +204,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--shared",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -206,7 +220,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
-            "--total_steps", "2000"])
+            "initial_exploration_steps", "1",
+            "--total_steps", "2000"
+        ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -223,6 +239,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -242,6 +259,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
@@ -258,6 +276,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "multiagent-ring0",
             "--shared",
             "--maddpg",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -277,6 +296,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "multiagent-ring0",
             "--shared",
             "--maddpg",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
         ])
@@ -297,6 +317,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "MountainCarContinuous-v0",
             "--shared",
             "--maddpg",
+            "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
         ])
