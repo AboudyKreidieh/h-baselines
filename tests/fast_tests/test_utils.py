@@ -32,6 +32,7 @@ class TestTrain(unittest.TestCase):
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
+            'initial_exploration_steps': 10000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,

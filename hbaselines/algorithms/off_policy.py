@@ -331,7 +331,8 @@ class OffPolicyRLAlgorithm(object):
             policy_kwargs.get("maddpg", False)
 
         self.policy = policy
-        self.env_name = deepcopy(env)
+        self.env_name = deepcopy(env) if isinstance(env, str) \
+            else env.__str__()
         self.env = create_env(
             env, render, shared, maddpg, evaluate=False)
         self.eval_env = create_env(
@@ -622,7 +623,7 @@ class OffPolicyRLAlgorithm(object):
         save_interval : int
             number of simulation steps in the training environment before the
             model is saved
-        initial_exploration_steps : int, optional
+        initial_exploration_steps : int
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
@@ -667,7 +668,7 @@ class OffPolicyRLAlgorithm(object):
                 self.obs, self.total_steps, total_timesteps)
 
             # Collect preliminary random samples.
-            print("Collecting pre-samples...")
+            print("Collecting initial exploration samples...")
             self._collect_samples(total_timesteps,
                                   run_steps=initial_exploration_steps,
                                   random_actions=True)
@@ -690,7 +691,7 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_q2_losses = defaultdict(list)
                 self.epoch_episode_rewards = defaultdict(list)
 
-                for _ in range(log_interval):
+                for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
                     if self.total_steps >= total_timesteps:
@@ -736,8 +737,13 @@ class OffPolicyRLAlgorithm(object):
                     # Check if td_map is empty.
                     if td_map:
                         # FIXME: this is a hack
-                        key = "policy" if not is_multiagent_policy(
-                            self.policy) else list(self.obs.keys())[0]
+                        if is_goal_conditioned_policy(self.policy):
+                            key = "manager"
+                        elif is_multiagent_policy(self.policy):
+                            key = list(self.obs.keys())[0]
+                        else:
+                            key = "policy"
+
                         td_map.update({
                             self.rew_ph: np.mean(
                                 self.epoch_episode_rewards[key]),
@@ -817,7 +823,7 @@ class OffPolicyRLAlgorithm(object):
             new_obs, reward, done, info = self.env.step(action)
             new_obs, new_all_obs = self._get_obs(new_obs)
 
-            # Done map for multi-agent policies is slightly different.
+            # Done mask for multi-agent policies is slightly different.
             if is_multiagent_policy(self.policy):
                 done = done["__all__"]
 
