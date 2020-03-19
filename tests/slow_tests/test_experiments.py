@@ -61,8 +61,11 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_hrl_td3(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=["MountainCarContinuous-v0",
-                                           "--total_steps", "2000"])
+        args = parse_options('', '', args=[
+            "MountainCarContinuous-v0",
+            "initial_exploration_steps", "1",
+            "--total_steps", "2000"
+        ])
         run_hrl(args, 'data/goal-conditioned')
 
         # Check that the folders were generated.
