@@ -5,11 +5,6 @@ from copy import deepcopy
 import numpy as np
 from flow.utils.registry import make_create_env
 
-from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
-from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
-from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
-    as figure_eight
-
 
 class FlowEnv(gym.Env):
     """Create a flow-specific environment, as provided by this repository.
@@ -28,8 +23,7 @@ class FlowEnv(gym.Env):
     """
 
     def __init__(self,
-                 env_name,
-                 env_params=None,
+                 flow_params,
                  multiagent=False,
                  shared=False,
                  maddpg=False,
@@ -39,9 +33,7 @@ class FlowEnv(gym.Env):
 
         Parameters
         ----------
-        env_name : str
-            the name of the environment to create
-        env_params : dict
+        flow_params : dict
             environment-specific parameters
         multiagent : bool
             whether the environment is a multi-agent environment
@@ -52,35 +44,11 @@ class FlowEnv(gym.Env):
             whether to render the environment
         version : int
             environment version number, needed for testing purposes
-
-        Returns
-        -------
-        gym.Env
-            the environment
-
-        Raises
-        ------
-        AssertionError
-            if the `env_name` parameter is not valid
         """
-        assert env_name in ["ring", "merge", "figure_eight"]
-
         # Initialize some variables.
         self.multiagent = multiagent
         self.shared = shared
         self.maddpg = maddpg
-
-        # default to empty dictionary if not passed
-        env_params = env_params or {}
-
-        # get flow-specific parameters
-        flow_params = dict()
-        if env_name == "merge":
-            flow_params = merge(**env_params)
-        elif env_name == "ring":
-            flow_params = ring(**env_params)
-        elif env_name == "figure_eight":
-            flow_params = figure_eight(**env_params)
 
         if "full_observation_fn" in flow_params["env"].additional_params:
             self.full_observation_fn = deepcopy(
@@ -89,7 +57,7 @@ class FlowEnv(gym.Env):
         else:
             self.full_observation_fn = None
 
-        # create the wrapped environment
+        # Create the wrapped environment.
         create_env, _ = make_create_env(flow_params, version, render)
         self.wrapped_env = create_env()
 

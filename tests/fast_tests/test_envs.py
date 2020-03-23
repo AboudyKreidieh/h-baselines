@@ -12,6 +12,10 @@ from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
 from hbaselines.envs.mixed_autonomy import FlowEnv
+from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
+from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
+from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
+    as figure_eight
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -374,13 +378,12 @@ class TestMixedAutonomy(unittest.TestCase):
     def test_single_agent_ring(self):
         # create the base environment
         env = FlowEnv(
-            env_name="ring",
-            env_params={
-                "num_automated": 1,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=ring(
+                num_automated=1,
+                horizon=1500,
+                simulator="traci",
+                multiagent=False
+            ),
             version=0
         )
         env.reset()
@@ -407,13 +410,12 @@ class TestMixedAutonomy(unittest.TestCase):
     def test_multi_agent_ring(self):
         # create the base environment
         env = FlowEnv(
-            env_name="ring",
-            env_params={
-                "num_automated": 1,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": True
-            },
+            flow_params=ring(
+                num_automated=1,
+                horizon=1500,
+                simulator="traci",
+                multiagent=True
+            ),
             multiagent=True,
             shared=False,
             version=1
@@ -444,13 +446,12 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create the environment with multiple automated vehicles
         env = FlowEnv(
-            env_name="ring",
-            env_params={
-                "num_automated": 4,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": True
-            },
+            flow_params=ring(
+                num_automated=4,
+                horizon=1500,
+                simulator="traci",
+                multiagent=True
+            ),
             multiagent=True,
             shared=True,
         )
@@ -482,13 +483,12 @@ class TestMixedAutonomy(unittest.TestCase):
     def test_single_agent_figure_eight(self):
         # create the base environment
         env = FlowEnv(
-            env_name="figure_eight",
-            env_params={
-                "num_automated": 1,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=figure_eight(
+                num_automated=1,
+                horizon=1500,
+                simulator="traci",
+                multiagent=False
+            ),
             version=0
         )
         env.reset()
@@ -514,13 +514,12 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create the environment with multiple automated vehicles
         env = FlowEnv(
-            env_name="figure_eight",
-            env_params={
-                "num_automated": 14,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=figure_eight(
+                num_automated=14,
+                horizon=1500,
+                simulator="traci",
+                multiagent=False
+            ),
             version=1
         )
         env.reset()
@@ -547,13 +546,12 @@ class TestMixedAutonomy(unittest.TestCase):
     def test_multi_agent_figure_eight(self):
         # create the base environment
         env = FlowEnv(
-            env_name="figure_eight",
-            env_params={
-                "num_automated": 1,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": True
-            },
+            flow_params=figure_eight(
+                num_automated=1,
+                horizon=1500,
+                simulator="traci",
+                multiagent=True
+            ),
             version=0
         )
         env.reset()
@@ -569,13 +567,12 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create the environment with multiple automated vehicles
         env = FlowEnv(
-            env_name="figure_eight",
-            env_params={
-                "num_automated": 14,
-                "horizon": 1500,
-                "simulator": "traci",
-                "multiagent": True
-            },
+            flow_params=figure_eight(
+                num_automated=14,
+                horizon=1500,
+                simulator="traci",
+                multiagent=True
+            ),
             version=1
         )
         env.reset()
@@ -592,13 +589,12 @@ class TestMixedAutonomy(unittest.TestCase):
     def test_single_agent_merge(self):
         # create version 0 of the environment
         env = FlowEnv(
-            env_name="merge",
-            env_params={
-                "exp_num": 0,
-                "horizon": 6000,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=merge(
+                exp_num=0,
+                horizon=6000,
+                simulator="traci",
+                multiagent=False
+            ),
             version=0
         )
         env.reset()
@@ -624,13 +620,12 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create version 1 of the environment
         env = FlowEnv(
-            env_name="merge",
-            env_params={
-                "exp_num": 1,
-                "horizon": 6000,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=merge(
+                exp_num=1,
+                horizon=6000,
+                simulator="traci",
+                multiagent=False
+            ),
             version=1
         )
         env.reset()
@@ -656,13 +651,12 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create version 2 of the environment
         env = FlowEnv(
-            env_name="merge",
-            env_params={
-                "exp_num": 2,
-                "horizon": 6000,
-                "simulator": "traci",
-                "multiagent": False
-            },
+            flow_params=merge(
+                exp_num=2,
+                horizon=6000,
+                simulator="traci",
+                multiagent=False
+            ),
             version=2
         )
         env.reset()
