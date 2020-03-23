@@ -62,3 +62,60 @@ class BipedalSoccer(gym.Env):
     def render(self, mode='human'):
         """See parent class."""
         pass
+    
+    
+class BipedalObstacles(gym.Env):
+    """Bipedal Obstacles environment.
+
+    In this environment, a bipedal agent is placed in an open field with 
+    obstacles scattered throughout the world. The goal of the agent is to
+    walk around the world and reach a goal position.
+
+    Attributes
+    ----------
+    wrapped_env : gym.Env
+        the original environment, which add more dimensions than wanted here
+    """
+
+    def __init__(self, render):
+        """Instantiate the environment.
+
+        Parameters
+        ----------
+        render : bool
+            whether to render the environment
+        """
+        if render:
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-Render-v2")
+        else:
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
+            
+        self.image_shape = [32, 32]
+
+    def get_image_from_state(self, state):
+        """See parent class."""
+        return np.reshape(state[:np.prod(self._image_shape)], 
+                          self._image_shape)
+
+    @property
+    def observation_space(self):
+        """See parent class."""
+        return self.wrapped_env.observation_space
+
+    @property
+    def action_space(self):
+        """See parent class."""
+        return self.wrapped_env.action_space
+
+    def step(self, action):
+        """See parent class."""
+        obs, rew, done, info = self.wrapped_env.step(np.array([action]))
+        return obs[0], rew[0][0], done, info
+
+    def reset(self):
+        """See parent class."""
+        return self.wrapped_env.reset()[0]
+
+    def render(self, mode='human'):
+        """See parent class."""
+        pass
