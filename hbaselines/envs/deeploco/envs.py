@@ -85,27 +85,29 @@ class BipedalObstacles(gym.Env):
         render : bool
             whether to render the environment
         """
+            
+        # TODO: is it possible to set the horizon outside the environment
+        self.horizon = 500
+        
         if render:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-Render-v2")
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
-
-    @property
-    def observation_space(self):
-        """See parent class."""
-        return self.wrapped_env.observation_space
-
-    @property
-    def context_space(self):
-        """See parent class."""
-        return gym.spaces.Box(low=-10. * np.ones([2]),
-                              high=10. * np.ones([2]),
-                              dtype=np.float32)
+        
+        self.observation_space = gym.spaces.Box(
+            low=self.wrapped_env.observation_space.low[:-2],
+            high=self.wrapped_env.observation_space.high[:-2],
+            dtype=np.float32)
+        
+        self.context_space = gym.spaces.Box(
+            low=self.wrapped_env.observation_space.low[-2:],
+            high=self.wrapped_env.observation_space.high[-2:],
+            dtype=np.float32)
 
     @property
     def current_context(self):
         """See parent class."""
-        return self.wrapped_env.getObservation()[0][-2:]
+        return self.wrapped_env.env.getObservation()[-2:]
 
     @property
     def action_space(self):
@@ -114,12 +116,12 @@ class BipedalObstacles(gym.Env):
 
     def step(self, action):
         """See parent class."""
-        obs, rew, done, info = self.wrapped_env.step(np.array([action]))
-        return obs[0], rew[0][0], done, info
+        obs, rew, done, info = self.wrapped_env.step(action)
+        return obs[:-2], rew, done, info
 
     def reset(self):
         """See parent class."""
-        return self.wrapped_env.reset()[0]
+        return self.wrapped_env.reset()[:-2]
 
     def render(self, mode='human'):
         """See parent class."""

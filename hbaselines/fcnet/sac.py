@@ -420,14 +420,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                               self.image_width * 
                               self.image_channels)
                 
-                pi_h = pi_h[:, :-image_size]
+                original_pi_h = pi_h
+                pi_h = original_pi_h[:, :-image_size]
                     
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
                 if not self.ignore_image:
                     
                     pi_h_image = tf.reshape(
-                        pi_h[:, -image_size:], 
+                        original_pi_h[:, -image_size:], 
                         [batch_size, self.image_height, self.image_width, 
                          self.image_channels]
                     )
@@ -446,10 +447,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             layer_norm=self.layer_norm
                         )
                         
-                    h = tf.shape(pi_h_image)[1]
-                    w = tf.shape(pi_h_image)[2]
-                    c = tf.shape(pi_h_image)[3]
-                    
+                    h = pi_h_image.shape[1]
+                    w = pi_h_image.shape[2]
+                    c = pi_h_image.shape[3]
                     pi_h = tf.concat(
                         [pi_h, tf.reshape(pi_h_image, [batch_size, h * w * c])], 1
                     )
@@ -554,14 +554,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                       self.image_width * 
                                       self.image_channels)
 
-                        vf_h = vf_h[:, :-image_size]
+                        original_vf_h = vf_h
+                        vf_h = original_vf_h[:, :-image_size]
 
                         # ignoring the image is useful for the lower level policy
                         # for creating an abstraction barrier
                         if not self.ignore_image:
 
                             vf_h_image = tf.reshape(
-                                vf_h[:, -image_size:], 
+                                original_vf_h[:, -image_size:], 
                                 [batch_size, self.image_height, self.image_width, 
                                  self.image_channels]
                             )
@@ -579,11 +580,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
-                        
-                            h = tf.shape(vf_h_image)[1]
-                            w = tf.shape(vf_h_image)[2]
-                            c = tf.shape(vf_h_image)[3]
-
+                                
+                            h = vf_h_image.shape[1]
+                            w = vf_h_image.shape[2]
+                            c = vf_h_image.shape[3]
                             vf_h = tf.concat(
                                 [vf_h, tf.reshape(vf_h_image, [batch_size, h * w * c])], 1
                             )
@@ -621,8 +621,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                       self.image_width * 
                                       self.image_channels)
 
+                        original_qf1_h = qf1_h
                         qf1_h = tf.concat(
-                            [qf1_h[:, :-(image_size + act_size)], qf1_h[:, -act_size:]], 1
+                            [original_qf1_h[:, :-(image_size + act_size)], 
+                             original_qf1_h[:, -act_size:]], 1
                         )
 
                         # ignoring the image is useful for the lower level critic
@@ -630,7 +632,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         if not self.ignore_image:
 
                             qf1_h_image = tf.reshape(
-                                qf1_h[:, -(image_size + act_size):-act_size], 
+                                original_qf1_h[:, -(image_size + act_size):-act_size], 
                                 [batch_size, self.image_height, self.image_width, 
                                  self.image_channels]
                             )
@@ -649,10 +651,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     layer_norm=self.layer_norm
                                 )
                         
-                            h = tf.shape(qf1_h_image)[1]
-                            w = tf.shape(qf1_h_image)[2]
-                            c = tf.shape(qf1_h_image)[3]
-
+                            h = qf1_h_image.shape[1]
+                            w = qf1_h_image.shape[2]
+                            c = qf1_h_image.shape[3]
                             qf1_h = tf.concat(
                                 [qf1_h, tf.reshape(qf1_h_image, [batch_size, h * w * c])], 1
                             )
@@ -686,8 +687,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                       self.image_width * 
                                       self.image_channels)
 
+                        original_qf2_h = qf2_h
                         qf2_h = tf.concat(
-                            [qf2_h[:, :-(image_size + act_size)], qf2_h[:, -act_size:]], 1
+                            [original_qf2_h[:, :-(image_size + act_size)], 
+                             original_qf2_h[:, -act_size:]], 1
                         )
 
                         # ignoring the image is useful for the lower level critic
@@ -695,7 +698,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         if not self.ignore_image:
 
                             qf2_h_image = tf.reshape(
-                                qf2_h[:, -(image_size + act_size):-act_size], 
+                                original_qf2_h[:, -(image_size + act_size):-act_size], 
                                 [batch_size, self.image_height, self.image_width, 
                                  self.image_channels]
                             )
@@ -714,10 +717,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     layer_norm=self.layer_norm
                                 )
                         
-                            h = tf.shape(qf2_h_image)[1]
-                            w = tf.shape(qf2_h_image)[2]
-                            c = tf.shape(qf2_h_image)[3]
-
+                            h = qf2_h_image.shape[1]
+                            w = qf2_h_image.shape[2]
+                            c = qf2_h_image.shape[3]
                             qf2_h = tf.concat(
                                 [qf2_h, tf.reshape(qf2_h_image, [batch_size, h * w * c])], 1
                             )

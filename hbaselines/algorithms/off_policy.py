@@ -537,7 +537,7 @@ class OffPolicyRLAlgorithm(object):
                 obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
         else:
             obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-
+            
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,

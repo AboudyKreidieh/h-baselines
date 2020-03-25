@@ -134,8 +134,8 @@ def get_manager_ac_space(ob_space,
         )
     elif env_name == "BipedalObstacles":
         manager_ac_space = Box( # TODO: Brandon add better bounds here
-            low=-2. * np.ones([22]),
-            high=2. * np.ones([22]),
+            low=-2. * np.ones([53]),
+            high=2. * np.ones([53]),
             dtype=np.float32
         )
     else:
