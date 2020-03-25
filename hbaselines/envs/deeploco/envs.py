@@ -89,13 +89,6 @@ class BipedalObstacles(gym.Env):
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-Render-v2")
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
-            
-        self.image_shape = [32, 32]
-
-    def get_image_from_state(self, state):
-        """See parent class."""
-        return np.reshape(state[:np.prod(self._image_shape)], 
-                          self._image_shape)
 
     @property
     def observation_space(self):

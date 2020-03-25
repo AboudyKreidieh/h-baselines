@@ -5,7 +5,7 @@ import numpy as np
 from gym.spaces import Box
 import gym
 
-from hbaselines.envs.deeploco.envs import BipedalSoccer
+from hbaselines.envs.deeploco.envs import BipedalSoccer, BipedalObstacles
 from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
@@ -132,6 +132,12 @@ def get_manager_ac_space(ob_space,
             high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         )
+    elif env_name == "BipedalObstacles":
+        manager_ac_space = Box( # TODO: Brandon add better bounds here
+            low=-np.ones([22]),
+            high=np.ones([22]),
+            dtype=np.float32
+        )
     else:
         if use_fingerprints:
             low = np.array(ob_space.low)[:-fingerprint_dim[0]]
@@ -192,6 +198,9 @@ def get_state_indices(ob_space,
     elif env_name == "merge2":
         state_indices = [5 * i for i in range(17)]
     elif env_name == "PD-Biped3D-HLC-Soccer-v1":
+        state_indices = [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59]
+    elif env_name == "BipedalObstacles":
+        # TODO: Brandon remove the image from the goal
         state_indices = [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59]
     elif use_fingerprints:
         # Remove the last element to compute the reward.
@@ -416,6 +425,9 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
 
     elif env == "BipedalSoccer":
         env = BipedalSoccer(render=render)
+
+    elif env == "BipedalObstacles":
+        env = BipedalObstacles(render=render)
 
     elif isinstance(env, str):
         # This is assuming the environment is registered with OpenAI gym.

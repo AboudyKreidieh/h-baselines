@@ -44,6 +44,22 @@ class ActorCriticPolicy(object):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    includes_image: bool
+        observation includes an image appended to it
+    ignore_image: bool
+        observation includes an image but should it be ignored
+    image_height: int
+        the height of the image in the observation
+    image_width: int
+        the width of the image in the observation
+    image_channels: int
+        the number of channels of the image in the observation
+    kernel_sizes: list of int
+        the kernel size of the neural network conv layers for the policy
+    strides: list of int
+        the kernel size of the neural network conv layers for the policy
+    filters: list of int
+        the channels of the neural network conv layers for the policy
     """
 
     def __init__(self,
@@ -61,7 +77,15 @@ class ActorCriticPolicy(object):
                  layer_norm,
                  layers,
                  act_fun,
-                 use_huber):
+                 use_huber,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 kernel_sizes,
+                 strides,
+                 filters):
         """Instantiate the base policy object.
 
         Parameters
@@ -99,6 +123,22 @@ class ActorCriticPolicy(object):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
+        filters: list of int
+            the channels of the neural network conv layers for the policy
         """
         self.sess = sess
         self.ob_space = ob_space
@@ -115,6 +155,14 @@ class ActorCriticPolicy(object):
         self.layer_norm = layer_norm
         self.act_fun = act_fun
         self.use_huber = use_huber
+        self.includes_image = use_huber
+        self.ignore_image = ignore_image
+        self.image_height = image_height
+        self.image_width = image_width
+        self.image_channels = image_channels
+        self.kernel_sizes = kernel_sizes
+        self.strides = strides
+        self.filters = filters
 
     def initialize(self):
         """Initialize the policy.
@@ -311,6 +359,59 @@ class ActorCriticPolicy(object):
         """
         val = tf.layers.dense(
             val, num_outputs, name=name, kernel_initializer=kernel_initializer)
+
+        if layer_norm:
+            val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
+
+        if act_fun is not None:
+            val = act_fun(val)
+
+        return val
+
+    @staticmethod
+    def _conv_layer(val,
+                    filters,
+                    kernel_size,
+                    strides,
+                    act_fun=None,
+                    kernel_initializer=slim.variance_scaling_initializer(
+                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
+                    layer_norm=False):
+        """Create a convolutional layer.
+
+        Parameters
+        ----------
+        val : tf.Variable
+            the input to the layer
+        filters : int
+            the number of channels in the convolutional kernel
+        kernel_size : int or list of int
+            the height and width of the convolutional filter
+        strides : int or list of int
+            the strides in each direction of convolution
+        name : str
+            the scope of the layer
+        act_fun : tf.nn.* or None
+            the activation function
+        kernel_initializer : Any
+            the initializing operation to the weights of the layer
+        layer_norm : bool
+            whether to enable layer normalization
+
+        Returns
+        -------
+        tf.Variable
+            the output from the layer
+        """
+        
+        val = tf.layers.conv2d(
+            val, 
+            filters, 
+            kernel_size, 
+            strides=strides, 
+            padding='same', 
+            name=name, 
+            kernel_initializer=kernel_initializer)
 
         if layer_norm:
             val = tf.contrib.layers.layer_norm(val, center=True, scale=True)

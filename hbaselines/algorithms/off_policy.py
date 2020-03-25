@@ -82,6 +82,27 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    
+    # Image Specific Parameters for training convolutional policies
+    # used mainly for TerrainRL-based environments
+    # convention is the image is in the last obs dimensions
+
+    # observation includes an image appended to it
+    includes_image=False,
+    # observation includes an image but should it be ignored
+    ignore_image=True,
+    # the height of the image in the observation
+    image_height=32,
+    # the width of the image in the observation
+    image_width=32,
+    # the number of channels of the image in the observation
+    image_channels=1,
+    # the kernel size of the neural network conv layers for the policy
+    kernel_sizes=[6, 4],
+    # the kernel size of the neural network conv layers for the policy
+    strides=[3, 1],
+    # the channels of the neural network conv layers for the policy
+    filters=[32, 32],
 )
 
 
