@@ -134,8 +134,8 @@ def get_manager_ac_space(ob_space,
         )
     elif env_name == "BipedalObstacles":
         manager_ac_space = Box( # TODO: Brandon add better bounds here
-            low=-np.ones([22]),
-            high=np.ones([22]),
+            low=-2. * np.ones([22]),
+            high=2. * np.ones([22]),
             dtype=np.float32
         )
     else:
@@ -201,7 +201,11 @@ def get_state_indices(ob_space,
         state_indices = [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59]
     elif env_name == "BipedalObstacles":
         # TODO: Brandon remove the image from the goal
-        state_indices = [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59]
+        # the first 1024 channels are the image
+        # the next 55 channels are positions
+        # the next 55 channels are velocities
+        # the last 2 channels are goals
+        state_indices = list(np.arange(1024, 1024 + 53))
     elif use_fingerprints:
         # Remove the last element to compute the reward.
         state_indices = list(np.arange(

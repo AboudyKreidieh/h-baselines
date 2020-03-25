@@ -155,7 +155,7 @@ class ActorCriticPolicy(object):
         self.layer_norm = layer_norm
         self.act_fun = act_fun
         self.use_huber = use_huber
-        self.includes_image = use_huber
+        self.includes_image = includes_image
         self.ignore_image = ignore_image
         self.image_height = image_height
         self.image_width = image_width
@@ -373,6 +373,7 @@ class ActorCriticPolicy(object):
                     filters,
                     kernel_size,
                     strides,
+                    name,
                     act_fun=None,
                     kernel_initializer=slim.variance_scaling_initializer(
                         factor=1.0 / 3.0, mode='FAN_IN', uniform=True),

@@ -96,6 +96,18 @@ class BipedalObstacles(gym.Env):
         return self.wrapped_env.observation_space
 
     @property
+    def context_space(self):
+        """See parent class."""
+        return gym.spaces.Box(low=-10. * np.ones([2]),
+                              high=10. * np.ones([2]),
+                              dtype=np.float32)
+
+    @property
+    def current_context(self):
+        """See parent class."""
+        return self.wrapped_env.getObservation()[0][-2:]
+
+    @property
     def action_space(self):
         """See parent class."""
         return self.wrapped_env.action_space

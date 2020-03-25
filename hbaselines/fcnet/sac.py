@@ -257,6 +257,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             kernel_sizes=kernel_sizes,
             strides=strides
         )
+        
+        print(use_huber, includes_image, ignore_image, image_height)
+        exit()
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
@@ -437,17 +440,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                                       self.strides)):
                     
                         pi_h_image = self._conv_layer(
-                            pi_h_image,  
-                            filters, 
-                            kernel_size, 
-                            strides, 
+                            pi_h_image, filters, kernel_size, strides, 
                             'conv{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
+                        
+                    h = tf.shape(pi_h_image)[1]
+                    w = tf.shape(pi_h_image)[2]
+                    c = tf.shape(pi_h_image)[3]
                     
                     pi_h = tf.concat(
-                        [pi_h, tf.reshape(pi_h_image, [batch_size, -1])], 1
+                        [pi_h, tf.reshape(pi_h_image, [batch_size, h * w * c])], 1
                     )
 
             # create the hidden layers
@@ -570,17 +574,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                                               self.strides)):
 
                                 vf_h_image = self._conv_layer(
-                                    vf_h_image,  
-                                    filters, 
-                                    kernel_size, 
-                                    strides, 
+                                    vf_h_image, filters, kernel_size, strides, 
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
+                        
+                            h = tf.shape(vf_h_image)[1]
+                            w = tf.shape(vf_h_image)[2]
+                            c = tf.shape(vf_h_image)[3]
 
                             vf_h = tf.concat(
-                                [vf_h, tf.reshape(vf_h_image, [batch_size, -1])], 1
+                                [vf_h, tf.reshape(vf_h_image, [batch_size, h * w * c])], 1
                             )
 
                     # create the hidden layers
@@ -638,17 +643,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                                               self.strides)):
 
                                 qf1_h_image = self._conv_layer(
-                                    qf1_h_image,  
-                                    filters, 
-                                    kernel_size, 
-                                    strides, 
+                                    qf1_h_image, filters, kernel_size, strides, 
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
+                        
+                            h = tf.shape(qf1_h_image)[1]
+                            w = tf.shape(qf1_h_image)[2]
+                            c = tf.shape(qf1_h_image)[3]
 
                             qf1_h = tf.concat(
-                                [qf1_h, tf.reshape(qf1_h_image, [batch_size, -1])], 1
+                                [qf1_h, tf.reshape(qf1_h_image, [batch_size, h * w * c])], 1
                             )
 
                     # create the hidden layers
@@ -702,17 +708,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                                               self.strides)):
 
                                 qf2_h_image = self._conv_layer(
-                                    qf2_h_image,  
-                                    filters, 
-                                    kernel_size, 
-                                    strides, 
+                                    qf2_h_image, filters, kernel_size, strides, 
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
+                        
+                            h = tf.shape(qf2_h_image)[1]
+                            w = tf.shape(qf2_h_image)[2]
+                            c = tf.shape(qf2_h_image)[3]
 
                             qf2_h = tf.concat(
-                                [qf2_h, tf.reshape(qf2_h_image, [batch_size, -1])], 1
+                                [qf2_h, tf.reshape(qf2_h_image, [batch_size, h * w * c])], 1
                             )
 
                     # create the hidden layers
