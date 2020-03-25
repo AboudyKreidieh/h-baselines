@@ -83,9 +83,9 @@ class ActorCriticPolicy(object):
                  image_height,
                  image_width,
                  image_channels,
+                 filters,
                  kernel_sizes,
-                 strides,
-                 filters):
+                 strides):
         """Instantiate the base policy object.
 
         Parameters
@@ -160,9 +160,9 @@ class ActorCriticPolicy(object):
         self.image_height = image_height
         self.image_width = image_width
         self.image_channels = image_channels
+        self.filters = filters
         self.kernel_sizes = kernel_sizes
         self.strides = strides
-        self.filters = filters
 
     def initialize(self):
         """Initialize the policy.

@@ -134,9 +134,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  image_height,
                  image_width,
                  image_channels,
+                 filters,
                  kernel_sizes,
                  strides,
-                 filters,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -241,9 +241,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             image_height=image_height,
             image_width=image_width,
             image_channels=image_channels,
+            filters=filters
             kernel_sizes=kernel_sizes,
             strides=strides,
-            filters=filters
         )
 
         # action magnitudes

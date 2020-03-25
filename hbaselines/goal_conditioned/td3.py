@@ -38,6 +38,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 filters,
+                 kernel_sizes,
+                 strides,
                  meta_period,
                  worker_reward_scale,
                  relative_goals,
@@ -96,6 +104,22 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        filters: list of int
+            the channels of the neural network conv layers for the policy
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
         meta_period : int
             manger action period
         worker_reward_scale : float
@@ -144,6 +168,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            includes_image=includes_image,
+            ignore_image=ignore_image,
+            image_height=image_height,
+            image_width=image_width,
+            image_channels=image_channels,
+            filters=filters,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             meta_period=meta_period,
             worker_reward_scale=worker_reward_scale,
             relative_goals=relative_goals,

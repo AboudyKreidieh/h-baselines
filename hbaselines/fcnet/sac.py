@@ -63,12 +63,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the width of the image in the observation
     image_channels: int
         the number of channels of the image in the observation
+    filters: list of int
+        the channels of the neural network conv layers for the policy
     kernel_sizes: list of int
         the kernel size of the neural network conv layers for the policy
     strides: list of int
         the kernel size of the neural network conv layers for the policy
-    filters: list of int
-        the channels of the neural network conv layers for the policy
     target_entropy : float
         target entropy used when learning the entropy coefficient
     zero_fingerprint : bool
@@ -159,9 +159,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  image_height,
                  image_width,
                  image_channels,
+                 filters,
                  kernel_sizes,
                  strides,
-                 filters,
                  target_entropy,
                  scope=None,
                  zero_fingerprint=False,
@@ -253,9 +253,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             image_height=image_height,
             image_width=image_width,
             image_channels=image_channels,
+            filters=filters,
             kernel_sizes=kernel_sizes,
-            strides=strides,
-            filters=filters
+            strides=strides
         )
 
         if target_entropy is None:

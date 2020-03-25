@@ -34,6 +34,11 @@ def get_hyperparameters(args, policy):
         "gamma": args.gamma,
         "layer_norm": args.layer_norm,
         "use_huber": args.use_huber,
+        "includes_image": args.includes_image,
+        "ignore_image": args.ignore_image,
+        "image_height": args.image_height,
+        "image_width": args.image_width,
+        "image_channels": args.image_channels,
     }
 
     # add TD3 parameters
@@ -260,6 +265,32 @@ def create_feedforward_parser(parser):
         help="specifies whether to use the huber distance function as the "
              "loss for the critic. If set to False, the mean-squared error "
              "metric is used instead")
+    
+    parser.add_argument(
+        "--includes_image",
+        action="store_true",
+        help="specifies whether the environment has an image  "
+             "in its observation space")
+    parser.add_argument(
+        "--ignore_image",
+        action="store_true",
+        help="specifies whether the image in the observation "
+             "should be ignored and removed")
+    parser.add_argument(
+        "--image_height",
+        type=int,
+        default=FEEDFORWARD_PARAMS["image_height"],
+        help="the height of the image observation")
+    parser.add_argument(
+        "--image_width",
+        type=int,
+        default=FEEDFORWARD_PARAMS["image_width"],
+        help="the width of the image observation")
+    parser.add_argument(
+        "--image_channels",
+        type=int,
+        default=FEEDFORWARD_PARAMS["image_channels"],
+        help="the number of channels of the image observation")
 
     return parser
 
