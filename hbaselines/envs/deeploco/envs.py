@@ -91,7 +91,7 @@ class BipedalObstacles(gym.Env):
         self.horizon = 500
         
         if render:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-Render-v2")
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
         
@@ -172,7 +172,15 @@ class BipedalObstacles(gym.Env):
 
     def render(self, mode='human'):
         """See parent class."""
-        image = self.wrapped_env.env.getVisualState()
+
+        # TODO: Brandon
+        #  this is a hack and should be fixed inside TerrainRL
+        self.wrapped_env.env._config["image_clipping_area"] = [0, 0, 800, 400]
+        self.wrapped_env.env._config["skip_reshape"] = False
+        self.wrapped_env.env._config["downsample_image"] = [1, 1, 1]
+        self.wrapped_env.env._config["convert_to_greyscale"] = False
+
+        image = self.wrapped_env.env._getVisualState()
 
         if mode == 'human':
             cv2.imshow("PD-Biped3D-HLC-Obstacles-v2", image)

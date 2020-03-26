@@ -6,6 +6,7 @@ import random
 import numpy as np
 import tensorflow as tf
 import json
+from skvideo.io import FFmpegWriter
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy
@@ -45,6 +46,8 @@ def parse_options(args):
         '--num_rollouts', type=int, default=1, help='number of eval episodes')
     parser.add_argument(
         '--no_render', action='store_true', help='shuts off rendering')
+    parser.add_argument(
+        '--video', type=str, default='output.mp4', help='path to the video to render')
 
     flags, _ = parser.parse_known_args(args)
 
@@ -99,6 +102,10 @@ def main(args):
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
     hp['render'] = not flags.no_render  # to visualize the policy
 
+    print(hp.keys())
+    del hp['algorithm']
+    del hp['date/time']
+
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
     alg = OffPolicyRLAlgorithm(
@@ -135,30 +142,67 @@ def main(args):
 
     # Perform the evaluation procedure.
     episdoe_rewards = []
+    if not flags.no_render:
+        out = FFmpegWriter(flags.video)
 
-    for episode_num in range(flags.num_rollouts):
-        # Run a rollout.
-        obs = env.reset()
-        total_reward = 0
-        while True:
-            context = [env.current_context] \
-                if hasattr(env, "current_context") else None
-            action = policy.get_action(
-                np.asarray([obs]),
-                context=context,
-                apply_noise=False,
-                random_actions=False,
-            )
-            obs, reward, done, _ = env.step(action)
-            if not flags.no_render:
-                env.render()
-            total_reward += reward
-            if done:
-                break
+    if not isinstance(env, list):
+        env_list = [env]
+    else:
+        env_list = env
 
-        # Print total returns from a given episode.
-        episdoe_rewards.append(total_reward)
-        print("Round {}, return: {}".format(episode_num, total_reward))
+    for env in env_list:
+
+        env.images_are_rgb = True
+        env.boundary_dist = 4.
+
+        for episode_num in range(flags.num_rollouts):
+            # Run a rollout.
+            obs = env.reset()
+
+            # predict a trajectory using the dynamics
+            # if dynamics are present
+            try:
+                import matplotlib.pyplot as plt
+
+                goal_dim = env.current_context.shape[0]
+                goal = env.current_context - obs[:goal_dim]
+
+                o = np.concatenate([obs, goal], 0).astype(np.float32)
+                states, actions = policy.predict_trajectory(o[np.newaxis, :])
+                states = states[0]
+                actions = actions[0]
+                plt.figure()
+                ax = plt.subplot(111)
+                env.plot_trajectory(ax, states, actions, goal=env.current_context)
+                plt.savefig('episode{}.png'.format(episode_num))
+
+            except AttributeError:
+                print("Skipping trajectory prediction")
+
+            total_reward = 0
+            while True:
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+                action = policy.get_action(
+                    np.asarray([obs]),
+                    context=context,
+                    apply_noise=False,
+                    random_actions=False,
+                )
+                obs, reward, done, _ = env.step(action[0])
+                if not flags.no_render:
+                    frame = env.render(mode='rgb_array')
+                    out.writeFrame(frame)
+                total_reward += reward
+                if done:
+                    break
+
+            # Print total returns from a given episode.
+            episdoe_rewards.append(total_reward)
+            print("Round {}, return: {}".format(episode_num, total_reward))
+
+    if not flags.no_render:
+        out.close()
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
