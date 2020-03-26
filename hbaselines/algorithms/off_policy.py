@@ -100,9 +100,9 @@ FEEDFORWARD_PARAMS = dict(
     # the channels of the neural network conv layers for the policy
     filters=[16, 16],
     # the kernel size of the neural network conv layers for the policy
-    kernel_sizes=[6, 3],
+    kernel_sizes=[6, 4],
     # the kernel size of the neural network conv layers for the policy
-    strides=[3, 1],
+    strides=[3, 2],
 )
 
 
