@@ -20,10 +20,14 @@ except (ImportError, ModuleNotFoundError):
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
-    from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
-    from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
-        as figure_eight
+    from hbaselines.envs.mixed_autonomy.params.merge \
+        import get_flow_params as merge
+    from hbaselines.envs.mixed_autonomy.params.ring \
+        import get_flow_params as ring
+    from hbaselines.envs.mixed_autonomy.params.ring_small \
+        import get_flow_params as ring_small
+    from hbaselines.envs.mixed_autonomy.params.figure_eight \
+        import get_flow_params as figure_eight
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
@@ -332,51 +336,65 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         # Create the environment.
         env = create_env()
 
-    elif env in ["ring0", "multiagent-ring0"]:
+    elif env in ["ring", "multiagent-ring"]:
+        multiagent = env.startswith("multiagent")
+        env = FlowEnv(
+            flow_params=ring(
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        )
+
+    elif env in ["ring_small", "multiagent-ring_small"]:
+        multiagent = env.startswith("multiagent")
         if evaluate:
             env = [
                 FlowEnv(
-                    flow_params=ring(
+                    flow_params=ring_small(
                         ring_length=[230, 230],
                         evaluate=True,
-                        multiagent=(env[:10] == "multiagent"),
+                        multiagent=multiagent,
                     ),
                     render=render,
-                    multiagent=(env[:10] == "multiagent"),
+                    multiagent=multiagent,
                     shared=shared,
                     maddpg=maddpg,
                 ),
                 FlowEnv(
-                    flow_params=ring(
+                    flow_params=ring_small(
                         ring_length=[260, 260],
                         evaluate=True,
-                        multiagent=(env[:10] == "multiagent"),
+                        multiagent=multiagent,
                     ),
                     render=render,
-                    multiagent=(env[:10] == "multiagent"),
+                    multiagent=multiagent,
                     shared=shared,
                     maddpg=maddpg,
                 ),
                 FlowEnv(
-                    flow_params=ring(
+                    flow_params=ring_small(
                         ring_length=[290, 290],
                         evaluate=True,
-                        multiagent=(env[:10] == "multiagent"),
+                        multiagent=multiagent,
                     ),
                     render=render,
-                    multiagent=(env[:10] == "multiagent"),
+                    multiagent=multiagent,
                     shared=shared,
                     maddpg=maddpg,
                 )
             ]
         else:
             env = FlowEnv(
-                flow_params=ring(
+                flow_params=ring_small(
                     evaluate=evaluate,
-                    multiagent=(env[:10] == "multiagent"),
+                    multiagent=multiagent,
                 ),
                 render=render,
-                multiagent=(env[:10] == "multiagent"),
+                multiagent=multiagent,
                 shared=shared,
                 maddpg=maddpg,
             )
@@ -384,32 +402,34 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     elif env in ["merge0", "merge1", "merge2", "multiagent-merge0",
                  "multiagent-merge1", "multiagent-merge2"]:
         env_num = int(env[-1])
+        multiagent = env.startswith("multiagent")
         env = FlowEnv(
             flow_params=merge(
                 exp_num=env_num,
                 horizon=6000,
                 simulator="traci",
-                multiagent=(env[:10] == "multiagent"),
+                multiagent=multiagent,
             ),
             render=render,
-            multiagent=(env[:10] == "multiagent"),
+            multiagent=multiagent,
             shared=shared,
             maddpg=maddpg,
         )
 
     elif env in ["figureeight0", "figureeight1", "figureeight02",
                  "multiagent-figureeight0", "multiagent-figureeight1",
-                 "multiagent-figureeight02"]:
+                 "multiagent-figureeight2"]:
         env_num = int(env[-1])
+        multiagent = env.startswith("multiagent")
         env = FlowEnv(
             flow_params=figure_eight(
                 num_automated=[1, 7, 14][env_num],
                 horizon=1500,
                 simulator="traci",
-                multiagent=(env[:10] == "multiagent"),
+                multiagent=multiagent,
             ),
             render=render,
-            multiagent=(env[:10] == "multiagent"),
+            multiagent=multiagent,
             shared=shared,
             maddpg=maddpg,
         )

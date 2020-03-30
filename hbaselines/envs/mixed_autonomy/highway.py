@@ -1,1 +1,0 @@
-"""Multi-lane highway example."""
