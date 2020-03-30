@@ -877,13 +877,15 @@ class OffPolicyRLAlgorithm(object):
                 self.episode_reward["worker"] += 0  # FIXME
 
             elif is_multiagent_policy(self.policy):
-                for key in vf_value.keys():
-                    q1_value, q2_value = vf_value[key]
-                    self.epoch_q1s[key].append(q1_value)
-                    self.epoch_q2s[key].append(q2_value)
-                    self.epoch_actions[key].append(action[key])
-                    self.episode_reward[key] += reward \
-                        if self.policy_kwargs["shared"] else reward[key]
+                if self.policy_kwargs["shared"]:
+                    pass
+                else:
+                    for key in vf_value.keys():
+                        q1_value, q2_value = vf_value[key]
+                        self.epoch_q1s[key].append(q1_value)
+                        self.epoch_q2s[key].append(q2_value)
+                        self.epoch_actions[key].append(action[key])
+                        # self.episode_reward[key] += reward[key]
 
             else:
                 q1_value, q2_value = vf_value
@@ -959,10 +961,13 @@ class OffPolicyRLAlgorithm(object):
 
             elif is_multiagent_policy(self.policy):
                 # For multi-agent policies
-                for key in critic_loss.keys():
-                    self.epoch_q1_losses[key].append(critic_loss[key][0])
-                    self.epoch_q2_losses[key].append(critic_loss[key][1])
-                    self.epoch_actor_losses[key].append(actor_loss[key])
+                if self.policy_kwargs["shared"]:
+                    pass
+                else:
+                    for key in critic_loss.keys():
+                        self.epoch_q1_losses[key].append(critic_loss[key][0])
+                        self.epoch_q2_losses[key].append(critic_loss[key][1])
+                        self.epoch_actor_losses[key].append(actor_loss[key])
 
             else:
                 # For non-hierarchical single agent policies
