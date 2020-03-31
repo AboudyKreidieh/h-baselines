@@ -114,7 +114,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "initial_exploration_steps", "1",
             "--total_steps", "2000"
         ])
@@ -124,7 +124,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -132,7 +132,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "SAC"
@@ -143,7 +143,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -151,7 +151,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_failure_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "initial_exploration_steps", "1",
             "--total_steps", "2000",
             "--alg", "woops"
@@ -166,7 +166,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--shared",
             "initial_exploration_steps", "1",
             "--total_steps", "2000"
@@ -177,7 +177,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -185,7 +185,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--shared",
             "initial_exploration_steps", "1",
             "--total_steps", "2000",
@@ -197,7 +197,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -221,7 +221,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_maddpg_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--maddpg",
             "initial_exploration_steps", "1",
             "--total_steps", "2000"
@@ -232,7 +232,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -240,7 +240,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_maddpg_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--maddpg",
             "initial_exploration_steps", "1",
             "--total_steps", "2000",
@@ -252,7 +252,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -260,7 +260,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_failure_maddpg_independent(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--maddpg",
             "initial_exploration_steps", "1",
             "--total_steps", "2000",
@@ -276,7 +276,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_td3_maddpg_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--shared",
             "--maddpg",
             "initial_exploration_steps", "1",
@@ -288,7 +288,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -296,7 +296,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
     def test_run_multi_fcnet_sac_maddpg_shared(self):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
-            "multiagent-ring0",
+            "multiagent-ring_small",
             "--shared",
             "--maddpg",
             "initial_exploration_steps", "1",
@@ -309,7 +309,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring0")))
+                "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))

@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
+from hbaselines.utils.env_util import get_manager_ac_space, get_state_indices
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
@@ -273,8 +273,11 @@ class TestMisc(unittest.TestCase):
             expected_size=2,
         )
 
-        # test for ring0
-        ac_space = get_manager_ac_space(env_name="ring0", **params)
+        # test for ring
+        pass  # TODO
+
+        # test for ring_small
+        ac_space = get_manager_ac_space(env_name="ring_small", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(1)]),
@@ -282,24 +285,7 @@ class TestMisc(unittest.TestCase):
             expected_size=1,
         )
 
-        ac_space = get_manager_ac_space(env_name="ring0", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
-        )
-
-        # test for ring1
-        ac_space = get_manager_ac_space(env_name="ring1", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
-        )
-
-        ac_space = get_manager_ac_space(env_name="ring1", **rel_params)
+        ac_space = get_manager_ac_space(env_name="ring_small", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(1)]),
@@ -409,26 +395,6 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
-        # test for grid0
-        ac_space = get_manager_ac_space(env_name="grid0", **params)
-        del ac_space  # TODO
-
-        # test for grid1
-        ac_space = get_manager_ac_space(env_name="grid1", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck0
-        ac_space = get_manager_ac_space(env_name="bottleneck0", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck1
-        ac_space = get_manager_ac_space(env_name="bottleneck1", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck2
-        ac_space = get_manager_ac_space(env_name="bottleneck2", **params)
-        del ac_space  # TODO
-
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
@@ -470,15 +436,12 @@ class TestMisc(unittest.TestCase):
             [0, 2]
         )
 
-        # test for ring0
-        self.assertListEqual(
-            get_state_indices(env_name="ring0", **params),
-            [0]
-        )
+        # test for ring
+        pass  # TODO
 
-        # test for ring1
+        # test for ring_small
         self.assertListEqual(
-            get_state_indices(env_name="ring1", **params),
+            get_state_indices(env_name="ring_small", **params),
             [0]
         )
 
@@ -517,26 +480,6 @@ class TestMisc(unittest.TestCase):
             get_state_indices(env_name="figureeight2", **params),
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         )
-
-        # test for grid0
-        state_indices = get_state_indices(env_name="grid0", **params)
-        del state_indices  # TODO
-
-        # test for grid1
-        state_indices = get_state_indices(env_name="grid1", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck0
-        state_indices = get_state_indices(env_name="bottleneck0", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck1
-        state_indices = get_state_indices(env_name="bottleneck1", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck2
-        state_indices = get_state_indices(env_name="bottleneck2", **params)
-        del state_indices  # TODO
 
 
 class TestTFUtil(unittest.TestCase):

@@ -7,7 +7,7 @@ import random
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
+from hbaselines.utils.env_util import get_manager_ac_space, get_state_indices
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):

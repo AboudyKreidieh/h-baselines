@@ -25,7 +25,8 @@ from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.tf_util import make_session
-from hbaselines.utils.misc import ensure_dir, create_env
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.env_util import create_env
 
 
 # =========================================================================== #
