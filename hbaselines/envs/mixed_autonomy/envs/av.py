@@ -347,6 +347,10 @@ class AVClosedEnv(AVEnv):
         # Create a list of the RL IDs sorted by the above term.
         self._sorted_rl_ids = sorted(self.k.vehicle.get_rl_ids(), key=init_pos)
 
+        # Perform the reset operation again because the vehicle IDs weren't
+        # caught the first time.
+        obs = super(AVClosedEnv, self).reset()
+
         return obs
 
 

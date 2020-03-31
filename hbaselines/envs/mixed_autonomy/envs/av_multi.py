@@ -216,7 +216,7 @@ class AVMultiAgentEnv(MultiEnv):
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
-    def reset(self):
+    def reset(self, new_inflow_rate=None):
         """See parent class.
 
         In addition, a few variables that are specific to this class are
@@ -224,7 +224,7 @@ class AVMultiAgentEnv(MultiEnv):
         """
         self.leader = []
         self.follower = []
-        return super().reset()
+        return super().reset(new_inflow_rate)
 
 
 class AVClosedMultiAgentEnv(AVMultiAgentEnv):
@@ -286,7 +286,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         else:
             return self.k.vehicle.get_rl_ids()
 
-    def reset(self):
+    def reset(self, new_inflow_rate=None):
         """See class definition."""
         # Skip if ring length is None.
         if self.env_params.additional_params["num_vehicles"] is None:
@@ -339,7 +339,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         )
 
         # Perform the reset operation.
-        obs = super(AVClosedMultiAgentEnv, self).reset()
+        _ = super(AVClosedMultiAgentEnv, self).reset()
 
         # Get the initial positions of the RL vehicles to allow us to sort the
         # vehicles by this term.
@@ -348,6 +348,10 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 
         # Create a list of the RL IDs sorted by the above term.
         self._sorted_rl_ids = sorted(self.k.vehicle.get_rl_ids(), key=init_pos)
+
+        # Perform the reset operation again because the vehicle IDs weren't
+        # caught the first time.
+        obs = super(AVClosedMultiAgentEnv, self).reset()
 
         return obs
 
@@ -420,7 +424,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         """See parent class."""
         return self._current_rl_ids
 
-    def reset(self):
+    def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
             pass  # TODO

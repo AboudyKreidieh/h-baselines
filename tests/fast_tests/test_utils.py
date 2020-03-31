@@ -282,7 +282,7 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
-        ac_space = get_manager_ac_space(env_name="ring_small", **rel_params)
+        ac_space = get_manager_ac_space(env_name="ring", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-30 for _ in range(5)]),
@@ -453,7 +453,7 @@ class TestMisc(unittest.TestCase):
         # test for ring
         self.assertListEqual(
             get_state_indices(env_name="ring", **params),
-            [0, 4, 9, 14, 19]
+            [0, 5, 10, 15, 20]
         )
 
         # test for ring_small

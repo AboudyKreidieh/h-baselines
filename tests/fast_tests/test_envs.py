@@ -460,7 +460,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
 
         # test the agent IDs.
         self.assertListEqual(
-            env.agents, ["rl_0", "rl_1", "rl_2", "rl_3", "rl_4"])
+            sorted(env.agents), ["rl_0", "rl_1", "rl_2", "rl_3", "rl_4"])
 
         # test observation space
         test_space(
