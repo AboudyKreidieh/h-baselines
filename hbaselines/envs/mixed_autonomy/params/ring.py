@@ -13,6 +13,7 @@ from flow.networks.ring import RingNetwork
 from flow.networks.ring import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
+from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 
 # Number of vehicles in the network
 NUM_VEHICLES = 50
@@ -105,7 +106,7 @@ def get_flow_params(num_automated=5,
         exp_tag='multilane-ring',
 
         # name of the flow environment the experiment is running on
-        env_name=AVClosedEnv,
+        env_name=AVClosedMultiAgentEnv if multiagent else AVClosedEnv,
 
         # name of the network class the experiment is running on
         network=RingNetwork,
