@@ -274,7 +274,21 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for ring
-        pass  # TODO
+        ac_space = get_manager_ac_space(env_name="ring", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        ac_space = get_manager_ac_space(env_name="ring_small", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-30 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
 
         # test for ring_small
         ac_space = get_manager_ac_space(env_name="ring_small", **params)
@@ -398,7 +412,7 @@ class TestMisc(unittest.TestCase):
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=Box(-1, 1, shape=(2,)),
+            ob_space=Box(-1, 1, shape=(2,), dtype=np.float32),
             use_fingerprints=False,
             fingerprint_dim=1,
         )
@@ -437,7 +451,10 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for ring
-        pass  # TODO
+        self.assertListEqual(
+            get_state_indices(env_name="ring", **params),
+            [0, 4, 9, 14, 19]
+        )
 
         # test for ring_small
         self.assertListEqual(

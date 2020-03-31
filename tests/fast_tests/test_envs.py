@@ -393,14 +393,21 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
         env.reset()
 
-        # test the agent IDs.
-        pass  # TODO
-
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -452,13 +459,24 @@ class TestMixedAutonomyParams(unittest.TestCase):
         env.reset()
 
         # test the agent IDs.
-        pass  # TODO
+        self.assertListEqual(
+            env.agents, ["rl_0", "rl_1", "rl_2", "rl_3", "rl_4"])
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space["rl_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space["rl_0"],
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
