@@ -1440,6 +1440,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 list_obs1.append(self._get_obs(
                     obs1[key], None if context1 is None else context0[key]))
                 list_action.append(action[key])
+                reward = reward[key]
 
             # Store the new sample.
             self.replay_buffer.add(

@@ -796,7 +796,10 @@ class OffPolicyRLAlgorithm(object):
             # Book-keeping.
             self.total_steps += 1
             self.episode_step += 1
-            self.episode_reward += reward
+            if isinstance(reward, dict):
+                self.episode_reward += sum(reward[k] for k in reward.keys())
+            else:
+                self.episode_reward += reward
 
             # Update the current observation.
             self.obs = new_obs.copy()
