@@ -507,12 +507,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                                 evaluate):
         """See store_transition."""
         for key in obs0.keys():
+            # If the agent has exited the environment, ignore it.
+            if key not in reward.keys():
+                continue
+
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
-
-            # Collect variables that might be shared across agents.
-            agent_reward = reward if self.shared else reward[key]
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -524,7 +525,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 obs0=obs0[key],
                 context0=context0_i,
                 action=action[key],
-                reward=agent_reward,
+                reward=reward[key],
                 obs1=obs1[key],
                 context1=context1_i,
                 done=done,
