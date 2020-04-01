@@ -97,11 +97,6 @@ class FlowEnv(gym.Env):
         self.step_number += 1
         done = done or self.step_number == self.horizon
 
-        # In case of a multi-agent shared environment, all policies should have
-        # the same reward.
-        if self.multiagent and self.shared:
-            reward = reward[self.agents[0]]
-
         # Add the full-state observation, if needed.
         if self.maddpg:
             obs = {
