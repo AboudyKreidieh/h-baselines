@@ -382,11 +382,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             )
 
         # reward function for the worker
-        if worker_reward_type.endswith("negative_distance"):
+        if worker_reward_type in ["negative_distance",
+                                  "scaled_negative_distance",
+                                  "exp_negative_distance",
+                                  "scaled_exp_negative_distance"]:
             # Scale the outputs from the state by the meta-action space if you
             # wish to scale the worker reward.
-            scale = 0.5 * (manager_ac_space.high - manager_ac_space.low) \
-                if worker_reward_type.startswith("scaled") else 1
+            if worker_reward_type.startswith("scaled"):
+                scale = 0.5 * (manager_ac_space.high - manager_ac_space.low)
+            else:
+                scale = 1
 
             def worker_reward_fn(states, goals, next_states):
                 return negative_distance(
@@ -398,7 +403,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 )
 
             # Perform the exponential and squashing operations to keep the
-            # intrinsic reward betweeen 0 and 1.
+            # intrinsic reward between 0 and 1.
             if "exp" in worker_reward_type:
                 def exp_worker_reward_fn(states, goals, next_states):
                     return np.exp(
