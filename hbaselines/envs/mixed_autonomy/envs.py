@@ -137,4 +137,5 @@ class FlowEnv(gym.Env):
             )
 
     def render(self, mode='human'):
+        """Do nothing."""
         pass
