@@ -826,7 +826,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         -----
         * store_transition(self):
         """
-        goal_dim = meta_action.shape[1]
+        goal_dim = meta_action.shape[-1]
         observations = deepcopy(initial_observations)
         rewards = deepcopy(initial_rewards)
         hindsight_goal = 0 if self.relative_goals \
