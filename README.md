@@ -302,7 +302,7 @@ algorithms:
 
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  
+
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
@@ -431,22 +431,62 @@ alg = OffPolicyRLAlgorithm(
 
 ### Intrinsic Rewards
 
-The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, can have a 
-significant affect on the training performance of both the Manager and 
-Worker policies. Currently, this repository only support one intrinsic 
-reward function: negative distance. This is of the form:
+The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, define the rewards assigned
+to the lower level policies for achieving goals assigned by the policies 
+immediately above them. The choice of intrinsic reward can have a 
+significant affect on the training performance of both the upper and lower 
+level policies. Currently, this repository supports the use of two intrinsic 
+reward functions:
+ 
+* **negative_distance**: This is of the form:
 
-<p align="center"><img src="/tex/1689c3a6f75282843075ef0e3a4e87bb.svg?invert_in_darkmode&sanitize=true" align=middle width=226.09029464999998pt height=16.438356pt/></p>
+  <p align="center"><img src="/tex/1689c3a6f75282843075ef0e3a4e87bb.svg?invert_in_darkmode&sanitize=true" align=middle width=226.09029464999998pt height=16.438356pt/></p>
 
-if `relative_goals` is set to False, and
+  if `relative_goals` is set to False, and
 
-<p align="center"><img src="/tex/fa9c055e86f6927de37a480c240da337.svg?invert_in_darkmode&sanitize=true" align=middle width=259.67465205pt height=16.438356pt/></p>
+  <p align="center"><img src="/tex/fa9c055e86f6927de37a480c240da337.svg?invert_in_darkmode&sanitize=true" align=middle width=259.67465205pt height=16.438356pt/></p>
 
-if `relative_goals` is set to True. This attribute is described in the 
-next section.
+  if `relative_goals` is set to True. This attribute is described in the 
+[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
 
-Other intrinsic rewards will be described here once included in the 
-repository.
+* **exp_negative_distance**: This reward function is designed to maintain the 
+  reward between 0 and 1 for environments that may terminate prematurely. This 
+  is of the form:
+
+  <p align="center"><img src="/tex/27bd484f07095bb27d59924ac338e719.svg?invert_in_darkmode&sanitize=true" align=middle width=285.17722695000003pt height=18.312383099999998pt/></p>
+
+  if `relative_goals` is set to False, and
+
+  <p align="center"><img src="/tex/e07e417d89f639d1d442eebff49421cc.svg?invert_in_darkmode&sanitize=true" align=middle width=318.76158599999997pt height=18.312383099999998pt/></p>
+
+  if `relative_goals` is set to True. This attribute is described in the 
+[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
+
+Intrinsic rewards of the form above are not scaled by the any term, and as such
+may be dominated by the largest term in the goal space. To circumvent this, we 
+also include a scaled variant of each of the above intrinsic rewards were the 
+states and goals are divided by goal space of the higher level policies. These 
+can be used by starting the string with "scaled_", for example: 
+**scaled_negative_distance** or **scaled_exp_negative_distance**.
+
+To assign your choice of intrinsic rewards when training a hierarchical policy,
+set the `worker_reward_type` attribute to the type of intrinsic reward you 
+would like to use:
+
+```python
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
+
+alg = OffPolicyRLAlgorithm(
+    policy=GoalConditionedPolicy,
+    ...,
+    policy_kwargs={
+        # assign the intrinsic reward you would like to use
+        "worker_reward_type": "scaled_negative_distance"
+    }
+)
+```
+
 
 ### HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
