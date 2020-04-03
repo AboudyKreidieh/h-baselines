@@ -51,6 +51,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the manager policy
     meta_period : int
         manger action period
+    worker_reward_type : str
+        the reward function to be used by the worker
     worker_reward_scale : float
         the value the intrinsic (Worker) reward should be scaled by
     relative_goals : bool
@@ -238,6 +240,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         self.meta_period = meta_period
+        self.worker_reward_type = worker_reward_type
         self.worker_reward_scale = worker_reward_scale
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections

@@ -292,28 +292,46 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             # Goal is the direct output from the manager in this case.
             goal = self.manager.actor_tf
 
-        # concatenate the output from the manager with the worker policy.
+        # Concatenate the output from the manager with the worker policy.
         obs_shape = self.worker.ob_space.shape[0]
         obs = tf.concat([self.worker.obs_ph[:, :obs_shape], goal], axis=-1)
 
-        # create the worker policy with inputs directly from the manager
+        # Create the worker policy with inputs directly from the manager.
         with tf.compat.v1.variable_scope("Worker/model"):
             worker_with_manager_obs = self.worker.make_critic(
                 obs, self.worker.action_ph, reuse=True, scope="qf_0")
 
-        # create a tensorflow operation that mimics the reward function that is
-        # used to provide feedback to the worker
+        # Create a tensorflow operation that mimics the reward function that is
+        # used to provide feedback to the worker.
+        if self.worker_reward_type.startswith("scaled"):
+            # Scale the observations/goals by the action space of the upper-
+            # level policy if requested.
+            ac_space = self.manager.ac_space
+            scale = 0.5 * (ac_space.high - ac_space.low)
+            worker_obs0 /= scale
+            goal /= scale
+            worker_obs1 /= scale
+
         if self.relative_goals:
+            # Implement relative goals if requested.
+            goal += worker_obs0
+
+        if self.worker_reward_type.endswith("exp_negative_distance"):
+            reward_fn = tf.reduce_mean(tf.exp(-tf.reduce_sum(
+                tf.square(worker_obs0 + goal - worker_obs1), axis=1)))
+        elif self.worker_reward_type.endswith("negative_distance"):
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
                 worker_obs0 + goal, worker_obs1)
         else:
-            reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, worker_obs1)
+            reward_fn = None
 
-        # compute the worker loss with respect to the manager actions
+        # Scale by the worker reward scale.
+        reward_fn *= self.worker_reward_scale
+
+        # Compute the worker loss with respect to the manager actions.
         self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
 
-        # create the optimizer object
+        # Create the optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
         self.cg_optimizer = optimizer.minimize(
             self.manager.actor_loss + self.cg_weights * self.cg_loss,
