@@ -1,5 +1,5 @@
 <!--
-Thank you for contributing to mbrl-traffic! 
+Thank you for contributing to h-baselines! 
 
 Please make sure you keep the title of your pull request short and informative,
 and that you fill in the following template accurately (don't forget to remove
