@@ -49,6 +49,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     ----------
     manager : hbaselines.fcnet.base.ActorCriticPolicy
         the manager policy
+    num_levels : int
+        number of levels within the hierarchy. Must be greater than 1. Two
+        levels correspond to a Manager/Worker paradigm.
     meta_period : int
         manger action period
     worker_reward_scale : float
@@ -113,6 +116,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 num_levels,
                  meta_period,
                  worker_reward_scale,
                  relative_goals,
@@ -165,6 +169,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
             manger action period
         worker_reward_scale : float
@@ -222,6 +229,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             use_huber=use_huber
         )
 
+        assert num_levels >= 2, "num_levels must be greater than or equal to 2"
+
+        self.num_levels = num_levels
         self.meta_period = meta_period
         self.worker_reward_scale = worker_reward_scale
         self.relative_goals = relative_goals
@@ -269,7 +279,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Part 1. Setup the Manager                                           #
         # =================================================================== #
 
-        # Create the Manager policy.
+        # Create the Manager policy. FIXME
         with tf.compat.v1.variable_scope("Manager"):
             self.manager = meta_policy(
                 sess=sess,
@@ -304,45 +314,40 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 return goal
         self.goal_transition_fn = goal_transition_fn
 
-        # previous observation by the Manager
+        # previous observation by the Manager FIXME
         self.prev_meta_obs = None
 
-        # current action by the Manager
+        # current action by the Manager FIXME
         self.meta_action = None
 
         # current meta reward, counting as the cumulative environment reward
-        # during the meta period
+        # during the meta period FIXME
         self.meta_reward = None
-
-        # The following is redundant but necessary if the changes to the update
-        # function are to be in the GoalConditionedPolicy policy and not
-        # FeedForwardPolicy.
-        self.batch_size = batch_size
 
         # Use this to store a list of observations that stretch as long as the
         # dilated horizon chosen for the Manager. These observations correspond
-        # to the s(t) in the HIRO paper.
+        # to the s(t) in the HIRO paper. FIXME
         self._observations = []
 
         # Use this to store the list of environmental actions that the worker
-        # takes. These actions correspond to the a(t) in the HIRO paper.
+        # takes. These actions correspond to the a(t) in the HIRO paper. FIXME
         self._worker_actions = []
 
-        # rewards provided by the policy to the worker
+        # rewards provided by the policy to the worker FIXME
         self._worker_rewards = []
 
-        # done masks at every time step for the worker
+        # done masks at every time step for the worker FIXME
         self._dones = []
 
         # actions performed by the manager during a given meta period. Used by
-        # the replay buffer.
+        # the replay buffer. FIXME
         self._meta_actions = []
 
         # =================================================================== #
         # Part 2. Setup the Worker                                            #
         # =================================================================== #
 
-        # Create the Worker policy.
+        # Create the Worker policy. FIXME
         with tf.compat.v1.variable_scope("Worker"):
             self.worker = worker_policy(
                 sess,
@@ -366,7 +371,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 **(additional_params or {}),
             )
 
-        # reward function for the worker
+        # reward function for the worker FIXME
         def worker_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
@@ -378,7 +383,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             )
         self.worker_reward_fn = worker_reward_fn
 
-        if self.connected_gradients:
+        if self.connected_gradients:  # FIXME
             self._setup_connected_gradients()
 
     def initialize(self):
@@ -386,9 +391,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         This method calls the initialization methods of the manager and worker.
         """
-        self.manager.initialize()
-        self.worker.initialize()
-        self.meta_reward = 0
+        self.manager.initialize()  # FIXME
+        self.worker.initialize()  # FIXME
+        self.meta_reward = 0  # FIXME
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
@@ -420,7 +425,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         (float, float)
             manager actor loss, worker actor loss
         """
-        # Not enough samples in the replay buffer.
+        # Not enough samples in the replay buffer. FIXME
         if not self.replay_buffer.can_sample():
             return ([0, 0], [0, 0]), (0, 0)
 
@@ -429,7 +434,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # data, removing it can speedup the other algorithms.
         with_additional = self.off_policy_corrections
 
-        # Get a batch.
+        # Get a batch. FIXME
         meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
             worker_obs1, worker_act, worker_rew, worker_done, additional = \
             self.replay_buffer.sample(with_additional=with_additional)
