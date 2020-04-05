@@ -323,7 +323,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
                 worker_obs0 + goal, worker_obs1)
         else:
-            reward_fn = None
+            raise ValueError("Unknown worker reward type: {}".format(
+                self.worker_reward_type))
 
         # Scale by the worker reward scale.
         reward_fn *= self.worker_reward_scale
