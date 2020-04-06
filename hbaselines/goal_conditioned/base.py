@@ -401,7 +401,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 act_fun=act_fun,
                 use_huber=use_huber,
                 includes_image=includes_image,
-                ignore_image=ignore_image,
+                ignore_image=True,
                 image_height=image_height,
                 image_width=image_width,
                 image_channels=image_channels,

@@ -88,12 +88,13 @@ class BipedalObstacles(gym.Env):
         """
             
         # TODO: is it possible to set the horizon outside the environment
-        self.horizon = 500
+        self.horizon = 2000
+        self.t = 0
         
         if render:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
         else:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
         
         self.observation_space = gym.spaces.Box(
             low=np.array(1024 * [-1.] + [0.06586086, -0.33134258, -0.22473772, -0.08842427, -0.24940665,
@@ -163,28 +164,24 @@ class BipedalObstacles(gym.Env):
 
     def step(self, action):
         """See parent class."""
+        self.t += 1
         obs, rew, done, info = self.wrapped_env.step(action)
+        done = done or self.t >= self.horizon
         return obs[:-2], rew, done, info
 
     def reset(self):
         """See parent class."""
+        self.t = 0
         return self.wrapped_env.reset()[:-2]
 
     def render(self, mode='human'):
         """See parent class."""
 
-        # TODO: Brandon
-        #  this is a hack and should be fixed inside TerrainRL
-        self.wrapped_env.env._config["image_clipping_area"] = [0, 0, 800, 400]
-        self.wrapped_env.env._config["skip_reshape"] = False
-        self.wrapped_env.env._config["downsample_image"] = [1, 1, 1]
-        self.wrapped_env.env._config["convert_to_greyscale"] = False
-
-        image = self.wrapped_env.env._getVisualState()
+        image = self.wrapped_env.env.render(headless_step=True).astype(np.float32)
 
         if mode == 'human':
             cv2.imshow("PD-Biped3D-HLC-Obstacles-v2", image)
-            cv2.waitKey(0)
+            cv2.waitKey(1)
 
         elif mode == 'rgb_array':
             return image
