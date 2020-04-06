@@ -24,7 +24,8 @@ from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.tf_util import make_session
-from hbaselines.utils.misc import ensure_dir, create_env
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.env_util import create_env
 
 
 # =========================================================================== #
@@ -340,7 +341,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = getattr(
-                self.env, "all_observation_space", Box(-1, 1, (1,)))
+                 self.env, "all_observation_space",
+                 Box(-1, 1, (1,), dtype=np.float32))
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -394,7 +396,7 @@ class OffPolicyRLAlgorithm(object):
                 (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
-            self.observation_space = Box(low=low, high=high)
+            self.observation_space = Box(low=low, high=high, dtype=np.float32)
 
         # Create the model variables and operations.
         if _init_setup_model:

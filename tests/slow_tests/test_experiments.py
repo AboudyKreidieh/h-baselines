@@ -16,8 +16,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_fcnet(args, 'data/fcnet')
 
@@ -32,8 +33,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_fcnet(args, 'data/fcnet')
@@ -49,8 +51,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it fails.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
         self.assertRaises(ValueError, run_fcnet,
@@ -63,8 +66,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_hrl(args, 'data/goal-conditioned')
 
@@ -81,8 +85,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_hrl(args, 'data/goal-conditioned')
@@ -100,8 +105,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
 
@@ -115,8 +121,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
@@ -133,8 +140,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -152,8 +160,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Run the script; verify it executes without failure.
         args = parse_options('', '', args=[
             "multiagent-ring0",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
 
@@ -168,8 +177,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--shared",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
@@ -187,8 +197,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--shared",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -207,8 +218,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--shared",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
 
@@ -223,8 +235,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
@@ -242,8 +255,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -262,8 +276,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "multiagent-ring0",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
 
@@ -279,8 +294,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "multiagent-ring0",
             "--shared",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
 
@@ -299,8 +315,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "multiagent-ring0",
             "--shared",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "SAC"
         ])
         run_multi_fcnet(args, 'data/multi-fcnet')
@@ -320,8 +337,9 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "MountainCarContinuous-v0",
             "--shared",
             "--maddpg",
-            "initial_exploration_steps", "1",
-            "--total_steps", "2000",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
             "--alg", "woops"
         ])
 

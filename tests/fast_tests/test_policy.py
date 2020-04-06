@@ -117,13 +117,13 @@ class TestActorCriticPolicy(unittest.TestCase):
         policy = ActorCriticPolicy(**self.policy_params)
 
         # test case 1
-        ob_space = Box(0, 1, shape=(2,))
+        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
         co_space = None
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (2,))
 
         # test case 2
-        ob_space = Box(0, 1, shape=(2,))
-        co_space = Box(0, 1, shape=(3,))
+        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
+        co_space = Box(0, 1, shape=(3,), dtype=np.float32)
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
     def test_layer(self):
