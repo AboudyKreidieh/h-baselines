@@ -108,7 +108,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
     # whether to use the connected gradient update actor update procedure to
-    # the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
     # weights for the gradients of the loss of the lower-level policies with
     # respect to the parameters of the higher-level policies. Only used if
@@ -148,7 +148,7 @@ class OffPolicyRLAlgorithm(object):
     policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
-        name of the environment. Affects the action bounds of the higher level
+        name of the environment. Affects the action bounds of the higher-level
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)

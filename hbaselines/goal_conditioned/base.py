@@ -89,7 +89,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     goal_indices : list of int
         the state indices for the intrinsic rewards
     intrinsic_reward_fn : function
-        reward function for the lower level policies
+        reward function for the lower-level policies
     """
 
     def __init__(self,
