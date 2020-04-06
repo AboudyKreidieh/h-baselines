@@ -34,8 +34,9 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover
 # The key in this dictionary in the name of the environment. The attributes for
 # each element are:
 #
-# - manager_ac_space: a lambda function that takes an input whether the Manager
-#   is assigning relative goals and returns the action space of the Manager
+# - meta_ac_space: a lambda function that takes an input whether the higher
+#   level policies are assigning relative goals and returns the action space of
+#   the higher level policies
 # - state_indices: a list that assigns the indices that correspond to goals in
 #   the Worker's state space
 # - env: a lambda term that takes an input (evaluate, render, multiagent,
@@ -45,7 +46,7 @@ ENV_ATTRIBUTES = {
     # Variants of the AntMaze environment.                                    #
     # ======================================================================= #
     "AntMaze": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
@@ -74,7 +75,7 @@ ENV_ATTRIBUTES = {
     },
 
     "AntPush": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
@@ -94,7 +95,7 @@ ENV_ATTRIBUTES = {
     },
 
     "AntFall": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
@@ -114,7 +115,7 @@ ENV_ATTRIBUTES = {
     },
 
     "AntGather": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
@@ -127,7 +128,7 @@ ENV_ATTRIBUTES = {
     },
 
     "AntFourRooms": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
@@ -159,7 +160,7 @@ ENV_ATTRIBUTES = {
     # UR5 and Pendulum environments.                                          #
     # ======================================================================= #
     "UR5": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
             high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
             dtype=np.float32,
@@ -181,7 +182,7 @@ ENV_ATTRIBUTES = {
     },
 
     "Pendulum": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-np.pi, -15]),
             high=np.array([np.pi, 15]),
             dtype=np.float32
@@ -203,7 +204,7 @@ ENV_ATTRIBUTES = {
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
     "ring0": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(1,),
@@ -257,7 +258,7 @@ ENV_ATTRIBUTES = {
     },
 
     "figureeight0": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(1,),
@@ -279,7 +280,7 @@ ENV_ATTRIBUTES = {
     },
 
     "figureeight1": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(7,),
@@ -301,7 +302,7 @@ ENV_ATTRIBUTES = {
     },
 
     "figureeight2": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(14,),
@@ -323,7 +324,7 @@ ENV_ATTRIBUTES = {
     },
 
     "merge0": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(5,),
@@ -345,7 +346,7 @@ ENV_ATTRIBUTES = {
     },
 
     "merge1": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(13,),
@@ -367,7 +368,7 @@ ENV_ATTRIBUTES = {
     },
 
     "merge2": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(17,),
@@ -392,7 +393,7 @@ ENV_ATTRIBUTES = {
     # Bipedal environments.                                                   #
     # ======================================================================= #
     "BipedalSoccer": {
-        "manager_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals: Box(
             low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
             high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
@@ -405,12 +406,12 @@ ENV_ATTRIBUTES = {
 }
 
 
-def get_manager_ac_space(ob_space,
-                         relative_goals,
-                         env_name,
-                         use_fingerprints,
-                         fingerprint_dim):
-    """Compute the action space for the Manager.
+def get_meta_ac_space(ob_space,
+                      relative_goals,
+                      env_name,
+                      use_fingerprints,
+                      fingerprint_dim):
+    """Compute the action space for the higher level policies.
 
     If the fingerprint terms are being appended onto the observations, this
     should be removed from the action space.
@@ -420,11 +421,12 @@ def get_manager_ac_space(ob_space,
     ob_space : gym.spaces.*
         the observation space of the environment
     relative_goals : bool
-        specifies whether the goal issued by the Manager is meant to be a
-        relative or absolute goal, i.e. specific state or change in state
+        specifies whether the goal issued by the meta-level policy is meant to
+        be a relative or absolute goal, i.e. specific state or change in state
     env_name : str
         the name of the environment. Used for special cases to assign the
-        Manager action space to only ego observations in the observation space.
+        meta-level policies' action space to only ego observations in the
+        observation space.
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
@@ -434,27 +436,27 @@ def get_manager_ac_space(ob_space,
     Returns
     -------
     gym.spaces.Box
-        the action space of the Manager policy
+        the action space of the higher level policy
     """
     if env_name in ENV_ATTRIBUTES.keys():
-        manager_ac_space = ENV_ATTRIBUTES[env_name]["manager_ac_space"](
+        meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
             relative_goals)
     else:
         if use_fingerprints:
             low = np.array(ob_space.low)[:-fingerprint_dim[0]]
             high = ob_space.high[:-fingerprint_dim[0]]
-            manager_ac_space = Box(low=low, high=high, dtype=np.float32)
+            meta_ac_space = Box(low=low, high=high, dtype=np.float32)
         else:
-            manager_ac_space = ob_space
+            meta_ac_space = ob_space
 
-    return manager_ac_space
+    return meta_ac_space
 
 
 def get_state_indices(ob_space,
                       env_name,
                       use_fingerprints,
                       fingerprint_dim):
-    """Return the state indices for the worker rewards.
+    """Return the state indices for the intrinsic rewards.
 
     This assigns the indices of the state that are assigned goals, and
     subsequently rewarded for performing those goals.
@@ -465,7 +467,8 @@ def get_state_indices(ob_space,
         the observation space of the environment
     env_name : str
         the name of the environment. Used for special cases to assign the
-        Manager action space to only ego observations in the observation space.
+        meta-level policies' action space to only ego observations in the
+        observation space.
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
