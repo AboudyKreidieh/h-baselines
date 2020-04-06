@@ -55,8 +55,8 @@ class TestTrain(unittest.TestCase):
             'layer_norm': False,
             'use_huber': False,
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'worker_reward_scale':
-                GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
+            'intrinsic_reward_scale':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'hindsight': False,
@@ -102,7 +102,7 @@ class TestTrain(unittest.TestCase):
             '--layer_norm',
             '--use_huber',
             '--meta_period', '23',
-            '--worker_reward_scale', '24',
+            '--intrinsic_reward_scale', '24',
             '--relative_goals',
             '--off_policy_corrections',
             '--hindsight',
@@ -139,7 +139,7 @@ class TestTrain(unittest.TestCase):
                 'layer_norm': True,
                 'use_huber': True,
                 'meta_period': 23,
-                'worker_reward_scale': 24.0,
+                'intrinsic_reward_scale': 24.0,
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'hindsight': True,

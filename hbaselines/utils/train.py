@@ -54,7 +54,7 @@ def get_hyperparameters(args, policy):
     if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
             "meta_period": args.meta_period,
-            "worker_reward_scale": args.worker_reward_scale,
+            "intrinsic_reward_scale": args.intrinsic_reward_scale,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
             "hindsight": args.hindsight,
@@ -272,10 +272,10 @@ def create_goal_conditioned_parser(parser):
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
         help="manger action period")
     parser.add_argument(
-        "--worker_reward_scale",
+        "--intrinsic_reward_scale",
         type=float,
-        default=GOAL_CONDITIONED_PARAMS["worker_reward_scale"],
-        help="the value the intrinsic (Worker) reward should be scaled by")
+        default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_scale"],
+        help="the value that the intrinsic reward should be scaled by")
     parser.add_argument(
         "--relative_goals",
         action="store_true",

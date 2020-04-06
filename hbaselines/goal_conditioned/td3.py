@@ -39,7 +39,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  act_fun,
                  use_huber,
                  meta_period,
-                 worker_reward_scale,
+                 intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
                  hindsight,
@@ -98,7 +98,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             used instead
         meta_period : int
             manger action period
-        worker_reward_scale : float
+        intrinsic_reward_scale : float
             the value the intrinsic (Worker) reward should be scaled by
         relative_goals : bool
             specifies whether the goal issued by the Manager is meant to be a
@@ -145,7 +145,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             act_fun=act_fun,
             use_huber=use_huber,
             meta_period=meta_period,
-            worker_reward_scale=worker_reward_scale,
+            intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,

@@ -601,10 +601,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # unchanged sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
 
         # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
 
         # check the meta action
@@ -616,7 +616,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
@@ -626,7 +626,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
 
         # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
         # Clear the graph.
@@ -670,7 +670,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # unchanged sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
@@ -680,12 +680,12 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
 
         # check the worker rewards
-        for _, rew, in enumerate(reversed(worker_rewards)):
+        for _, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
 
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
@@ -695,7 +695,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
 
         # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
     def test_meta_period(self):
@@ -724,7 +724,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy = TD3GoalConditionedPolicy(**self.policy_params)
 
         self.assertAlmostEqual(
-            policy.worker_reward_fn(
+            policy.intrinsic_reward_fn(
                 states=np.array([1, 2]),
                 goals=np.array([3, 2]),
                 next_states=np.array([0, 0])
@@ -747,7 +747,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         goals = np.array([4, 5])
         next_states = np.array([7, 8])
         self.assertAlmostEqual(
-            policy.worker_reward_fn(states, goals, next_states),
+            policy.intrinsic_reward_fn(states, goals, next_states),
             -2.2360679775221506
         )
 

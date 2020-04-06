@@ -277,11 +277,12 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         self.assertTupleEqual(alg.policy_tf.worker.ob_space.shape, (4,))
         self.assertTupleEqual(alg.policy_tf.worker.co_space.shape, (2,))
 
-        # Test worker_reward method within the policy.
+        # Test intrinsic_reward method within the policy.
         self.assertAlmostEqual(
-            alg.policy_tf.worker_reward_fn(states=np.array([1, 2, 3]),
-                                           goals=np.array([0, 0]),
-                                           next_states=np.array([1, 2, 3])),
+            alg.policy_tf.intrinsic_reward_fn(
+                states=np.array([1, 2, 3]),
+                goals=np.array([0, 0]),
+                next_states=np.array([1, 2, 3])),
             -np.sqrt(1**2 + 2**2)
         )
 
