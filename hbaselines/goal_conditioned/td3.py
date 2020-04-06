@@ -273,7 +273,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         # Index relevant variables based on self.goal_indices
         meta_obs0 = self.crop_to_goal(self.policy[0].obs_ph)
         meta_obs1 = self.crop_to_goal(self.policy[0].obs1_ph)

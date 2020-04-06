@@ -95,8 +95,8 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     meta_period=10,
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,
-    # specifies whether the goal issued by the Manager is meant to be a
-    # relative or absolute goal, i.e. specific state or change in state
+    # specifies whether the goal issued by the higher-level policies is meant
+    # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
     # whether to use off-policy corrections during the update procedure. See:
     # https://arxiv.org/abs/1805.08296
@@ -119,8 +119,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # the low and high values for each fingerprint element, if they are being
     # used
     fingerprint_range=([0, 0], [5, 5]),
-    # specifies whether to use centralized value functions for the Manager and
-    # Worker critic functions
+    # specifies whether to use centralized value functions
     centralized_value_functions=False,
 ))
 

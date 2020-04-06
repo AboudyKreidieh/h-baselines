@@ -21,12 +21,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     current state and the assigned goals and attempts to perform an action
     a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
 
-    The Manager is rewarded based on the original environment reward function:
-    r_H = r(s,a;h).
+    The highest level policy is rewarded based on the original environment
+    reward function: r_H = r(s,a;h).
 
-    The Target term, h, parameterizes the reward assigned to the Manager in
-    order to allow the policy to generalize to several goals within a task, a
-    technique that was first proposed by [4].
+    The Target term, h, parametrizes the reward assigned to the highest level
+    policy in order to allow the policy to generalize to several goals within a
+    task, a technique that was first proposed by [4].
 
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
@@ -192,9 +192,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         centralized_value_functions : bool
             specifies whether to use centralized value functions
         meta_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
-            the policy model to use for the Manager
+            the policy model to use for the meta policies
         worker_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
-            the policy model to use for the Worker
+            the policy model to use for the worker policy
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
@@ -379,7 +379,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
 
-        This is done both at the level of the Manager and Worker policies.
+        This is done both at every level of the hierarchy.
 
         The kwargs argument for this method contains two additional terms:
 
@@ -389,9 +389,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
           for the meta-policy. Note that, if `update_meta` is set to False,
           this term is void.
 
-        **Note**; The target update soft updates for both the manager and the
-        worker policies occur at the same frequency as their respective actor
-        update frequencies.
+        **Note**; The target update soft updates for all policies occur at the
+        same frequency as their respective actor update frequencies.
 
         Parameters
         ----------
@@ -536,11 +535,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self._contexts.append(context1)
 
             # Some temporary attributes.
-            worker_obses = None  # TODO
+            worker_obses = [
+                self._get_obs(self._observations[i], self._actions[0][i], 0)
+                for i in range(len(self._observations))]
             worker_actions = self._actions[-1]
             intrinsic_rewards = self._rewards[-1]
-            meta_obs0 = None  # TODO
-            meta_obs1 = None  # TODO
+            meta_obs0 = self._get_obs(
+                self._observations[0], self._contexts[0], 0)
+            meta_obs1 = self._get_obs(
+                self._observations[-1], self._contexts[-1], 0)
             meta_action = self._actions[0][0]
             meta_reward = self._rewards[0][0]
 
@@ -850,7 +853,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         raise NotImplementedError
 
     def _connected_gradients_update(self,
