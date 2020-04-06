@@ -159,7 +159,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------

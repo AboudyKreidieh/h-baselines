@@ -301,34 +301,23 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             worker_ac_dim=ac_space.shape[0],
         )
 
-        # previous observation by the Manager
-        self.prev_meta_obs = None
+        # current action by the meta-level policies
+        self._meta_action = [None for _ in range(2)]
 
-        # current action by the Manager
-        self.meta_action = None
+        # a list of all the actions performed by each level in the hierarchy,
+        # ordered from highest to lowest level policy
+        self._actions = None
 
-        # current meta reward, counting as the cumulative environment reward
-        # during the meta period
-        self.meta_reward = None
+        # a list of the rewards (intrinsic or other) experienced by every level
+        # in the hierarchy, ordered from highest to lowest level policy
+        self._rewards = None
 
-        # Use this to store a list of observations that stretch as long as the
-        # dilated horizon chosen for the Manager. These observations correspond
-        # to the s(t) in the HIRO paper.
-        self._observations = []
-
-        # Use this to store the list of environmental actions that the worker
-        # takes. These actions correspond to the a(t) in the HIRO paper.
-        self._worker_actions = []
-
-        # rewards provided by the policy to the worker
-        self._intrinsic_rewards = []
+        # a list of observations that stretch as long as the dilated horizon
+        # chosen for the highest level policy
+        self._observations = None
 
         # done masks at every time step for the worker
-        self._dones = []
-
-        # actions performed by the manager during a given meta period. Used by
-        # the replay buffer.
-        self._meta_actions = []
+        self._dones = None
 
         # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(
@@ -378,7 +367,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         for i in range(2):
             self.policy[i].initialize()
-        self.meta_reward = 0
+        self.clear_memory()
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
@@ -477,61 +466,61 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
-        if self._update_meta:
-            # Update the meta action based on the output from the policy if the
-            # time period requires is.
-            self.meta_action = self.policy[0].get_action(
-                obs, context, apply_noise, random_actions)
-        else:
-            # Update the meta-action in accordance with the fixed transition
-            # function.
-            self.meta_action = self.goal_transition_fn(
-                obs0=np.asarray([self._observations[-1][self.goal_indices]]),
-                goal=self.meta_action,
-                obs1=obs[:, self.goal_indices]
-            )
+        # Loop through the policies in the hierarchy.
+        for i in range(2 - 1):
+            if self._update_meta:
+                # Update the meta action based on the output from the policy if
+                # the time period requires is.
+                self._meta_action[i] = self.policy[0].get_action(
+                    obs, context, apply_noise, random_actions)
+            else:
+                # Update the meta-action in accordance with a fixed transition
+                # function.
+                self._meta_action[i] = self.goal_transition_fn(
+                    obs0=np.array([self._observations[-1][self.goal_indices]]),
+                    goal=self._meta_action,
+                    obs1=obs[:, self.goal_indices]
+                )
 
         # Return the action to be performed within the environment (i.e. the
         # action by the lowest level policy).
         action = self.policy[-1].get_action(
-            obs, self.meta_action, apply_noise, random_actions)
+            obs, self._meta_action[-1], apply_noise, random_actions)
 
         return action
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
         """See parent class."""
-        # Compute the intrinsic reward and append it to the list of rewards.
-        self._intrinsic_rewards.append(
-            self.intrinsic_reward_scale *
-            self.intrinsic_reward_fn(obs0, self.meta_action.flatten(), obs1)
+        # Compute the intrinsic rewards and append them to the list of rewards.
+        self._rewards[-1].append(
+            self.intrinsic_reward_scale * self.intrinsic_reward_fn(
+                states=obs0,
+                goals=self._meta_action[0].flatten(),
+                next_states=obs1
+            )
         )
 
-        # Add the environmental observations and done masks, and the manager
-        # and worker actions to their respective lists.
+        # The highest level policy receives the sum of environmental rewards.
+        self._rewards[0] += reward
+
+        # Add the actions for each level in the hierarchy.
         self._worker_actions.append(action)
         self._meta_actions.append(self.meta_action.flatten())
-        self._observations.append(self._get_obs(obs0, self.meta_action, 0))
 
-        # Modify the done mask in accordance with the TD3 algorithm. Done
-        # masks that correspond to the final step are set to False.
+        # Add the environmental observations and contextual terms to their
+        # respective lists.
+        self._observations.append(obs0)
+        pass  # TODO: context
+
+        # Modify the done mask in accordance with the TD3 algorithm. Done masks
+        # that correspond to the final step are set to False.
         self._dones.append(done and not is_final_step)
 
-        # Increment the meta reward with the most recent reward.
-        self.meta_reward += reward
-
-        # Modify the previous meta observation whenever the action has changed.
-        if len(self._observations) == 1:
-            self.prev_meta_obs = self._get_obs(obs0, context0, 0)
-
         # Add a sample to the replay buffer.
-        if len(self._observations) == self.meta_period or done:
+        if len(self._observations) == self.meta_period ** (2 - 1) or done:
             # Add the last observation.
-            self._observations.append(self._get_obs(obs1, self.meta_action, 0))
-
-            # Add the contextual observation to the most recent environmental
-            # observation, if applicable.
-            meta_obs1 = self._get_obs(obs1, context1, 0)
+            self._observations.append(obs1)
 
             # Avoid storing samples when performing evaluations.
             if not evaluate:
@@ -551,9 +540,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 if self.hindsight:
                     # Implement hindsight action and goal transitions.
                     goal, obs, rewards = self._hindsight_actions_goals(
-                        meta_action=self.meta_action,
+                        meta_action=self._meta_action[0],
                         initial_observations=self._observations,
-                        initial_rewards=self._intrinsic_rewards
+                        initial_rewards=self._rewards[-1]
                     )
 
                     # Store the hindsight sample in the replay buffer.
@@ -567,8 +556,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         meta_reward_t=self.meta_reward,
                     )
 
-            # Clear the intrinsic rewards and actions, and the environmental
-            # observation and reward.
+            # Clear the memory that has been stored in the replay buffer.
             self.clear_memory()
 
     @property
@@ -582,17 +570,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return len(self._observations) == 0
 
     def clear_memory(self):
-        """Clear internal memory that is used by the replay buffer.
-
-        By clearing memory, the Manager policy is then informed during the
-        `get_action` procedure to update the meta-action.
-        """
-        self.meta_reward = 0
+        """Clear internal memory that is used by the replay buffer."""
+        self._actions = [[] for _ in range(2)]
+        self._rewards = [[] for _ in range(2)]
         self._observations = []
-        self._worker_actions = []
-        self._intrinsic_rewards = []
         self._dones = []
-        self._meta_actions = []
 
     def get_td_map(self):
         """See parent class."""
@@ -742,7 +724,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return samples
 
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------
