@@ -913,7 +913,7 @@ class OffPolicyRLAlgorithm(object):
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
 
-                eval_action, _ = self._policy(
+                eval_action = self._policy(
                     eval_obs, context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
