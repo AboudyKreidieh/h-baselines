@@ -1326,7 +1326,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.sess.run(step_ops, feed_dict)
                 critic_loss[key] = [q1_loss, q2_loss]
 
-        return critic_loss, actor_loss  # FIXME: add vf_loss
+        return critic_loss, actor_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
