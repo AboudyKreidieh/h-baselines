@@ -596,15 +596,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return action
 
-    def value(self, obs, context, action):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        return self.sess.run(
-            self.critic_tf,
-            feed_dict={self.obs_ph: obs, self.action_ph: action})
-
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
         """See parent class."""

@@ -611,22 +611,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 self.deterministic_action, feed_dict={self.obs_ph: obs})
             return self._ac_magnitudes * normalized_action + self._ac_means
 
-    def value(self, obs, context, action):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        # Normalize the actions (bounded between [-1, 1]).
-        action = (action - self._ac_means) / self._ac_magnitudes
-
-        return self.sess.run(
-            [self.qf1, self.qf2],  # , self.value_fn],  FIXME
-            feed_dict={
-                self.obs_ph: obs,
-                self.action_ph: action
-            }
-        )
-
     def _setup_critic_optimizer(self, scope):
         """Create minimization operation for critic Q-function.
 

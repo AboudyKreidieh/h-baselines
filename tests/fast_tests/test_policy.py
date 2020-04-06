@@ -68,8 +68,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertRaises(NotImplementedError, policy.get_action,
                           obs=None, context=None, apply_noise=None,
                           random_actions=None)
-        self.assertRaises(NotImplementedError, policy.value,
-                          obs=None, context=None, action=None)
         self.assertRaises(NotImplementedError, policy.store_transition,
                           obs0=None, context0=None, action=None, reward=None,
                           obs1=None, context1=None, done=None,
