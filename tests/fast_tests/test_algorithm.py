@@ -15,8 +15,8 @@ from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
-class TestTD3(unittest.TestCase):
-    """Test the components of the TD3 algorithm."""
+class TestOffPolicyRLAlgorithm(unittest.TestCase):
+    """Test the components of the OffPolicyRLAlgorithm algorithm."""
 
     def setUp(self):
         self.env = 'MountainCarContinuous-v0'
