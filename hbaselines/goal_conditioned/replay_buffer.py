@@ -78,7 +78,7 @@ class HierReplayBuffer(ReplayBuffer):
         goal_t : array_like
             the meta action
         reward_t : list of float
-            list of all worker rewards for a given meta period
+            list of all intrinsic rewards for a given meta period
         done : list of float or list of bool
             list of done masks
         kwargs : Any
@@ -134,7 +134,7 @@ class HierReplayBuffer(ReplayBuffer):
         numpy.ndarray
             (batch_size, worker_ac) matrix of worker actions
         numpy.ndarray
-            (batch_size,) vector of worker rewards
+            (batch_size,) vector of intrinsic rewards
         numpy.ndarray
             (batch_size,) vector of worker done masks
         dict

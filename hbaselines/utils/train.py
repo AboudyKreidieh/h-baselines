@@ -279,9 +279,9 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--relative_goals",
         action="store_true",
-        help="specifies whether the goal issued by the Manager is meant to be "
-             "a relative or absolute goal, i.e. specific state or change in "
-             "state")
+        help="specifies whether the goal issued by the higher-level policies "
+             "is meant to be a relative or absolute goal, i.e. specific state "
+             "or change in state")
     parser.add_argument(
         "--off_policy_corrections",
         action="store_true",
@@ -307,21 +307,20 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--centralized_value_functions",
         action="store_true",
-        help="specifies whether to use centralized value functions for the "
-             "Manager and Worker critic functions")
+        help="specifies whether to use centralized value functions")
     parser.add_argument(
         "--connected_gradients",
         action="store_true",
         help="whether to use the connected gradient update actor update "
-             "procedure to the Manager policy. See: "
+             "procedure to the higher-level policy. See: "
              "https://arxiv.org/abs/1912.02368v1")
     parser.add_argument(
         "--cg_weights",
         type=float,
         default=GOAL_CONDITIONED_PARAMS["cg_weights"],
-        help="weights for the gradients of the loss of the worker with "
-             "respect to the parameters of the manager. Only used if "
-             "`connected_gradients` is set to True.")
+        help="weights for the gradients of the loss of the lower-level "
+             "policies with respect to the parameters of the higher-level "
+             "policies. Only used if `connected_gradients` is set to True.")
 
     return parser
 

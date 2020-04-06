@@ -108,11 +108,10 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
     # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
+    # the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
-    # weights for the gradients of the loss of the worker with respect to the
-    # parameters of the manager. Only used if `connected_gradients` is set to
-    # True.
+    # whether to use the connected gradient update actor update procedure to
+    # the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
     cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
@@ -148,7 +147,7 @@ class OffPolicyRLAlgorithm(object):
     policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
-        name of the environment. Affects the action bounds of the Manager
+        name of the environment. Affects the action bounds of the higher level
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
@@ -506,13 +505,13 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        obs0 : list of float or list of int
+        obs0 : array_like
             the last observation
-        action : list of float or np.ndarray
+        action : array_like
             the action
         reward : float
             the reward
-        obs1 : list fo float or list of int
+        obs1 : array_like
             the current observation
         terminal1 : bool
             is the episode done

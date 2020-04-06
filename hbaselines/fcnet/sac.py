@@ -537,13 +537,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : np.ndarray
+        obs0 : array_like
             batch of observations
-        actions : numpy float
+        actions : array_like
             batch of actions executed given obs_batch
-        rewards : numpy float
+        rewards : array_like
             rewards received as results of executing act_batch
-        obs1 : np.ndarray
+        obs1 : array_like
             next set of observations seen after executing act_batch
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of

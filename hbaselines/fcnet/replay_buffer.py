@@ -98,13 +98,13 @@ class ReplayBuffer(object):
 
         Returns
         -------
-        np.ndarray
+        array_like
             batch of observations
-        numpy float
+        array_like
             batch of actions executed given obs_batch
-        numpy float
+        array_like
             rewards received as results of executing act_batch
-        np.ndarray
+        array_like
             next set of observations seen after executing act_batch
         numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
