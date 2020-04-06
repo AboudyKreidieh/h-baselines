@@ -324,10 +324,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(
-            ob_space,
-            env_name,
-            use_fingerprints,
-            self.fingerprint_dim
+            ob_space=ob_space,
+            env_name=env_name,
+            use_fingerprints=use_fingerprints,
+            fingerprint_dim=self.fingerprint_dim
         )
 
         # Define the intrinsic reward function.
