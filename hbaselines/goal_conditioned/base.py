@@ -608,7 +608,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         td_map = {}
         td_map.update(self.policy[0].get_td_map_from_batch(
             meta_obs0, meta_act, meta_rew, meta_obs1, meta_done))
-        td_map.update(self.policy[1].get_td_map_from_batch(
+        td_map.update(self.policy[-1].get_td_map_from_batch(
             worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
 
         return td_map

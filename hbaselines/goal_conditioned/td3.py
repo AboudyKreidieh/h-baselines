@@ -285,7 +285,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             goal = meta_obs0 + self.policy[0].actor_tf - meta_obs1
         else:
             # Goal is the direct output from the meta policy in this case.
-            goal = self.policy[-1].actor_tf
+            goal = self.policy[0].actor_tf
 
         # concatenate the output from the manager with the worker policy.
         obs_shape = self.policy[-1].ob_space.shape[0]
