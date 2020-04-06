@@ -245,26 +245,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
 
-        # Get the Manager's action space.
-        manager_ac_space = get_manager_ac_space(
+        # Get the observation and action space of the higher level policies.
+        meta_ac_space = get_manager_ac_space(
             ob_space, relative_goals, env_name,
             use_fingerprints, self.fingerprint_dim)
-
-        # Manager observation size
         meta_ob_dim = self._get_ob_dim(ob_space, co_space)
 
-        # Create the replay buffer.
-        self.replay_buffer = HierReplayBuffer(
-            buffer_size=int(buffer_size/meta_period),
-            batch_size=batch_size,
-            meta_period=meta_period,
-            meta_obs_dim=meta_ob_dim[0],
-            meta_ac_dim=manager_ac_space.shape[0],
-            worker_obs_dim=ob_space.shape[0] + manager_ac_space.shape[0],
-            worker_ac_dim=ac_space.shape[0],
-        )
-
-        # Collect the state indices for the worker rewards.
+        # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(
             ob_space, env_name, use_fingerprints, self.fingerprint_dim)
 
@@ -276,43 +263,61 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             batch_dims=1, axis=1)
 
         # =================================================================== #
-        # Part 1. Setup the Manager                                           #
+        # Step 1: Create the policies for the individual levels.              #
         # =================================================================== #
 
-        # Create the Manager policy. FIXME
-        with tf.compat.v1.variable_scope("Manager"):
-            self.manager = meta_policy(
-                sess=sess,
-                ob_space=ob_space,
-                ac_space=manager_ac_space,
-                co_space=co_space,
-                buffer_size=buffer_size,
-                batch_size=batch_size,
-                actor_lr=actor_lr,
-                critic_lr=critic_lr,
-                verbose=verbose,
-                tau=tau,
-                gamma=gamma,
-                layer_norm=layer_norm,
-                layers=layers,
-                act_fun=act_fun,
-                use_huber=use_huber,
-                scope="Manager",
-                zero_fingerprint=False,
-                fingerprint_dim=self.fingerprint_dim[0],
-                **(additional_params or {}),
-            )
+        self.policy = []
 
-        # a fixed goal transition function for the meta-actions in between meta
-        # periods. This is used when relative_goals is set to True in order to
-        # maintain a fixed absolute position of the goal.
-        if relative_goals:
-            def goal_transition_fn(obs0, goal, obs1):
-                return obs0 + goal - obs1
-        else:
-            def goal_transition_fn(obs0, goal, obs1):
-                return goal
-        self.goal_transition_fn = goal_transition_fn
+        # The policies are ordered from the highest level to lowest level
+        # policies in the hierarchy.
+        for i in range(num_levels):
+            # Determine the appropriate parameters to use for the policy in the
+            # current level.
+            policy_fn = meta_policy if i < (num_levels - 1) else worker_policy
+            ac_space_i = meta_ac_space if i < (num_levels - 1) else ac_space
+            co_space_i = co_space if i == 0 else meta_ac_space
+            ob_space_i = ob_space
+            zero_fingerprint_i = i == (num_levels - 1)
+
+            # The policies are ordered from the highest level to lowest level
+            # policies in the hierarchy.
+            with tf.compat.v1.variable_scope("level_{}".format(i)):
+                self.manager = policy_fn(
+                    sess=sess,
+                    ob_space=ob_space_i,
+                    ac_space=ac_space_i,
+                    co_space=co_space_i,
+                    buffer_size=buffer_size,
+                    batch_size=batch_size,
+                    actor_lr=actor_lr,
+                    critic_lr=critic_lr,
+                    verbose=verbose,
+                    tau=tau,
+                    gamma=gamma,
+                    layer_norm=layer_norm,
+                    layers=layers,
+                    act_fun=act_fun,
+                    use_huber=use_huber,
+                    scope="Manager",
+                    zero_fingerprint=zero_fingerprint_i,
+                    fingerprint_dim=self.fingerprint_dim[0],
+                    **(additional_params or {}),
+                )
+
+        # =================================================================== #
+        # Step 2: Create attributes for the replay buffer.                    #
+        # =================================================================== #
+
+        # Create the replay buffer.
+        self.replay_buffer = HierReplayBuffer(
+            buffer_size=int(buffer_size/meta_period),
+            batch_size=batch_size,
+            meta_period=meta_period,
+            meta_obs_dim=meta_ob_dim[0],
+            meta_ac_dim=meta_ac_space.shape[0],
+            worker_obs_dim=ob_space.shape[0] + meta_ac_space.shape[0],
+            worker_ac_dim=ac_space.shape[0],
+        )
 
         # previous observation by the Manager FIXME
         self.prev_meta_obs = None
@@ -343,36 +348,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # the replay buffer. FIXME
         self._meta_actions = []
 
-        # =================================================================== #
-        # Part 2. Setup the Worker                                            #
-        # =================================================================== #
-
-        # Create the Worker policy. FIXME
-        with tf.compat.v1.variable_scope("Worker"):
-            self.worker = worker_policy(
-                sess,
-                ob_space=ob_space,
-                ac_space=ac_space,
-                co_space=manager_ac_space,
-                buffer_size=buffer_size,
-                batch_size=batch_size,
-                actor_lr=actor_lr,
-                critic_lr=critic_lr,
-                verbose=verbose,
-                tau=tau,
-                gamma=gamma,
-                layer_norm=layer_norm,
-                layers=layers,
-                act_fun=act_fun,
-                use_huber=use_huber,
-                scope="Worker",
-                zero_fingerprint=self.use_fingerprints,
-                fingerprint_dim=self.fingerprint_dim[0],
-                **(additional_params or {}),
-            )
-
-        # reward function for the worker FIXME
-        def worker_reward_fn(states, goals, next_states):
+        # Create the intrinsic reward function.
+        def intrinsic_reward_fn(states, goals, next_states):
             return negative_distance(
                 states=states,
                 state_indices=self.goal_indices,
@@ -381,18 +358,34 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 relative_context=relative_goals,
                 offset=0.0
             )
-        self.worker_reward_fn = worker_reward_fn
+        self.intrinsic_reward_fn = intrinsic_reward_fn
 
-        if self.connected_gradients:  # FIXME
+        # =================================================================== #
+        # Step 3: Create algorithm-specific features.                         #
+        # =================================================================== #
+
+        # a fixed goal transition function for the meta-actions in between meta
+        # periods. This is used when relative_goals is set to True in order to
+        # maintain a fixed absolute position of the goal.
+        if relative_goals:
+            def goal_transition_fn(obs0, goal, obs1):
+                return obs0 + goal - obs1
+        else:
+            def goal_transition_fn(obs0, goal, obs1):
+                return goal
+        self.goal_transition_fn = goal_transition_fn
+
+        if self.connected_gradients:
             self._setup_connected_gradients()
 
     def initialize(self):
         """See parent class.
 
-        This method calls the initialization methods of the manager and worker.
+        This method calls the initialization methods of the policies at every
+        level of the hierarchy.
         """
-        self.manager.initialize()  # FIXME
-        self.worker.initialize()  # FIXME
+        for i in range(self.num_levels):
+            self.policy[i].initialize()
         self.meta_reward = 0  # FIXME
 
     def update(self, update_actor=True, **kwargs):
@@ -492,35 +485,26 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
-        if self._update_meta:
-            # Update the meta action based on the output from the policy if the
-            # time period requires is.
-            self.meta_action = self.manager.get_action(
-                obs, context, apply_noise, random_actions)
-        else:
-            # Update the meta-action in accordance with the fixed transition
-            # function.
-            self.meta_action = self.goal_transition_fn(
-                obs0=np.asarray([self._observations[-1][self.goal_indices]]),
-                goal=self.meta_action,
-                obs1=obs[:, self.goal_indices]
-            )
+        for i in range(self.num_levels - 1):
+            if self._update_meta(i):
+                # Update the meta action based on the output from the policy if
+                # the time period requires is.
+                self.meta_action = self.manager.get_action(
+                    obs, context, apply_noise, random_actions)
+            else:
+                # Update the meta-action based on the goal transition function.
+                self.meta_action[i] = self.goal_transition_fn(
+                    obs0=np.array([self._observations[-1][self.goal_indices]]),
+                    goal=self.meta_action,
+                    obs1=obs[:, self.goal_indices]
+                )
 
-        # Return the worker action.
-        worker_action = self.worker.get_action(
-            obs, self.meta_action, apply_noise, random_actions)
+        # Return the action to be performed within the environment (i.e. the
+        # action by the lowest level policy).
+        action = self.policy[-1].get_action(
+            obs, self.meta_action[-1], apply_noise, random_actions)
 
-        return worker_action
-
-    def value(self, obs, context, action):
-        """See parent class.
-
-        In this case we return a tuple of the Manager and Worker rewards,
-        respectively.
-        """
-        meta_value = self.manager.value(obs, context, self.meta_action)
-        worker_value = self.worker.value(obs, self.meta_action, action)
-        return meta_value, worker_value
+        return action
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
@@ -595,15 +579,26 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # observation and reward.
             self.clear_memory()
 
-    @property
-    def _update_meta(self):
+    def _update_meta(self, level):
         """Return True if the meta-action should be updated by the policy.
 
+        FIXME: description
         This is done by checking the length of the observation lists that are
         passed to the replay buffer, which are cleared whenever the meta-period
         has been met or the environment has been reset.
+
+        Parameters
+        ----------
+        level : int
+            the level of the policy
+
+        Returns
+        -------
+        bool
+            True if the action should be updated by the meta-policy at the
+            given level.
         """
-        return len(self._observations) == 0
+        return len(self._observations) == 0  # FIXME
 
     def clear_memory(self):
         """Clear internal memory that is used by the replay buffer.
