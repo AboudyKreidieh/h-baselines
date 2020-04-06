@@ -420,7 +420,6 @@ class OffPolicyRLAlgorithm(object):
 
             # for tensorboard logging
             with tf.compat.v1.variable_scope("Train"):
-                # FIXME: need to be dictionary
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
 
@@ -805,7 +804,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Update the current observation.
             self.obs = new_obs.copy()
-            self.all_obs = new_all_obs  # FIXME: copy?
+            self.all_obs = new_all_obs
 
             if done:
                 # Episode done.
@@ -956,7 +955,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
-                eval_all_obs = all_obs  # FIXME: copy?
+                eval_all_obs = all_obs
 
                 # Add the fingerprint term, if needed.
                 eval_obs = self._add_fingerprint(
