@@ -110,8 +110,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # whether to use the connected gradient update actor update procedure to
     # the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
-    # whether to use the connected gradient update actor update procedure to
-    # the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+    # weights for the gradients of the loss of the lower-level policies with
+    # respect to the parameters of the higher-level policies. Only used if
+    # `connected_gradients` is set to True.
     cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
