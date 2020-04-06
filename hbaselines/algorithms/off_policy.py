@@ -342,7 +342,7 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = getattr(
                  self.env, "all_observation_space",
-                Box(-1, 1, (1,), dtype=np.float32))
+                 Box(-1, 1, (1,), dtype=np.float32))
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
