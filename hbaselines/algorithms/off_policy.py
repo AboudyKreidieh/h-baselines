@@ -93,8 +93,8 @@ GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
-    # the value the intrinsic (Worker) reward should be scaled by
-    worker_reward_scale=1,
+    # the value that the intrinsic reward should be scaled by
+    intrinsic_reward_scale=1,
     # specifies whether the goal issued by the Manager is meant to be a
     # relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -108,11 +108,11 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
     # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
+    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
-    # weights for the gradients of the loss of the worker with respect to the
-    # parameters of the manager. Only used if `connected_gradients` is set to
-    # True.
+    # weights for the gradients of the loss of the lower-level policies with
+    # respect to the parameters of the higher-level policies. Only used if
+    # `connected_gradients` is set to True.
     cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
@@ -148,7 +148,7 @@ class OffPolicyRLAlgorithm(object):
     policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
-        name of the environment. Affects the action bounds of the Manager
+        name of the environment. Affects the action bounds of the higher-level
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
@@ -420,7 +420,6 @@ class OffPolicyRLAlgorithm(object):
 
             # for tensorboard logging
             with tf.compat.v1.variable_scope("Train"):
-                # FIXME: need to be dictionary
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
 
@@ -507,13 +506,13 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        obs0 : list of float or list of int
+        obs0 : array_like
             the last observation
-        action : list of float or np.ndarray
+        action : array_like
             the action
         reward : float
             the reward
-        obs1 : list fo float or list of int
+        obs1 : array_like
             the current observation
         terminal1 : bool
             is the episode done
@@ -805,7 +804,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Update the current observation.
             self.obs = new_obs.copy()
-            self.all_obs = new_all_obs  # FIXME: copy?
+            self.all_obs = new_all_obs
 
             if done:
                 # Episode done.
@@ -914,7 +913,7 @@ class OffPolicyRLAlgorithm(object):
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
 
-                eval_action, _ = self._policy(
+                eval_action = self._policy(
                     eval_obs, context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
@@ -956,7 +955,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
-                eval_all_obs = all_obs  # FIXME: copy?
+                eval_all_obs = all_obs
 
                 # Add the fingerprint term, if needed.
                 eval_obs = self._add_fingerprint(

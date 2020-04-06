@@ -68,8 +68,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertRaises(NotImplementedError, policy.get_action,
                           obs=None, context=None, apply_noise=None,
                           random_actions=None)
-        self.assertRaises(NotImplementedError, policy.value,
-                          obs=None, context=None, action=None)
         self.assertRaises(NotImplementedError, policy.store_transition,
                           obs0=None, context0=None, action=None, reward=None,
                           obs1=None, context1=None, done=None,
@@ -603,10 +601,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # unchanged sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
 
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        # check the intrinsic rewards
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
 
         # check the meta action
@@ -618,7 +616,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
@@ -627,8 +625,8 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         for obs in worker_obses:
             np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
 
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        # check the intrinsic rewards
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
         # Clear the graph.
@@ -672,7 +670,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # unchanged sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[0]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
@@ -681,13 +679,13 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         for obs in worker_obses:
             np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
 
-        # check the worker rewards
-        for _, rew, in enumerate(reversed(worker_rewards)):
+        # check the intrinsic rewards
+        for _, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
 
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            worker_rewards, worker_dones = policy.replay_buffer._storage[1]
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
 
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
@@ -696,12 +694,12 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         for i, obs, in enumerate(reversed(worker_obses)):
             np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
 
-        # check the worker rewards
-        for i, rew, in enumerate(reversed(worker_rewards)):
+        # check the intrinsic rewards
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
     def test_meta_period(self):
-        """Verify that the rate of the Manager is dictated by meta_period."""
+        """Verify the functionality of the meta_period feature."""
         # Test for a meta period of 5.
         policy_params = self.policy_params.copy()
         policy_params['meta_period'] = 5
@@ -726,7 +724,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy = TD3GoalConditionedPolicy(**self.policy_params)
 
         self.assertAlmostEqual(
-            policy.worker_reward_fn(
+            policy.intrinsic_reward_fn(
                 states=np.array([1, 2]),
                 goals=np.array([3, 2]),
                 next_states=np.array([0, 0])
@@ -737,8 +735,8 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
     def test_relative_goals(self):
         """Validate the functionality of relative goals.
 
-        This should affect the worker reward function as well as transformation
-        from relative goals to absolute goals.
+        This should affect the intrinsic reward function as well as
+        transformation from relative goals to absolute goals.
         """
         policy_params = self.policy_params.copy()
         policy_params["relative_goals"] = True
@@ -749,7 +747,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         goals = np.array([4, 5])
         next_states = np.array([7, 8])
         self.assertAlmostEqual(
-            policy.worker_reward_fn(states, goals, next_states),
+            policy.intrinsic_reward_fn(states, goals, next_states),
             -2.2360679775221506
         )
 
@@ -857,78 +855,78 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
         # TensorFlow graph.
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['Manager/model/pi/fc0/bias:0',
-             'Manager/model/pi/fc0/kernel:0',
-             'Manager/model/pi/fc1/bias:0',
-             'Manager/model/pi/fc1/kernel:0',
-             'Manager/model/pi/output/bias:0',
-             'Manager/model/pi/output/kernel:0',
-             'Manager/model/qf_0/fc0/bias:0',
-             'Manager/model/qf_0/fc0/kernel:0',
-             'Manager/model/qf_0/fc1/bias:0',
-             'Manager/model/qf_0/fc1/kernel:0',
-             'Manager/model/qf_0/qf_output/bias:0',
-             'Manager/model/qf_0/qf_output/kernel:0',
-             'Manager/model/qf_1/fc0/bias:0',
-             'Manager/model/qf_1/fc0/kernel:0',
-             'Manager/model/qf_1/fc1/bias:0',
-             'Manager/model/qf_1/fc1/kernel:0',
-             'Manager/model/qf_1/qf_output/bias:0',
-             'Manager/model/qf_1/qf_output/kernel:0',
-             'Manager/target/pi/fc0/bias:0',
-             'Manager/target/pi/fc0/kernel:0',
-             'Manager/target/pi/fc1/bias:0',
-             'Manager/target/pi/fc1/kernel:0',
-             'Manager/target/pi/output/bias:0',
-             'Manager/target/pi/output/kernel:0',
-             'Manager/target/qf_0/fc0/bias:0',
-             'Manager/target/qf_0/fc0/kernel:0',
-             'Manager/target/qf_0/fc1/bias:0',
-             'Manager/target/qf_0/fc1/kernel:0',
-             'Manager/target/qf_0/qf_output/bias:0',
-             'Manager/target/qf_0/qf_output/kernel:0',
-             'Manager/target/qf_1/fc0/bias:0',
-             'Manager/target/qf_1/fc0/kernel:0',
-             'Manager/target/qf_1/fc1/bias:0',
-             'Manager/target/qf_1/fc1/kernel:0',
-             'Manager/target/qf_1/qf_output/bias:0',
-             'Manager/target/qf_1/qf_output/kernel:0',
-             'Worker/model/pi/fc0/bias:0',
-             'Worker/model/pi/fc0/kernel:0',
-             'Worker/model/pi/fc1/bias:0',
-             'Worker/model/pi/fc1/kernel:0',
-             'Worker/model/pi/output/bias:0',
-             'Worker/model/pi/output/kernel:0',
-             'Worker/model/qf_0/fc0/bias:0',
-             'Worker/model/qf_0/fc0/kernel:0',
-             'Worker/model/qf_0/fc1/bias:0',
-             'Worker/model/qf_0/fc1/kernel:0',
-             'Worker/model/qf_0/qf_output/bias:0',
-             'Worker/model/qf_0/qf_output/kernel:0',
-             'Worker/model/qf_1/fc0/bias:0',
-             'Worker/model/qf_1/fc0/kernel:0',
-             'Worker/model/qf_1/fc1/bias:0',
-             'Worker/model/qf_1/fc1/kernel:0',
-             'Worker/model/qf_1/qf_output/bias:0',
-             'Worker/model/qf_1/qf_output/kernel:0',
-             'Worker/target/pi/fc0/bias:0',
-             'Worker/target/pi/fc0/kernel:0',
-             'Worker/target/pi/fc1/bias:0',
-             'Worker/target/pi/fc1/kernel:0',
-             'Worker/target/pi/output/bias:0',
-             'Worker/target/pi/output/kernel:0',
-             'Worker/target/qf_0/fc0/bias:0',
-             'Worker/target/qf_0/fc0/kernel:0',
-             'Worker/target/qf_0/fc1/bias:0',
-             'Worker/target/qf_0/fc1/kernel:0',
-             'Worker/target/qf_0/qf_output/bias:0',
-             'Worker/target/qf_0/qf_output/kernel:0',
-             'Worker/target/qf_1/fc0/bias:0',
-             'Worker/target/qf_1/fc0/kernel:0',
-             'Worker/target/qf_1/fc1/bias:0',
-             'Worker/target/qf_1/fc1/kernel:0',
-             'Worker/target/qf_1/qf_output/bias:0',
-             'Worker/target/qf_1/qf_output/kernel:0']
+            ['level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/output/bias:0',
+             'level_0/model/pi/output/kernel:0',
+             'level_0/model/qf_0/fc0/bias:0',
+             'level_0/model/qf_0/fc0/kernel:0',
+             'level_0/model/qf_0/fc1/bias:0',
+             'level_0/model/qf_0/fc1/kernel:0',
+             'level_0/model/qf_0/qf_output/bias:0',
+             'level_0/model/qf_0/qf_output/kernel:0',
+             'level_0/model/qf_1/fc0/bias:0',
+             'level_0/model/qf_1/fc0/kernel:0',
+             'level_0/model/qf_1/fc1/bias:0',
+             'level_0/model/qf_1/fc1/kernel:0',
+             'level_0/model/qf_1/qf_output/bias:0',
+             'level_0/model/qf_1/qf_output/kernel:0',
+             'level_0/target/pi/fc0/bias:0',
+             'level_0/target/pi/fc0/kernel:0',
+             'level_0/target/pi/fc1/bias:0',
+             'level_0/target/pi/fc1/kernel:0',
+             'level_0/target/pi/output/bias:0',
+             'level_0/target/pi/output/kernel:0',
+             'level_0/target/qf_0/fc0/bias:0',
+             'level_0/target/qf_0/fc0/kernel:0',
+             'level_0/target/qf_0/fc1/bias:0',
+             'level_0/target/qf_0/fc1/kernel:0',
+             'level_0/target/qf_0/qf_output/bias:0',
+             'level_0/target/qf_0/qf_output/kernel:0',
+             'level_0/target/qf_1/fc0/bias:0',
+             'level_0/target/qf_1/fc0/kernel:0',
+             'level_0/target/qf_1/fc1/bias:0',
+             'level_0/target/qf_1/fc1/kernel:0',
+             'level_0/target/qf_1/qf_output/bias:0',
+             'level_0/target/qf_1/qf_output/kernel:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/output/bias:0',
+             'level_1/model/pi/output/kernel:0',
+             'level_1/model/qf_0/fc0/bias:0',
+             'level_1/model/qf_0/fc0/kernel:0',
+             'level_1/model/qf_0/fc1/bias:0',
+             'level_1/model/qf_0/fc1/kernel:0',
+             'level_1/model/qf_0/qf_output/bias:0',
+             'level_1/model/qf_0/qf_output/kernel:0',
+             'level_1/model/qf_1/fc0/bias:0',
+             'level_1/model/qf_1/fc0/kernel:0',
+             'level_1/model/qf_1/fc1/bias:0',
+             'level_1/model/qf_1/fc1/kernel:0',
+             'level_1/model/qf_1/qf_output/bias:0',
+             'level_1/model/qf_1/qf_output/kernel:0',
+             'level_1/target/pi/fc0/bias:0',
+             'level_1/target/pi/fc0/kernel:0',
+             'level_1/target/pi/fc1/bias:0',
+             'level_1/target/pi/fc1/kernel:0',
+             'level_1/target/pi/output/bias:0',
+             'level_1/target/pi/output/kernel:0',
+             'level_1/target/qf_0/fc0/bias:0',
+             'level_1/target/qf_0/fc0/kernel:0',
+             'level_1/target/qf_0/fc1/bias:0',
+             'level_1/target/qf_0/fc1/kernel:0',
+             'level_1/target/qf_0/qf_output/bias:0',
+             'level_1/target/qf_0/qf_output/kernel:0',
+             'level_1/target/qf_1/fc0/bias:0',
+             'level_1/target/qf_1/fc0/kernel:0',
+             'level_1/target/qf_1/fc1/bias:0',
+             'level_1/target/qf_1/fc1/kernel:0',
+             'level_1/target/qf_1/qf_output/bias:0',
+             'level_1/target/qf_1/qf_output/kernel:0']
         )
 
     def test_initialize(self):
@@ -946,83 +944,83 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
         policy.initialize()
 
         model_var_list = [
-            'Manager/model/pi/fc0/bias:0',
-            'Manager/model/pi/fc0/kernel:0',
-            'Manager/model/pi/fc1/bias:0',
-            'Manager/model/pi/fc1/kernel:0',
-            'Manager/model/pi/output/bias:0',
-            'Manager/model/pi/output/kernel:0',
-            'Manager/model/qf_0/fc0/bias:0',
-            'Manager/model/qf_0/fc0/kernel:0',
-            'Manager/model/qf_0/fc1/bias:0',
-            'Manager/model/qf_0/fc1/kernel:0',
-            'Manager/model/qf_0/qf_output/bias:0',
-            'Manager/model/qf_0/qf_output/kernel:0',
-            'Manager/model/qf_1/fc0/bias:0',
-            'Manager/model/qf_1/fc0/kernel:0',
-            'Manager/model/qf_1/fc1/bias:0',
-            'Manager/model/qf_1/fc1/kernel:0',
-            'Manager/model/qf_1/qf_output/bias:0',
-            'Manager/model/qf_1/qf_output/kernel:0',
+            'level_0/model/pi/fc0/bias:0',
+            'level_0/model/pi/fc0/kernel:0',
+            'level_0/model/pi/fc1/bias:0',
+            'level_0/model/pi/fc1/kernel:0',
+            'level_0/model/pi/output/bias:0',
+            'level_0/model/pi/output/kernel:0',
+            'level_0/model/qf_0/fc0/bias:0',
+            'level_0/model/qf_0/fc0/kernel:0',
+            'level_0/model/qf_0/fc1/bias:0',
+            'level_0/model/qf_0/fc1/kernel:0',
+            'level_0/model/qf_0/qf_output/bias:0',
+            'level_0/model/qf_0/qf_output/kernel:0',
+            'level_0/model/qf_1/fc0/bias:0',
+            'level_0/model/qf_1/fc0/kernel:0',
+            'level_0/model/qf_1/fc1/bias:0',
+            'level_0/model/qf_1/fc1/kernel:0',
+            'level_0/model/qf_1/qf_output/bias:0',
+            'level_0/model/qf_1/qf_output/kernel:0',
 
-            'Worker/model/pi/fc0/bias:0',
-            'Worker/model/pi/fc0/kernel:0',
-            'Worker/model/pi/fc1/bias:0',
-            'Worker/model/pi/fc1/kernel:0',
-            'Worker/model/pi/output/bias:0',
-            'Worker/model/pi/output/kernel:0',
-            'Worker/model/qf_0/fc0/bias:0',
-            'Worker/model/qf_0/fc0/kernel:0',
-            'Worker/model/qf_0/fc1/bias:0',
-            'Worker/model/qf_0/fc1/kernel:0',
-            'Worker/model/qf_0/qf_output/bias:0',
-            'Worker/model/qf_0/qf_output/kernel:0',
-            'Worker/model/qf_1/fc0/bias:0',
-            'Worker/model/qf_1/fc0/kernel:0',
-            'Worker/model/qf_1/fc1/bias:0',
-            'Worker/model/qf_1/fc1/kernel:0',
-            'Worker/model/qf_1/qf_output/bias:0',
-            'Worker/model/qf_1/qf_output/kernel:0',
+            'level_1/model/pi/fc0/bias:0',
+            'level_1/model/pi/fc0/kernel:0',
+            'level_1/model/pi/fc1/bias:0',
+            'level_1/model/pi/fc1/kernel:0',
+            'level_1/model/pi/output/bias:0',
+            'level_1/model/pi/output/kernel:0',
+            'level_1/model/qf_0/fc0/bias:0',
+            'level_1/model/qf_0/fc0/kernel:0',
+            'level_1/model/qf_0/fc1/bias:0',
+            'level_1/model/qf_0/fc1/kernel:0',
+            'level_1/model/qf_0/qf_output/bias:0',
+            'level_1/model/qf_0/qf_output/kernel:0',
+            'level_1/model/qf_1/fc0/bias:0',
+            'level_1/model/qf_1/fc0/kernel:0',
+            'level_1/model/qf_1/fc1/bias:0',
+            'level_1/model/qf_1/fc1/kernel:0',
+            'level_1/model/qf_1/qf_output/bias:0',
+            'level_1/model/qf_1/qf_output/kernel:0',
         ]
 
         target_var_list = [
-            'Manager/target/pi/fc0/bias:0',
-            'Manager/target/pi/fc0/kernel:0',
-            'Manager/target/pi/fc1/bias:0',
-            'Manager/target/pi/fc1/kernel:0',
-            'Manager/target/pi/output/bias:0',
-            'Manager/target/pi/output/kernel:0',
-            'Manager/target/qf_0/fc0/bias:0',
-            'Manager/target/qf_0/fc0/kernel:0',
-            'Manager/target/qf_0/fc1/bias:0',
-            'Manager/target/qf_0/fc1/kernel:0',
-            'Manager/target/qf_0/qf_output/bias:0',
-            'Manager/target/qf_0/qf_output/kernel:0',
-            'Manager/target/qf_1/fc0/bias:0',
-            'Manager/target/qf_1/fc0/kernel:0',
-            'Manager/target/qf_1/fc1/bias:0',
-            'Manager/target/qf_1/fc1/kernel:0',
-            'Manager/target/qf_1/qf_output/bias:0',
-            'Manager/target/qf_1/qf_output/kernel:0',
+            'level_0/target/pi/fc0/bias:0',
+            'level_0/target/pi/fc0/kernel:0',
+            'level_0/target/pi/fc1/bias:0',
+            'level_0/target/pi/fc1/kernel:0',
+            'level_0/target/pi/output/bias:0',
+            'level_0/target/pi/output/kernel:0',
+            'level_0/target/qf_0/fc0/bias:0',
+            'level_0/target/qf_0/fc0/kernel:0',
+            'level_0/target/qf_0/fc1/bias:0',
+            'level_0/target/qf_0/fc1/kernel:0',
+            'level_0/target/qf_0/qf_output/bias:0',
+            'level_0/target/qf_0/qf_output/kernel:0',
+            'level_0/target/qf_1/fc0/bias:0',
+            'level_0/target/qf_1/fc0/kernel:0',
+            'level_0/target/qf_1/fc1/bias:0',
+            'level_0/target/qf_1/fc1/kernel:0',
+            'level_0/target/qf_1/qf_output/bias:0',
+            'level_0/target/qf_1/qf_output/kernel:0',
 
-            'Worker/target/pi/fc0/bias:0',
-            'Worker/target/pi/fc0/kernel:0',
-            'Worker/target/pi/fc1/bias:0',
-            'Worker/target/pi/fc1/kernel:0',
-            'Worker/target/pi/output/bias:0',
-            'Worker/target/pi/output/kernel:0',
-            'Worker/target/qf_0/fc0/bias:0',
-            'Worker/target/qf_0/fc0/kernel:0',
-            'Worker/target/qf_0/fc1/bias:0',
-            'Worker/target/qf_0/fc1/kernel:0',
-            'Worker/target/qf_0/qf_output/bias:0',
-            'Worker/target/qf_0/qf_output/kernel:0',
-            'Worker/target/qf_1/fc0/bias:0',
-            'Worker/target/qf_1/fc0/kernel:0',
-            'Worker/target/qf_1/fc1/bias:0',
-            'Worker/target/qf_1/fc1/kernel:0',
-            'Worker/target/qf_1/qf_output/bias:0',
-            'Worker/target/qf_1/qf_output/kernel:0'
+            'level_1/target/pi/fc0/bias:0',
+            'level_1/target/pi/fc0/kernel:0',
+            'level_1/target/pi/fc1/bias:0',
+            'level_1/target/pi/fc1/kernel:0',
+            'level_1/target/pi/output/bias:0',
+            'level_1/target/pi/output/kernel:0',
+            'level_1/target/qf_0/fc0/bias:0',
+            'level_1/target/qf_0/fc0/kernel:0',
+            'level_1/target/qf_0/fc1/bias:0',
+            'level_1/target/qf_0/fc1/kernel:0',
+            'level_1/target/qf_0/qf_output/bias:0',
+            'level_1/target/qf_0/qf_output/kernel:0',
+            'level_1/target/qf_1/fc0/bias:0',
+            'level_1/target/qf_1/fc0/kernel:0',
+            'level_1/target/qf_1/fc1/bias:0',
+            'level_1/target/qf_1/fc1/kernel:0',
+            'level_1/target/qf_1/qf_output/bias:0',
+            'level_1/target/qf_1/qf_output/kernel:0'
         ]
 
         for model, target in zip(model_var_list, target_var_list):
@@ -1085,72 +1083,72 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
 
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['Manager/model/log_alpha:0',
-             'Manager/model/pi/fc0/bias:0',
-             'Manager/model/pi/fc0/kernel:0',
-             'Manager/model/pi/fc1/bias:0',
-             'Manager/model/pi/fc1/kernel:0',
-             'Manager/model/pi/log_std/bias:0',
-             'Manager/model/pi/log_std/kernel:0',
-             'Manager/model/pi/mean/bias:0',
-             'Manager/model/pi/mean/kernel:0',
-             'Manager/model/value_fns/qf1/fc0/bias:0',
-             'Manager/model/value_fns/qf1/fc0/kernel:0',
-             'Manager/model/value_fns/qf1/fc1/bias:0',
-             'Manager/model/value_fns/qf1/fc1/kernel:0',
-             'Manager/model/value_fns/qf1/qf_output/bias:0',
-             'Manager/model/value_fns/qf1/qf_output/kernel:0',
-             'Manager/model/value_fns/qf2/fc0/bias:0',
-             'Manager/model/value_fns/qf2/fc0/kernel:0',
-             'Manager/model/value_fns/qf2/fc1/bias:0',
-             'Manager/model/value_fns/qf2/fc1/kernel:0',
-             'Manager/model/value_fns/qf2/qf_output/bias:0',
-             'Manager/model/value_fns/qf2/qf_output/kernel:0',
-             'Manager/model/value_fns/vf/fc0/bias:0',
-             'Manager/model/value_fns/vf/fc0/kernel:0',
-             'Manager/model/value_fns/vf/fc1/bias:0',
-             'Manager/model/value_fns/vf/fc1/kernel:0',
-             'Manager/model/value_fns/vf/vf_output/bias:0',
-             'Manager/model/value_fns/vf/vf_output/kernel:0',
-             'Manager/target/value_fns/vf/fc0/bias:0',
-             'Manager/target/value_fns/vf/fc0/kernel:0',
-             'Manager/target/value_fns/vf/fc1/bias:0',
-             'Manager/target/value_fns/vf/fc1/kernel:0',
-             'Manager/target/value_fns/vf/vf_output/bias:0',
-             'Manager/target/value_fns/vf/vf_output/kernel:0',
-             'Worker/model/log_alpha:0',
-             'Worker/model/pi/fc0/bias:0',
-             'Worker/model/pi/fc0/kernel:0',
-             'Worker/model/pi/fc1/bias:0',
-             'Worker/model/pi/fc1/kernel:0',
-             'Worker/model/pi/log_std/bias:0',
-             'Worker/model/pi/log_std/kernel:0',
-             'Worker/model/pi/mean/bias:0',
-             'Worker/model/pi/mean/kernel:0',
-             'Worker/model/value_fns/qf1/fc0/bias:0',
-             'Worker/model/value_fns/qf1/fc0/kernel:0',
-             'Worker/model/value_fns/qf1/fc1/bias:0',
-             'Worker/model/value_fns/qf1/fc1/kernel:0',
-             'Worker/model/value_fns/qf1/qf_output/bias:0',
-             'Worker/model/value_fns/qf1/qf_output/kernel:0',
-             'Worker/model/value_fns/qf2/fc0/bias:0',
-             'Worker/model/value_fns/qf2/fc0/kernel:0',
-             'Worker/model/value_fns/qf2/fc1/bias:0',
-             'Worker/model/value_fns/qf2/fc1/kernel:0',
-             'Worker/model/value_fns/qf2/qf_output/bias:0',
-             'Worker/model/value_fns/qf2/qf_output/kernel:0',
-             'Worker/model/value_fns/vf/fc0/bias:0',
-             'Worker/model/value_fns/vf/fc0/kernel:0',
-             'Worker/model/value_fns/vf/fc1/bias:0',
-             'Worker/model/value_fns/vf/fc1/kernel:0',
-             'Worker/model/value_fns/vf/vf_output/bias:0',
-             'Worker/model/value_fns/vf/vf_output/kernel:0',
-             'Worker/target/value_fns/vf/fc0/bias:0',
-             'Worker/target/value_fns/vf/fc0/kernel:0',
-             'Worker/target/value_fns/vf/fc1/bias:0',
-             'Worker/target/value_fns/vf/fc1/kernel:0',
-             'Worker/target/value_fns/vf/vf_output/bias:0',
-             'Worker/target/value_fns/vf/vf_output/kernel:0',
+            ['level_0/model/log_alpha:0',
+             'level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/log_std/bias:0',
+             'level_0/model/pi/log_std/kernel:0',
+             'level_0/model/pi/mean/bias:0',
+             'level_0/model/pi/mean/kernel:0',
+             'level_0/model/value_fns/qf1/fc0/bias:0',
+             'level_0/model/value_fns/qf1/fc0/kernel:0',
+             'level_0/model/value_fns/qf1/fc1/bias:0',
+             'level_0/model/value_fns/qf1/fc1/kernel:0',
+             'level_0/model/value_fns/qf1/qf_output/bias:0',
+             'level_0/model/value_fns/qf1/qf_output/kernel:0',
+             'level_0/model/value_fns/qf2/fc0/bias:0',
+             'level_0/model/value_fns/qf2/fc0/kernel:0',
+             'level_0/model/value_fns/qf2/fc1/bias:0',
+             'level_0/model/value_fns/qf2/fc1/kernel:0',
+             'level_0/model/value_fns/qf2/qf_output/bias:0',
+             'level_0/model/value_fns/qf2/qf_output/kernel:0',
+             'level_0/model/value_fns/vf/fc0/bias:0',
+             'level_0/model/value_fns/vf/fc0/kernel:0',
+             'level_0/model/value_fns/vf/fc1/bias:0',
+             'level_0/model/value_fns/vf/fc1/kernel:0',
+             'level_0/model/value_fns/vf/vf_output/bias:0',
+             'level_0/model/value_fns/vf/vf_output/kernel:0',
+             'level_0/target/value_fns/vf/fc0/bias:0',
+             'level_0/target/value_fns/vf/fc0/kernel:0',
+             'level_0/target/value_fns/vf/fc1/bias:0',
+             'level_0/target/value_fns/vf/fc1/kernel:0',
+             'level_0/target/value_fns/vf/vf_output/bias:0',
+             'level_0/target/value_fns/vf/vf_output/kernel:0',
+             'level_1/model/log_alpha:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/log_std/bias:0',
+             'level_1/model/pi/log_std/kernel:0',
+             'level_1/model/pi/mean/bias:0',
+             'level_1/model/pi/mean/kernel:0',
+             'level_1/model/value_fns/qf1/fc0/bias:0',
+             'level_1/model/value_fns/qf1/fc0/kernel:0',
+             'level_1/model/value_fns/qf1/fc1/bias:0',
+             'level_1/model/value_fns/qf1/fc1/kernel:0',
+             'level_1/model/value_fns/qf1/qf_output/bias:0',
+             'level_1/model/value_fns/qf1/qf_output/kernel:0',
+             'level_1/model/value_fns/qf2/fc0/bias:0',
+             'level_1/model/value_fns/qf2/fc0/kernel:0',
+             'level_1/model/value_fns/qf2/fc1/bias:0',
+             'level_1/model/value_fns/qf2/fc1/kernel:0',
+             'level_1/model/value_fns/qf2/qf_output/bias:0',
+             'level_1/model/value_fns/qf2/qf_output/kernel:0',
+             'level_1/model/value_fns/vf/fc0/bias:0',
+             'level_1/model/value_fns/vf/fc0/kernel:0',
+             'level_1/model/value_fns/vf/fc1/bias:0',
+             'level_1/model/value_fns/vf/fc1/kernel:0',
+             'level_1/model/value_fns/vf/vf_output/bias:0',
+             'level_1/model/value_fns/vf/vf_output/kernel:0',
+             'level_1/target/value_fns/vf/fc0/bias:0',
+             'level_1/target/value_fns/vf/fc0/kernel:0',
+             'level_1/target/value_fns/vf/fc1/bias:0',
+             'level_1/target/value_fns/vf/fc1/kernel:0',
+             'level_1/target/value_fns/vf/vf_output/bias:0',
+             'level_1/target/value_fns/vf/vf_output/kernel:0',
              ]
         )
 
@@ -1169,35 +1167,35 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         policy.initialize()
 
         model_var_list = [
-            'Manager/model/value_fns/vf/fc0/kernel:0',
-            'Manager/model/value_fns/vf/fc0/bias:0',
-            'Manager/model/value_fns/vf/fc1/kernel:0',
-            'Manager/model/value_fns/vf/fc1/bias:0',
-            'Manager/model/value_fns/vf/vf_output/kernel:0',
-            'Manager/model/value_fns/vf/vf_output/bias:0',
+            'level_0/model/value_fns/vf/fc0/kernel:0',
+            'level_0/model/value_fns/vf/fc0/bias:0',
+            'level_0/model/value_fns/vf/fc1/kernel:0',
+            'level_0/model/value_fns/vf/fc1/bias:0',
+            'level_0/model/value_fns/vf/vf_output/kernel:0',
+            'level_0/model/value_fns/vf/vf_output/bias:0',
 
-            'Worker/model/value_fns/vf/fc0/kernel:0',
-            'Worker/model/value_fns/vf/fc0/bias:0',
-            'Worker/model/value_fns/vf/fc1/kernel:0',
-            'Worker/model/value_fns/vf/fc1/bias:0',
-            'Worker/model/value_fns/vf/vf_output/kernel:0',
-            'Worker/model/value_fns/vf/vf_output/bias:0',
+            'level_1/model/value_fns/vf/fc0/kernel:0',
+            'level_1/model/value_fns/vf/fc0/bias:0',
+            'level_1/model/value_fns/vf/fc1/kernel:0',
+            'level_1/model/value_fns/vf/fc1/bias:0',
+            'level_1/model/value_fns/vf/vf_output/kernel:0',
+            'level_1/model/value_fns/vf/vf_output/bias:0',
         ]
 
         target_var_list = [
-            'Manager/target/value_fns/vf/fc0/kernel:0',
-            'Manager/target/value_fns/vf/fc0/bias:0',
-            'Manager/target/value_fns/vf/fc1/kernel:0',
-            'Manager/target/value_fns/vf/fc1/bias:0',
-            'Manager/target/value_fns/vf/vf_output/kernel:0',
-            'Manager/target/value_fns/vf/vf_output/bias:0',
+            'level_0/target/value_fns/vf/fc0/kernel:0',
+            'level_0/target/value_fns/vf/fc0/bias:0',
+            'level_0/target/value_fns/vf/fc1/kernel:0',
+            'level_0/target/value_fns/vf/fc1/bias:0',
+            'level_0/target/value_fns/vf/vf_output/kernel:0',
+            'level_0/target/value_fns/vf/vf_output/bias:0',
 
-            'Worker/target/value_fns/vf/fc0/kernel:0',
-            'Worker/target/value_fns/vf/fc0/bias:0',
-            'Worker/target/value_fns/vf/fc1/kernel:0',
-            'Worker/target/value_fns/vf/fc1/bias:0',
-            'Worker/target/value_fns/vf/vf_output/kernel:0',
-            'Worker/target/value_fns/vf/vf_output/bias:0',
+            'level_1/target/value_fns/vf/fc0/kernel:0',
+            'level_1/target/value_fns/vf/fc0/bias:0',
+            'level_1/target/value_fns/vf/fc1/kernel:0',
+            'level_1/target/value_fns/vf/fc1/bias:0',
+            'level_1/target/value_fns/vf/vf_output/kernel:0',
+            'level_1/target/value_fns/vf/vf_output/bias:0',
         ]
 
         for model, target in zip(model_var_list, target_var_list):

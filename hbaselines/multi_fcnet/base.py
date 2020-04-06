@@ -294,34 +294,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             return self._get_action_basic(
                 obs, context, apply_noise, random_actions)
 
-    def value(self, obs, context, action):
-        """Call the critic methods to compute the value.
-
-        Parameters
-        ----------
-        obs : array_like or dict < str, array_like >
-            the observations of the individual agents. In the case of
-            centralized value functions, this should be the full state
-            information.
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        action : dict < str, array_like >
-            the actions performed in the given observation for the individual
-            agents
-
-        Returns
-        -------
-        dict < str, array_like >
-            computed value by the centralized critic if centralized value
-            functions are being used; otherwise the value associated with the
-            observation of the individual agents
-        """
-        if self.maddpg:
-            return self._value_maddpg(obs, context, action)
-        else:
-            return self._value_basic(obs, context, action)
-
     def store_transition(self,
                          obs0,
                          context0,
@@ -477,24 +449,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return actions
 
-    def _value_basic(self, obs, context, action):
-        """See value."""
-        values = {}
-
-        for key in obs.keys():
-            # Use the same policy for all operations if shared, and the
-            # corresponding policy otherwise.
-            agent = self.agents["policy"] if self.shared else self.agents[key]
-
-            # Get the contextual term. This accounts for cases when the context
-            # is set to None.
-            context_i = context if context is None else context[key]
-
-            # Compute the value of the provided observation.
-            values[key] = agent.value(obs[key], context_i, action[key])
-
-        return values
-
     def _store_transition_basic(self,
                                 obs0,
                                 context0,
@@ -565,10 +519,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
-        raise NotImplementedError
-
-    def _value_maddpg(self, obs, context, action):
-        """See value."""
         raise NotImplementedError
 
     def _store_transition_maddpg(self,

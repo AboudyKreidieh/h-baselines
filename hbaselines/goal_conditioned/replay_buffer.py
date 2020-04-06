@@ -78,7 +78,7 @@ class HierReplayBuffer(ReplayBuffer):
         goal_t : array_like
             the meta action
         reward_t : list of float
-            list of all worker rewards for a given meta period
+            list of all intrinsic rewards for a given meta period
         done : list of float or list of bool
             list of done masks
         kwargs : Any
@@ -134,7 +134,7 @@ class HierReplayBuffer(ReplayBuffer):
         numpy.ndarray
             (batch_size, worker_ac) matrix of worker actions
         numpy.ndarray
-            (batch_size,) vector of worker rewards
+            (batch_size,) vector of intrinsic rewards
         numpy.ndarray
             (batch_size,) vector of worker done masks
         dict
@@ -159,7 +159,7 @@ class HierReplayBuffer(ReplayBuffer):
         for i, indx in enumerate(idxes):
             # Extract the elements of the sample.
             meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                worker_rewards, worker_dones = self._storage[indx]
+                intrinsic_rewards, worker_dones = self._storage[indx]
 
             # Separate the current and next step meta observations.
             meta_obs0, meta_obs1 = meta_obs
@@ -173,7 +173,7 @@ class HierReplayBuffer(ReplayBuffer):
             worker_obs0 = worker_obses[indx_val]
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
-            worker_reward = worker_rewards[indx_val]
+            intrinsic_reward = intrinsic_rewards[indx_val]
             worker_done = 0  # see docstring
 
             # Add the new sample to the list of returned samples.
@@ -185,7 +185,7 @@ class HierReplayBuffer(ReplayBuffer):
             self.worker_obs0[i, :] = np.array(worker_obs0, copy=False)
             self.worker_obs1[i, :] = np.array(worker_obs1, copy=False)
             self.worker_act[i, :] = np.array(worker_action, copy=False)
-            self.worker_rew[i] = np.array(worker_reward, copy=False)
+            self.worker_rew[i] = np.array(intrinsic_reward, copy=False)
             self.worker_done[i] = np.array(worker_done, copy=False)
 
             if kwargs.get("with_additional", True):

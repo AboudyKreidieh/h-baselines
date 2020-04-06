@@ -1326,7 +1326,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.sess.run(step_ops, feed_dict)
                 critic_loss[key] = [q1_loss, q2_loss]
 
-        return critic_loss, actor_loss  # FIXME: add vf_loss
+        return critic_loss, actor_loss
 
     def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
         """See get_action."""
@@ -1374,48 +1374,6 @@ class MultiFeedForwardPolicy(BasePolicy):
                 actions[key] = ac_mag * normalized_action + ac_mean
 
         return actions
-
-    def _value_maddpg(self, obs, context, action):
-        """See value."""
-        for key in sorted(list(action.keys())):
-            # Get the scaling terms for the actions.
-            ac_mag = self._ac_mag if self.shared else self._ac_mag[key]
-            ac_mean = self._ac_mean if self.shared else self._ac_mean[key]
-
-            # Normalize the action (bounded between [-1, 1]).
-            action[key] = (action[key] - ac_mean) / ac_mag
-
-        # Combine all actions under one variable. This is done by order of
-        # agent IDs in alphabetical order.
-        # FIXME: this could cause problems in the merge.
-        all_actions = np.concatenate(
-            [action[key] for key in sorted(list(action.keys()))], axis=1)
-
-        if self.shared:
-            # Compute the shared value.
-            value_all = self.sess.run(
-                [self.qf1, self.qf2],  # , self.value_fn],  FIXME
-                feed_dict={
-                    self.all_obs_ph: obs,
-                    self.all_action_ph: all_actions
-                }
-            )
-
-            # Distribute across all agents.
-            value = {key: value_all for key in action.keys()}
-        else:
-            # Loop through all agent.
-            value = {}
-            for key in action.keys():
-                value[key] = self.sess.run(
-                    [self.qf1[key], self.qf2[key]],  # , self.value_fn],  FIXME
-                    feed_dict={
-                        self.all_obs_ph[key]: obs,
-                        self.all_action_ph[key]: all_actions
-                    }
-                )
-
-        return value
 
     def _store_transition_maddpg(self,
                                  obs0,
