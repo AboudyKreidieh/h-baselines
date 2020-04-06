@@ -302,7 +302,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # current action by the meta-level policies
-        self._meta_action = [None for _ in range(2)]
+        self._meta_action = [None for _ in range(2 - 1)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy
@@ -316,12 +316,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # chosen for the highest level policy
         self._observations = None
 
+        # the first and last contextual term
+        self._contexts = None
+
         # done masks at every time step for the worker
         self._dones = None
 
         # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(
-            ob_space, env_name, use_fingerprints, self.fingerprint_dim)
+            ob_space,
+            env_name,
+            use_fingerprints,
+            self.fingerprint_dim
+        )
 
         # Define the intrinsic reward function.
         def intrinsic_reward_fn(states, goals, next_states):
@@ -377,7 +384,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         The kwargs argument for this method contains two additional terms:
 
         * update_meta (bool): specifies whether to perform a gradient update
-          step for the meta-policy (i.e. Manager)
+          step for the meta-policies
         * update_meta_actor (bool): similar to the `update_policy` term, but
           for the meta-policy. Note that, if `update_meta` is set to False,
           this term is void.
@@ -492,6 +499,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
         """See parent class."""
+        # the time since the most recent sample began collecting step samples
+        t_start = len(self._observations)
+
         # Compute the intrinsic rewards and append them to the list of rewards.
         self._rewards[-1].append(
             self.intrinsic_reward_scale * self.intrinsic_reward_fn(
@@ -502,16 +512,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # The highest level policy receives the sum of environmental rewards.
-        self._rewards[0] += reward
+        self._rewards[0][0] += reward
 
         # Add the actions for each level in the hierarchy.
-        self._worker_actions.append(action)
-        self._meta_actions.append(self.meta_action.flatten())
+        for i in range(2 - 1):
+            self._actions[i].append(self._meta_action[i].flatten())
+        self._actions[-1].append(action)
 
         # Add the environmental observations and contextual terms to their
         # respective lists.
         self._observations.append(obs0)
-        pass  # TODO: context
+        if t_start == 0:
+            self._contexts.append(context0)
 
         # Modify the done mask in accordance with the TD3 algorithm. Done masks
         # that correspond to the final step are set to False.
@@ -519,8 +531,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Add a sample to the replay buffer.
         if len(self._observations) == self.meta_period ** (2 - 1) or done:
-            # Add the last observation.
+            # Add the last observation and context.
             self._observations.append(obs1)
+            self._contexts.append(context1)
+
+            # Some temporary attributes.
+            worker_obses = None  # TODO
+            worker_actions = self._actions[-1]
+            intrinsic_rewards = self._rewards[-1]
+            meta_obs0 = None  # TODO
+            meta_obs1 = None  # TODO
+            meta_action = self._actions[0][0]
+            meta_reward = self._rewards[0][0]
 
             # Avoid storing samples when performing evaluations.
             if not evaluate:
@@ -528,32 +550,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         or random.random() < self.subgoal_testing_rate:
                     # Store a sample in the replay buffer.
                     self.replay_buffer.add(
-                        obs_t=self._observations,
-                        goal_t=self._meta_actions[0],
-                        action_t=self._worker_actions,
-                        reward_t=self._intrinsic_rewards,
+                        obs_t=worker_obses,
+                        goal_t=meta_action,
+                        action_t=worker_actions,
+                        reward_t=intrinsic_rewards,
                         done=self._dones,
-                        meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                        meta_reward_t=self.meta_reward,
+                        meta_obs_t=(meta_obs0, meta_obs1),
+                        meta_reward_t=meta_reward,
                     )
 
                 if self.hindsight:
                     # Implement hindsight action and goal transitions.
                     goal, obs, rewards = self._hindsight_actions_goals(
-                        meta_action=self._meta_action[0],
-                        initial_observations=self._observations,
-                        initial_rewards=self._rewards[-1]
+                        meta_action=meta_action,
+                        initial_observations=worker_obses,
+                        initial_rewards=intrinsic_rewards
                     )
 
                     # Store the hindsight sample in the replay buffer.
                     self.replay_buffer.add(
                         obs_t=obs,
                         goal_t=goal,
-                        action_t=self._worker_actions,
+                        action_t=worker_actions,
                         reward_t=rewards,
                         done=self._dones,
-                        meta_obs_t=(self.prev_meta_obs, meta_obs1),
-                        meta_reward_t=self.meta_reward,
+                        meta_obs_t=(meta_obs0, meta_obs1),
+                        meta_reward_t=meta_reward,
                     )
 
             # Clear the memory that has been stored in the replay buffer.
@@ -572,8 +594,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def clear_memory(self):
         """Clear internal memory that is used by the replay buffer."""
         self._actions = [[] for _ in range(2)]
-        self._rewards = [[] for _ in range(2)]
+        self._rewards = [[0]] + [[] for _ in range(2 - 1)]
         self._observations = []
+        self._contexts = []
         self._dones = []
 
     def get_td_map(self):
