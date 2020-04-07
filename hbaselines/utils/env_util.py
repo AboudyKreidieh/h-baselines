@@ -442,7 +442,8 @@ ENV_ATTRIBUTES = {
                 BipedalObstacles.observation_space.high) if i in [
                     0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
             dtype=np.float32),
-        "state_indices": [i + 1024 for i in [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
+        "state_indices": [i + 1024 for i in [
+            0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         BipedalObstacles(render=render),
     },

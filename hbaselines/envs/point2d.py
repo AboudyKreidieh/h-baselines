@@ -91,7 +91,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
     def step(self, velocities):
         assert self.action_scale <= 1.0
-        velocities = np.clip(velocities, a_min=-1, a_max=1) * self.action_scale
+        velocities = np.clip(
+            velocities, a_min=-1, a_max=1) * self.action_scale
         new_position = self._position + velocities
         orig_new_pos = new_position.copy()
         for wall in self.walls:
@@ -161,7 +162,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
     def _get_obs(self):
         if self.images_in_obs:
-            img = self.get_image(32, 32).reshape([-1]).astype(np.float32) / 255.0
+            img = self.get_image(
+                32, 32).reshape([-1]).astype(np.float32) / 255.0
             return np.concatenate([img, self._position.copy()], 0)
         else:
             return self._position.copy()
@@ -183,7 +185,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
         return self._target_position.copy()
 
     def sample_goals(self, batch_size):
-        if not self.fixed_goal is None:
+        if self.fixed_goal is not None:
             goals = np.repeat(
                 self.fixed_goal.copy()[None],
                 batch_size,
@@ -214,8 +216,10 @@ class Point2DEnv(MultitaskEnv, Serializable):
             self.drawer = PygameViewer(
                 screen_width=width,
                 screen_height=height,
-                x_bounds=(-self.boundary_dist - self.ball_radius, self.boundary_dist + self.ball_radius),
-                y_bounds=(-self.boundary_dist - self.ball_radius, self.boundary_dist + self.ball_radius),
+                x_bounds=(-self.boundary_dist - self.ball_radius,
+                          self.boundary_dist + self.ball_radius),
+                y_bounds=(-self.boundary_dist - self.ball_radius,
+                          self.boundary_dist + self.ball_radius),
                 render_onscreen=self.render_onscreen,
             )
         self.draw(self.drawer)
@@ -223,7 +227,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
         if self.images_are_rgb:
             return img.transpose((1, 0, 2))
         else:
-            r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+            r, b = img[:, :, 0], img[:, :, 2]
             img = (-r + b).transpose().flatten()
             return img
 
@@ -277,8 +281,10 @@ class Point2DEnv(MultitaskEnv, Serializable):
             self.render_drawer = PygameViewer(
                 self.render_size,
                 self.render_size,
-                x_bounds=(-self.boundary_dist-self.ball_radius, self.boundary_dist+self.ball_radius),
-                y_bounds=(-self.boundary_dist-self.ball_radius, self.boundary_dist+self.ball_radius),
+                x_bounds=(-self.boundary_dist-self.ball_radius,
+                          self.boundary_dist+self.ball_radius),
+                y_bounds=(-self.boundary_dist-self.ball_radius,
+                          self.boundary_dist+self.ball_radius),
                 render_onscreen=True,
             )
         self.draw(self.render_drawer)

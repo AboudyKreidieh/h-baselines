@@ -564,8 +564,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-                
-                act_size = self.ac_space.shape[0]
+
                 batch_size = tf.shape(qf_h)[0]
                 image_size = (self.image_height * 
                               self.image_width * 

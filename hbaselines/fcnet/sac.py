@@ -625,7 +625,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     # extra processing steps are needed
                     if self.includes_image:
 
-                        act_size = self.ac_space.shape[0]
                         batch_size = tf.shape(qf1_h)[0]
                         image_size = (self.image_height * 
                                       self.image_width * 
@@ -634,7 +633,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         original_qf1_h = qf1_h
                         qf1_h = original_qf1_h[:, image_size:]
 
-                        # ignoring the image is useful for the lower level critic
+                        # ignoring the image is useful for the lower level
                         # for creating an abstraction barrier
                         if not self.ignore_image:
 
@@ -695,7 +694,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     # extra processing steps are needed
                     if self.includes_image:
 
-                        act_size = self.ac_space.shape[0]
                         batch_size = tf.shape(qf2_h)[0]
                         image_size = (self.image_height * 
                                       self.image_width * 
@@ -704,7 +702,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         original_qf2_h = qf2_h
                         qf2_h = original_qf2_h[:, image_size:]
 
-                        # ignoring the image is useful for the lower level critic
+                        # ignoring the image is useful for the lower level
                         # for creating an abstraction barrier
                         if not self.ignore_image:
 
