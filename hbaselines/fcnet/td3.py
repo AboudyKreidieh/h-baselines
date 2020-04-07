@@ -500,7 +500,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     c = pi_h_image.shape[3]
                     pi_h = tf.concat(
                         [tf.reshape(pi_h_image, [
-                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                            batch_size, h * w * c]) / tf.cast(h * w * c,
+                                                              tf.float32),
                          pi_h], 1
                     )
 
@@ -602,7 +603,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     c = qf_h_image.shape[3]
                     qf_h = tf.concat(
                         [tf.reshape(qf_h_image, [
-                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                            batch_size, h * w * c]) / tf.cast(h * w * c,
+                                                              tf.float32),
                          qf_h], 1
                     )
 
@@ -649,8 +651,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
-                                      update_actor=update_actor)
+        return self.update_from_batch(
+            obs0, actions, rewards, obs1, terminals1,
+            update_actor=update_actor)
 
     def update_from_batch(self,
                           obs0,

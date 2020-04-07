@@ -452,7 +452,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     c = pi_h_image.shape[3]
                     pi_h = tf.concat(
                         [tf.reshape(pi_h_image, [
-                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                            batch_size, h * w * c]) / tf.cast(h * w * c,
+                                                              tf.float32),
                          pi_h], 1
                     )
 
@@ -559,25 +560,29 @@ class FeedForwardPolicy(ActorCriticPolicy):
                         original_vf_h = vf_h
                         vf_h = original_vf_h[:, image_size:]
 
-                        # ignoring the image is useful for the lower level policy
+                        # ignoring the image is useful for the lower level
                         # for creating an abstraction barrier
                         if not self.ignore_image:
 
                             vf_h_image = tf.reshape(
                                 original_vf_h[:, :image_size],
-                                [batch_size, self.image_height, self.image_width,
-                                 self.image_channels]
+                                [batch_size, self.image_height,
+                                 self.image_width, self.image_channels]
                             )
 
                             # create the hidden convolutional layers
                             for i, (filters, 
                                     kernel_size, 
-                                    strides) in enumerate(zip(self.filters, 
-                                                              self.kernel_sizes, 
-                                                              self.strides)):
+                                    strides) in enumerate(zip(
+                                        self.filters,
+                                        self.kernel_sizes,
+                                        self.strides)):
 
                                 vf_h_image = self._conv_layer(
-                                    vf_h_image, filters, kernel_size, strides, 
+                                    vf_h_image,
+                                    filters,
+                                    kernel_size,
+                                    strides,
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
@@ -588,7 +593,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             c = vf_h_image.shape[3]
                             vf_h = tf.concat(
                                 [tf.reshape(vf_h_image, [
-                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                    batch_size, h * w * c]) / tf.cast(
+                                    h * w * c, tf.float32),
                                  vf_h], 1
                             )
 
@@ -634,19 +640,23 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                             qf1_h_image = tf.reshape(
                                 original_qf1_h[:, :image_size],
-                                [batch_size, self.image_height, self.image_width, 
-                                 self.image_channels]
+                                [batch_size, self.image_height,
+                                 self.image_width, self.image_channels]
                             )
 
                             # create the hidden convolutional layers
                             for i, (filters, 
                                     kernel_size, 
-                                    strides) in enumerate(zip(self.filters, 
-                                                              self.kernel_sizes, 
-                                                              self.strides)):
+                                    strides) in enumerate(zip(
+                                        self.filters,
+                                        self.kernel_sizes,
+                                        self.strides)):
 
                                 qf1_h_image = self._conv_layer(
-                                    qf1_h_image, filters, kernel_size, strides, 
+                                    qf1_h_image,
+                                    filters,
+                                    kernel_size,
+                                    strides,
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
@@ -657,7 +667,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             c = qf1_h_image.shape[3]
                             qf1_h = tf.concat(
                                 [tf.reshape(qf1_h_image, [
-                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                    batch_size, h * w * c]) / tf.cast(
+                                    h * w * c, tf.float32),
                                  qf1_h], 1
                             )
 
@@ -699,19 +710,23 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                             qf2_h_image = tf.reshape(
                                 original_qf2_h[:, :image_size],
-                                [batch_size, self.image_height, self.image_width, 
-                                 self.image_channels]
+                                [batch_size, self.image_height,
+                                 self.image_width, self.image_channels]
                             )
 
                             # create the hidden convolutional layers
                             for i, (filters, 
                                     kernel_size, 
-                                    strides) in enumerate(zip(self.filters, 
-                                                              self.kernel_sizes, 
-                                                              self.strides)):
+                                    strides) in enumerate(zip(
+                                        self.filters,
+                                        self.kernel_sizes,
+                                        self.strides)):
 
                                 qf2_h_image = self._conv_layer(
-                                    qf2_h_image, filters, kernel_size, strides, 
+                                    qf2_h_image,
+                                    filters,
+                                    kernel_size,
+                                    strides,
                                     'conv{}'.format(i),
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
@@ -722,7 +737,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             c = qf2_h_image.shape[3]
                             qf2_h = tf.concat(
                                 [tf.reshape(qf2_h_image, [
-                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                    batch_size, h * w * c]) / tf.cast(
+                                    h * w * c, tf.float32),
                                  qf2_h], 1
                             )
 

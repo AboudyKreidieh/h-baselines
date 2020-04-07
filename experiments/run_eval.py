@@ -47,7 +47,8 @@ def parse_options(args):
     parser.add_argument(
         '--no_render', action='store_true', help='shuts off rendering')
     parser.add_argument(
-        '--video', type=str, default='output.mp4', help='path to the video to render')
+        '--video', type=str, default='output.mp4',
+        help='path to the video to render')
 
     flags, _ = parser.parse_known_args(args)
 
@@ -173,7 +174,8 @@ def main(args):
                 actions = actions[0]
                 plt.figure()
                 ax = plt.subplot(111)
-                env.plot_trajectory(ax, states, actions, goal=env.current_context)
+                env.plot_trajectory(
+                    ax, states, actions, goal=env.current_context)
                 plt.savefig('episode{}.png'.format(episode_num))
 
             except AttributeError:
@@ -192,6 +194,7 @@ def main(args):
                 obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
                     frame = env.render(mode='rgb_array')
+                    frame = np.flip(frame, axis=0)
                     out.writeFrame(frame)
                 total_reward += reward
                 if done:
