@@ -52,8 +52,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     intrinsic_reward_scale : float
         the value that the intrinsic reward should be scaled by
     relative_goals : bool
-        specifies whether the goal issued by the Manager is meant to be a
-        relative or absolute goal, i.e. specific state or change in state
+        specifies whether the goal issued by the higher-level policies is meant
+        to be a relative or absolute goal, i.e. specific state or change in
+        state
     off_policy_corrections : bool
         whether to use off-policy corrections during the update procedure. See:
         https://arxiv.org/abs/1805.08296.
@@ -79,8 +80,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     fingerprint_dim : tuple of int
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
-        specifies whether to use centralized value functions for the Manager
-        critic functions
+        specifies whether to use centralized value functions
     policy : list of hbaselines.fcnet.base.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
@@ -165,8 +165,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
-            specifies whether the goal issued by the Manager is meant to be a
-            relative or absolute goal, i.e. specific state or change in state
+            specifies whether the goal issued by the higher-level policies is
+            meant to be a relative or absolute goal, i.e. specific state or
+            change in state
         off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
@@ -419,7 +420,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             worker_obs1, worker_act, worker_rew, worker_done, additional = \
             self.replay_buffer.sample(with_additional=with_additional)
 
-        # Update the Manager policy.
+        # Update the higher-level policies.
         if kwargs['update_meta']:
             # Replace the goals with the most likely goals.
             if self.off_policy_corrections:
@@ -446,7 +447,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     worker_actions=worker_act,
                 )
             else:
-                # Perform the regular manager update procedure.
+                # Perform the regular meta update procedure.
                 m_critic_loss, m_actor_loss = self.policy[0].update_from_batch(
                     obs0=meta_obs0,
                     actions=meta_act,
@@ -475,16 +476,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Loop through the policies in the hierarchy.
         for i in range(2 - 1):
             if self._update_meta:
+                context_i = context if i == 0 else self._meta_action[i - 1]
+
                 # Update the meta action based on the output from the policy if
                 # the time period requires is.
-                self._meta_action[i] = self.policy[0].get_action(
-                    obs, context, apply_noise, random_actions)
+                self._meta_action[i] = self.policy[i].get_action(
+                    obs, context_i, apply_noise, random_actions)
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
                 self._meta_action[i] = self.goal_transition_fn(
                     obs0=np.array([self._observations[-1][self.goal_indices]]),
-                    goal=self._meta_action,
+                    goal=self._meta_action[i],
                     obs1=obs[:, self.goal_indices]
                 )
 
@@ -533,6 +536,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Add the last observation and context.
             self._observations.append(obs1)
             self._contexts.append(context1)
+
+            # Compute the current state goals to add to the final observation.
+            for i in range(2 - 1):
+                self._actions[i].append(self.goal_transition_fn(
+                    obs0=obs0[self.goal_indices],
+                    goal=self._meta_action[i],
+                    obs1=obs1[self.goal_indices]
+                ))
 
             # Some temporary attributes.
             worker_obses = [
@@ -637,12 +648,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
+            (batch_size, m_obs_dim) matrix of meta observations
         meta_obs1 : array_like
-            (batch_size, m_obs_dim) matrix of next time step Manager
-            observations
+            (batch_size, m_obs_dim) matrix of next time step meta observations
         meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions
+            (batch_size, m_ac_dim) matrix of meta actions
         worker_obses : array_like
             (batch_size, w_obs_dim, meta_period+1) matrix of current Worker
             state observations
@@ -656,7 +666,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            (batch_size, m_ac_dim) matrix of most likely Manager actions
+            (batch_size, m_ac_dim) matrix of most likely meta actions
         """
         batch_size, goal_dim = meta_action.shape
 
@@ -690,12 +700,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Parameters
         ----------
         meta_obs0 : array_like
-            (batch_size, m_obs_dim) matrix of Manager observations
+            (batch_size, m_obs_dim) matrix of meta observations
         meta_obs1 : array_like
-            (batch_size, m_obs_dim) matrix of next time step Manager
-            observations
+            (batch_size, m_obs_dim) matrix of next time step meta observations
         meta_action : array_like
-            (batch_size, m_ac_dim) matrix of Manager actions
+            (batch_size, m_ac_dim) matrix of meta actions
         num_samples : int
             number of samples
         sc : float
