@@ -26,9 +26,9 @@ class HierReplayBuffer(ReplayBuffer):
         batch_size : int
             number of elements that are to be returned as a batch
         meta_obs_dim : int
-            number of elements in the Manager observations
+            number of elements in the meta observations
         meta_ac_dim : int
-            number of elements in the Manager actions
+            number of elements in the meta actions
         worker_obs_dim : int
             number of elements in the Worker observations
         worker_ac_dim : int

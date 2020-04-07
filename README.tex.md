@@ -678,7 +678,7 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
-        # procedure to the Manager policy
+        # procedure to the higher-level policies
         "connected_gradients": True,
         # specify the connected gradient (lambda) weight
         "cg_weights": 0.01

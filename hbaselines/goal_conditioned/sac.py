@@ -159,7 +159,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------
@@ -256,7 +256,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         raise NotImplementedError  # TODO
 
     def _connected_gradients_update(self,
