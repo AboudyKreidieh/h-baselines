@@ -50,7 +50,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     Attributes
     ----------
     meta_period : int
-        manger action period
+        meta-policy action period
     intrinsic_reward_scale : float
         the value that the intrinsic reward should be scaled by
     relative_goals : bool
@@ -163,7 +163,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             for the critic. If set to False, the mean-squared error metric is
             used instead
         meta_period : int
-            manger action period
+            meta-policy action period
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -439,15 +439,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
-                    obs0=obs0[0],
-                    actions=act[0],
-                    rewards=rew[0],
-                    obs1=obs1[0],
-                    terminals1=done[0],
+                    obs0=obs0,
+                    actions=act,
+                    rewards=rew,
+                    obs1=obs1,
+                    terminals1=done,
                     update_actor=kwargs['update_meta_actor'],
-                    worker_obs0=obs0[1],
-                    worker_obs1=obs1[1],
-                    worker_actions=act[1],
                 )
             else:
                 # Perform the regular meta update procedure.
@@ -553,7 +550,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     obs0=obs0[self.goal_indices],
                     goal=self._meta_action[i],
                     obs1=obs1[self.goal_indices]
-                ))
+                ).flatten())
 
             # Avoid storing samples when performing evaluations.
             if not evaluate:
@@ -631,7 +628,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 actions=act[i],
                 rewards=rew[i],
                 obs1=obs1[i],
-                done=done[i]
+                terminals1=done[i]
             ))
 
         return td_map
@@ -813,7 +810,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         Returns
         -------
         array_like
-            the goal in hindsight
+            the goal at every step in hindsight
         array_like
             the modified intrinsic rewards taking into account the hindsight
             goals
@@ -864,9 +861,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                                     rewards,
                                     obs1,
                                     terminals1,
-                                    worker_obs0,
-                                    worker_obs1,
-                                    worker_actions,
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
@@ -876,26 +870,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : array_like
-            batch of manager observations
-        actions : array_like
-            batch of manager actions executed given obs_batch
-        rewards : array_like
-            manager rewards received as results of executing act_batch
-        obs1 : array_like
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_actions : array_like
-            batch of worker actions
+        obs0 : list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        actions : list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        obs1 : list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        rewards : list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        terminals1 : list of numpy bool
+            (batch_size,) vector of done masks for every level in the hierarchy
         update_actor : bool
-            specifies whether to update the actor policy of the manager. The
-            critic policy is still updated if this value is set to False.
+            specifies whether to update the actor policy of the meta policy.
+            The critic policy is still updated if this value is set to False.
 
         Returns
         -------

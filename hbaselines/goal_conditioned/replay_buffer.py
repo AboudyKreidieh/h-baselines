@@ -1,5 +1,6 @@
 """Script containing the HierReplayBuffer object."""
 import numpy as np
+import random
 
 
 class HierReplayBuffer(object):
@@ -13,17 +14,18 @@ class HierReplayBuffer(object):
     batch_size : int
         number of elements that are to be returned as a batch
     meta_period : int
-        TODO
+        meta-policy action period
     obs_dim : int
-        TODO
+        the number of elements in the observation
     ac_dim : int
-        TODO
+        the number of elements in the environment action
     co_dim : int
-        TODO
+        the number of elements in the context. Set to None if no context is
+        used by the environment.
     goal_dim : int
-        TODO
+        the number of elements in the meta-action
     num_levels : int
-        TODO
+        the number of levels in the hierarchy
     """
 
     def __init__(self,
@@ -45,17 +47,18 @@ class HierReplayBuffer(object):
         batch_size : int
             number of elements that are to be returned as a batch
         meta_period : int
-            TODO
+            meta-policy action period
         obs_dim : int
-            TODO
+            the number of elements in the observation
         ac_dim : int
-            TODO
+            the number of elements in the environment action
         co_dim : int
-            TODO
+            the number of elements in the context. Set to None if no context is
+            used by the environment.
         goal_dim : int
-            TODO
+            the number of elements in the meta-action
         num_levels : int
-            TODO
+            the number of levels in the hierarchy
         """
         self.buffer_size = buffer_size
         self.batch_size = batch_size
@@ -70,11 +73,11 @@ class HierReplayBuffer(object):
         self._size = 0
         self._current_idx = 0
         self._next_idx = 0
-        self._obs_t = [None for _ in range(buffer_size)]
-        self._context_t = [None for _ in range(buffer_size)]
-        self._action_t = [None for _ in range(buffer_size)]
-        self._reward_t = [None for _ in range(buffer_size)]
-        self._done_t = [None for _ in range(buffer_size)]
+        self._obs_t = [[] for _ in range(buffer_size)]
+        self._context_t = [[] for _ in range(buffer_size)]
+        self._action_t = [[] for _ in range(buffer_size)]
+        self._reward_t = [[] for _ in range(buffer_size)]
+        self._done_t = [[] for _ in range(buffer_size)]
 
     def __len__(self):
         """Return the number of elements stored."""
@@ -106,15 +109,15 @@ class HierReplayBuffer(object):
         Parameters
         ----------
         obs_t : array_like
-            TODO
+            the list of environment observations
         action_t : array_like
-            TODO
+            a list of actions performed by every policy in the hierarchy
         context_t : array_like
-            TODO
+            the first and last context from the environment for the sample
         reward_t : list of float
-            TODO
+            the list of of rewards experienced by every policy in the hierarchy
         done_t : list of float or list of bool
-            TODO
+            a list of environment done masks
         """
         self._obs_t[self._next_idx] = obs_t
         self._context_t[self._next_idx] = context_t
@@ -131,7 +134,7 @@ class HierReplayBuffer(object):
         """Sample a batch of experiences.
 
         An example for how a sample is collected from the list of observations/
-        actions.
+        actions for a three-level hierarchy.
 
         Observations:
 
@@ -302,7 +305,7 @@ class HierReplayBuffer(object):
             rewards[0].append(candidate_reward[0][0])
             dones[0].append(candidate_done[-1])
 
-            idx_val = np.random.randint(0, len(candidate_obs) - 2)
+            idx_val = random.randint(0, len(candidate_obs) - 2)
 
             for i in reversed(range(1, self.num_levels)):
                 obses[i].append(
@@ -320,7 +323,7 @@ class HierReplayBuffer(object):
                         self.meta_period ** (self.num_levels - i - 1)) + 1])
                 rewards[i].append(candidate_reward[i][
                     int(idx_val / self.meta_period ** (self.num_levels-i-1))])
-                dones[i].append(0)    # see docstring
+                dones[i].append(0)    # FIXME
 
                 idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
 
@@ -370,9 +373,9 @@ class HierReplayBuffer(object):
         array_like
             the processed observation
         """
-        obs = np.asarray(obs)
-        if context is not None:
-            context = np.asarray(context)
+        obs = np.array(obs)
+        if context[0] is not None:
+            context = np.array(context)
             context = context.flatten() if axis == 0 else context
             obs = np.concatenate((obs, context), axis=axis)
         return obs
