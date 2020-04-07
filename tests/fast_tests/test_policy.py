@@ -555,18 +555,111 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         #                             test case 1                             #
         # =================================================================== #
 
-        pass  # TODO
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = False
+        policy_params['hindsight'] = False
+        policy_params['subgoal_testing_rate'] = 1
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
 
-        # =================================================================== #
-        #                             test case 2                             #
-        # =================================================================== #
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-        pass  # TODO
+        # Run the initialize method.
+        policy.initialize()
 
-        # =================================================================== #
-        #                             test case 3                             #
-        # =================================================================== #
+        policy._meta_action = [np.array([5, 5])]
 
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # check the intrinsic rewards
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
+
+    def test_store_transition_2(self):
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = True
+        policy_params['hindsight'] = False
+        policy_params['subgoal_testing_rate'] = 1
+        policy_params['meta_period'] = 4
+        policy_params['batch_size'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        policy._meta_action = [np.array([5, 5])]
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate
+            )
+
+        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
+            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+
+        # check the meta action
+        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+
+        # check the worker contexts
+        for obs in worker_obses[:-1]:
+            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+        np.testing.assert_almost_equal(worker_obses[-1][-2:], np.array([4, 4]))
+
+        # check the intrinsic rewards
+        for _, rew, in enumerate(reversed(intrinsic_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
+
+    def test_store_transition_3(self):
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = False
         policy_params['hindsight'] = True
@@ -575,8 +668,13 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy_params['batch_size'] = 2
         policy = TD3GoalConditionedPolicy(**policy_params)
 
-        policy.meta_action = np.array([5, 5])
-        policy.meta_reward = 0
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        policy._meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])
@@ -603,16 +701,16 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
             intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
 
-        # check the intrinsic rewards
-        for i, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
-
         # check the meta action
         np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
 
         # check the worker contexts
         for obs in worker_obses:
             np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+
+        # check the intrinsic rewards
+        for i, rew, in enumerate(reversed(intrinsic_rewards)):
+            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
 
         # hindsight sample
         meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
@@ -629,13 +727,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         for i, rew, in enumerate(reversed(intrinsic_rewards)):
             np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # =================================================================== #
-        #                             test case 4                             #
-        # =================================================================== #
-
+    def test_store_transition_4(self):
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = True
         policy_params['hindsight'] = True
@@ -644,8 +736,13 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy_params['batch_size'] = 2
         policy = TD3GoalConditionedPolicy(**policy_params)
 
-        policy.meta_action = np.array([5, 5])
-        policy.meta_reward = 0
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        policy._meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])
@@ -676,8 +773,9 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
 
         # check the worker contexts
-        for obs in worker_obses:
+        for obs in worker_obses[:-1]:
             np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+        np.testing.assert_almost_equal(worker_obses[-1][-2:], np.array([4, 4]))
 
         # check the intrinsic rewards
         for _, rew, in enumerate(reversed(intrinsic_rewards)):
