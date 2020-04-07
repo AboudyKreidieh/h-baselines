@@ -411,7 +411,7 @@ print(SAC_PARAMS)
 
 ### Meta Period
 
-The meta action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
+The Manager action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
@@ -423,7 +423,7 @@ alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
-        # specify the meta action period
+        # specify the Manager action period
         "meta_period": 10
     }
 )
