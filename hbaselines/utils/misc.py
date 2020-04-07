@@ -26,6 +26,7 @@ try:
         as figure_eight
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
+from hbaselines.envs.point2d import Point2DEnv
 
 
 def ensure_dir(path):
@@ -88,6 +89,14 @@ def get_manager_ac_space(ob_space,
         manager_ac_space = Box(
             low=np.array([-np.pi, -15]),
             high=np.array([np.pi, 15]),
+            dtype=np.float32
+        )
+    elif env_name == "Point2DEnv" or env_name == "Point2DImageEnv":
+        # TODO
+        # Do not change the default boundary distance
+        manager_ac_space = Box(
+            np.ones(2) * -4,
+            np.ones(2) *  4,
             dtype=np.float32
         )
     elif env_name in ["ring0", "ring1"]:
@@ -228,6 +237,11 @@ def get_state_indices(ob_space,
         state_indices = None
     elif env_name == "Pendulum":
         state_indices = [0, 2]
+    elif env_name == "Point2DImageEnv":
+        # includes images as the first 3072 channels
+        state_indices = [3072, 3073]
+    elif env_name == "Point2DEnv":
+        state_indices = [0, 1]
     elif env_name in ["ring0", "ring1"]:
         state_indices = [0]
     elif env_name == "figureeight0":
@@ -377,6 +391,12 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
                            context_range=[(np.deg2rad(-16), np.deg2rad(16)),
                                           (-0.6, 0.6)],
                            show=render)
+
+    elif env in ["Point2DEnv"]:
+        env = Point2DEnv(images_in_obs=False)
+
+    elif env in ["Point2DImageEnv"]:
+        env = Point2DEnv(images_in_obs=True)
 
     elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
                  "grid1"]:

@@ -499,7 +499,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     w = pi_h_image.shape[2]
                     c = pi_h_image.shape[3]
                     pi_h = tf.concat(
-                        [pi_h, tf.reshape(pi_h_image, [batch_size, h * w * c])], 1
+                        [tf.reshape(pi_h_image, [
+                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                         pi_h], 1
                     )
 
             # create the hidden layers
@@ -594,12 +596,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
-                    
+
                     h = qf_h_image.shape[1]
                     w = qf_h_image.shape[2]
                     c = qf_h_image.shape[3]
                     qf_h = tf.concat(
-                        [qf_h, tf.reshape(qf_h_image, [batch_size, h * w * c])], 1
+                        [tf.reshape(qf_h_image, [
+                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                         qf_h], 1
                     )
 
             # create the hidden layers

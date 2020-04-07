@@ -96,7 +96,7 @@ FEEDFORWARD_PARAMS = dict(
     # the width of the image in the observation
     image_width=32,
     # the number of channels of the image in the observation
-    image_channels=1,
+    image_channels=3,
     # the channels of the neural network conv layers for the policy
     filters=[16, 16],
     # the kernel size of the neural network conv layers for the policy

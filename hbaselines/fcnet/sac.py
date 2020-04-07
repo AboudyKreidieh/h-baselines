@@ -451,7 +451,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     w = pi_h_image.shape[2]
                     c = pi_h_image.shape[3]
                     pi_h = tf.concat(
-                        [pi_h, tf.reshape(pi_h_image, [batch_size, h * w * c])], 1
+                        [tf.reshape(pi_h_image, [
+                            batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                         pi_h], 1
                     )
 
             # create the hidden layers
@@ -585,7 +587,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             w = vf_h_image.shape[2]
                             c = vf_h_image.shape[3]
                             vf_h = tf.concat(
-                                [vf_h, tf.reshape(vf_h_image, [batch_size, h * w * c])], 1
+                                [tf.reshape(vf_h_image, [
+                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                 vf_h], 1
                             )
 
                     # create the hidden layers
@@ -652,7 +656,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             w = qf1_h_image.shape[2]
                             c = qf1_h_image.shape[3]
                             qf1_h = tf.concat(
-                                [qf1_h, tf.reshape(qf1_h_image, [batch_size, h * w * c])], 1
+                                [tf.reshape(qf1_h_image, [
+                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                 qf1_h], 1
                             )
 
                     # create the hidden layers
@@ -715,7 +721,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             w = qf2_h_image.shape[2]
                             c = qf2_h_image.shape[3]
                             qf2_h = tf.concat(
-                                [qf2_h, tf.reshape(qf2_h_image, [batch_size, h * w * c])], 1
+                                [tf.reshape(qf2_h_image, [
+                                    batch_size, h * w * c]) / tf.cast(h * w * c, tf.float32),
+                                 qf2_h], 1
                             )
 
                     # create the hidden layers
