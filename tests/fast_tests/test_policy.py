@@ -32,7 +32,7 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
@@ -214,7 +214,7 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'scope': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
@@ -374,7 +374,7 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'scope': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
@@ -529,7 +529,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -917,7 +917,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1147,7 +1147,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1326,7 +1326,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1349,7 +1349,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1452,7 +1452,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1475,7 +1475,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -2167,7 +2167,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -2190,7 +2190,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())

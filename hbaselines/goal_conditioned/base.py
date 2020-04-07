@@ -9,6 +9,8 @@ from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 
+NUM_LEVELS = 2
+
 
 class GoalConditionedPolicy(ActorCriticPolicy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
@@ -253,14 +255,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # The policies are ordered from the highest level to lowest level
         # policies in the hierarchy.
-        for i in range(2):
+        for i in range(NUM_LEVELS):
             # Determine the appropriate parameters to use for the policy in the
             # current level.
-            policy_fn = meta_policy if i < (2 - 1) else worker_policy
-            ac_space_i = meta_ac_space if i < (2 - 1) else ac_space
+            policy_fn = meta_policy if i < (NUM_LEVELS - 1) else worker_policy
+            ac_space_i = meta_ac_space if i < (NUM_LEVELS - 1) else ac_space
             co_space_i = co_space if i == 0 else meta_ac_space
             ob_space_i = ob_space
-            zero_fingerprint_i = i == (2 - 1)
+            zero_fingerprint_i = i == (NUM_LEVELS - 1)
 
             # The policies are ordered from the highest level to lowest level
             # policies in the hierarchy.
@@ -303,7 +305,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # current action by the meta-level policies
-        self._meta_action = [None for _ in range(2 - 1)]
+        self._meta_action = [None for _ in range(NUM_LEVELS - 1)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy
@@ -373,7 +375,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         This method calls the initialization methods of the manager and worker.
         """
-        for i in range(2):
+        for i in range(NUM_LEVELS):
             self.policy[i].initialize()
         self.clear_memory()
 
@@ -474,7 +476,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Loop through the policies in the hierarchy.
-        for i in range(2 - 1):
+        for i in range(NUM_LEVELS - 1):
             if self._update_meta:
                 context_i = context if i == 0 else self._meta_action[i - 1]
 
@@ -504,21 +506,27 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # the time since the most recent sample began collecting step samples
         t_start = len(self._observations)
 
-        # Compute the intrinsic rewards and append them to the list of rewards.
-        self._rewards[-1].append(
-            self.intrinsic_reward_scale * self.intrinsic_reward_fn(
-                states=obs0,
-                goals=self._meta_action[0].flatten(),
-                next_states=obs1
-            )
-        )
+        for i in range(1, NUM_LEVELS):
+            # Actions and intrinsic rewards for the high-level policies are
+            # only updated when the action is recomputed by the graph.
+            if t_start % self.meta_period ** (i-1) == 0:
+                self._rewards[-i].append(0)
+                self._actions[-i-1].append(self._meta_action[-i].flatten())
+
+            # Compute the intrinsic rewards and append them to the list of
+            # rewards.
+            self._rewards[-i][-1] += \
+                self.intrinsic_reward_scale / self.meta_period ** (i-1) * \
+                self.intrinsic_reward_fn(
+                    states=obs0,
+                    goals=self._meta_action[-i].flatten(),
+                    next_states=obs1
+                )
 
         # The highest level policy receives the sum of environmental rewards.
         self._rewards[0][0] += reward
 
-        # Add the actions for each level in the hierarchy.
-        for i in range(2 - 1):
-            self._actions[i].append(self._meta_action[i].flatten())
+        # The lowest level policy's actions are received from the algorithm.
         self._actions[-1].append(action)
 
         # Add the environmental observations and contextual terms to their
@@ -532,13 +540,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._dones.append(done and not is_final_step)
 
         # Add a sample to the replay buffer.
-        if len(self._observations) == self.meta_period ** (2 - 1) or done:
+        if len(self._observations) == \
+                self.meta_period ** (NUM_LEVELS - 1) or done:
             # Add the last observation and context.
             self._observations.append(obs1)
             self._contexts.append(context1)
 
             # Compute the current state goals to add to the final observation.
-            for i in range(2 - 1):
+            for i in range(NUM_LEVELS - 1):
                 self._actions[i].append(self.goal_transition_fn(
                     obs0=obs0[self.goal_indices],
                     goal=self._meta_action[i],
@@ -607,8 +616,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def clear_memory(self):
         """Clear internal memory that is used by the replay buffer."""
-        self._actions = [[] for _ in range(2)]
-        self._rewards = [[0]] + [[] for _ in range(2 - 1)]
+        self._actions = [[] for _ in range(NUM_LEVELS)]
+        self._rewards = [[0]] + [[] for _ in range(NUM_LEVELS - 1)]
         self._observations = []
         self._contexts = []
         self._dones = []
