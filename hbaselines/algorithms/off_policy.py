@@ -12,7 +12,6 @@ environments and hierarchical policies.
 import os
 import time
 from collections import deque
-from collections import defaultdict
 import csv
 import random
 from copy import deepcopy
@@ -25,7 +24,8 @@ from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.tf_util import make_session
-from hbaselines.utils.misc import ensure_dir, create_env
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.env_util import create_env
 
 
 # =========================================================================== #
@@ -114,10 +114,10 @@ GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
     # manger action period
     meta_period=10,
-    # the value the intrinsic (Worker) reward should be scaled by
-    worker_reward_scale=1,
-    # specifies whether the goal issued by the Manager is meant to be a
-    # relative or absolute goal, i.e. specific state or change in state
+    # the value that the intrinsic reward should be scaled by
+    intrinsic_reward_scale=1,
+    # specifies whether the goal issued by the higher-level policies is meant
+    # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
     # whether to use off-policy corrections during the update procedure. See:
     # https://arxiv.org/abs/1805.08296
@@ -129,19 +129,18 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
     # whether to use the connected gradient update actor update procedure to
-    # the Manager policy. See: https://arxiv.org/abs/1912.02368v1
+    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
     connected_gradients=False,
-    # weights for the gradients of the loss of the worker with respect to the
-    # parameters of the manager. Only used if `connected_gradients` is set to
-    # True.
+    # weights for the gradients of the loss of the lower-level policies with
+    # respect to the parameters of the higher-level policies. Only used if
+    # `connected_gradients` is set to True.
     cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,
     # the low and high values for each fingerprint element, if they are being
     # used
     fingerprint_range=([0, 0], [5, 5]),
-    # specifies whether to use centralized value functions for the Manager and
-    # Worker critic functions
+    # specifies whether to use centralized value functions
     centralized_value_functions=False,
 ))
 
@@ -169,7 +168,7 @@ class OffPolicyRLAlgorithm(object):
     policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
         the policy model to use
     env_name : str
-        name of the environment. Affects the action bounds of the Manager
+        name of the environment. Affects the action bounds of the higher-level
         policies
     env : gym.Env or str
         the environment to learn from (if registered in Gym, can be str)
@@ -236,40 +235,20 @@ class OffPolicyRLAlgorithm(object):
         the total number of rollouts performed since training began
     total_steps : int
         the total number of steps that have been executed since training began
-    epoch_episode_rewards : dict < str, list of float >
+    epoch_episode_rewards : list of float
         a list of cumulative rollout rewards from the most recent training
-        iterations, indexed by the agent ID
+        iterations
     epoch_episode_steps : list of int
         a list of rollout lengths from the most recent training iterations
-    epoch_actor_losses : list of float
-        the actor loss values from each SGD step in the most recent training
-        iteration, indexed by the agent ID
-    epoch_q1_losses : dict < str, list of float >
-        the loss values for the first Q-function from each SGD step in the most
-        recent training iteration, indexed by the agent ID
-    epoch_q2_losses : dict < str, list of float >
-        the loss values for the second Q-function from each SGD step in the
-        most recent training iteration, indexed by the agent ID
-    epoch_actions : dict < str, list of array_like >
-        a list of the actions that were performed during the most recent
-        training iteration, indexed by the agent ID
-    epoch_q1s : dict < str, list of float >
-        a list of the Q1 values that were calculated during the most recent
-        training iteration, indexed by the agent ID
-    epoch_q2s : dict < str, list of float >
-        a list of the Q2 values that were calculated during the most recent,
-        indexed by the agent ID
     epoch_episodes : int
         the total number of rollouts performed since the most recent training
         iteration began
     epoch : int
         the total number of training iterations
-    episode_rew_history : dict < str, list of float >
-        the cumulative return from the last 100 training episodes, indexed by
-        the agent ID
-    episode_reward : dict < str, float >
-        the cumulative reward since the most reward began, indexed by the agent
-        ID
+    episode_rew_history : list of float
+        the cumulative return from the last 100 training episodes
+    episode_reward : float
+        the cumulative reward since the most reward began
     saver : tf.compat.v1.train.Saver
         tensorflow saver object
     trainable_vars : list of str
@@ -382,7 +361,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = getattr(
-                self.env, "all_observation_space", Box(-1, 1, (1,)))
+                 self.env, "all_observation_space",
+                 Box(-1, 1, (1,), dtype=np.float32))
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -417,18 +397,11 @@ class OffPolicyRLAlgorithm(object):
         self.episodes = 0
         self.total_steps = 0
         self.epoch_episode_steps = []
-        self.epoch_episode_rewards = defaultdict(list)
-        self.epoch_actor_losses = defaultdict(list)
-        self.epoch_q1_losses = defaultdict(list)
-        self.epoch_q2_losses = defaultdict(list)
-        self.epoch_actions = defaultdict(list)
-        self.epoch_q1s = defaultdict(list)
-        self.epoch_q2s = defaultdict(list)
-        self.epoch_vfs = defaultdict(list)
+        self.epoch_episode_rewards = []
         self.epoch_episodes = 0
         self.epoch = 0
-        self.episode_rew_history = defaultdict(lambda: deque(maxlen=100))
-        self.episode_reward = defaultdict(float)
+        self.episode_rew_history = deque(maxlen=100)
+        self.episode_reward = 0
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -443,7 +416,7 @@ class OffPolicyRLAlgorithm(object):
                 (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
-            self.observation_space = Box(low=low, high=high)
+            self.observation_space = Box(low=low, high=high, dtype=np.float32)
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -467,7 +440,6 @@ class OffPolicyRLAlgorithm(object):
 
             # for tensorboard logging
             with tf.compat.v1.variable_scope("Train"):
-                # FIXME: need to be dictionary
                 self.rew_ph = tf.compat.v1.placeholder(tf.float32)
                 self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
 
@@ -488,13 +460,7 @@ class OffPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self,
-                obs,
-                context,
-                apply_noise=True,
-                compute_q=True,
-                random_actions=False,
-                all_obs=None):
+    def _policy(self, obs, context, apply_noise=True, random_actions=False):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -506,22 +472,15 @@ class OffPolicyRLAlgorithm(object):
             environment.
         apply_noise : bool
             enable the noise
-        compute_q : bool
-            compute the critic output
         random_actions : bool
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
-        all_obs : array_like or None
-            additional information, used by MADDPG variants of the multi-agent
-            policy to pass full-state information
 
         Returns
         -------
         list of float
             the action value
-        float
-            the critic value
         """
         # Reshape the observation to match the input structure of the policy.
         if isinstance(obs, dict):
@@ -544,22 +503,13 @@ class OffPolicyRLAlgorithm(object):
             random_actions=random_actions
         )
 
-        if compute_q:
-            # Use all_obs is using an MADDPG algorithm; and the official
-            # observation otherwise.
-            obs_q = obs if not self.policy_kwargs.get("maddpg", False) \
-                else all_obs
-            q_value = self.policy_tf.value(obs_q, context, action)
-        else:
-            q_value = None
-
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
         if isinstance(action, dict):
             action = {key: action[key].flatten() for key in action.keys()}
         else:
             action = action.flatten()
 
-        return action, q_value
+        return action
 
     def _store_transition(self,
                           obs0,
@@ -576,13 +526,13 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        obs0 : list of float or list of int
+        obs0 : array_like
             the last observation
-        action : list of float or np.ndarray
+        action : array_like
             the action
         reward : float
             the reward
-        obs1 : list fo float or list of int
+        obs1 : array_like
             the current observation
         terminal1 : bool
             is the episode done
@@ -698,19 +648,13 @@ class OffPolicyRLAlgorithm(object):
             # Reset total statistics variables.
             self.episodes = 0
             self.total_steps = 0
-            self.episode_rew_history = defaultdict(lambda: deque(maxlen=100))
+            self.episode_rew_history = deque(maxlen=100)
 
             while True:
                 # Reset epoch-specific variables.
                 self.epoch_episodes = 0
                 self.epoch_episode_steps = []
-                self.epoch_actions = defaultdict(list)
-                self.epoch_q1s = defaultdict(list)
-                self.epoch_q2s = defaultdict(list)
-                self.epoch_actor_losses = defaultdict(list)
-                self.epoch_q1_losses = defaultdict(list)
-                self.epoch_q2_losses = defaultdict(list)
-                self.epoch_episode_rewards = defaultdict(list)
+                self.epoch_episode_rewards = []
 
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
@@ -755,24 +699,17 @@ class OffPolicyRLAlgorithm(object):
                 # Run and store summary.
                 if writer is not None:
                     td_map = self.policy_tf.get_td_map()
-                    # Check if td_map is empty.
-                    if td_map:
-                        # FIXME: this is a hack
-                        if is_goal_conditioned_policy(self.policy):
-                            key = "manager"
-                        elif is_multiagent_policy(self.policy):
-                            key = list(self.obs.keys())[0]
-                        else:
-                            key = "policy"
 
-                        td_map.update({
-                            self.rew_ph: np.mean(
-                                self.epoch_episode_rewards[key]),
-                            self.rew_history_ph: np.mean(
-                                self.episode_rew_history[key]),
-                        })
-                        summary = self.sess.run(self.summary, td_map)
-                        writer.add_summary(summary, self.total_steps)
+                    # Check if td_map is empty.
+                    if not td_map:
+                        break
+
+                    td_map.update({
+                        self.rew_ph: np.mean(self.epoch_episode_rewards),
+                        self.rew_history_ph: np.mean(self.episode_rew_history),
+                    })
+                    summary = self.sess.run(self.summary, td_map)
+                    writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
                 if (self.total_steps - save_steps_incr) >= save_interval:
@@ -832,12 +769,10 @@ class OffPolicyRLAlgorithm(object):
 
             # Predict next action. Use random actions when initializing the
             # replay buffer.
-            action, vf_value = self._policy(
+            action = self._policy(
                 self.obs, context,
                 apply_noise=True,
                 random_actions=random_actions,
-                compute_q=True,
-                all_obs=self.all_obs
             )
 
             # Execute next action.
@@ -882,50 +817,21 @@ class OffPolicyRLAlgorithm(object):
             # Book-keeping.
             self.total_steps += 1
             self.episode_step += 1
-            if is_goal_conditioned_policy(self.policy):
-                manager_value, worker_value = vf_value
-
-                q1_value, q2_value = manager_value
-                self.epoch_q1s["manager"].append(q1_value)
-                self.epoch_q2s["manager"].append(q2_value)
-                self.epoch_actions["manager"].append(0)  # FIXME
-                self.episode_reward["manager"] += reward
-
-                q1_value, q2_value = worker_value
-                self.epoch_q1s["worker"].append(q1_value)
-                self.epoch_q2s["worker"].append(q2_value)
-                self.epoch_actions["worker"].append(action)
-                self.episode_reward["worker"] += 0  # FIXME
-
-            elif is_multiagent_policy(self.policy):
-                for key in vf_value.keys():
-                    q1_value, q2_value = vf_value[key]
-                    self.epoch_q1s[key].append(q1_value)
-                    self.epoch_q2s[key].append(q2_value)
-                    self.epoch_actions[key].append(action[key])
-                    self.episode_reward[key] += reward \
-                        if self.policy_kwargs["shared"] else reward[key]
-
+            if isinstance(reward, dict):
+                self.episode_reward += sum(reward[k] for k in reward.keys())
             else:
-                q1_value, q2_value = vf_value
-                self.epoch_q1s["policy"].append(q1_value)
-                self.epoch_q2s["policy"].append(q2_value)
-                self.epoch_actions["policy"].append(action)
-                self.episode_reward["policy"] += reward
+                self.episode_reward += reward
 
             # Update the current observation.
             self.obs = new_obs.copy()
-            self.all_obs = new_all_obs  # FIXME: copy?
+            self.all_obs = new_all_obs
 
             if done:
                 # Episode done.
-                for key in self.episode_reward.keys():
-                    self.epoch_episode_rewards[key].append(
-                        self.episode_reward[key])
-                    self.episode_rew_history[key].append(
-                        self.episode_reward[key])
+                self.epoch_episode_rewards.append(self.episode_reward)
+                self.episode_rew_history.append(self.episode_reward)
                 self.epoch_episode_steps.append(self.episode_step)
-                self.episode_reward = defaultdict(float)
+                self.episode_reward = 0
                 self.episode_step = 0
                 self.epoch_episodes += 1
                 self.episodes += 1
@@ -964,32 +870,7 @@ class OffPolicyRLAlgorithm(object):
             update = (self.total_steps + t_train) % self.actor_update_freq == 0
 
             # Run a step of training from batch.
-            critic_loss, actor_loss = self.policy_tf.update(
-                update_actor=update, **kwargs)
-
-            # Add actor and critic loss information for logging purposes.
-            if is_goal_conditioned_policy(self.policy):
-                # For hierarchical policies
-                self.epoch_q1_losses["manager"].append(critic_loss[0][0])
-                self.epoch_q2_losses["manager"].append(critic_loss[1][0])
-                self.epoch_actor_losses["manager"].append(actor_loss[0])
-
-                self.epoch_q1_losses["worker"].append(critic_loss[0][1])
-                self.epoch_q2_losses["worker"].append(critic_loss[1][1])
-                self.epoch_actor_losses["worker"].append(actor_loss[1])
-
-            elif is_multiagent_policy(self.policy):
-                # For multi-agent policies
-                for key in critic_loss.keys():
-                    self.epoch_q1_losses[key].append(critic_loss[key][0])
-                    self.epoch_q2_losses[key].append(critic_loss[key][1])
-                    self.epoch_actor_losses[key].append(actor_loss[key])
-
-            else:
-                # For non-hierarchical single agent policies
-                self.epoch_q1_losses["policy"].append(critic_loss[0])
-                self.epoch_q2_losses["policy"].append(critic_loss[1])
-                self.epoch_actor_losses["policy"].append(actor_loss)
+            _ = self.policy_tf.update(update_actor=update, **kwargs)
 
     def _evaluate(self, total_timesteps, env):
         """Perform the evaluation operation.
@@ -1052,12 +933,10 @@ class OffPolicyRLAlgorithm(object):
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
 
-                eval_action, _ = self._policy(
+                eval_action = self._policy(
                     eval_obs, context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
-                    compute_q=False,
-                    all_obs=eval_all_obs
                 )
 
                 obs, eval_r, done, info = env.step(eval_action)
@@ -1096,7 +975,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Update the previous step observation.
                 eval_obs = obs.copy()
-                eval_all_obs = all_obs  # FIXME: copy?
+                eval_all_obs = all_obs
 
                 # Add the fingerprint term, if needed.
                 eval_obs = self._add_fingerprint(
@@ -1246,6 +1125,8 @@ class OffPolicyRLAlgorithm(object):
             # Rollout statistics.
             'rollout/episodes': self.epoch_episodes,
             'rollout/episode_steps': np.mean(self.epoch_episode_steps),
+            'rollout/return': np.mean(self.epoch_episode_rewards),
+            'rollout/return_history': np.mean(self.episode_rew_history),
 
             # Total statistics.
             'total/epochs': self.epoch + 1,
@@ -1254,32 +1135,6 @@ class OffPolicyRLAlgorithm(object):
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,
         }
-
-        # Add agent-specific statistics.
-        for key in self.epoch_q1s.keys():
-            combined_stats.update({
-                # Rollout statistics.
-                'rollout/{}/return'.format(key):
-                    np.mean(self.epoch_episode_rewards[key]),
-                'rollout/{}/return_history'.format(key):
-                    np.mean(self.episode_rew_history[key]),
-                'rollout/{}/actions_mean'.format(key):
-                    np.mean(self.epoch_actions[key]),
-                'rollout/{}/actions_std'.format(key):
-                    np.std(self.epoch_actions[key]),
-                'rollout/{}/Q1_mean'.format(key):
-                    np.mean(self.epoch_q1s[key]),
-                'rollout/{}/Q2_mean'.format(key):
-                    np.mean(self.epoch_q2s[key]),
-
-                # Training statistics.
-                'train/{}/loss_actor'.format(key):
-                    np.mean(self.epoch_actor_losses[key]),
-                'train/{}/loss_Q1'.format(key):
-                    np.mean(self.epoch_q1_losses[key]),
-                'train/{}/loss_Q2'.format(key):
-                    np.mean(self.epoch_q2_losses[key]),
-            })
 
         # Save combined_stats in a csv file.
         if file_path is not None:
