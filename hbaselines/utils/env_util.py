@@ -436,10 +436,10 @@ ENV_ATTRIBUTES = {
     "BipedalObstacles": {
         "meta_ac_space": lambda relative_goals: gym.spaces.Box(
             low=np.array([x for i, x in enumerate(
-                BipedalObstacles.observation_space.low) if i in [
+                BipedalObstacles.observation_space.low) if i - 1024 in [
                     0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
             high=np.array([x for i, x in enumerate(
-                BipedalObstacles.observation_space.high) if i in [
+                BipedalObstacles.observation_space.high) if i - 1024 in [
                     0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
             dtype=np.float32),
         "state_indices": [i + 1024 for i in [

@@ -79,7 +79,7 @@ class BipedalObstacles(gym.Env):
     """
 
     observation_space = gym.spaces.Box(
-        low=5 * np.array(1024 * [-1.] + [
+        low=np.array(1024 * [-1.] + [
             0.06586086, -0.33134258, -0.22473772, -0.08842427, -0.24940665,
             -0.15451589, -0.49955064, -0.44008026, -0.59096092, -0.27878672,
             -0.14038287, -0.28852576, -0.20101279, -0.22234532, -0.22769515,
@@ -102,7 +102,7 @@ class BipedalObstacles(gym.Env):
             -1.00000000, -1.00000000, -1.00000000, -1.00000000, -1.00000000,
             -1.00000000, -1.00000000, -1.00000000, -1.00000000, -1.00000000,
             -1.00000000, -1.00000000, -1.00000000, -1.00000000, -1.0]),
-        high=5 * np.array(1024 * [1.] + [
+        high=np.array(1024 * [1.] + [
             0.61076754, 0.30874607, 0.16389988, 0.278528, 0.10735691,
             0.55370122, 0.28979328, 0.88343042, 0.46615249, 0.24841864,
             0.25305298, 0.20827545, 0.35527417, 0.10670558, 0.34333566,
@@ -128,16 +128,16 @@ class BipedalObstacles(gym.Env):
         dtype=np.float32)
 
     context_space = gym.spaces.Box(
-        low=5 * np.array([-1.00000000, -1.00000000]),
-        high=5 * np.array([1.00000000, 1.00000000]),
+        low=np.array([-1.00000000, -1.00000000]),
+        high=np.array([1.00000000, 1.00000000]),
         dtype=np.float32)
 
     action_space = gym.spaces.Box(
-        low=5 * np.array([
+        low=np.array([
             -1.0, -1.0, -1.0, -0.5, -1.0, -1.0, -1.0, -2.57, -3.14,
             -1.0, -1.0, -1.0, -1.57, -1.0, -1.0, -1.0, -2.57, -3.14,
             -1.0, -1.0, -1.0, -1.57]),
-        high=5 * np.array([
+        high=np.array([
             1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 2.57, 0.5,
             1.0, 1.0, 1.0, 1.57, 1.0, 1.0, 1.0, 2.57, 0.50,
             1.0, 1.0, 1.0, 1.57]),
@@ -159,7 +159,7 @@ class BipedalObstacles(gym.Env):
         if render:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
         else:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
+            self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
 
     @property
     def current_context(self):
