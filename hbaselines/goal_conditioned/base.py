@@ -298,10 +298,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             buffer_size=int(buffer_size/meta_period),
             batch_size=batch_size,
             meta_period=meta_period,
-            meta_obs_dim=meta_ob_dim[0],
-            meta_ac_dim=meta_ac_space.shape[0],
-            worker_obs_dim=ob_space.shape[0] + meta_ac_space.shape[0],
-            worker_ac_dim=ac_space.shape[0],
+            obs_dim=ob_space.shape[0],
+            ac_dim=ac_space.shape[0],
+            co_dim=None if co_space is None else co_space.shape[0],
+            goal_dim=meta_ob_dim[0],
+            num_levels=NUM_LEVELS
         )
 
         # current action by the meta-level policies
@@ -418,44 +419,44 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         with_additional = self.off_policy_corrections
 
         # Get a batch.
-        meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done, additional = \
-            self.replay_buffer.sample(with_additional=with_additional)
+        obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
+            with_additional)
 
         # Update the higher-level policies.
         if kwargs['update_meta']:
             # Replace the goals with the most likely goals.
             if self.off_policy_corrections:
                 meta_act = self._sample_best_meta_action(
-                    meta_obs0=meta_obs0,
-                    meta_obs1=meta_obs1,
-                    meta_action=meta_act,
+                    meta_obs0=obs0[0],
+                    meta_obs1=obs1[0],
+                    meta_action=act[0],
                     worker_obses=additional["worker_obses"],
                     worker_actions=additional["worker_actions"],
                     k=8
                 )
+                act[0] = meta_act
 
             if self.connected_gradients:
                 # Perform the connected gradients update procedure.
                 m_critic_loss, m_actor_loss = self._connected_gradients_update(
-                    obs0=meta_obs0,
-                    actions=meta_act,
-                    rewards=meta_rew,
-                    obs1=meta_obs1,
-                    terminals1=meta_done,
+                    obs0=obs0[0],
+                    actions=act[0],
+                    rewards=rew[0],
+                    obs1=obs1[0],
+                    terminals1=done[0],
                     update_actor=kwargs['update_meta_actor'],
-                    worker_obs0=worker_obs0,
-                    worker_obs1=worker_obs1,
-                    worker_actions=worker_act,
+                    worker_obs0=obs0[1],
+                    worker_obs1=obs1[1],
+                    worker_actions=act[1],
                 )
             else:
                 # Perform the regular meta update procedure.
                 m_critic_loss, m_actor_loss = self.policy[0].update_from_batch(
-                    obs0=meta_obs0,
-                    actions=meta_act,
-                    rewards=meta_rew,
-                    obs1=meta_obs1,
-                    terminals1=meta_done,
+                    obs0=obs0[0],
+                    actions=act[0],
+                    rewards=rew[0],
+                    obs1=obs1[0],
+                    terminals1=done[0],
                     update_actor=kwargs['update_meta_actor'],
                 )
         else:
@@ -463,11 +464,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Update the lowest level policy.
         w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
-            obs0=worker_obs0,
-            actions=worker_act,
-            rewards=worker_rew,
-            obs1=worker_obs1,
-            terminals1=worker_done,
+            obs0=obs0[-1],
+            actions=act[-1],
+            rewards=rew[-1],
+            obs1=obs1[-1],
+            terminals1=done[-1],
             update_actor=update_actor,
         )
 
@@ -554,51 +555,43 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     obs1=obs1[self.goal_indices]
                 ))
 
-            # Some temporary attributes.
-            worker_obses = [
-                self._get_obs(self._observations[i], self._actions[0][i], 0)
-                for i in range(len(self._observations))]
-            worker_actions = self._actions[-1]
-            intrinsic_rewards = self._rewards[-1]
-            meta_obs0 = self._get_obs(
-                self._observations[0], self._contexts[0], 0)
-            meta_obs1 = self._get_obs(
-                self._observations[-1], self._contexts[-1], 0)
-            meta_action = self._actions[0][0]
-            meta_reward = self._rewards[0][0]
-
             # Avoid storing samples when performing evaluations.
             if not evaluate:
                 if not self.hindsight \
                         or random.random() < self.subgoal_testing_rate:
                     # Store a sample in the replay buffer.
                     self.replay_buffer.add(
-                        obs_t=worker_obses,
-                        goal_t=meta_action,
-                        action_t=worker_actions,
-                        reward_t=intrinsic_rewards,
-                        done=self._dones,
-                        meta_obs_t=(meta_obs0, meta_obs1),
-                        meta_reward_t=meta_reward,
+                        obs_t=self._observations,
+                        context_t=self._contexts,
+                        action_t=self._actions,
+                        reward_t=self._rewards,
+                        done_t=self._dones,
                     )
 
                 if self.hindsight:
+                    # Some temporary attributes.
+                    worker_obses = [self._get_obs(self._observations[i],
+                                                  self._actions[0][i], 0)
+                                    for i in range(len(self._observations))]
+                    intrinsic_rewards = self._rewards[-1]
+
                     # Implement hindsight action and goal transitions.
-                    goal, obs, rewards = self._hindsight_actions_goals(
-                        meta_action=meta_action,
+                    goal, rewards = self._hindsight_actions_goals(
                         initial_observations=worker_obses,
                         initial_rewards=intrinsic_rewards
                     )
+                    new_actions = deepcopy(self._actions)
+                    new_actions[0] = goal
+                    new_rewards = deepcopy(self._rewards)
+                    new_rewards[-1] = rewards
 
                     # Store the hindsight sample in the replay buffer.
                     self.replay_buffer.add(
-                        obs_t=obs,
-                        goal_t=goal,
-                        action_t=worker_actions,
-                        reward_t=rewards,
-                        done=self._dones,
-                        meta_obs_t=(meta_obs0, meta_obs1),
-                        meta_reward_t=meta_reward,
+                        obs_t=self._observations,
+                        context_t=self._contexts,
+                        action_t=new_actions,
+                        reward_t=new_rewards,
+                        done_t=self._dones,
                     )
 
             # Clear the memory that has been stored in the replay buffer.
@@ -629,15 +622,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             return {}
 
         # Get a batch.
-        meta_obs0, meta_obs1, meta_act, meta_rew, meta_done, worker_obs0, \
-            worker_obs1, worker_act, worker_rew, worker_done, _ = \
-            self.replay_buffer.sample()
+        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
 
         td_map = {}
-        td_map.update(self.policy[0].get_td_map_from_batch(
-            meta_obs0, meta_act, meta_rew, meta_obs1, meta_done))
-        td_map.update(self.policy[-1].get_td_map_from_batch(
-            worker_obs0, worker_act, worker_rew, worker_obs1, worker_done))
+        for i in range(NUM_LEVELS):
+            td_map.update(self.policy[i].get_td_map_from_batch(
+                obs0=obs0[i],
+                actions=act[i],
+                rewards=rew[i],
+                obs1=obs1[i],
+                done=done[i]
+            ))
 
         return td_map
 
@@ -798,10 +793,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     #                       Auxiliary methods for HAC                         #
     # ======================================================================= #
 
-    def _hindsight_actions_goals(self,
-                                 meta_action,
-                                 initial_observations,
-                                 initial_rewards):
+    def _hindsight_actions_goals(self, initial_observations, initial_rewards):
         """Calculate hindsight goal and action transitions.
 
         These are then stored in the replay buffer along with the original
@@ -812,8 +804,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        meta_action : array_like
-            the original higher-level policy actions (goal)
         initial_observations : array_like
             the original worker observations with the non-hindsight goals
             appended to them
@@ -825,9 +815,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         array_like
             the goal in hindsight
         array_like
-            the modified Worker observations with the hindsight goals appended
-            to them
-        array_like
             the modified intrinsic rewards taking into account the hindsight
             goals
 
@@ -835,7 +822,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         -----
         * store_transition(self):
         """
-        goal_dim = meta_action.shape[-1]
+        new_goals = []
         observations = deepcopy(initial_observations)
         rewards = deepcopy(initial_rewards)
         hindsight_goal = 0 if self.relative_goals \
@@ -859,12 +846,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     * self.intrinsic_reward_fn(obs_t, hindsight_goal, obs_tp1)
 
             obs_tp1 = deepcopy(obs_t)
+            new_goals = [deepcopy(hindsight_goal)] + new_goals
 
-            # Replace the goal with the goal that the worker
-            # actually achieved.
-            observations[-i][-goal_dim:] = hindsight_goal
-
-        return hindsight_goal, observations, rewards
+        return new_goals, rewards
 
     # ======================================================================= #
     #                      Auxiliary methods for HRL-CG                       #
