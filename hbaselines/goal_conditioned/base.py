@@ -9,8 +9,6 @@ from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 
-NUM_LEVELS = 2
-
 
 class GoalConditionedPolicy(ActorCriticPolicy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
@@ -27,15 +25,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     The highest level policy is rewarded based on the original environment
     reward function: r_H = r(s,a;h).
 
-<<<<<<< HEAD
-    The Target term, h, parametrizes the reward assigned to the Manager in
-    order to allow the policy to generalize to several goals within a task, a
-    technique that was first proposed by [4].
-=======
     The Target term, h, parametrizes the reward assigned to the highest level
     policy in order to allow the policy to generalize to several goals within a
     task, a technique that was first proposed by [4].
->>>>>>> 4d996cc286ce9898e3bcadc4f391d9573b9a050b
 
     Finally, the Worker is motivated to follow the goals set by the Manager via
     an intrinsic reward based on the distance between the current observation
@@ -316,11 +308,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ac_dim=ac_space.shape[0],
             co_dim=None if co_space is None else co_space.shape[0],
             goal_dim=meta_ob_dim[0],
-            num_levels=NUM_LEVELS
+            num_levels=num_levels
         )
 
         # current action by the meta-level policies
-        self._meta_action = [None for _ in range(NUM_LEVELS - 1)]
+        self._meta_action = [None for _ in range(num_levels - 1)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy
@@ -501,7 +493,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_action(self, obs, context, apply_noise, random_actions):
         """See parent class."""
         # Loop through the policies in the hierarchy.
-        for i in range(NUM_LEVELS - 1):
+        for i in range(self.num_levels - 1):
             if self._update_meta(i):
                 context_i = context if i == 0 else self._meta_action[i - 1]
 
@@ -566,13 +558,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Add a sample to the replay buffer.
         if len(self._observations) == \
-                self.meta_period ** (NUM_LEVELS - 1) or done:
+                self.meta_period ** (self.num_levels - 1) or done:
             # Add the last observation and context.
             self._observations.append(obs1)
             self._contexts.append(context1)
 
             # Compute the current state goals to add to the final observation.
-            for i in range(NUM_LEVELS - 1):
+            for i in range(self.num_levels - 1):
                 self._actions[i].append(self.goal_transition_fn(
                     obs0=obs0[self.goal_indices],
                     goal=self._meta_action[i],
@@ -646,8 +638,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def clear_memory(self):
         """Clear internal memory that is used by the replay buffer."""
-        self._actions = [[] for _ in range(NUM_LEVELS)]
-        self._rewards = [[0]] + [[] for _ in range(NUM_LEVELS - 1)]
+        self._actions = [[] for _ in range(self.num_levels)]
+        self._rewards = [[0]] + [[] for _ in range(self.num_levels - 1)]
         self._observations = []
         self._contexts = []
         self._dones = []
@@ -662,7 +654,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
 
         td_map = {}
-        for i in range(NUM_LEVELS):
+        for i in range(self.num_levels):
             td_map.update(self.policy[i].get_td_map_from_batch(
                 obs0=obs0[i],
                 actions=act[i],
