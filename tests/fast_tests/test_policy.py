@@ -936,27 +936,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy._observations = [0 for _ in range(10)]
         self.assertEqual(policy._update_meta(1), True)
 
-    def test_meta_period(self):
-        """Verify the functionality of the meta_period feature."""
-        # Test for a meta period of 5.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 5
-        policy = TD3GoalConditionedPolicy(**policy_params)
-
-        # FIXME: add test
-        del policy
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # Test for a meta period of 10.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 10
-        policy = TD3GoalConditionedPolicy(**policy_params)
-
-        # FIXME: add test
-        del policy
-
     def test_intrinsic_rewards(self):
         """Validate the functionality of the intrinsic rewards."""
         policy = TD3GoalConditionedPolicy(**self.policy_params)
