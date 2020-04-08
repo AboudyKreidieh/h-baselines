@@ -101,7 +101,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
+            meta-policy action period
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
