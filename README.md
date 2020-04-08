@@ -411,7 +411,7 @@ print(SAC_PARAMS)
 
 ### Meta Period
 
-The Manager action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
+The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
@@ -423,7 +423,7 @@ alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
-        # specify the Manager action period
+        # specify the meta-policy action period
         "meta_period": 10
     }
 )
@@ -431,10 +431,10 @@ alg = OffPolicyRLAlgorithm(
 
 ### Intrinsic Rewards
 
-The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, can have a 
-significant affect on the training performance of both the Manager and 
-Worker policies. Currently, this repository only support one intrinsic 
-reward function: negative distance. This is of the form:
+The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, can have a significant 
+effect on the training performance of every policy in the hierarchy. Currently,
+this repository only support one intrinsic reward function: negative distance. 
+This is of the form:
 
 <p align="center"><img src="/tex/1689c3a6f75282843075ef0e3a4e87bb.svg?invert_in_darkmode&sanitize=true" align=middle width=226.09029464999998pt height=16.438356pt/></p>
 
@@ -524,9 +524,9 @@ with the subgoal state achieved in hindsight. For example, given an original
 sub-policy transition:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" g_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" g_0,
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -550,9 +550,9 @@ sub-policy transition:
 The original goal is relabeled to match the original as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" s_k, <---- the changed component
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" s_k, <---- the changed component
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -587,9 +587,9 @@ observations and intrinsic rewards within the sample as well. This is done by
 modifying the relevant worker-specific features as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" \bar{g}_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" \bar{g}_0,
+        "meta reward" r,
         "worker observations" [ <------------
             (s_0, \bar{g}_0),               |
             (s_1, \bar{g}_1),               |---- the changed components
