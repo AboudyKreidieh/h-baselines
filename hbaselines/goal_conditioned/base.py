@@ -631,10 +631,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             True if the action should be updated by the meta-policy at the
             given level
         """
-        if level == 0:
-            return len(self._observations) == 0
-        else:
-            return len(self._observations) % (self.meta_period ** level) == 0
+        return len(self._observations) % \
+            (self.meta_period ** (self.num_levels - level - 1)) == 0
 
     def clear_memory(self):
         """Clear internal memory that is used by the replay buffer."""
