@@ -1,21 +1,42 @@
 """Script containing the HierReplayBuffer object."""
-import random
 import numpy as np
+import random
 
-from hbaselines.fcnet.replay_buffer import ReplayBuffer
 
+class HierReplayBuffer(object):
+    """Hierarchical variant of ReplayBuffer.
 
-class HierReplayBuffer(ReplayBuffer):
-    """Hierarchical variant of ReplayBuffer."""
+    Attributes
+    ----------
+    buffer_size : int
+        Max number of transitions to store in the buffer. When the buffer
+        overflows the old memories are dropped.
+    batch_size : int
+        number of elements that are to be returned as a batch
+    meta_period : int
+        meta-policy action period
+    obs_dim : int
+        the number of elements in the observation
+    ac_dim : int
+        the number of elements in the environment action
+    co_dim : int
+        the number of elements in the context. Set to None if no context is
+        used by the environment.
+    goal_dim : int
+        the number of elements in the meta-action
+    num_levels : int
+        the number of levels in the hierarchy
+    """
 
     def __init__(self,
                  buffer_size,
                  batch_size,
                  meta_period,
-                 meta_obs_dim,
-                 meta_ac_dim,
-                 worker_obs_dim,
-                 worker_ac_dim):
+                 obs_dim,
+                 ac_dim,
+                 co_dim,
+                 goal_dim,
+                 num_levels):
         """Instantiate the hierarchical replay buffer.
 
         Parameters
@@ -25,183 +46,336 @@ class HierReplayBuffer(ReplayBuffer):
             overflows the old memories are dropped.
         batch_size : int
             number of elements that are to be returned as a batch
-        meta_obs_dim : int
-            number of elements in the meta observations
-        meta_ac_dim : int
-            number of elements in the meta actions
-        worker_obs_dim : int
-            number of elements in the Worker observations
-        worker_ac_dim : int
-            number of elements in the Worker actions
+        meta_period : int
+            meta-policy action period
+        obs_dim : int
+            the number of elements in the observation
+        ac_dim : int
+            the number of elements in the environment action
+        co_dim : int
+            the number of elements in the context. Set to None if no context is
+            used by the environment.
+        goal_dim : int
+            the number of elements in the meta-action
+        num_levels : int
+            the number of levels in the hierarchy
         """
-        super(HierReplayBuffer, self).__init__(
-            buffer_size, batch_size, worker_obs_dim, worker_ac_dim)
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.meta_period = meta_period
+        self.obs_dim = obs_dim
+        self.ac_dim = ac_dim
+        self.co_dim = co_dim
+        self.goal_dim = goal_dim
+        self.num_levels = num_levels
 
-        self._meta_period = meta_period
-        self._worker_ob_dim = worker_obs_dim
-        self._worker_ac_dim = worker_ac_dim
+        # some useful attributes
+        self._size = 0
+        self._current_idx = 0
+        self._next_idx = 0
+        self._obs_t = [[] for _ in range(buffer_size)]
+        self._context_t = [[] for _ in range(buffer_size)]
+        self._action_t = [[] for _ in range(buffer_size)]
+        self._reward_t = [[] for _ in range(buffer_size)]
+        self._done_t = [[] for _ in range(buffer_size)]
 
-        # Used to store buffer data.
-        self._storage = [None for _ in range(buffer_size)]
+    def __len__(self):
+        """Return the number of elements stored."""
+        return self._size
 
-        # Variables that are used when returning samples
-        self.meta_obs0 = np.zeros(
-            (batch_size, meta_obs_dim), dtype=np.float32)
-        self.meta_obs1 = np.zeros(
-            (batch_size, meta_obs_dim), dtype=np.float32)
-        self.meta_act = np.zeros(
-            (batch_size, meta_ac_dim), dtype=np.float32)
-        self.meta_rew = np.zeros(
-            batch_size, dtype=np.float32)
-        self.meta_done = np.zeros(
-            batch_size, dtype=np.float32)
-        self.worker_obs0 = np.zeros(
-            (batch_size, worker_obs_dim), dtype=np.float32)
-        self.worker_obs1 = np.zeros(
-            (batch_size, worker_obs_dim), dtype=np.float32)
-        self.worker_act = np.zeros(
-            (batch_size, worker_ac_dim), dtype=np.float32)
-        self.worker_rew = np.zeros(
-            batch_size, dtype=np.float32)
-        self.worker_done = np.zeros(
-            batch_size, dtype=np.float32)
+    def can_sample(self):
+        """Check if n_samples samples can be sampled from the buffer.
 
-    def add(self, obs_t, goal_t, action_t, reward_t, done, **kwargs):
+        Returns
+        -------
+        bool
+            True if enough sample exist, False otherwise
+        """
+        return len(self) >= self.batch_size
+
+    def is_full(self):
+        """Check whether the replay buffer is full or not.
+
+        Returns
+        -------
+        bool
+            True if it is full, False otherwise
+        """
+        return len(self) == self.buffer_size
+
+    def add(self, obs_t, context_t, action_t, reward_t, done_t):
         """Add a new transition to the buffer.
 
         Parameters
         ----------
         obs_t : array_like
-            list of all worker observations for a given meta period
+            the list of environment observations
         action_t : array_like
-            list of all worker actions for a given meta period
-        goal_t : array_like
-            the meta action
+            a list of actions performed by every policy in the hierarchy
+        context_t : array_like
+            the first and last context from the environment for the sample
         reward_t : list of float
-            list of all intrinsic rewards for a given meta period
-        done : list of float or list of bool
-            list of done masks
-        kwargs : Any
-            additional parameters, including:
-
-            * meta_obs_t: a tuple of the manager observation and next
-              observation
-            * meta_reward_t: the reward of the manager
+            the list of of rewards experienced by every policy in the hierarchy
+        done_t : list of float or list of bool
+            a list of environment done masks
         """
-        # Store the manager samples, then the worker samples.
-        data = (kwargs["meta_obs_t"], goal_t, kwargs["meta_reward_t"],
-                obs_t, action_t, reward_t, done)
-
-        # Add the element to the list. If the list is already the max size of
-        # the replay buffer, then replace the oldest sample with this one.
-        self._storage[self._next_idx] = data
+        self._obs_t[self._next_idx] = obs_t
+        self._context_t[self._next_idx] = context_t
+        self._action_t[self._next_idx] = action_t
+        self._reward_t[self._next_idx] = reward_t
+        self._done_t[self._next_idx] = done_t
 
         # Increment the next index and size terms
-        self._next_idx = (self._next_idx + 1) % self._maxsize
-        self._size = min(self._size + 1, self._maxsize)
+        self._current_idx = self._next_idx
+        self._next_idx = (self._next_idx + 1) % self.buffer_size
+        self._size = min(self._size + 1, self.buffer_size)
 
-    def _encode_sample(self, idxes, **kwargs):
-        """Return a sample from the replay buffer based on indices.
+    def sample(self, with_additional):
+        """Sample a batch of experiences.
+
+        An example for how a sample is collected from the list of observations/
+        actions for a three-level hierarchy.
+
+        Observations:
+
+        ------------------------------------------
+        | X  :   :   :   :   :   :   :   :   |   |     Level 2
+        ------------------------------------------
+
+        -----------------------------------------
+        |   :   :   | X :   :   |   :   :   |   |     Level 1
+        -----------------------------------------
+
+        -----------------------------------------
+        |   |   |   |   | X |   |   |   |   |   |     Level 0
+        -----------------------------------------
+
+
+        Next observations:
+
+        -----------------------------------------
+        |   :   :   :   :   :   :   :   :   |   |     Level 2
+        -----------------------------------------
+
+        -----------------------------------------
+        |   :   :   |   :   :   | X :   :   |   |     Level 1
+        -----------------------------------------
+
+        -----------------------------------------
+        |   |   |   |   |   | X |   |   |   |   |     Level 0
+        -----------------------------------------
+
+
+        Action:
+
+        -----------------------------------------
+        |     X     |           |           |   |     Level 2
+        -----------------------------------------
+
+        -----------------------------------------
+        |   |   |   | X |   |   |   |   |   |   |     Level 1
+        -----------------------------------------
+
+        -----------------------------------------
+        |   |   |   |   | X |   |   |   |   |   |     Level 0
+        -----------------------------------------
+
+
+        Reward:
+
+        -------------------------------------
+        |                 X                 |         Level 2
+        -------------------------------------
+
+        -------------------------------------
+        |           |     X     |           |         Level 1
+        -------------------------------------
+
+        -------------------------------------
+        |   |   |   |   | X |   |   |   |   |         Level 0
+        -------------------------------------
+
+
+        Context:
+
+        -----------------------------------------
+        |           |     X     |           |   |     Level 2 (action)
+        -----------------------------------------
+
+                            ^
+                            | context
+
+        -----------------------------------------
+        |   |   |   |   | X |   |   |   |   |   |     Level 1 (action)
+        -----------------------------------------
+
+                            ^
+                            | context
+
+        -----------------------------------------
+        |   |   |   |   | X |   |   |   |   |   |     Level 0 (action)
+        -----------------------------------------
+
+
+        Next Context:
+
+        -----------------------------------------
+        |           |           |     X     |   |     Level 2 (action)
+        -----------------------------------------
+
+                            ^
+                            | context
+
+        -----------------------------------------
+        |   |   |   |   |   | x |   |   |   |   |     Level 1 (action)
+        -----------------------------------------
+
+                            ^
+                            | context
+
+        -----------------------------------------
+        |   |   |   |   | X |   |   |   |   |   |     Level 0 (action)
+        -----------------------------------------
 
         Parameters
         ----------
-        idxes : list of int
-            list of random indices
-        kwargs : dict
-            additional parameters, including:
-
-            * with_additional (bool): specifies whether to remove additional
-              data from the replay buffer sampling procedure. Since only a
-              subset of algorithms use additional data, removing it can speedup
-              the other algorithms.
+        with_additional : bool
+            specifies whether to remove additional data from the replay buffer
+            sampling procedure. Since only a subset of algorithms use
+            additional data, removing it can speedup the other algorithms.
 
         Returns
         -------
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of meta observations
-        numpy.ndarray
-            (batch_size, meta_obs) matrix of next meta-period meta observations
-        numpy.ndarray
-            (batch_size, meta_ac) matrix of meta actions
-        numpy.ndarray
-            (batch_size,) vector of meta rewards
-        numpy.ndarray
-            (batch_size,) vector of meta done masks
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of worker observations
-        numpy.ndarray
-            (batch_size, worker_obs) matrix of next step worker observations
-        numpy.ndarray
-            (batch_size, worker_ac) matrix of worker actions
-        numpy.ndarray
-            (batch_size,) vector of intrinsic rewards
-        numpy.ndarray
-            (batch_size,) vector of worker done masks
+        list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        list of array_like
+            (batch_size,) vector of done masks for every level in the hierarchy
         dict
             additional information; used for features such as the off-policy
             corrections or centralized value functions
         """
+        obses = [[] for _ in range(self.num_levels)]
+        contexts = [[] for _ in range(self.num_levels)]
+        actions = [[] for _ in range(self.num_levels)]
+        next_obses = [[] for _ in range(self.num_levels)]
+        next_contexts = [[] for _ in range(self.num_levels)]
+        rewards = [[] for _ in range(self.num_levels)]
+        dones = [[] for _ in range(self.num_levels)]
+
         # Do not encode additional information information in samples if it is
         # not needed. Waste of compute resources.
-        if kwargs.get("with_additional", True):
+        if with_additional:
+            worker_ob_dim = self.obs_dim + self.goal_dim
+            worker_ac_dim = self.ac_dim
             additional = {
                 "worker_obses": np.zeros(
-                    (self._batch_size, self._worker_ob_dim,
-                     self._meta_period + 1),
+                    (self.batch_size, worker_ob_dim, self.meta_period + 1),
                     dtype=np.float32),
                 "worker_actions": np.zeros(
-                    (self._batch_size, self._worker_ac_dim, self._meta_period),
+                    (self.batch_size, worker_ac_dim, self.meta_period),
                     dtype=np.float32),
             }
         else:
-            additional = None
+            additional = {}
 
-        for i, indx in enumerate(idxes):
+        idxes = np.random.randint(0, self._size, size=self.batch_size)
+
+        for k, indx in enumerate(idxes):
             # Extract the elements of the sample.
-            meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-                intrinsic_rewards, worker_dones = self._storage[indx]
+            candidate_obs = self._obs_t[indx]
+            candidate_context = self._context_t[indx]
+            candidate_action = self._action_t[indx]
+            candidate_reward = self._reward_t[indx]
+            candidate_done = self._done_t[indx]
 
-            # Separate the current and next step meta observations.
-            meta_obs0, meta_obs1 = meta_obs
+            obses[0].append(candidate_obs[0])
+            contexts[0].append(candidate_context[0])
+            actions[0].append(candidate_action[0][0])
+            next_obses[0].append(candidate_obs[-1])
+            next_contexts[0].append(candidate_context[-1])
+            rewards[0].append(candidate_reward[0][0])
+            dones[0].append(candidate_done[-1])
 
-            # The meta done value corresponds to the last done value.
-            meta_done = worker_dones[-1]
+            idx_val = random.randint(0, len(candidate_obs) - 2)
 
-            # Sample one obs0/obs1/action/reward from the list of per-meta-
-            # period variables.
-            indx_val = random.randint(0, len(worker_obses)-2)
-            worker_obs0 = worker_obses[indx_val]
-            worker_obs1 = worker_obses[indx_val + 1]
-            worker_action = worker_actions[indx_val]
-            intrinsic_reward = intrinsic_rewards[indx_val]
-            worker_done = 0  # see docstring
+            for i in reversed(range(1, self.num_levels)):
+                obses[i].append(
+                    candidate_obs[idx_val])
+                contexts[i].append(candidate_action[i - 1][
+                    int(idx_val /
+                        self.meta_period ** (self.num_levels - i - 1))])
+                actions[i].append(candidate_action[i][
+                    int(idx_val /
+                        self.meta_period ** max(self.num_levels - i - 2, 0))])
+                next_obses[i].append(candidate_obs[
+                    idx_val + self.meta_period ** (self.num_levels-i-1)])
+                next_contexts[i].append(candidate_action[i - 1][
+                    int(idx_val /
+                        self.meta_period ** (self.num_levels - i - 1)) + 1])
+                rewards[i].append(candidate_reward[i][
+                    int(idx_val / self.meta_period ** (self.num_levels-i-1))])
+                dones[i].append(0)    # FIXME
 
-            # Add the new sample to the list of returned samples.
-            self.meta_obs0[i, :] = np.array(meta_obs0, copy=False)
-            self.meta_obs1[i, :] = np.array(meta_obs1, copy=False)
-            self.meta_act[i, :] = np.array(meta_action, copy=False)
-            self.meta_rew[i] = np.array(meta_reward, copy=False)
-            self.meta_done[i] = np.array(meta_done, copy=False)
-            self.worker_obs0[i, :] = np.array(worker_obs0, copy=False)
-            self.worker_obs1[i, :] = np.array(worker_obs1, copy=False)
-            self.worker_act[i, :] = np.array(worker_action, copy=False)
-            self.worker_rew[i] = np.array(intrinsic_reward, copy=False)
-            self.worker_done[i] = np.array(worker_done, copy=False)
+                idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
 
-            if kwargs.get("with_additional", True):
-                for j in range(len(worker_obses)):
-                    additional["worker_obses"][i, :, j] = worker_obses[j]
-                for j in range(len(worker_actions)):
-                    additional["worker_actions"][i, :, j] = worker_actions[j]
+            # FIXME: only works for two level hierarchies.
+            if with_additional:
+                for j in range(len(candidate_obs)):
+                    additional["worker_obses"][k, :, j] = \
+                        np.array(candidate_obs[j])
+                for j in range(len(candidate_action[-1])):
+                    additional["worker_actions"][k, :, j] = \
+                        candidate_action[-1][j]
 
-        return self.meta_obs0, \
-            self.meta_obs1, \
-            self.meta_act, \
-            self.meta_rew, \
-            self.meta_done, \
-            self.worker_obs0, \
-            self.worker_obs1, \
-            self.worker_act, \
-            self.worker_rew, \
-            self.worker_done, \
-            additional
+        # Convert everything to an array.
+        for i in range(self.num_levels):
+            obses[i] = self._get_obs(obses[i], contexts[i], 1)
+            next_obses[i] = self._get_obs(next_obses[i], next_contexts[i], 1)
+            actions[i] = np.asarray(actions[i])
+            rewards[i] = np.asarray(rewards[i])
+            dones[i] = np.asarray(dones[i])
+
+        return obses, next_obses, actions, rewards, dones, additional
+
+    @staticmethod
+    def _get_obs(obs, context, axis=0):
+        """Return the processed observation.
+
+        If the contextual term is not None, this will look as follows:
+
+                                    -----------------
+                    processed_obs = | obs | context |
+                                    -----------------
+
+        Otherwise, this method simply returns the observation.
+
+        Parameters
+        ----------
+        obs : array_like
+            the original observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        axis : int
+            the axis to concatenate the observations and contextual terms by
+
+        Returns
+        -------
+        array_like
+            the processed observation
+        """
+        obs = np.array(obs)
+        if context[0] is not None:
+            context = np.array(context)
+            context = context.flatten() if axis == 0 else context
+            obs = np.concatenate((obs, context), axis=axis)
+        return obs

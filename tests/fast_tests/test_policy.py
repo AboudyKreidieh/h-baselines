@@ -32,7 +32,7 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
@@ -214,7 +214,7 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'scope': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
@@ -374,7 +374,7 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'scope': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
@@ -529,7 +529,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -592,19 +592,35 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 evaluate=evaluate
             )
 
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+        obs_t = policy.replay_buffer._obs_t[0]
+        action_t = policy.replay_buffer._action_t[0]
+        reward = policy.replay_buffer._reward_t[0]
+        done = policy.replay_buffer._done_t[0]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
+                          np.array([5, 5]), np.array([5, 5])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for i, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
+        self.assertEqual(reward,
+                         [[6], [-5.656854249501219, -4.24264068713107,
+                                -2.8284271247638677, -1.4142135624084504]])
+
+        self.assertEqual(done,
+                         [False, False, False, False])
 
     def test_store_transition_2(self):
         policy_params = self.policy_params.copy()
@@ -644,20 +660,34 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 evaluate=evaluate
             )
 
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+        obs_t = policy.replay_buffer._obs_t[0]
+        action_t = policy.replay_buffer._action_t[0]
+        reward = policy.replay_buffer._reward_t[0]
+        done = policy.replay_buffer._done_t[0]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for obs in worker_obses[:-1]:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
-        np.testing.assert_almost_equal(worker_obses[-1][-2:], np.array([4, 4]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
+                          np.array([5, 5]), np.array([4, 4])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for _, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
+        self.assertEqual(reward,
+                         [[6], [-5.656854249501219, -5.656854249501219,
+                                -5.656854249501219, -5.656854249501219]])
+
+        self.assertEqual(done, [False, False, False, False])
 
     def test_store_transition_3(self):
         policy_params = self.policy_params.copy()
@@ -698,34 +728,64 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             )
 
         # unchanged sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+        obs_t = policy.replay_buffer._obs_t[0]
+        action_t = policy.replay_buffer._action_t[0]
+        reward_t = policy.replay_buffer._reward_t[0]
+        done_t = policy.replay_buffer._done_t[0]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
+                          np.array([5, 5]), np.array([5, 5])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for i, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * (i+1), decimal=3)
+        self.assertEqual(reward_t,
+                         [[6], [-5.656854249501219, -4.24264068713107,
+                                -2.8284271247638677, -1.4142135624084504]])
+
+        self.assertEqual(done_t, [False, False, False, False])
 
         # hindsight sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
+        obs_t = policy.replay_buffer._obs_t[1]
+        action_t = policy.replay_buffer._action_t[1]
+        reward_t = policy.replay_buffer._reward_t[1]
+        done_t = policy.replay_buffer._done_t[1]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for obs in worker_obses:
-            np.testing.assert_almost_equal(obs[-2:], np.array([4, 4]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([4, 4]), np.array([4, 4]), np.array([4, 4]),
+                          np.array([4, 4]), np.array([4, 4])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for i, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
+        self.assertEqual(reward_t,
+                         [[6], [-4.24264068713107, -2.8284271247638677,
+                                -1.4142135624084504, -1e-05]])
+
+        self.assertEqual(done_t, [False, False, False, False])
 
     def test_store_transition_4(self):
         policy_params = self.policy_params.copy()
@@ -766,35 +826,64 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             )
 
         # unchanged sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[0]
+        obs_t = policy.replay_buffer._obs_t[0]
+        action_t = policy.replay_buffer._action_t[0]
+        reward = policy.replay_buffer._reward_t[0]
+        done = policy.replay_buffer._done_t[0]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([5, 5]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for obs in worker_obses[:-1]:
-            np.testing.assert_almost_equal(obs[-2:], np.array([5, 5]))
-        np.testing.assert_almost_equal(worker_obses[-1][-2:], np.array([4, 4]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
+                          np.array([5, 5]), np.array([4, 4])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for _, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * 4, decimal=3)
+        self.assertEqual(reward,
+                         [[6], [-5.656854249501219, -5.656854249501219,
+                                -5.656854249501219, -5.656854249501219]])
+
+        self.assertEqual(done, [False, False, False, False])
 
         # hindsight sample
-        meta_obs, meta_action, meta_reward, worker_obses, worker_actions, \
-            intrinsic_rewards, worker_dones = policy.replay_buffer._storage[1]
+        obs_t = policy.replay_buffer._obs_t[1]
+        action_t = policy.replay_buffer._action_t[1]
+        reward_t = policy.replay_buffer._reward_t[1]
+        done_t = policy.replay_buffer._done_t[1]
 
-        # check the meta action
-        np.testing.assert_almost_equal(meta_action, np.array([4, 4]))
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
+                     np.array([3, 3]), np.array([4, 4])][i])
+                for i in range(len(obs_t)))
+        )
 
-        # check the worker contexts
-        for i, obs, in enumerate(reversed(worker_obses)):
-            np.testing.assert_almost_equal(obs[-2:], np.array([i, i]))
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([4, 4]), np.array([3, 3]), np.array([2, 2]),
+                          np.array([1, 1]), np.array([0, 0])],
+                         [np.array([0]), np.array([1]), np.array([2]),
+                          np.array([3])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
 
-        # check the intrinsic rewards
-        for i, rew, in enumerate(reversed(intrinsic_rewards)):
-            np.testing.assert_almost_equal(rew, -np.sqrt(2) * i, decimal=3)
+        self.assertEqual(reward_t,
+                         [[6], [-4.24264068713107, -2.8284271247638677,
+                                -1.4142135624084504, -1e-05]])
+
+        self.assertEqual(done_t, [False, False, False, False])
 
     def test_meta_period(self):
         """Verify the functionality of the meta_period feature."""
@@ -917,7 +1006,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1147,7 +1236,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
             'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
             'layers': None,
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1326,7 +1415,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1349,7 +1438,7 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1452,7 +1541,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -1475,7 +1564,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -2167,7 +2256,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
         self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
@@ -2190,7 +2279,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
             'layers': [256, 256],
-            'verbose': 2,
+            'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
         self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
