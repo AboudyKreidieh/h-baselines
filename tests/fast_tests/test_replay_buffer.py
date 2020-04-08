@@ -1,4 +1,5 @@
 import unittest
+import random
 import numpy as np
 
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
@@ -84,7 +85,7 @@ class TestHierReplayBuffer(unittest.TestCase):
     def test_add_sample(self):
         """Test the `add` and `sample` methods the replay buffer."""
         # Set the random seed.
-        np.random.seed(0)
+        random.seed(0)
 
         obs_t = [np.array([0]), np.array([1]), np.array([2]),
                  np.array([3]), np.array([4]), np.array([5]),
@@ -136,19 +137,19 @@ class TestHierReplayBuffer(unittest.TestCase):
         obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
         np.testing.assert_array_almost_equal(obs0[0], [[0, 0]])
         np.testing.assert_array_almost_equal(obs0[1], [[6, 2]])
-        np.testing.assert_array_almost_equal(obs0[2], [[7, 7]])
+        np.testing.assert_array_almost_equal(obs0[2], [[6, 6]])
 
         np.testing.assert_array_almost_equal(obs1[0], [[9, 1]])
         np.testing.assert_array_almost_equal(obs1[1], [[9, 3]])
-        np.testing.assert_array_almost_equal(obs1[2], [[8, 8]])
+        np.testing.assert_array_almost_equal(obs1[2], [[7, 7]])
 
         np.testing.assert_array_almost_equal(act[0], [[0]])
         np.testing.assert_array_almost_equal(act[1], [[6]])
-        np.testing.assert_array_almost_equal(act[2], [[7]])
+        np.testing.assert_array_almost_equal(act[2], [[6]])
 
         np.testing.assert_array_almost_equal(rew[0], [0])
         np.testing.assert_array_almost_equal(rew[1], [2])
-        np.testing.assert_array_almost_equal(rew[2], [7])
+        np.testing.assert_array_almost_equal(rew[2], [6])
 
         np.testing.assert_array_almost_equal(done[0], [0])
         np.testing.assert_array_almost_equal(done[1], [0])
