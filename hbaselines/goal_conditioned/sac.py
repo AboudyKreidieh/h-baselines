@@ -91,7 +91,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
+            meta-policy action period
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -165,7 +165,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     # FIXME
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------
@@ -262,7 +262,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         raise NotImplementedError  # TODO
 
     def _connected_gradients_update(self,
@@ -271,9 +271,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                                     rewards,
                                     obs1,
                                     terminals1,
-                                    worker_obs0,
-                                    worker_obs1,
-                                    worker_actions,
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
@@ -283,23 +280,19 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         Parameters
         ----------
-        obs0 : array_like
-            batch of manager observations
-        actions : array_like
-            batch of manager actions executed given obs_batch
-        rewards : array_like
-            manager rewards received as results of executing act_batch
-        obs1 : array_like
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_actions : array_like
-            batch of worker actions
+        obs0 : list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        actions : list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        obs1 : list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        rewards : list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        terminals1 : list of numpy bool
+            (batch_size,) vector of done masks for every level in the hierarchy
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.

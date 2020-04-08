@@ -31,7 +31,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
             'reward_scale': 1.,
             'render': False,
             'render_eval': False,
-            'verbose': 2,
+            'verbose': 0,
             'policy_kwargs': None,
             '_init_setup_model': True
         }
