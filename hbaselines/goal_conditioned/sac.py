@@ -34,6 +34,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  act_fun,
                  use_huber,
                  target_entropy,
+                 num_levels,
                  meta_period,
                  intrinsic_reward_scale,
                  relative_goals,
@@ -86,6 +87,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
             meta-policy action period
         intrinsic_reward_scale : float
@@ -135,6 +139,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
@@ -158,6 +163,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
+    # FIXME
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 

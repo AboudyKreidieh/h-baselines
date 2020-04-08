@@ -91,7 +91,10 @@ FEEDFORWARD_PARAMS = dict(
 
 GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
 GOAL_CONDITIONED_PARAMS.update(dict(
-    # manger action period
+    # number of levels within the hierarchy. Must be greater than 1. Two levels
+    # correspond to a Manager/Worker paradigm.
+    num_levels=2,
+    # meta-policy action period
     meta_period=10,
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,

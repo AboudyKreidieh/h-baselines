@@ -38,6 +38,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 num_levels,
                  meta_period,
                  intrinsic_reward_scale,
                  relative_goals,
@@ -96,8 +97,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
+            meta-policy action period
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -145,6 +149,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
@@ -170,6 +175,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
+    # FIXME
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 
@@ -354,6 +360,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         float
             meta-policy actor loss
         """
+        assert self.num_levels == 2, \
+            "Connected gradients currently only works for 2-level hierarchies."
+
         # Reshape to match previous behavior and placeholder shape.
         rewards[0] = rewards[0].reshape(-1, 1)
         terminals1[0] = terminals1[0].reshape(-1, 1)

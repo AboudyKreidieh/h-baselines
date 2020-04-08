@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
+
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
@@ -885,26 +886,55 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         self.assertEqual(done_t, [False, False, False, False])
 
-    def test_meta_period(self):
-        """Verify the functionality of the meta_period feature."""
-        # Test for a meta period of 5.
+    def test_update_meta(self):
+        """Validate the functionality of the _update_meta function.
+
+        This is tested for two cases:
+        1. level = 0 after 0 steps --> True
+        2. level = 1 after 0 steps --> True
+        3. level = 0 after 2 steps --> False
+        4. level = 1 after 2 steps --> False
+        5. level = 0 after 5 steps --> False
+        6. level = 1 after 5 steps --> True
+        7. level = 0 after 10 steps --> False
+        8. level = 1 after 10 steps --> True
+        """
         policy_params = self.policy_params.copy()
         policy_params['meta_period'] = 5
+        policy_params['num_levels'] = 3
         policy = TD3GoalConditionedPolicy(**policy_params)
 
-        # FIXME: add test
-        del policy
+        # test case 1
+        policy._observations = []
+        self.assertEqual(policy._update_meta(0), True)
 
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
+        # test case 2
+        policy._observations = []
+        self.assertEqual(policy._update_meta(1), True)
 
-        # Test for a meta period of 10.
-        policy_params = self.policy_params.copy()
-        policy_params['meta_period'] = 10
-        policy = TD3GoalConditionedPolicy(**policy_params)
+        # test case 3
+        policy._observations = [0 for _ in range(2)]
+        self.assertEqual(policy._update_meta(0), False)
 
-        # FIXME: add test
-        del policy
+        # test case 4
+        policy._observations = [0 for _ in range(2)]
+        self.assertEqual(policy._update_meta(1), False)
+
+        # test case 5
+        policy._observations = [0 for _ in range(5)]
+        self.assertEqual(policy._update_meta(0), False)
+
+        # test case 6
+        policy._observations = [0 for _ in range(5)]
+        self.assertEqual(policy._update_meta(1), True)
+
+        # test case 7
+        policy._observations = [0 for _ in range(10)]
+        self.assertEqual(policy._update_meta(0), False)
+
+        # test case 8
+        policy._observations = [0 for _ in range(10)]
+        self.assertEqual(policy._update_meta(1), True)
 
     def test_intrinsic_rewards(self):
         """Validate the functionality of the intrinsic rewards."""
@@ -1018,9 +1048,11 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-    def test_init(self):
+    def test_init_2_levels(self):
         """Validate that the graph and variables are initialized properly."""
-        policy = TD3GoalConditionedPolicy(**self.policy_params)
+        policy_params = self.policy_params.copy()
+        policy_params['num_levels'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
 
         # Check that the abstract class has all the required attributes.
         self.assertEqual(policy.meta_period,
@@ -1114,6 +1146,142 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
              'level_1/target/qf_1/fc1/kernel:0',
              'level_1/target/qf_1/qf_output/bias:0',
              'level_1/target/qf_1/qf_output/kernel:0']
+        )
+
+    def test_init_3_levels(self):
+        """Validate that the graph and variables are initialized properly."""
+        policy_params = self.policy_params.copy()
+        policy_params['num_levels'] = 3
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # Check that the abstract class has all the required attributes.
+        self.assertEqual(policy.meta_period,
+                         self.policy_params['meta_period'])
+        self.assertEqual(policy.relative_goals,
+                         self.policy_params['relative_goals'])
+        self.assertEqual(policy.off_policy_corrections,
+                         self.policy_params['off_policy_corrections'])
+        self.assertEqual(policy.use_fingerprints,
+                         self.policy_params['use_fingerprints'])
+        self.assertEqual(policy.centralized_value_functions,
+                         self.policy_params['centralized_value_functions'])
+        self.assertEqual(policy.connected_gradients,
+                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cg_weights,
+                         self.policy_params['cg_weights'])
+
+        # Check that all trainable variables have been created in the
+        # TensorFlow graph.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/output/bias:0',
+             'level_0/model/pi/output/kernel:0',
+             'level_0/model/qf_0/fc0/bias:0',
+             'level_0/model/qf_0/fc0/kernel:0',
+             'level_0/model/qf_0/fc1/bias:0',
+             'level_0/model/qf_0/fc1/kernel:0',
+             'level_0/model/qf_0/qf_output/bias:0',
+             'level_0/model/qf_0/qf_output/kernel:0',
+             'level_0/model/qf_1/fc0/bias:0',
+             'level_0/model/qf_1/fc0/kernel:0',
+             'level_0/model/qf_1/fc1/bias:0',
+             'level_0/model/qf_1/fc1/kernel:0',
+             'level_0/model/qf_1/qf_output/bias:0',
+             'level_0/model/qf_1/qf_output/kernel:0',
+             'level_0/target/pi/fc0/bias:0',
+             'level_0/target/pi/fc0/kernel:0',
+             'level_0/target/pi/fc1/bias:0',
+             'level_0/target/pi/fc1/kernel:0',
+             'level_0/target/pi/output/bias:0',
+             'level_0/target/pi/output/kernel:0',
+             'level_0/target/qf_0/fc0/bias:0',
+             'level_0/target/qf_0/fc0/kernel:0',
+             'level_0/target/qf_0/fc1/bias:0',
+             'level_0/target/qf_0/fc1/kernel:0',
+             'level_0/target/qf_0/qf_output/bias:0',
+             'level_0/target/qf_0/qf_output/kernel:0',
+             'level_0/target/qf_1/fc0/bias:0',
+             'level_0/target/qf_1/fc0/kernel:0',
+             'level_0/target/qf_1/fc1/bias:0',
+             'level_0/target/qf_1/fc1/kernel:0',
+             'level_0/target/qf_1/qf_output/bias:0',
+             'level_0/target/qf_1/qf_output/kernel:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/output/bias:0',
+             'level_1/model/pi/output/kernel:0',
+             'level_1/model/qf_0/fc0/bias:0',
+             'level_1/model/qf_0/fc0/kernel:0',
+             'level_1/model/qf_0/fc1/bias:0',
+             'level_1/model/qf_0/fc1/kernel:0',
+             'level_1/model/qf_0/qf_output/bias:0',
+             'level_1/model/qf_0/qf_output/kernel:0',
+             'level_1/model/qf_1/fc0/bias:0',
+             'level_1/model/qf_1/fc0/kernel:0',
+             'level_1/model/qf_1/fc1/bias:0',
+             'level_1/model/qf_1/fc1/kernel:0',
+             'level_1/model/qf_1/qf_output/bias:0',
+             'level_1/model/qf_1/qf_output/kernel:0',
+             'level_1/target/pi/fc0/bias:0',
+             'level_1/target/pi/fc0/kernel:0',
+             'level_1/target/pi/fc1/bias:0',
+             'level_1/target/pi/fc1/kernel:0',
+             'level_1/target/pi/output/bias:0',
+             'level_1/target/pi/output/kernel:0',
+             'level_1/target/qf_0/fc0/bias:0',
+             'level_1/target/qf_0/fc0/kernel:0',
+             'level_1/target/qf_0/fc1/bias:0',
+             'level_1/target/qf_0/fc1/kernel:0',
+             'level_1/target/qf_0/qf_output/bias:0',
+             'level_1/target/qf_0/qf_output/kernel:0',
+             'level_1/target/qf_1/fc0/bias:0',
+             'level_1/target/qf_1/fc0/kernel:0',
+             'level_1/target/qf_1/fc1/bias:0',
+             'level_1/target/qf_1/fc1/kernel:0',
+             'level_1/target/qf_1/qf_output/bias:0',
+             'level_1/target/qf_1/qf_output/kernel:0',
+             'level_2/model/pi/fc0/bias:0',
+             'level_2/model/pi/fc0/kernel:0',
+             'level_2/model/pi/fc1/bias:0',
+             'level_2/model/pi/fc1/kernel:0',
+             'level_2/model/pi/output/bias:0',
+             'level_2/model/pi/output/kernel:0',
+             'level_2/model/qf_0/fc0/bias:0',
+             'level_2/model/qf_0/fc0/kernel:0',
+             'level_2/model/qf_0/fc1/bias:0',
+             'level_2/model/qf_0/fc1/kernel:0',
+             'level_2/model/qf_0/qf_output/bias:0',
+             'level_2/model/qf_0/qf_output/kernel:0',
+             'level_2/model/qf_1/fc0/bias:0',
+             'level_2/model/qf_1/fc0/kernel:0',
+             'level_2/model/qf_1/fc1/bias:0',
+             'level_2/model/qf_1/fc1/kernel:0',
+             'level_2/model/qf_1/qf_output/bias:0',
+             'level_2/model/qf_1/qf_output/kernel:0',
+             'level_2/target/pi/fc0/bias:0',
+             'level_2/target/pi/fc0/kernel:0',
+             'level_2/target/pi/fc1/bias:0',
+             'level_2/target/pi/fc1/kernel:0',
+             'level_2/target/pi/output/bias:0',
+             'level_2/target/pi/output/kernel:0',
+             'level_2/target/qf_0/fc0/bias:0',
+             'level_2/target/qf_0/fc0/kernel:0',
+             'level_2/target/qf_0/fc1/bias:0',
+             'level_2/target/qf_0/fc1/kernel:0',
+             'level_2/target/qf_0/qf_output/bias:0',
+             'level_2/target/qf_0/qf_output/kernel:0',
+             'level_2/target/qf_1/fc0/bias:0',
+             'level_2/target/qf_1/fc0/kernel:0',
+             'level_2/target/qf_1/fc1/bias:0',
+             'level_2/target/qf_1/fc1/kernel:0',
+             'level_2/target/qf_1/qf_output/bias:0',
+             'level_2/target/qf_1/qf_output/kernel:0']
         )
 
     def test_initialize(self):
@@ -1248,9 +1416,11 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
-    def test_init(self):
+    def test_init_2_levels(self):
         """Validate that the graph and variables are initialized properly."""
-        policy = SACGoalConditionedPolicy(**self.policy_params)
+        policy_params = self.policy_params.copy()
+        policy_params['num_levels'] = 2
+        policy = SACGoalConditionedPolicy(**policy_params)
 
         # Check that the abstract class has all the required attributes.
         self.assertEqual(policy.meta_period,
@@ -1337,6 +1507,131 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
              'level_1/target/value_fns/vf/vf_output/bias:0',
              'level_1/target/value_fns/vf/vf_output/kernel:0',
              ]
+        )
+
+    def test_init_3_levels(self):
+        """Validate that the graph and variables are initialized properly."""
+        policy_params = self.policy_params.copy()
+        policy_params['num_levels'] = 3
+        policy = SACGoalConditionedPolicy(**policy_params)
+
+        # Check that the abstract class has all the required attributes.
+        self.assertEqual(policy.meta_period,
+                         self.policy_params['meta_period'])
+        self.assertEqual(policy.relative_goals,
+                         self.policy_params['relative_goals'])
+        self.assertEqual(policy.off_policy_corrections,
+                         self.policy_params['off_policy_corrections'])
+        self.assertEqual(policy.use_fingerprints,
+                         self.policy_params['use_fingerprints'])
+        self.assertEqual(policy.centralized_value_functions,
+                         self.policy_params['centralized_value_functions'])
+        self.assertEqual(policy.connected_gradients,
+                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cg_weights,
+                         self.policy_params['cg_weights'])
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['level_0/model/log_alpha:0',
+             'level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/log_std/bias:0',
+             'level_0/model/pi/log_std/kernel:0',
+             'level_0/model/pi/mean/bias:0',
+             'level_0/model/pi/mean/kernel:0',
+             'level_0/model/value_fns/qf1/fc0/bias:0',
+             'level_0/model/value_fns/qf1/fc0/kernel:0',
+             'level_0/model/value_fns/qf1/fc1/bias:0',
+             'level_0/model/value_fns/qf1/fc1/kernel:0',
+             'level_0/model/value_fns/qf1/qf_output/bias:0',
+             'level_0/model/value_fns/qf1/qf_output/kernel:0',
+             'level_0/model/value_fns/qf2/fc0/bias:0',
+             'level_0/model/value_fns/qf2/fc0/kernel:0',
+             'level_0/model/value_fns/qf2/fc1/bias:0',
+             'level_0/model/value_fns/qf2/fc1/kernel:0',
+             'level_0/model/value_fns/qf2/qf_output/bias:0',
+             'level_0/model/value_fns/qf2/qf_output/kernel:0',
+             'level_0/model/value_fns/vf/fc0/bias:0',
+             'level_0/model/value_fns/vf/fc0/kernel:0',
+             'level_0/model/value_fns/vf/fc1/bias:0',
+             'level_0/model/value_fns/vf/fc1/kernel:0',
+             'level_0/model/value_fns/vf/vf_output/bias:0',
+             'level_0/model/value_fns/vf/vf_output/kernel:0',
+             'level_0/target/value_fns/vf/fc0/bias:0',
+             'level_0/target/value_fns/vf/fc0/kernel:0',
+             'level_0/target/value_fns/vf/fc1/bias:0',
+             'level_0/target/value_fns/vf/fc1/kernel:0',
+             'level_0/target/value_fns/vf/vf_output/bias:0',
+             'level_0/target/value_fns/vf/vf_output/kernel:0',
+             'level_1/model/log_alpha:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/log_std/bias:0',
+             'level_1/model/pi/log_std/kernel:0',
+             'level_1/model/pi/mean/bias:0',
+             'level_1/model/pi/mean/kernel:0',
+             'level_1/model/value_fns/qf1/fc0/bias:0',
+             'level_1/model/value_fns/qf1/fc0/kernel:0',
+             'level_1/model/value_fns/qf1/fc1/bias:0',
+             'level_1/model/value_fns/qf1/fc1/kernel:0',
+             'level_1/model/value_fns/qf1/qf_output/bias:0',
+             'level_1/model/value_fns/qf1/qf_output/kernel:0',
+             'level_1/model/value_fns/qf2/fc0/bias:0',
+             'level_1/model/value_fns/qf2/fc0/kernel:0',
+             'level_1/model/value_fns/qf2/fc1/bias:0',
+             'level_1/model/value_fns/qf2/fc1/kernel:0',
+             'level_1/model/value_fns/qf2/qf_output/bias:0',
+             'level_1/model/value_fns/qf2/qf_output/kernel:0',
+             'level_1/model/value_fns/vf/fc0/bias:0',
+             'level_1/model/value_fns/vf/fc0/kernel:0',
+             'level_1/model/value_fns/vf/fc1/bias:0',
+             'level_1/model/value_fns/vf/fc1/kernel:0',
+             'level_1/model/value_fns/vf/vf_output/bias:0',
+             'level_1/model/value_fns/vf/vf_output/kernel:0',
+             'level_1/target/value_fns/vf/fc0/bias:0',
+             'level_1/target/value_fns/vf/fc0/kernel:0',
+             'level_1/target/value_fns/vf/fc1/bias:0',
+             'level_1/target/value_fns/vf/fc1/kernel:0',
+             'level_1/target/value_fns/vf/vf_output/bias:0',
+             'level_1/target/value_fns/vf/vf_output/kernel:0',
+             'level_2/model/log_alpha:0',
+             'level_2/model/pi/fc0/bias:0',
+             'level_2/model/pi/fc0/kernel:0',
+             'level_2/model/pi/fc1/bias:0',
+             'level_2/model/pi/fc1/kernel:0',
+             'level_2/model/pi/log_std/bias:0',
+             'level_2/model/pi/log_std/kernel:0',
+             'level_2/model/pi/mean/bias:0',
+             'level_2/model/pi/mean/kernel:0',
+             'level_2/model/value_fns/qf1/fc0/bias:0',
+             'level_2/model/value_fns/qf1/fc0/kernel:0',
+             'level_2/model/value_fns/qf1/fc1/bias:0',
+             'level_2/model/value_fns/qf1/fc1/kernel:0',
+             'level_2/model/value_fns/qf1/qf_output/bias:0',
+             'level_2/model/value_fns/qf1/qf_output/kernel:0',
+             'level_2/model/value_fns/qf2/fc0/bias:0',
+             'level_2/model/value_fns/qf2/fc0/kernel:0',
+             'level_2/model/value_fns/qf2/fc1/bias:0',
+             'level_2/model/value_fns/qf2/fc1/kernel:0',
+             'level_2/model/value_fns/qf2/qf_output/bias:0',
+             'level_2/model/value_fns/qf2/qf_output/kernel:0',
+             'level_2/model/value_fns/vf/fc0/bias:0',
+             'level_2/model/value_fns/vf/fc0/kernel:0',
+             'level_2/model/value_fns/vf/fc1/bias:0',
+             'level_2/model/value_fns/vf/fc1/kernel:0',
+             'level_2/model/value_fns/vf/vf_output/bias:0',
+             'level_2/model/value_fns/vf/vf_output/kernel:0',
+             'level_2/target/value_fns/vf/fc0/bias:0',
+             'level_2/target/value_fns/vf/fc0/kernel:0',
+             'level_2/target/value_fns/vf/fc1/bias:0',
+             'level_2/target/value_fns/vf/fc1/kernel:0',
+             'level_2/target/value_fns/vf/vf_output/bias:0',
+             'level_2/target/value_fns/vf/vf_output/kernel:0']
         )
 
     def test_initialize(self):

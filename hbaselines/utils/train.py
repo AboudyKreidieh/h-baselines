@@ -53,6 +53,7 @@ def get_hyperparameters(args, policy):
     # add GoalConditionedPolicy parameters
     if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
+            "num_levels": args.num_levels,
             "meta_period": args.meta_period,
             "intrinsic_reward_scale": args.intrinsic_reward_scale,
             "relative_goals": args.relative_goals,
@@ -267,10 +268,16 @@ def create_feedforward_parser(parser):
 def create_goal_conditioned_parser(parser):
     """Add the goal-conditioned policy hyperparameters to the parser."""
     parser.add_argument(
+        "--num_levels",
+        type=int,
+        default=GOAL_CONDITIONED_PARAMS["num_levels"],
+        help="number of levels within the hierarchy. Must be greater than 1. "
+             "Two levels  correspond to a Manager/Worker paradigm.")
+    parser.add_argument(
         "--meta_period",
         type=int,
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
-        help="manger action period")
+        help="meta-policy action period")
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,
