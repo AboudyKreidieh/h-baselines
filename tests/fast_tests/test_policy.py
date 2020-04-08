@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
-from copy import deepcopy
 
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.base import ActorCriticPolicy
