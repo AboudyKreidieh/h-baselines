@@ -519,29 +519,30 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     if env is None:
         # No environment (for evaluation environments).
         return None
-    elif env in ENV_ATTRIBUTES.keys():
-        env = ENV_ATTRIBUTES[env]["env"](
-            evaluate, render, False, shared, maddpg)
-    elif env.startswith("multiagent"):
-        # multi-agent environments
-        env_name = env[11:]
-        env = ENV_ATTRIBUTES[env_name]["env"](
-            evaluate, render, True, shared, maddpg)
-    elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
-                 "grid1"]:
-        # Import the benchmark and fetch its flow_params
-        benchmark = __import__("flow.benchmarks.{}".format(env),
-                               fromlist=["flow_params"])
-        flow_params = benchmark.flow_params
-
-        # Get the env name and a creator for the environment.
-        create_env, _ = make_create_env(flow_params, version=0, render=render)
-
-        # Create the environment.
-        env = create_env()
     elif isinstance(env, str):
-        # This is assuming the environment is registered with OpenAI gym.
-        env = gym.make(env)
+        if env in ENV_ATTRIBUTES.keys():
+            env = ENV_ATTRIBUTES[env]["env"](
+                evaluate, render, False, shared, maddpg)
+        elif env.startswith("multiagent"):
+            # multi-agent environments
+            env_name = env[11:]
+            env = ENV_ATTRIBUTES[env_name]["env"](
+                evaluate, render, True, shared, maddpg)
+        elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
+                     "grid1"]:
+            # Import the benchmark and fetch its flow_params
+            benchmark = __import__("flow.benchmarks.{}".format(env),
+                                   fromlist=["flow_params"])
+            flow_params = benchmark.flow_params
+
+            # Get the env name and a creator for the environment.
+            creator, _ = make_create_env(flow_params, version=0, render=render)
+
+            # Create the environment.
+            env = creator()
+        else:
+            # This is assuming the environment is registered with OpenAI gym.
+            env = gym.make(env)
 
     # Reset the environment.
     if env is not None:
