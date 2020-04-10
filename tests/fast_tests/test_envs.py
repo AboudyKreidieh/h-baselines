@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 import random
+from copy import deepcopy
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
@@ -16,6 +17,7 @@ from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
 from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
     as figure_eight
+from hbaselines.envs.point2d import Point2DEnv
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -751,12 +753,48 @@ class TestMixedAutonomy(unittest.TestCase):
 class TestPoint2D(unittest.TestCase):
     """Test the functionality of features in envs/point2d.py."""
 
+    def setUp(self):
+        self.env_cls = Point2DEnv
+        self.env_params = {
+            'render_dt_msec': 0,
+            'action_l2norm_penalty': 0,
+            'render_onscreen': False,
+            'render_size': 32,
+            'reward_type': "dense",
+            'action_scale': 1.0,
+            'target_radius': 0.60,
+            'boundary_dist': 4,
+            'ball_radius': 0.50,
+            'walls': None,
+            'fixed_goal': None,
+            'randomize_position_on_reset': True,
+            'images_are_rgb': True,
+            'show_goal': True,
+            'images_in_obs': True,
+        }
+
     def test_init(self):
         """Validate the functionality of the __init__ method.
 
-        TODO
+        This test checks the gym spaces and the attributes under the following
+        conditions:
+
+        1. not using images
+        2. using images
         """
-        pass  # TODO
+        # test case 1
+        params = deepcopy(self.env_params)
+        params['images_in_obs'] = False
+        env = self.env_cls(**params)
+
+        del env  # TODO
+
+        # test case 2
+        params = deepcopy(self.env_params)
+        params['images_in_obs'] = True
+        env = self.env_cls(**params)
+
+        del env  # TODO
 
     def test_current_context(self):
         """Validate the functionality of the current_context method.
