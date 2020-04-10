@@ -748,6 +748,115 @@ class TestMixedAutonomy(unittest.TestCase):
     #     env.wrapped_env.terminate()
 
 
+class TestPoint2D(unittest.TestCase):
+    """Test the functionality of features in envs/point2d.py."""
+
+    def test_init(self):
+        """Validate the functionality of the __init__ method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_current_context(self):
+        """Validate the functionality of the current_context method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_step(self):
+        """Validate the functionality of the step method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_reset(self):
+        """Validate the functionality of the reset method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_position_inside_wall(self):
+        """Validate the functionality of the position_inside_wall method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_sample_position(self):
+        """Validate the functionality of the sample_position method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_get_obs(self):
+        """Validate the functionality of the get_obs method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_compute_rewards(self):
+        """Validate the functionality of the compute_rewards method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_get_goal(self):
+        """Validate the functionality of the get_goal method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_sample_goals(self):
+        """Validate the functionality of the sample_goals method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_get_image(self):
+        """Validate the functionality of the get_image method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_draw(self):
+        """Validate the functionality of the draw method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_true_model(self):
+        """Validate the functionality of the true_model method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_true_states(self):
+        """Validate the functionality of the true_states method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_plot_trajectory(self):
+        """Validate the functionality of the plot_trajectory method.
+
+        TODO
+        """
+        pass  # TODO
+
+
 def test_space(gym_space, expected_size, expected_min, expected_max):
     """Test the shape and bounds of an action or observation space.
 

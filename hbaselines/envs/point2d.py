@@ -39,8 +39,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
         TODO
     walls : TODO
         TODO
-    fixed_goal : TODO
-        TODO
+    fixed_goal : [float, float] or None
+        the goal to use. If set to None, it is picked randomly.
     randomize_position_on_reset : bool
         whether to initialize the position of the agent randomly
     images_are_rgb : bool
@@ -48,23 +48,25 @@ class Point2DEnv(MultitaskEnv, Serializable):
     show_goal : bool
         whether to render the goal(s)
     images_in_obs : bool
-        whether to use the image in the obsevation
+        whether to use the image in the observation
     image_size : int
         number of elements in the image. Set to 0 if images are not being used.
-    max_target_distance : TODO
+    max_target_distance : float
         TODO
     action_space : gym.spaces.*
         the action space of the environment
     obs_range : gym.spaces.*
-        TODO
+        the range of the initial position of the agent
     context_space  : gym.spaces.*
         the context space of the environment
     observation_space : gym.spaces.*
         the observation space of the environment
-    drawer : TODO
-        TODO
-    render_drawer : TODO
-        TODO
+    drawer : multiworld.envs.pygame.pygame_viewer.PygameViewer or None
+        The drawer for the images of the environment. Set to None if images are
+        not being used.
+    render_drawer : multiworld.envs.pygame.pygame_viewer.PygameViewer or None
+        The drawer for the images of the environment if the environment is
+        being rendered. Set to None if images are not being used.
     horizon : int
         environment time horizon
     t : int
@@ -112,8 +114,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
             TODO
         walls : TODO
             TODO
-        fixed_goal : TODO
-            TODO
+        fixed_goal : [float, float] or None
+            the goal to use. If set to None, it is picked randomly.
         randomize_position_on_reset : bool
             whether to initialize the position of the agent randomly
         images_are_rgb : bool
@@ -474,8 +476,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
         Parameters
         ----------
-        ax : TODO
-            TODO
+        ax : matplotlib.axes.Axes
+            the axis object to plot the figure on
         states : array_like
             the states by the agent
         actions : array_like

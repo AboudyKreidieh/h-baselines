@@ -395,6 +395,12 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
+        # test for Point2DEnv
+        pass  # TODO
+
+        # test for Point2DImageEnv
+        pass  # TODO
+
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
@@ -477,6 +483,12 @@ class TestMisc(unittest.TestCase):
             get_state_indices(env_name="figureeight2", **params),
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         )
+
+        # test for Point2DEnv
+        pass  # TODO
+
+        # test for Point2DImageEnv
+        pass  # TODO
 
 
 class TestTFUtil(unittest.TestCase):
