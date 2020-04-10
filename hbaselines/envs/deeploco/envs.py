@@ -67,9 +67,11 @@ class BipedalSoccer(gym.Env):
 
 class BipedalObstacles(gym.Env):
     """Bipedal Obstacles environment.
+
     In this environment, a bipedal agent is placed in an open field with
     obstacles scattered throughout the world. The goal of the agent is to
     walk around the world and reach a goal position.
+
     Attributes
     ----------
     wrapped_env : gym.Env
@@ -143,12 +145,12 @@ class BipedalObstacles(gym.Env):
 
     def __init__(self, render):
         """Instantiate the environment.
+
         Parameters
         ----------
         render : bool
             whether to render the environment
         """
-
         # TODO: is it possible to set the horizon outside the environment
         self.horizon = 2000
         self.t = 0
@@ -177,7 +179,6 @@ class BipedalObstacles(gym.Env):
 
     def render(self, mode='human'):
         """See parent class."""
-
         image = self.wrapped_env.env.render(
             headless_step=True).astype(np.float32)
 

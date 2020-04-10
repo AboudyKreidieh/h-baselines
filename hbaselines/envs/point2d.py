@@ -12,59 +12,63 @@ from multiworld.envs.pygame.pygame_viewer import PygameViewer
 class Point2DEnv(MultitaskEnv, Serializable):
     """A little 2D point whose life goal is to reach a target.
 
+    States
+        TODO
+
+    TODO: everything...
+
     Attributes
     ----------
-    render_dt_msec : TODO
+    render_dt_msec : float
+        seconds before the next frame in the image is rendered
+    action_l2norm_penalty : float
         TODO
-    action_l2norm_penalty : TODO
+    render_onscreen : bool
         TODO
-    render_onscreen : TODO
+    render_size : int
         TODO
-    render_size : TODO
+    reward_type : str
         TODO
-    reward_type : TODO
+    action_scale : float
         TODO
-    action_scale : TODO
+    target_radius : float
         TODO
-    target_radius : TODO
+    boundary_dist : float
         TODO
-    boundary_dist : TODO
-        TODO
-        TODO
-    ball_radius : TODO
+    ball_radius : float
         TODO
     walls : TODO
         TODO
     fixed_goal : TODO
         TODO
-    randomize_position_on_reset : TODO
-        TODO
-    images_are_rgb : TODO
-        TODO
-    show_goal : TODO
-        TODO
-    images_in_obs : TODO
-        TODO
-    image_size : TODO
-        TODO
+    randomize_position_on_reset : bool
+        whether to initialize the position of the agent randomly
+    images_are_rgb : bool
+        specifies whether the image is RGB. Otherwise, it's black and white
+    show_goal : bool
+        whether to render the goal(s)
+    images_in_obs : bool
+        whether to use the image in the obsevation
+    image_size : int
+        number of elements in the image. Set to 0 if images are not being used.
     max_target_distance : TODO
         TODO
-    action_space : TODO
+    action_space : gym.spaces.*
+        the action space of the environment
+    obs_range : gym.spaces.*
         TODO
-    obs_range : TODO
-        TODO
-    context_space  : TODO
-        TODO
-    observation_space : TODO
-        TODO
+    context_space  : gym.spaces.*
+        the context space of the environment
+    observation_space : gym.spaces.*
+        the observation space of the environment
     drawer : TODO
         TODO
     render_drawer : TODO
         TODO
-    horizon : TODO
-        TODO
-    t : TODO
-        TODO
+    horizon : int
+        environment time horizon
+    t : int
+        number of steps since the start of the most recent episode
     """
 
     def __init__(self,
@@ -88,48 +92,46 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
         Parameters
         ----------
-        render_dt_msec : TODO
+        render_dt_msec : float
+            seconds before the next frame in the image is rendered
+        action_l2norm_penalty : float
             TODO
-        action_l2norm_penalty : TODO
+        render_onscreen : bool
             TODO
-        render_onscreen : TODO
+        render_size : int
             TODO
-        render_size : TODO
+        reward_type : str
             TODO
-        reward_type : TODO
+        action_scale : float
             TODO
-        action_scale : TODO
+        target_radius : float
             TODO
-        target_radius : TODO
+        boundary_dist : float
             TODO
-        boundary_dist : TODO
-            TODO
-        ball_radius : TODO
+        ball_radius : float
             TODO
         walls : TODO
             TODO
         fixed_goal : TODO
             TODO
-        randomize_position_on_reset : TODO
-            TODO
-        images_are_rgb : TODO
-            TODO
-        show_goal : TODO
-            TODO
-        images_in_obs : TODO
-            TODO
-        kwargs : TODO
-            TODO
+        randomize_position_on_reset : bool
+            whether to initialize the position of the agent randomly
+        images_are_rgb : bool
+            specifies whether the image is RGB. Otherwise, it's black and white
+        show_goal : bool
+            whether to render the goal(s)
+        images_in_obs : bool
+            whether to use the image in the obsevation
+        kwargs : dict
+            additional arguments. Unused here.
         """
-        if walls is None:
-            walls = []
         if walls is None:
             walls = []
         if fixed_goal is not None:
             fixed_goal = np.array(fixed_goal)
         if len(kwargs) > 0:
-            LOGGER = logging.getLogger(__name__)
-            LOGGER.log(logging.WARNING, "WARNING, ignoring kwargs:", kwargs)
+            logger = logging.getLogger(__name__)
+            logger.log(logging.WARNING, "WARNING, ignoring kwargs:", kwargs)
 
         self.quick_init(locals())
         self.render_dt_msec = render_dt_msec
@@ -176,29 +178,28 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
     @property
     def current_context(self):
-        """TODO."""
+        """Return the current goal by the environment."""
         return self._target_position
 
     def step(self, velocities):
         """Advance the simulation by one step.
 
-        TODO
-
         Parameters
         ----------
-        velocities : TODO
-            TODO
+        velocities : array_like
+            the action by the agent, defined as its velocities in the x and y
+            directions
 
         Returns
         -------
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
+        array_like
+            agent's observation of the current environment
+        float
+            amount of reward associated with the previous state/action pair
+        bool
+            indicates whether the episode has ended
+        dict
+            contains other diagnostic information from the previous action
         """
         assert self.action_scale <= 1.0
         velocities = np.clip(
@@ -258,21 +259,24 @@ class Point2DEnv(MultitaskEnv, Serializable):
         return self._get_obs()
 
     def _position_inside_wall(self, pos):
-        """TODO."""
+        """Return True if the agent is in a wall."""
         for wall in self.walls:
             if wall.contains_point(pos):
                 return True
         return False
 
     def _sample_position(self, low, high):
-        """TODO."""
+        """Sample a starting position for the agent."""
         pos = np.random.uniform(low, high)
         while self._position_inside_wall(pos) is True:
             pos = np.random.uniform(low, high)
         return pos
 
     def _get_obs(self):
-        """TODO."""
+        """Return the observation of the agent.
+
+        See States in the description of the environment for more.
+        """
         if self.images_in_obs:
             img = self.get_image(
                 32, 32).reshape([-1]).astype(np.float32) / 255.0
@@ -281,21 +285,10 @@ class Point2DEnv(MultitaskEnv, Serializable):
             return self._position.copy()
 
     def compute_rewards(self, actions, obs):
-        """TODO
+        """See parent class.
 
-        TODO
-
-        Parameters
-        ----------
-        actions : TODO
-            TODO
-        obs : TODO
-            TODO
-
-        Returns
-        -------
-        TODO
-            TODO
+        The rewards are described in the Rewards section of the description of
+        the environment.
         """
         achieved_goals = obs['ob'][:, self.image_size:]
         desired_goals = self._target_position[np.newaxis, :]
@@ -310,21 +303,13 @@ class Point2DEnv(MultitaskEnv, Serializable):
             raise NotImplementedError()
 
     def get_goal(self):
-        """TODO."""
+        """See parent class."""
         return self._target_position.copy()
 
     def sample_goals(self, batch_size):
-        """TODO.
+        """See parent class.
 
-        Parameters
-        ----------
-        batch_size : TODO
-            TODO
-
-        Returns
-        -------
-        TODO
-            TODO
+        The goal is the desired x,y coordinates.
         """
         if self.fixed_goal is not None:
             goals = np.repeat(
@@ -342,11 +327,6 @@ class Point2DEnv(MultitaskEnv, Serializable):
                     self.obs_range.high,
                 )
         return {'goals': goals}
-
-    def set_position(self, pos):
-        """TODO."""
-        self._position[0] = pos[0]
-        self._position[1] = pos[1]
 
     # ======================================================================= #
     #                     Functions for ImageEnv wrapper                      #
@@ -376,7 +356,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
             return img
 
     def draw(self, drawer):
-        """TODO."""
+        """Create the image corresponding to the current state."""
         drawer.fill(Color('white'))
         if self.show_goal:
             drawer.draw_solid_circle(
@@ -414,7 +394,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
         drawer.render()
 
     def render(self, mode='human', close=False):
-        """TODO."""
+        """Render the environment state."""
         if mode == 'rgb_array':
             return self.get_image(self.render_size, self.render_size)
 
@@ -443,19 +423,19 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
     @staticmethod
     def true_model(state, action):
-        """TODO.
+        """Return the next position by the agent.
 
         Parameters
         ----------
-        state : TODO
-            TODO
-        action : TODO
-            TODO
+        state : array_like
+            the state by the agent
+        action : array_like
+            the action by the agent
 
         Returns
         -------
-        TODO
-            TODO
+        array_like
+            the next position.
         """
         velocities = np.clip(action, a_min=-1, a_max=1)
         position = state
@@ -468,19 +448,19 @@ class Point2DEnv(MultitaskEnv, Serializable):
 
     @staticmethod
     def true_states(state, actions):
-        """TODO.
+        """Return the next states given a set of states and actions.
 
         Parameters
         ----------
-        state : TODO
-            TODO
-        actions : TODO
-            TODO
+        state : array_like
+            the states by the agent
+        actions : array_like
+            the actions by the agent
 
         Returns
         -------
-        TODO
-            TODO
+        list of array_like
+            the next states
         """
         real_states = [state]
         for action in actions:
@@ -490,18 +470,18 @@ class Point2DEnv(MultitaskEnv, Serializable):
         return real_states
 
     def plot_trajectory(self, ax, states, actions, goal=None):
-        """TODO.
+        """Plot the trajectory of an agent.
 
         Parameters
         ----------
         ax : TODO
             TODO
-        states : TODO
-            TODO
-        actions : TODO
-            TODO
-        goal : TODO
-            TODO
+        states : array_like
+            the states by the agent
+        actions : array_like
+            the actions by the agent
+        goal : [int, int]
+            the x,y coordinates of the goal
         """
         assert len(states) == len(actions) + 1
         x = states[:, 0]
