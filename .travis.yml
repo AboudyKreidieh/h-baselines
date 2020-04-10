@@ -44,9 +44,6 @@ install:
   - pip install nose2
   - pip install pydocstyle
 
-#  # third-party tools
-#  - ./scripts/install_thirdparty.sh
-
 before_script:
   - flake8 --show-source
   - pydocstyle . --convention=numpy
