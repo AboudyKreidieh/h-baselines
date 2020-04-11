@@ -17,7 +17,8 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--initial_exploration_steps", "1",
-            "--total_steps", "2000"
+            "--total_steps", "500",
+            "--log_interval", "500",
         ])
         run_fcnet(args, 'data/fcnet')
 
@@ -66,6 +67,8 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--initial_exploration_steps", "1",
+            "--batch_size", "32",
+            "--meta_period", "5",
             "--total_steps", "500",
             "--log_interval", "500",
         ])
@@ -85,6 +88,8 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--initial_exploration_steps", "1",
+            "--batch_size", "32",
+            "--meta_period", "5",
             "--total_steps", "500",
             "--log_interval", "500",
             "--alg", "SAC"
@@ -105,6 +110,8 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_options('', '', args=[
             "MountainCarContinuous-v0",
             "--initial_exploration_steps", "1",
+            "--batch_size", "32",
+            "--meta_period", "5",
             "--total_steps", "500",
             "--log_interval", "500",
             "--alg", "woops"

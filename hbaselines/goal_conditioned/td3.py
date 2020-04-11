@@ -38,8 +38,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 num_levels,
                  meta_period,
-                 worker_reward_scale,
+                 intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
                  hindsight,
@@ -96,13 +97,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
-        worker_reward_scale : float
-            the value the intrinsic (Worker) reward should be scaled by
+            meta-policy action period
+        intrinsic_reward_scale : float
+            the value that the intrinsic reward should be scaled by
         relative_goals : bool
-            specifies whether the goal issued by the Manager is meant to be a
-            relative or absolute goal, i.e. specific state or change in state
+            specifies whether the goal issued by the higher-level policies is
+            meant to be a relative or absolute goal, i.e. specific state or
+            change in state
         off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
@@ -113,11 +118,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
         connected_gradients : bool
-            whether to connect the graph between the manager and worker
+            whether to use the connected gradient update actor update procedure
+            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
-            weights for the gradients of the loss of the worker with respect to
-            the parameters of the manager. Only used if `connected_gradients`
-            is set to True.
+            weights for the gradients of the loss of the lower-level policies
+            with respect to the parameters of the higher-level policies. Only
+            used if `connected_gradients` is set to True.
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -125,8 +131,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             the low and high values for each fingerprint element, if they are
             being used
         centralized_value_functions : bool
-            specifies whether to use centralized value functions for the
-            Manager and Worker critic functions
+            specifies whether to use centralized value functions
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -144,8 +149,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            num_levels=num_levels,
             meta_period=meta_period,
-            worker_reward_scale=worker_reward_scale,
+            intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,
@@ -169,19 +175,21 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
+    # FIXME
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------
         meta_actions : array_like
-            (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
-            actions
+            (batch_size, m_ac_dim, num_samples) matrix of candidate higher-
+            level policy actions
         worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
-            observations
+            (batch_size, w_obs_dim, meta_period + 1) matrix of lower-level
+            policy observations
         worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) list of Worker actions
+            (batch_size, w_ac_dim, meta_period) list of lower-level policy
+            actions
 
         Returns
         -------
@@ -240,7 +248,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
             # Compute the actions the Worker would perform given a specific
             # observation/goal for the current instantiation of the policy.
-            pred_actions = self.worker.get_action(
+            pred_actions = self.policy[-1].get_action(
                 tiled_worker_obses_per_sample,
                 tiled_goals_per_sample,
                 apply_noise=False,
@@ -271,28 +279,28 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         # Index relevant variables based on self.goal_indices
-        manager_obs0 = self.crop_to_goal(self.manager.obs_ph)
-        manager_obs1 = self.crop_to_goal(self.manager.obs1_ph)
-        worker_obs0 = self.crop_to_goal(self.worker.obs_ph)
-        worker_obs1 = self.crop_to_goal(self.worker.obs1_ph)
+        meta_obs0 = self.crop_to_goal(self.policy[0].obs_ph)
+        meta_obs1 = self.crop_to_goal(self.policy[0].obs1_ph)
+        worker_obs0 = self.crop_to_goal(self.policy[-1].obs_ph)
+        worker_obs1 = self.crop_to_goal(self.policy[-1].obs1_ph)
 
         if self.relative_goals:
             # Relative goal formulation as per HIRO.
-            goal = manager_obs0 + self.manager.actor_tf - manager_obs1
+            goal = meta_obs0 + self.policy[0].actor_tf - meta_obs1
         else:
-            # Goal is the direct output from the manager in this case.
-            goal = self.manager.actor_tf
+            # Goal is the direct output from the meta policy in this case.
+            goal = self.policy[0].actor_tf
 
         # concatenate the output from the manager with the worker policy.
-        obs_shape = self.worker.ob_space.shape[0]
-        obs = tf.concat([self.worker.obs_ph[:, :obs_shape], goal], axis=-1)
+        obs_shape = self.policy[-1].ob_space.shape[0]
+        obs = tf.concat([self.policy[-1].obs_ph[:, :obs_shape], goal], axis=-1)
 
         # create the worker policy with inputs directly from the manager
-        with tf.compat.v1.variable_scope("Worker/model"):
-            worker_with_manager_obs = self.worker.make_critic(
-                obs, self.worker.action_ph, reuse=True, scope="qf_0")
+        with tf.compat.v1.variable_scope("level_1/model"):
+            worker_with_meta_obs = self.policy[-1].make_critic(
+                obs, self.policy[-1].action_ph, reuse=True, scope="qf_0")
 
         # create a tensorflow operation that mimics the reward function that is
         # used to provide feedback to the worker
@@ -303,14 +311,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
                 goal, worker_obs1)
 
-        # compute the worker loss with respect to the manager actions
-        self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
+        # compute the worker loss with respect to the meta policy actions
+        self.cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
 
         # create the optimizer object
-        optimizer = tf.compat.v1.train.AdamOptimizer(self.manager.actor_lr)
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.policy[0].actor_lr)
         self.cg_optimizer = optimizer.minimize(
-            self.manager.actor_loss + self.cg_weights * self.cg_loss,
-            var_list=get_trainable_vars("Manager/model/pi/"),
+            self.policy[0].actor_loss + self.cg_weights * self.cg_loss,
+            var_list=get_trainable_vars("level_0/model/pi/"),
         )
 
     def _connected_gradients_update(self,
@@ -319,73 +327,69 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                                     rewards,
                                     obs1,
                                     terminals1,
-                                    worker_obs0,
-                                    worker_obs1,
-                                    worker_actions,
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
-        This procedure is similar to self.manager.update_from_batch, expect it
-        runs the self.cg_optimizer operation instead of self.manager.optimizer,
+        This procedure is similar to update_from_batch, expect it runs the
+        self.cg_optimizer operation instead of the policy object's optimizer,
         and utilizes some information from the worker samples as well.
 
         Parameters
         ----------
-        obs0 : array_like
-            batch of manager observations
-        actions : numpy float
-            batch of manager actions executed given obs_batch
-        rewards : numpy float
-            manager rewards received as results of executing act_batch
-        obs1 : array_like
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_actions : array_like
-            batch of worker actions
+        obs0 : list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        actions : list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        obs1 : list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        rewards : list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        terminals1 : list of numpy bool
+            (batch_size,) vector of done masks for every level in the hierarchy
         update_actor : bool
-            specifies whether to update the actor policy of the manager. The
-            critic policy is still updated if this value is set to False.
+            specifies whether to update the actor policy of the meta policy.
+            The critic policy is still updated if this value is set to False.
 
         Returns
         -------
         [float, float]
-            manager critic loss
+            meta-policy critic loss
         float
-            manager actor loss
+            meta-policy actor loss
         """
+        assert self.num_levels == 2, \
+            "Connected gradients currently only works for 2-level hierarchies."
+
         # Reshape to match previous behavior and placeholder shape.
-        rewards = rewards.reshape(-1, 1)
-        terminals1 = terminals1.reshape(-1, 1)
+        rewards[0] = rewards[0].reshape(-1, 1)
+        terminals1[0] = terminals1[0].reshape(-1, 1)
 
         # Update operations for the critic networks.
-        step_ops = [self.manager.critic_loss,
-                    self.manager.critic_optimizer[0],
-                    self.manager.critic_optimizer[1]]
+        step_ops = [self.policy[0].critic_loss,
+                    self.policy[0].critic_optimizer[0],
+                    self.policy[0].critic_optimizer[1]]
 
         feed_dict = {
-            self.manager.obs_ph: obs0,
-            self.manager.action_ph: actions,
-            self.manager.rew_ph: rewards,
-            self.manager.obs1_ph: obs1,
-            self.manager.terminals1: terminals1
+            self.policy[0].obs_ph: obs0[0],
+            self.policy[0].action_ph: actions[0],
+            self.policy[0].rew_ph: rewards[0],
+            self.policy[0].obs1_ph: obs1[0],
+            self.policy[0].terminals1: terminals1[0]
         }
 
         if update_actor:
             # Actor updates and target soft update operation.
-            step_ops += [self.manager.actor_loss,
+            step_ops += [self.policy[0].actor_loss,
                          self.cg_optimizer,  # This is what's replaced.
-                         self.manager.target_soft_updates]
+                         self.policy[0].target_soft_updates]
 
             feed_dict.update({
-                self.worker.obs_ph: worker_obs0,
-                self.worker.action_ph: worker_actions,
-                self.worker.obs1_ph: worker_obs1,
+                self.policy[-1].obs_ph: obs0[-1],
+                self.policy[-1].action_ph: actions[-1],
+                self.policy[-1].obs1_ph: obs1[-1],
             })
 
         # Perform the update operations and collect the critic loss.
