@@ -18,11 +18,13 @@ except (ImportError, ModuleNotFoundError):
 try:
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
-    from hbaselines.envs.mixed_autonomy.merge \
+    from hbaselines.envs.mixed_autonomy.params.merge \
         import get_flow_params as merge
-    from hbaselines.envs.mixed_autonomy.ring \
+    from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.figure_eight \
+    from hbaselines.envs.mixed_autonomy.params.ring_small \
+        import get_flow_params as ring_small
+    from hbaselines.envs.mixed_autonomy.params.figure_eight \
         import get_flow_params as figure_eight
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
@@ -203,7 +205,27 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
-    "ring0": {
+    "ring": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-30 if relative_goals else 0,
+            high=30,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "ring_small": {
         "meta_ac_space": lambda relative_goals: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
@@ -213,7 +235,7 @@ ENV_ATTRIBUTES = {
         "state_indices": [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             FlowEnv(
-                flow_params=ring(
+                flow_params=ring_small(
                     ring_length=[230, 230],
                     evaluate=True,
                     multiagent=multiagent,
@@ -224,7 +246,7 @@ ENV_ATTRIBUTES = {
                 maddpg=maddpg,
             ),
             FlowEnv(
-                flow_params=ring(
+                flow_params=ring_small(
                     ring_length=[260, 260],
                     evaluate=True,
                     multiagent=multiagent,
@@ -235,7 +257,7 @@ ENV_ATTRIBUTES = {
                 maddpg=maddpg,
             ),
             FlowEnv(
-                flow_params=ring(
+                flow_params=ring_small(
                     ring_length=[290, 290],
                     evaluate=True,
                     multiagent=multiagent,
@@ -246,7 +268,7 @@ ENV_ATTRIBUTES = {
                 maddpg=maddpg,
             )
         ] if evaluate else FlowEnv(
-            flow_params=ring(
+            flow_params=ring_small(
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),

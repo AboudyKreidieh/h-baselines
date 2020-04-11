@@ -782,7 +782,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: 21 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{3}$, 
+* ring_small: 21 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{3}$, 
   $\mathcal{A} \in \mathbb{R}^1$, $T=3000$).
 
 **Figure Eight**

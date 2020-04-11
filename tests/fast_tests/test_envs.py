@@ -12,10 +12,14 @@ from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
 from hbaselines.envs.mixed_autonomy import FlowEnv
-from hbaselines.envs.mixed_autonomy.merge import get_flow_params as merge
-from hbaselines.envs.mixed_autonomy.ring import get_flow_params as ring
-from hbaselines.envs.mixed_autonomy.figure_eight import get_flow_params \
-    as figure_eight
+from hbaselines.envs.mixed_autonomy.params.merge \
+    import get_flow_params as merge
+from hbaselines.envs.mixed_autonomy.params.ring \
+    import get_flow_params as ring
+from hbaselines.envs.mixed_autonomy.params.ring_small \
+    import get_flow_params as ring_small
+from hbaselines.envs.mixed_autonomy.params.figure_eight \
+    import get_flow_params as figure_eight
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -372,13 +376,46 @@ class TestPendulum(unittest.TestCase):
         pass
 
 
-class TestMixedAutonomy(unittest.TestCase):
-    """Test the functionality of features in envs/mixed_autonomy."""
+class TestMixedAutonomyParams(unittest.TestCase):
+    """Test the functionality of features in envs/mixed_autonomy/params."""
 
     def test_single_agent_ring(self):
         # create the base environment
         env = FlowEnv(
             flow_params=ring(
+                num_automated=5,
+                simulator="traci",
+                multiagent=False
+            ),
+            multiagent=False,
+            shared=False,
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_single_agent_ring_small(self):
+        # create the base environment
+        env = FlowEnv(
+            flow_params=ring_small(
                 num_automated=1,
                 horizon=1500,
                 simulator="traci",
@@ -411,6 +448,43 @@ class TestMixedAutonomy(unittest.TestCase):
         # create the base environment
         env = FlowEnv(
             flow_params=ring(
+                num_automated=5,
+                simulator="traci",
+                multiagent=True
+            ),
+            multiagent=True,
+            shared=False,
+            version=1
+        )
+        env.reset()
+
+        # test the agent IDs.
+        self.assertListEqual(
+            sorted(env.agents), ["rl_0", "rl_1", "rl_2", "rl_3", "rl_4"])
+
+        # test observation space
+        test_space(
+            env.observation_space["rl_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test action space
+        test_space(
+            env.action_space["rl_0"],
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring_small(self):
+        # create the base environment
+        env = FlowEnv(
+            flow_params=ring_small(
                 num_automated=1,
                 horizon=1500,
                 simulator="traci",
@@ -446,7 +520,7 @@ class TestMixedAutonomy(unittest.TestCase):
 
         # create the environment with multiple automated vehicles
         env = FlowEnv(
-            flow_params=ring(
+            flow_params=ring_small(
                 num_automated=4,
                 horizon=1500,
                 simulator="traci",
@@ -746,6 +820,12 @@ class TestMixedAutonomy(unittest.TestCase):
     #
     #     # kill the environment
     #     env.wrapped_env.terminate()
+
+
+class TestMixedAutonomyEnvs(unittest.TestCase):
+    """Test the functionality of features in envs/mixed_autonomy/envs."""
+
+    pass
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

@@ -276,8 +276,25 @@ class TestMisc(unittest.TestCase):
             expected_size=2,
         )
 
-        # test for ring0
-        ac_space = get_meta_ac_space(env_name="ring0", **params)
+        # test for ring
+        ac_space = get_meta_ac_space(env_name="ring", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        ac_space = get_meta_ac_space(env_name="ring", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-30 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test for ring_small
+        ac_space = get_meta_ac_space(env_name="ring_small", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(1)]),
@@ -285,7 +302,7 @@ class TestMisc(unittest.TestCase):
             expected_size=1,
         )
 
-        ac_space = get_meta_ac_space(env_name="ring0", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring_small", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(1)]),
@@ -436,9 +453,15 @@ class TestMisc(unittest.TestCase):
             [0, 2]
         )
 
-        # test for ring0
+        # test for ring
         self.assertListEqual(
-            get_state_indices(env_name="ring0", **params),
+            get_state_indices(env_name="ring", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for ring_small
+        self.assertListEqual(
+            get_state_indices(env_name="ring_small", **params),
             [0]
         )
 
