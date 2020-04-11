@@ -41,6 +41,12 @@ OPEN_ENV_PARAMS.update(dict(
 ))
 
 
+# Scale the normalized speeds and headways are scaled by. Headways are squashed
+# to very small values, since the length is 1500, so it is multiplied by ten.
+SPEED_SCALE = 1
+HEADWAY_SCALE = 10
+
+
 class AVEnv(Env):
     """Environment for training automated vehicles in a mixed-autonomy setting.
 
@@ -174,11 +180,13 @@ class AVEnv(Env):
                 lead_id = self.k.vehicle.get_leader(veh_id)
                 if lead_id in ["", None]:
                     # in case leader is not visible
-                    lead_speed = max_speed
-                    lead_head = max_length
+                    lead_speed = SPEED_SCALE
+                    lead_head = HEADWAY_SCALE
                 else:
-                    lead_speed = self.k.vehicle.get_speed(lead_id)
-                    lead_head = self.k.vehicle.get_headway(veh_id)
+                    lead_speed = self.k.vehicle.get_speed(lead_id) \
+                        / max_speed * SPEED_SCALE
+                    lead_head = self.k.vehicle.get_headway(veh_id) \
+                        / max_length * HEADWAY_SCALE
                     self.leader.append(lead_id)
 
                 obs[5 * i + 1] = lead_speed
@@ -191,11 +199,13 @@ class AVEnv(Env):
                 follow_id = self.k.vehicle.get_follower(veh_id)
                 if follow_id in ["", None]:
                     # in case follower is not visible
-                    follow_speed = max_speed
-                    follow_head = max_length
+                    follow_speed = SPEED_SCALE
+                    follow_head = HEADWAY_SCALE
                 else:
-                    follow_speed = self.k.vehicle.get_speed(follow_id)
-                    follow_head = self.k.vehicle.get_headway(follow_id)
+                    follow_speed = self.k.vehicle.get_speed(follow_id) \
+                        / max_speed * SPEED_SCALE
+                    follow_head = self.k.vehicle.get_headway(follow_id) \
+                        / max_length * HEADWAY_SCALE
                     self.follower.append(follow_id)
 
                 obs[5 * i + 3] = follow_speed
