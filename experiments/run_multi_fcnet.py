@@ -9,7 +9,7 @@ from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 
 EXAMPLE_USAGE = \
-    'python run_multi_fcnet.py "multiagent-ring0" --total_steps 1e6'
+    'python run_multi_fcnet.py "multiagent-ring_small" --total_steps 1e6'
 
 
 def run_exp(env,

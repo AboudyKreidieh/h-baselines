@@ -34,8 +34,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  act_fun,
                  use_huber,
                  target_entropy,
+                 num_levels,
                  meta_period,
-                 worker_reward_scale,
+                 intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
                  hindsight,
@@ -86,13 +87,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
-        worker_reward_scale : float
-            the value the intrinsic (Worker) reward should be scaled by
+            meta-policy action period
+        intrinsic_reward_scale : float
+            the value that the intrinsic reward should be scaled by
         relative_goals : bool
-            specifies whether the goal issued by the Manager is meant to be a
-            relative or absolute goal, i.e. specific state or change in state
+            specifies whether the goal issued by the higher-levels policies is
+            meant to be a relative or absolute goal, i.e. specific state or
+            change in state
         off_policy_corrections : bool
             whether to use off-policy corrections during the update procedure.
             See: https://arxiv.org/abs/1805.08296
@@ -103,11 +108,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
         connected_gradients : bool
-            whether to connect the graph between the manager and worker
+            whether to use the connected gradient update actor update procedure
+            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
-            weights for the gradients of the loss of the worker with respect to
-            the parameters of the manager. Only used if `connected_gradients`
-            is set to True.
+            weights for the gradients of the loss of the lower-level policies
+            with respect to the parameters of the higher-level policies. Only
+            used if `connected_gradients` is set to True.
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -115,8 +121,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             the low and high values for each fingerprint element, if they are
             being used
         centralized_value_functions : bool
-            specifies whether to use centralized value functions for the
-            Manager and Worker critic functions
+            specifies whether to use centralized value functions
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -134,8 +139,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            num_levels=num_levels,
             meta_period=meta_period,
-            worker_reward_scale=worker_reward_scale,
+            intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,
@@ -157,19 +163,21 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
+    # FIXME
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
-        """Calculate the log probability of the next goal by the Manager.
+        """Calculate the log probability of the next goal by the meta-policies.
 
         Parameters
         ----------
         meta_actions : array_like
-            (batch_size, m_ac_dim, num_samples) matrix of candidate Manager
-            actions
+            (batch_size, m_ac_dim, num_samples) matrix of candidate higher-
+            level policy actions
         worker_obses : array_like
-            (batch_size, w_obs_dim, meta_period + 1) matrix of Worker
-            observations
+            (batch_size, w_obs_dim, meta_period + 1) matrix of lower-level
+            policy observations
         worker_actions : array_like
-            (batch_size, w_ac_dim, meta_period) list of Worker actions
+            (batch_size, w_ac_dim, meta_period) list of lower-level policy
+            actions
 
         Returns
         -------
@@ -230,12 +238,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                     np.tile(goal_diff, (num_samples, 1))[:, :goal_dim]
 
             # Compute the log-probability of each action using the logp_action
-            # attribute of the SAC Worker policy.
+            # attribute of the SAC lower-level policy.
             normalized_error = self.sess.run(
-                self.worker.logp_action,
+                self.policy[-1].logp_action,
                 feed_dict={
-                    self.worker.obs_ph: tiled_worker_obses_per_sample,
-                    self.worker.action_ph: tiled_worker_actions_per_sample,
+                    self.policy[-1].obs_ph: tiled_worker_obses_per_sample,
+                    self.policy[-1].action_ph: tiled_worker_actions_per_sample,
                 }
             )
 
@@ -254,7 +262,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
-        """Create the updated manager optimization with connected gradients."""
+        """Create the connected gradients meta-policy optimizer."""
         raise NotImplementedError  # TODO
 
     def _connected_gradients_update(self,
@@ -263,44 +271,37 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                                     rewards,
                                     obs1,
                                     terminals1,
-                                    worker_obs0,
-                                    worker_obs1,
-                                    worker_actions,
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
-        This procedure is similar to self.manager.update_from_batch, expect it
-        runs the self.cg_optimizer operation instead of self.manager.optimizer,
+        This procedure is similar to update_from_batch, expect it runs the
+        self.cg_optimizer operation instead of the policy object's optimizer,
         and utilizes some information from the worker samples as well.
 
         Parameters
         ----------
-        obs0 : np.ndarray
-            batch of manager observations
-        actions : numpy float
-            batch of manager actions executed given obs_batch
-        rewards : numpy float
-            manager rewards received as results of executing act_batch
-        obs1 : np.ndarray
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_actions : array_like
-            batch of worker actions
+        obs0 : list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        actions : list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        obs1 : list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        rewards : list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        terminals1 : list of numpy bool
+            (batch_size,) vector of done masks for every level in the hierarchy
         update_actor : bool
-            specifies whether to update the actor policy of the manager. The
-            critic policy is still updated if this value is set to False.
+            specifies whether to update the actor policy of the meta policy.
+            The critic policy is still updated if this value is set to False.
 
         Returns
         -------
         [float, float]
-            manager critic loss
+            higher-level policy critic loss
         float
-            manager actor loss
+            higher-level policy actor loss
         """
         raise NotImplementedError  # TODO

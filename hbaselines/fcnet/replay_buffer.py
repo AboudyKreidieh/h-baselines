@@ -88,27 +88,24 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
         self._size = min(self._size + 1, self._maxsize)
 
-    def _encode_sample(self, idxes, **kwargs):
-        """Convert the indices to appropriate samples."""
-        return self.obs_t[idxes, :], self.action_t[idxes, :], \
-            self.reward[idxes], self.obs_tp1[idxes, :], self.done[idxes]
-
-    def sample(self, **kwargs):
+    def sample(self):
         """Sample a batch of experiences.
 
         Returns
         -------
-        np.ndarray
+        array_like
             batch of observations
-        numpy float
+        array_like
             batch of actions executed given obs_batch
-        numpy float
+        array_like
             rewards received as results of executing act_batch
-        np.ndarray
+        array_like
             next set of observations seen after executing act_batch
         numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
             an episode and 0 otherwise.
         """
-        indices = np.random.randint(0, self._size, size=self._batch_size)
-        return self._encode_sample(indices, **kwargs)
+        idxes = np.random.randint(0, self._size, size=self._batch_size)
+
+        return self.obs_t[idxes, :], self.action_t[idxes, :], \
+            self.reward[idxes], self.obs_tp1[idxes, :], self.done[idxes]

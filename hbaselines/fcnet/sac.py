@@ -537,13 +537,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : np.ndarray
+        obs0 : array_like
             batch of observations
-        actions : numpy float
+        actions : array_like
             batch of actions executed given obs_batch
-        rewards : numpy float
+        rewards : array_like
             rewards received as results of executing act_batch
-        obs1 : np.ndarray
+        obs1 : array_like
             next set of observations seen after executing act_batch
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
@@ -610,22 +610,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             normalized_action = self.sess.run(
                 self.deterministic_action, feed_dict={self.obs_ph: obs})
             return self._ac_magnitudes * normalized_action + self._ac_means
-
-    def value(self, obs, context, action):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        # Normalize the actions (bounded between [-1, 1]).
-        action = (action - self._ac_means) / self._ac_magnitudes
-
-        return self.sess.run(
-            [self.qf1, self.qf2],  # , self.value_fn],  FIXME
-            feed_dict={
-                self.obs_ph: obs,
-                self.action_ph: action
-            }
-        )
 
     def _setup_critic_optimizer(self, scope):
         """Create minimization operation for critic Q-function.

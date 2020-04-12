@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
+from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
@@ -54,9 +54,10 @@ class TestTrain(unittest.TestCase):
             'gamma': FEEDFORWARD_PARAMS['gamma'],
             'layer_norm': False,
             'use_huber': False,
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'worker_reward_scale':
-                GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
+            'intrinsic_reward_scale':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'hindsight': False,
@@ -101,16 +102,17 @@ class TestTrain(unittest.TestCase):
             '--target_noise_clip', '22',
             '--layer_norm',
             '--use_huber',
-            '--meta_period', '23',
-            '--worker_reward_scale', '24',
+            '--num_levels', '23',
+            '--meta_period', '24',
+            '--intrinsic_reward_scale', '25',
             '--relative_goals',
             '--off_policy_corrections',
             '--hindsight',
-            '--subgoal_testing_rate', '25',
+            '--subgoal_testing_rate', '26',
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
-            '--cg_weights', '26',
+            '--cg_weights', '27',
             '--shared',
             '--maddpg',
         ])
@@ -138,16 +140,17 @@ class TestTrain(unittest.TestCase):
                 'target_noise_clip': 22.0,
                 'layer_norm': True,
                 'use_huber': True,
-                'meta_period': 23,
-                'worker_reward_scale': 24.0,
+                'num_levels': 23,
+                'meta_period': 24,
+                'intrinsic_reward_scale': 25.0,
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'hindsight': True,
-                'subgoal_testing_rate': 25.0,
+                'subgoal_testing_rate': 26.0,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
                 'connected_gradients': True,
-                'cg_weights': 26,
+                'cg_weights': 27.0,
             }
         }
         self.assertDictEqual(hp, expected_hp)
@@ -200,7 +203,7 @@ class TestRewardFns(unittest.TestCase):
 class TestMisc(unittest.TestCase):
     """Test the the miscellaneous utility methods."""
 
-    def test_manager_ac_space(self):
+    def test_meta_ac_space(self):
         # non-relevant parameters for most tests
         params = dict(
             ob_space=None,
@@ -212,7 +215,7 @@ class TestMisc(unittest.TestCase):
         rel_params.update({"relative_goals": True})
 
         # test for AntMaze
-        ac_space = get_manager_ac_space(env_name="AntMaze", **params)
+        ac_space = get_meta_ac_space(env_name="AntMaze", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -223,7 +226,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntGather
-        ac_space = get_manager_ac_space(env_name="AntGather", **params)
+        ac_space = get_meta_ac_space(env_name="AntGather", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -234,7 +237,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntPush
-        ac_space = get_manager_ac_space(env_name="AntPush", **params)
+        ac_space = get_meta_ac_space(env_name="AntPush", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -245,7 +248,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntFall
-        ac_space = get_manager_ac_space(env_name="AntFall", **params)
+        ac_space = get_meta_ac_space(env_name="AntFall", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -256,7 +259,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for UR5
-        ac_space = get_manager_ac_space(env_name="UR5", **params)
+        ac_space = get_meta_ac_space(env_name="UR5", **params)
         test_space(
             ac_space,
             expected_min=np.array([-2*np.pi, -2*np.pi, -2*np.pi, -4, -4, -4]),
@@ -265,7 +268,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for Pendulum
-        ac_space = get_manager_ac_space(env_name="Pendulum", **params)
+        ac_space = get_meta_ac_space(env_name="Pendulum", **params)
         test_space(
             ac_space,
             expected_min=np.array([-np.pi, -15]),
@@ -273,8 +276,25 @@ class TestMisc(unittest.TestCase):
             expected_size=2,
         )
 
-        # test for ring0
-        ac_space = get_manager_ac_space(env_name="ring0", **params)
+        # test for ring
+        ac_space = get_meta_ac_space(env_name="ring", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        ac_space = get_meta_ac_space(env_name="ring", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-30 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test for ring_small
+        ac_space = get_meta_ac_space(env_name="ring_small", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(1)]),
@@ -282,24 +302,7 @@ class TestMisc(unittest.TestCase):
             expected_size=1,
         )
 
-        ac_space = get_manager_ac_space(env_name="ring0", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
-        )
-
-        # test for ring1
-        ac_space = get_manager_ac_space(env_name="ring1", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
-        )
-
-        ac_space = get_manager_ac_space(env_name="ring1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring_small", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(1)]),
@@ -308,7 +311,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for merge0
-        ac_space = get_manager_ac_space(env_name="merge0", **params)
+        ac_space = get_meta_ac_space(env_name="merge0", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
@@ -316,7 +319,7 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
-        ac_space = get_manager_ac_space(env_name="merge0", **rel_params)
+        ac_space = get_meta_ac_space(env_name="merge0", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(5)]),
@@ -325,7 +328,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for merge1
-        ac_space = get_manager_ac_space(env_name="merge1", **params)
+        ac_space = get_meta_ac_space(env_name="merge1", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(13)]),
@@ -333,7 +336,7 @@ class TestMisc(unittest.TestCase):
             expected_size=13,
         )
 
-        ac_space = get_manager_ac_space(env_name="merge1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="merge1", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(13)]),
@@ -342,7 +345,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for merge2
-        ac_space = get_manager_ac_space(env_name="merge2", **params)
+        ac_space = get_meta_ac_space(env_name="merge2", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(17)]),
@@ -350,7 +353,7 @@ class TestMisc(unittest.TestCase):
             expected_size=17,
         )
 
-        ac_space = get_manager_ac_space(env_name="merge2", **rel_params)
+        ac_space = get_meta_ac_space(env_name="merge2", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(17)]),
@@ -359,7 +362,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for figureeight0
-        ac_space = get_manager_ac_space(env_name="figureeight0", **params)
+        ac_space = get_meta_ac_space(env_name="figureeight0", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(1)]),
@@ -367,7 +370,7 @@ class TestMisc(unittest.TestCase):
             expected_size=1,
         )
 
-        ac_space = get_manager_ac_space(env_name="figureeight0", **rel_params)
+        ac_space = get_meta_ac_space(env_name="figureeight0", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(1)]),
@@ -376,7 +379,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for figureeight1
-        ac_space = get_manager_ac_space(env_name="figureeight1", **params)
+        ac_space = get_meta_ac_space(env_name="figureeight1", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(7)]),
@@ -384,7 +387,7 @@ class TestMisc(unittest.TestCase):
             expected_size=7,
         )
 
-        ac_space = get_manager_ac_space(env_name="figureeight1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="figureeight1", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(7)]),
@@ -393,7 +396,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for figureeight2
-        ac_space = get_manager_ac_space(env_name="figureeight2", **params)
+        ac_space = get_meta_ac_space(env_name="figureeight2", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(14)]),
@@ -401,7 +404,7 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
-        ac_space = get_manager_ac_space(env_name="figureeight2", **rel_params)
+        ac_space = get_meta_ac_space(env_name="figureeight2", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(14)]),
@@ -409,30 +412,10 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
-        # test for grid0
-        ac_space = get_manager_ac_space(env_name="grid0", **params)
-        del ac_space  # TODO
-
-        # test for grid1
-        ac_space = get_manager_ac_space(env_name="grid1", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck0
-        ac_space = get_manager_ac_space(env_name="bottleneck0", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck1
-        ac_space = get_manager_ac_space(env_name="bottleneck1", **params)
-        del ac_space  # TODO
-
-        # test for bottleneck2
-        ac_space = get_manager_ac_space(env_name="bottleneck2", **params)
-        del ac_space  # TODO
-
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=Box(-1, 1, shape=(2,)),
+            ob_space=Box(-1, 1, shape=(2,), dtype=np.float32),
             use_fingerprints=False,
             fingerprint_dim=1,
         )
@@ -470,15 +453,15 @@ class TestMisc(unittest.TestCase):
             [0, 2]
         )
 
-        # test for ring0
+        # test for ring
         self.assertListEqual(
-            get_state_indices(env_name="ring0", **params),
-            [0]
+            get_state_indices(env_name="ring", **params),
+            [0, 5, 10, 15, 20]
         )
 
-        # test for ring1
+        # test for ring_small
         self.assertListEqual(
-            get_state_indices(env_name="ring1", **params),
+            get_state_indices(env_name="ring_small", **params),
             [0]
         )
 
@@ -517,26 +500,6 @@ class TestMisc(unittest.TestCase):
             get_state_indices(env_name="figureeight2", **params),
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         )
-
-        # test for grid0
-        state_indices = get_state_indices(env_name="grid0", **params)
-        del state_indices  # TODO
-
-        # test for grid1
-        state_indices = get_state_indices(env_name="grid1", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck0
-        state_indices = get_state_indices(env_name="bottleneck0", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck1
-        state_indices = get_state_indices(env_name="bottleneck1", **params)
-        del state_indices  # TODO
-
-        # test for bottleneck2
-        state_indices = get_state_indices(env_name="bottleneck2", **params)
-        del state_indices  # TODO
 
 
 class TestTFUtil(unittest.TestCase):

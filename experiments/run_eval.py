@@ -8,15 +8,39 @@ import tensorflow as tf
 import json
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy \
+    as TD3FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy \
+    as SACFeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
+    as TD3GoalConditionedPolicy
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
+    as SACGoalConditionedPolicy
 
 
 # dictionary that maps policy names to policy objects
 POLICY_DICT = {
-    "FeedForwardPolicy": FeedForwardPolicy,
-    "GoalConditionedPolicy": GoalConditionedPolicy,
+    "FeedForwardPolicy": {
+        "TD3": TD3FeedForwardPolicy,
+        "SAC": SACFeedForwardPolicy,
+    },
+    "GoalConditionedPolicy": {
+        "TD3": TD3GoalConditionedPolicy,
+        "SAC": SACGoalConditionedPolicy,
+    },
 }
+
+# name of Flow environments. These are rendered differently
+FLOW_ENV_NAMES = [
+    "ring",
+    "ring_small",
+    "figureeight0",
+    "figureeight1",
+    "figureeight2",
+    "merge0",
+    "merge1",
+    "merge2",
+]
 
 
 def parse_options(args):
@@ -76,7 +100,8 @@ def get_hyperparameters_from_dir(ckpt_path):
 
     # collect the policy object
     policy_name = hp['policy_name']
-    policy = POLICY_DICT[policy_name]
+    alg_name = hp['algorithm']
+    policy = POLICY_DICT[policy_name][alg_name]
 
     # collect the environment name
     env_name = hp['env_name']
@@ -87,6 +112,7 @@ def get_hyperparameters_from_dir(ckpt_path):
     # remove unnecessary features from hp dict
     hp = hp.copy()
     del hp['policy_name'], hp['env_name'], hp['seed']
+    del hp['algorithm'], hp['date/time']
 
     return env_name, policy, hp, seed
 
@@ -104,7 +130,6 @@ def main(args):
     alg = OffPolicyRLAlgorithm(
         policy=policy,
         env=env_name,
-        eval_env=env_name,
         **hp
     )
 
@@ -131,7 +156,7 @@ def main(args):
 
     # some variables that will be needed when replaying the rollout
     policy = alg.policy_tf
-    env = alg.eval_env
+    env = alg.env
 
     # Perform the evaluation procedure.
     episdoe_rewards = []
@@ -149,8 +174,8 @@ def main(args):
                 apply_noise=False,
                 random_actions=False,
             )
-            obs, reward, done, _ = env.step(action)
-            if not flags.no_render:
+            obs, reward, done, _ = env.step(action[0])
+            if not flags.no_render and env_name not in FLOW_ENV_NAMES:
                 env.render()
             total_reward += reward
             if done:

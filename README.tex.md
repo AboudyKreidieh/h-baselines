@@ -411,7 +411,7 @@ print(SAC_PARAMS)
 
 ### Meta Period
 
-The Manager action period, $k$, can be specified to the policy during 
+The meta-policy action period, $k$, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
@@ -423,7 +423,7 @@ alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
-        # specify the Manager action period
+        # specify the meta-policy action period
         "meta_period": 10
     }
 )
@@ -431,10 +431,10 @@ alg = OffPolicyRLAlgorithm(
 
 ### Intrinsic Rewards
 
-The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, can have a 
-significant affect on the training performance of both the Manager and 
-Worker policies. Currently, this repository only support one intrinsic 
-reward function: negative distance. This is of the form:
+The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, can have a significant 
+effect on the training performance of every policy in the hierarchy. Currently,
+this repository only support one intrinsic reward function: negative distance. 
+This is of the form:
 
 $$r_w(s_t, g_t, s_{t+1}) = -||g_t - s_{t+1}||_2$$
 
@@ -530,9 +530,9 @@ with the subgoal state achieved in hindsight. For example, given an original
 sub-policy transition:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" g_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" g_0,
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -545,7 +545,7 @@ sub-policy transition:
             ...
             a_{k-1}
         ],
-        "worker rewards": [
+        "intrinsic rewards": [
             r_w(s_0, g_0, s_1),
             r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
@@ -556,9 +556,9 @@ sub-policy transition:
 The original goal is relabeled to match the original as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" s_k, <---- the changed component
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" s_k, <---- the changed component
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -571,7 +571,7 @@ The original goal is relabeled to match the original as follows:
             ...
             a_{k-1}
         ],
-        "worker rewards": [
+        "intrinsic rewards": [
             r_w(s_0, g_0, s_1),
             r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
@@ -599,9 +599,9 @@ observations and intrinsic rewards within the sample as well. This is done by
 modifying the relevant worker-specific features as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" \bar{g}_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" \bar{g}_0,
+        "meta reward" r,
         "worker observations" [ <------------
             (s_0, \bar{g}_0),               |
             (s_1, \bar{g}_1),               |---- the changed components
@@ -614,7 +614,7 @@ modifying the relevant worker-specific features as follows:
             ...
             a_{k-1}
         ],
-        "worker rewards": [ <----------------
+        "intrinsic rewards": [ <----------------
             r_w(s_0, \bar{g}_0, s_1),       |
             r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
             ...                             |
@@ -678,7 +678,7 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
-        # procedure to the Manager policy
+        # procedure to the higher-level policies
         "connected_gradients": True,
         # specify the connected gradient (lambda) weight
         "cg_weights": 0.01
@@ -782,7 +782,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: 21 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{3}$, 
+* ring_small: 21 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{3}$, 
   $\mathcal{A} \in \mathbb{R}^1$, $T=3000$).
 
 **Figure Eight**
