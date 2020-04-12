@@ -396,10 +396,22 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for Point2DEnv
-        pass  # TODO
+        ac_space = get_meta_ac_space(env_name="Point2DEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
 
         # test for Point2DImageEnv
-        pass  # TODO
+        ac_space = get_meta_ac_space(env_name="Point2DImageEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
 
     def test_state_indices(self):
         # non-relevant parameters for most tests
@@ -485,10 +497,16 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for Point2DEnv
-        pass  # TODO
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DEnv", **params),
+            [0, 1]
+        )
 
         # test for Point2DImageEnv
-        pass  # TODO
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DImageEnv", **params),
+            [1024, 1025]
+        )
 
 
 class TestTFUtil(unittest.TestCase):

@@ -22,21 +22,23 @@ class Point2DEnv(MultitaskEnv, Serializable):
     render_dt_msec : float
         seconds before the next frame in the image is rendered
     action_l2norm_penalty : float
-        TODO
+        penalty scale for the actions by the agent
     render_onscreen : bool
-        TODO
+        whether to include the rendering visually (instead of simply using the
+        image for the observation)
     render_size : int
-        TODO
+        width/length number of pixels in the rendered image
     reward_type : str
-        TODO
+        the reward type. Must be one of: "sparse", "dense", or
+        "vectorized_dense"
     action_scale : float
-        TODO
+        the multiple from action to velocity
     target_radius : float
-        TODO
+        the radius of the targeted position when being rendered
     boundary_dist : float
-        TODO
+        the distance from the center to the boundary
     ball_radius : float
-        TODO
+        the radius of the agent when being rendered
     walls : TODO
         TODO
     fixed_goal : [float, float] or None
@@ -86,7 +88,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
                  walls=None,
                  fixed_goal=None,
                  randomize_position_on_reset=True,
-                 images_are_rgb=True,  # else black and white
+                 images_are_rgb=False,  # else black and white
                  show_goal=True,
                  images_in_obs=True,
                  **kwargs):
@@ -97,21 +99,23 @@ class Point2DEnv(MultitaskEnv, Serializable):
         render_dt_msec : float
             seconds before the next frame in the image is rendered
         action_l2norm_penalty : float
-            TODO
+            penalty scale for the actions by the agent
         render_onscreen : bool
-            TODO
+            whether to include the rendering visually (instead of simply using
+            the image for the observation)
         render_size : int
-            TODO
+            width/length number of pixels in the rendered image
         reward_type : str
-            TODO
+            the reward type. Must be one of: "sparse", "dense", or
+            "vectorized_dense"
         action_scale : float
-            TODO
+            the multiple from action to velocity
         target_radius : float
-            TODO
+            the radius of the targeted position when being rendered
         boundary_dist : float
-            TODO
+            the distance from the center to the boundary
         ball_radius : float
-            TODO
+            the radius of the agent when being rendered
         walls : TODO
             TODO
         fixed_goal : [float, float] or None
