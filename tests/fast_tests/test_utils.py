@@ -412,6 +412,24 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
+        # test for Point2DEnv
+        ac_space = get_meta_ac_space(env_name="Point2DEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
+
+        # test for Point2DImageEnv
+        ac_space = get_meta_ac_space(env_name="Point2DImageEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
+
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
@@ -499,6 +517,18 @@ class TestMisc(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="figureeight2", **params),
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        )
+
+        # test for Point2DEnv
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DEnv", **params),
+            [0, 1]
+        )
+
+        # test for Point2DImageEnv
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DImageEnv", **params),
+            [1024, 1025]
         )
 
 

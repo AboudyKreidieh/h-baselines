@@ -30,14 +30,19 @@ install:
   - popd
   - popd
 
+  # Install multiworld
+  - pushd $HOME
+  - git clone https://github.com/vitchyr/multiworld.git
+  - pushd multiworld
+  - pip install -e .
+  - popd
+  - popd
+
   # other packages to install
   - pip install flake8
   - pip install coveralls
   - pip install nose2
   - pip install pydocstyle
-
-#  # third-party tools
-#  - ./scripts/install_thirdparty.sh
 
 before_script:
   - flake8 --show-source
