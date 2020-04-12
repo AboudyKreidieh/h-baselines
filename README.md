@@ -97,6 +97,7 @@ following commands:
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
+git submodule add -f https://github.com/florensacc/snn4hrl.git sandbox/snn4hrl
 ```
 
 While all other environments run on all version of MuJoCo, this one will 
@@ -105,7 +106,7 @@ as well that are required by rllab. If you're installation is
 successful, the following command should not fail:
 
 ```
-python experiments/run_fcnet.py
+python experiments/run_fcnet.py "AntGather"
 ```
 
 ## Supported Models/Algorithms
