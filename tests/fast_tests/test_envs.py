@@ -466,11 +466,12 @@ class TestMixedAutonomyParams(unittest.TestCase):
 
         # test the agent IDs.
         self.assertListEqual(
-            sorted(env.agents), ["rl_0", "rl_1", "rl_2", "rl_3", "rl_4"])
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
 
         # test observation space
         test_space(
-            env.observation_space["rl_0"],
+            env.observation_space["rl_0_0"],
             expected_min=np.array([-float("inf") for _ in range(5)]),
             expected_max=np.array([float("inf") for _ in range(5)]),
             expected_size=5,
@@ -478,7 +479,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
 
         # test action space
         test_space(
-            env.action_space["rl_0"],
+            env.action_space["rl_0_0"],
             expected_min=np.array([-1]),
             expected_max=np.array([1]),
             expected_size=1,
@@ -876,6 +877,7 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "penalty_type": "acceleration",
                     "penalty": 1,
                 },
             )
@@ -929,8 +931,8 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['rl_1', 'rl_2', 'rl_3', 'rl_4', 'human_0',
-                                   'human_44', 'rl_0']
+                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
+                                   'human_0_0', 'human_0_44', 'rl_0_0']
             )
         )
 
@@ -955,8 +957,10 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "penalty_type": "acceleration",
                     "penalty": 1,
                     "num_vehicles": [50, 75],
+                    "even_distribution": False,
                     "sort_vehicles": True,
                 },
             )

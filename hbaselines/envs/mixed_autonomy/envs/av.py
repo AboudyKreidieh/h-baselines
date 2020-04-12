@@ -14,6 +14,8 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
+    # the penalty type, one of: {"acceleration", "time_headway", "both"}
+    penalty_type="acceleration",
     # scaling term for the action penalty by the AVs
     penalty=1,
 )
@@ -23,6 +25,9 @@ CLOSED_ENV_PARAMS.update(dict(
     # range for the number of vehicles allowed in the network. If set to None,
     # the number of vehicles are is modified from its initial value.
     num_vehicles=[50, 75],
+    # whether to distribute the automated vehicles evenly among the human
+    # driven vehicles. Otherwise, they are randomly distributed.
+    even_distribution=False,
     # whether to sort RL vehicles by their initial position. Used to account
     # for noise brought about by shuffling.
     sort_vehicles=True,
@@ -40,7 +45,6 @@ OPEN_ENV_PARAMS.update(dict(
     num_rl=5,
 ))
 
-
 # Scale the normalized speeds and headways are scaled by. Headways are squashed
 # to very small values, since the length is 1500, so it is multiplied by ten.
 SPEED_SCALE = 1
@@ -54,6 +58,8 @@ class AVEnv(Env):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
+      "both"}
     * penalty: scaling term for the action penalty by the AVs
 
     States
@@ -123,7 +129,7 @@ class AVEnv(Env):
         return Box(
             low=-abs(self.env_params.additional_params['max_decel']),
             high=self.env_params.additional_params['max_accel'],
-            shape=(self.num_rl, ),
+            shape=(self.num_rl,),
             dtype=np.float32)
 
     @property
@@ -136,7 +142,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(self.num_rl * (1 + 4*max_lanes), ),
+            shape=(self.num_rl * (1 + 4 * max_lanes),),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -148,13 +154,31 @@ class AVEnv(Env):
         if self.env_params.evaluate or rl_actions is None:
             return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
         else:
-            # reward high system-level average speeds
+            # Reward high system-level average speeds.
             reward = np.mean(
                 self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
 
-            # penalize the sum of squares of the accelerations
+            penalty_type = self.env_params.additional_params["penalty_type"]
             penalty_scale = self.env_params.additional_params["penalty"]
-            reward -= penalty_scale * sum(np.square(rl_actions[:self.num_rl]))
+
+            # Penalize the sum of squares of the accelerations.
+            if penalty_type in ["acceleration", "both"]:
+                reward -= penalty_scale * \
+                    sum(np.square(rl_actions[:self.num_rl]))
+
+            # Penalize small time headways.
+            elif penalty_type in ["time_headway", "both"]:
+                cost2 = 0
+                t_min = 1  # smallest acceptable time headway
+                for rl_id in self.rl_ids:
+                    lead_id = self.k.vehicle.get_leader(rl_id)
+                    if lead_id not in ["", None] \
+                            and self.k.vehicle.get_speed(rl_id) > 0:
+                        t_headway = max(
+                            self.k.vehicle.get_headway(rl_id) /
+                            self.k.vehicle.get_speed(rl_id), 0)
+                        cost2 += min((t_headway - t_min) / t_min, 0)
+                reward += penalty_scale * cost2
 
             return reward
 
@@ -254,10 +278,14 @@ class AVClosedEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
+      "both"}
     * penalty: scaling term for the action penalty by the AVs
     * num_vehicles: range for the number of vehicles allowed in the network. If
       set to None, the number of vehicles are is modified from its initial
       value.
+    * even_distribution: whether to distribute the automated vehicles evenly
+      among the human driven vehicles. Otherwise, they are randomly distributed
     * sort_vehicles: whether to sort RL vehicles by their initial position.
       Used to account for noise brought about by shuffling.
     """
@@ -285,6 +313,11 @@ class AVClosedEnv(AVEnv):
             network=network,
             simulator=simulator,
         )
+
+        if self.env_params.additional_params["even_distribution"]:
+            assert not self.initial_config.shuffle, \
+                "InitialConfig.shuffle must be set to False when using even " \
+                "distributions."
 
     @property
     def rl_ids(self):
@@ -317,25 +350,71 @@ class AVClosedEnv(AVEnv):
 
         print("humans: {}, automated: {}".format(new_n_vehicles, n_rl))
 
-        new_vehicles = VehicleParams()
-        new_vehicles.add(
-            "human",
-            acceleration_controller=params["human"]["acceleration_controller"],
-            lane_change_controller=params["human"]["lane_change_controller"],
-            routing_controller=params["human"]["routing_controller"],
-            initial_speed=params["human"]["initial_speed"],
-            car_following_params=params["human"]["car_following_params"],
-            lane_change_params=params["human"]["lane_change_params"],
-            num_vehicles=new_n_vehicles)
-        new_vehicles.add(
-            "rl",
-            acceleration_controller=params["rl"]["acceleration_controller"],
-            lane_change_controller=params["rl"]["lane_change_controller"],
-            routing_controller=params["rl"]["routing_controller"],
-            initial_speed=params["rl"]["initial_speed"],
-            car_following_params=params["rl"]["car_following_params"],
-            lane_change_params=params["rl"]["lane_change_params"],
-            num_vehicles=n_rl)
+        if self.env_params.additional_params["even_distribution"]:
+            num_human = new_n_vehicles - n_rl
+            humans_remaining = num_human
+
+            new_vehicles = VehicleParams()
+            for i in range(n_rl):
+                # Add one automated vehicle.
+                new_vehicles.add(
+                    veh_id="rl_{}".format(i),
+                    acceleration_controller=params["rl_{}".format(i)][
+                        "acceleration_controller"],
+                    lane_change_controller=params["rl_{}".format(i)][
+                        "lane_change_controller"],
+                    routing_controller=params["rl_{}".format(i)][
+                        "routing_controller"],
+                    initial_speed=params["rl_{}".format(i)][
+                        "initial_speed"],
+                    car_following_params=params["rl_{}".format(i)][
+                        "car_following_params"],
+                    lane_change_params=params["rl_{}".format(i)][
+                        "lane_change_params"],
+                    num_vehicles=1)
+
+                # Add a fraction of the remaining human vehicles.
+                vehicles_to_add = round(humans_remaining / (n_rl - i))
+                humans_remaining -= vehicles_to_add
+                new_vehicles.add(
+                    veh_id="human_{}".format(i),
+                    acceleration_controller=params["human_{}".format(i)][
+                        "acceleration_controller"],
+                    lane_change_controller=params["human_{}".format(i)][
+                        "lane_change_controller"],
+                    routing_controller=params["human_{}".format(i)][
+                        "routing_controller"],
+                    initial_speed=params["human_{}".format(i)][
+                        "initial_speed"],
+                    car_following_params=params["human_{}".format(i)][
+                        "car_following_params"],
+                    lane_change_params=params["human_{}".format(i)][
+                        "lane_change_params"],
+                    num_vehicles=vehicles_to_add)
+        else:
+            new_vehicles = VehicleParams()
+            new_vehicles.add(
+                "human_0",
+                acceleration_controller=params["human_0"][
+                    "acceleration_controller"],
+                lane_change_controller=params["human_0"][
+                    "lane_change_controller"],
+                routing_controller=params["human_0"]["routing_controller"],
+                initial_speed=params["human_0"]["initial_speed"],
+                car_following_params=params["human_0"]["car_following_params"],
+                lane_change_params=params["human_0"]["lane_change_params"],
+                num_vehicles=new_n_vehicles)
+            new_vehicles.add(
+                "rl_0",
+                acceleration_controller=params["rl_0"][
+                    "acceleration_controller"],
+                lane_change_controller=params["rl_0"][
+                    "lane_change_controller"],
+                routing_controller=params["rl_0"]["routing_controller"],
+                initial_speed=params["rl_0"]["initial_speed"],
+                car_following_params=params["rl_0"]["car_following_params"],
+                lane_change_params=params["rl_0"]["lane_change_params"],
+                num_vehicles=n_rl)
 
         # Update the network.
         self.network = self._network_cls(
@@ -347,7 +426,7 @@ class AVClosedEnv(AVEnv):
         )
 
         # Perform the reset operation.
-        obs = super(AVClosedEnv, self).reset()
+        _ = super(AVClosedEnv, self).reset()
 
         # Get the initial positions of the RL vehicles to allow us to sort the
         # vehicles by this term.
@@ -396,6 +475,8 @@ class AVOpenEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
+      "both"}
     * penalty: scaling term for the action penalty by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
