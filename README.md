@@ -765,7 +765,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
+* ring_small: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
   <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/351ed9c9a71df22eb3e86de90dd9699a.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 
 **Figure Eight**
