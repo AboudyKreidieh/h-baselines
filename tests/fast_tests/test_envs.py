@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 import random
+from copy import deepcopy
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
@@ -20,6 +21,7 @@ from hbaselines.envs.mixed_autonomy.params.ring_small \
     import get_flow_params as ring_small
 from hbaselines.envs.mixed_autonomy.params.figure_eight \
     import get_flow_params as figure_eight
+from hbaselines.envs.point2d import Point2DEnv
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -826,6 +828,176 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     """Test the functionality of features in envs/mixed_autonomy/envs."""
 
     pass
+
+
+class TestPoint2D(unittest.TestCase):
+    """Test the functionality of features in envs/point2d.py."""
+
+    def setUp(self):
+        self.env_cls = Point2DEnv
+        self.env_params = {
+            'render_dt_msec': 0,
+            'action_l2norm_penalty': 0,
+            'render_onscreen': False,
+            'render_size': 32,
+            'reward_type': "dense",
+            'action_scale': 1.0,
+            'target_radius': 0.60,
+            'boundary_dist': 4,
+            'ball_radius': 0.50,
+            'walls': None,
+            'fixed_goal': None,
+            'randomize_position_on_reset': True,
+            'images_are_rgb': False,
+            'show_goal': True,
+            'images_in_obs': True,
+        }
+
+    def test_reset(self):
+        """Validate the functionality of the current_context method.
+
+        This also tests the current_context, sample_position, and sample_goals
+        methods.
+
+        This test attempts to reset the environment and read the current
+        context term and initial positions. This is done for two cases:
+
+        1. fixed_goal = None
+        2. fixed_goal = [0, 1]
+        """
+        np.random.seed(0)
+
+        # test case 1
+        params = deepcopy(self.env_params)
+        params['fixed_goal'] = None
+        env = self.env_cls(**params)
+
+        self.assertEqual(env.current_context, None)
+        np.testing.assert_almost_equal(env._position, np.array([0, 0]))
+        env.reset()
+        np.testing.assert_almost_equal(env.current_context,
+                                       np.array([0.390508, 1.7215149]))
+        np.testing.assert_almost_equal(env._position,
+                                       np.array([0.822107, 0.3590655]))
+
+        # test case 2
+        params = deepcopy(self.env_params)
+        params['fixed_goal'] = [0, 1]
+        env = self.env_cls(**params)
+
+        self.assertEqual(env.current_context, None)
+        np.testing.assert_almost_equal(env._position, np.array([0, 0]))
+        env.reset()
+        np.testing.assert_almost_equal(env.current_context,
+                                       np.array([0, 1]))
+        np.testing.assert_almost_equal(env._position,
+                                       np.array([-0.6107616,  1.1671529]))
+
+    def test_step(self):
+        """Validate the functionality of the step method.
+
+        This also tests the get_obs and compute_rewards methods.
+
+        The step method is used and the ouput is evaluated for the following
+        cases:
+
+        1. not using images
+        2. using images
+        """
+        # test case 1
+        params = deepcopy(self.env_params)
+        params['images_in_obs'] = False
+        env = self.env_cls(**params)
+
+        obs = env.reset()
+
+        np.testing.assert_almost_equal(
+            obs,
+            np.array([3.7093021, -0.9324678])
+        )
+
+        obs, reward, done, _ = env.step(np.array([1, 1]))
+
+        np.testing.assert_almost_equal(
+            obs,
+            np.array([4., 0.0675322])
+        )
+
+        self.assertAlmostEqual(reward, -5.445004580312284)
+        self.assertEqual(done, False)
+
+        # test case 2
+        params = deepcopy(self.env_params)
+        params['images_in_obs'] = True
+        env = self.env_cls(**params)
+
+        obs = env.reset()
+
+        self.assertEqual(obs.shape[0], 1026)
+        np.testing.assert_almost_equal(
+            obs[-2:],
+            np.array([0.54435649, 3.40477311])
+        )
+
+        obs, reward, done, _ = env.step(np.array([1, 1]))
+
+        self.assertEqual(obs.shape[0], 1026)
+        np.testing.assert_almost_equal(
+            obs[-2:],
+            np.array([1.5443565, 4.])
+        )
+
+        self.assertAlmostEqual(reward, -3.850633885880888)
+        self.assertEqual(done, False)
+
+    def test_position_inside_wall(self):
+        """Validate the functionality of the position_inside_wall method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_get_goal(self):
+        """Validate the functionality of the get_goal method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_get_image(self):
+        """Validate the functionality of the get_image method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_draw(self):
+        """Validate the functionality of the draw method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_true_model(self):
+        """Validate the functionality of the true_model method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_true_states(self):
+        """Validate the functionality of the true_states method.
+
+        TODO
+        """
+        pass  # TODO
+
+    def test_plot_trajectory(self):
+        """Validate the functionality of the plot_trajectory method.
+
+        TODO
+        """
+        pass  # TODO
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

@@ -4,6 +4,7 @@ from gym.spaces import Box
 import gym
 
 from hbaselines.envs.deeploco.envs import BipedalSoccer
+from hbaselines.envs.deeploco.envs import BipedalObstacles
 from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
@@ -29,6 +30,11 @@ try:
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
+try:
+    from hbaselines.envs.point2d import Point2DEnv
+except (ImportError, ModuleNotFoundError):
+    pass
+
 
 # This dictionary element contains all relevant information when instantiating
 # a single-agent, multi-agent, or hierarchical environment.
@@ -44,9 +50,11 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover
 # - env: a lambda term that takes an input (evaluate, render, multiagent,
 #   shared, maddpg) and return an environment or list of environments
 ENV_ATTRIBUTES = {
+
     # ======================================================================= #
     # Variants of the AntMaze environment.                                    #
     # ======================================================================= #
+
     "AntMaze": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
@@ -161,6 +169,7 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # UR5 and Pendulum environments.                                          #
     # ======================================================================= #
+
     "UR5": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
@@ -205,6 +214,7 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
+
     "ring": {
         "meta_ac_space": lambda relative_goals: Box(
             low=-30 if relative_goals else 0,
@@ -414,6 +424,7 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # Bipedal environments.                                                   #
     # ======================================================================= #
+
     "BipedalSoccer": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
@@ -424,6 +435,50 @@ ENV_ATTRIBUTES = {
         "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         BipedalSoccer(render=render),
+    },
+
+    "BipedalObstacles": {
+        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+            low=np.array([x for i, x in enumerate(
+                BipedalObstacles.observation_space.low) if i - 1024 in [
+                              0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
+            high=np.array([x for i, x in enumerate(
+                BipedalObstacles.observation_space.high) if i - 1024 in [
+                               0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
+            dtype=np.float32),
+        "state_indices": [i + 1024 for i in [
+            0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        BipedalObstacles(render=render),
+    },
+
+    # ======================================================================= #
+    # Point navigation environments.                                          #
+    # ======================================================================= #
+
+    "Point2DEnv": {
+        "meta_ac_space": lambda relative_goals: Box(
+            np.ones(2) * -4,
+            np.ones(2) * 4,
+            dtype=np.float32
+        ),
+        "state_indices": [0, 1],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
+            images_in_obs=False
+        ),
+    },
+
+    "Point2DImageEnv": {
+        "meta_ac_space": lambda relative_goals: Box(
+            np.ones(2) * -4,
+            np.ones(2) * 4,
+            dtype=np.float32
+        ),
+        # "state_indices": [3072, 3073],  # FIXME: for RGB
+        "state_indices": [1024, 1025],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
+            images_in_obs=True
+        ),
     },
 }
 
