@@ -97,6 +97,7 @@ following commands:
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
+git submodule add -f https://github.com/florensacc/snn4hrl.git sandbox/snn4hrl
 ```
 
 While all other environments run on all version of MuJoCo, this one will 
