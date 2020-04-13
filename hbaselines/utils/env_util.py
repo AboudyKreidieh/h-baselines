@@ -6,6 +6,7 @@ import gym
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.deeploco.envs import BipedalObstacles
 from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import ImageAntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
@@ -73,6 +74,35 @@ ENV_ATTRIBUTES = {
                 context_range=[0, 16]
             )
         ] if evaluate else AntMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-4, 20), (-4, 20)]
+        ),
+    },
+
+    "ImageAntMaze": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [75 + i for i in range(15)],  # image has 75 axes
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[16, 0]
+            ),
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[16, 16]
+            ),
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[0, 16]
+            )
+        ] if evaluate else ImageAntMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)]

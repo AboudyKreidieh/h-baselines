@@ -476,9 +476,10 @@ class AntMazeEnv(gym.Env):
                                          [wrapped_obs[3:]])
 
         range_sensor_obs = self.get_range_sensor_obs()
-        return np.concatenate([wrapped_obs,
+        return np.concatenate(view +
+                              [wrapped_obs,
                                range_sensor_obs.flat] +
-                              view + [[self.t * 0.001]])
+                              [[self.t * 0.001]])
 
     def reset(self):
         """Reset the environment."""
