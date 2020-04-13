@@ -25,7 +25,12 @@ from hbaselines.envs.mixed_autonomy.params.figure_eight \
     import get_flow_params as figure_eight
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
-from hbaselines.envs.mixed_autonomy.envs.av import CLOSED_ENV_PARAMS
+from hbaselines.envs.mixed_autonomy.envs.av \
+    import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi \
+    import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
 from hbaselines.envs.point2d import Point2DEnv
 
 
@@ -846,7 +851,7 @@ class TestAV(unittest.TestCase):
             net_params=flow_params_closed["net"],
         )
         self.env_params_closed = flow_params_closed["env"]
-        self.env_params_closed.additional_params = CLOSED_ENV_PARAMS.copy()
+        self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
         pass  # TODO
@@ -897,7 +902,7 @@ class TestAV(unittest.TestCase):
 
         # Create a multi-lane environment.
         env_multi = None  # TODO
-        del env_multi  # TODO: remove
+        del env_multi
 
         # test case 2.a
         self.assertTrue(
@@ -1008,7 +1013,143 @@ class TestAV(unittest.TestCase):
 class TestAVMulti(unittest.TestCase):
     """Tests the automated vehicles multi-agent environments."""
 
-    pass  # TODO
+    def setUp(self):
+        self.sim_params = deepcopy(ring())["sim"]
+        self.sim_params.render = False
+
+        # for AVClosedEnv
+        flow_params_closed = deepcopy(ring())
+
+        self.network_closed = flow_params_closed["network"](
+            name="test_closed",
+            vehicles=flow_params_closed["veh"],
+            net_params=flow_params_closed["net"],
+        )
+        self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.additional_params = MA_CLOSED_ENV_PARAMS.copy()
+
+        # for AVOpenEnv
+        pass  # TODO
+
+    def test_base_env(self):
+        """Validate the functionality of the AVMultiAgentEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2. that the observation space matches its expected values
+           a. for the single lane case
+           b. for the multi-lane case
+        3. that the action space matches its expected values
+           a. for the single lane case
+           b. for the multi-lane case
+        4. that the observed vehicle IDs after a reset matches its expected
+           values
+           a. for the single lane case
+           b. for the multi-lane case
+        """
+        # test case 1
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_closed,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "penalty_type": "acceleration",
+                    "penalty": 1,
+                },
+            )
+        )
+
+        # Set a random seed.
+        random.seed(0)
+        np.random.seed(0)
+
+        # Create a single lane environment.
+        env_single = AVMultiAgentEnv(
+            env_params=self.env_params_closed,
+            sim_params=self.sim_params,
+            network=self.network_closed
+        )
+
+        # Create a multi-lane environment.
+        env_multi = None  # TODO
+        del env_multi
+
+        # test case 2.a
+        self.assertTrue(
+            test_space(
+                gym_space=env_single.observation_space,
+                expected_size=env_single.initial_vehicles.num_rl_vehicles,
+                expected_min=-float("inf"),
+                expected_max=float("inf"),
+            )
+        )
+
+        # test case 2.b
+        pass  # TODO
+
+        # test case 3.a
+        self.assertTrue(
+            test_space(
+                gym_space=env_single.action_space,
+                expected_size=1,
+                expected_min=-1,
+                expected_max=1,
+            )
+        )
+
+        # test case 3.b
+        pass  # TODO
+
+        # test case 4.a
+        self.assertTrue(
+            test_observed(
+                env_class=AVMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_closed,
+                env_params=self.env_params_closed,
+                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
+                                   'human_0_0', 'human_0_44', 'rl_0_0']
+            )
+        )
+
+        # test case 4.b
+        pass  # TODO
+
+    def test_closed_env(self):
+        """Validate the functionality of the AVClosedMultiAgentEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2, that the number of vehicles is properly modified in between resets
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+    def test_open_env(self):
+        """Validate the functionality of the AVOpenMultiAgentEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2, that the inflow rate of vehicles is properly modified in between
+           resets
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
 
 
 class TestPoint2D(unittest.TestCase):
@@ -1294,7 +1435,7 @@ def test_observed(env_class,
                     network=network,
                     env_params=env_params)
     env.reset()
-    env.step(env.action_space.sample())
+    env.step(None)
     env.additional_command()
     test_mask = np.all(
         np.array(env.k.vehicle.get_observed_ids()) ==
