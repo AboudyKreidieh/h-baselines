@@ -28,7 +28,6 @@ from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
     import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
 from hbaselines.envs.point2d import Point2DEnv
