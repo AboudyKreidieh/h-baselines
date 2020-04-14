@@ -161,13 +161,11 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         """Create the viewer."""
         d = self.model.stat.extent
         d_to_center = d * 0.18
-        print(dir(self.viewer.cam))
         self.viewer.cam.distance = d
         self.viewer.cam.azimuth = 0
         self.viewer.cam.elevation = -90.0
         self.viewer.cam.lookat[0] = d_to_center
         self.viewer.cam.lookat[1] = d_to_center
-        print(self.viewer.cam.lookat[1])
 
     def get_ori(self):
         """Return the orientation of the agent."""
