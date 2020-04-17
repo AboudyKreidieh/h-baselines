@@ -30,6 +30,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  context_range=None,
                  maze_size_scaling=8,
                  top_down_view=False,
+                 image_size=32,
                  horizon=500):
         """Initialize the Universal environment.
 
@@ -54,8 +55,10 @@ class UniversalAntMazeEnv(AntMazeEnv):
             3. a list of desired contexts / goals. Goals are sampled from these
                list of possible goals
         top_down_view : bool
-            specifies whether the observation should have a [5, 5, 3] image prepended
+            specifies whether the observation should have an image prepended
             useful for training convolutional policies
+        image_size: int
+            determines the width and height of the rendered image
         horizon : float, optional
             time horizon
 
@@ -76,6 +79,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             observe_blocks=False,
             put_spin_near_agent=False,
             top_down_view=top_down_view,
+            image_size=image_size,
             manual_collision=False
         )
 
@@ -302,7 +306,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 image_size=32):
         """Initialize the Image Ant Maze environment.
 
         Parameters
@@ -330,7 +335,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
                 states=states,
                 goals=goals,
                 next_states=next_states,
-                state_indices=[75, 76],
+                state_indices=[image_size*image_size*3 + 0,
+                               image_size*image_size*3 + 1],
                 relative_context=False,
                 offset=0.0,
                 reward_scales=REWARD_SCALE
@@ -344,6 +350,7 @@ class ImageAntMaze(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=8,
             top_down_view=True,
+            image_size=image_size,
         )
 
 

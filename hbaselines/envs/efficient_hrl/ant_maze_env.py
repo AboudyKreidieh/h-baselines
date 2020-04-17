@@ -48,7 +48,7 @@ class AntMazeEnv(gym.Env):
                  observe_blocks=False,
                  put_spin_near_agent=False,
                  top_down_view=False,
-                 image_height=32,
+                 image_size=32,
                  manual_collision=False,
                  *args,
                  **kwargs):
@@ -76,7 +76,7 @@ class AntMazeEnv(gym.Env):
             specifies whether the agent can spin blocks
         top_down_view : bool, optional
             if set to True, the top-down view is provided via the observations
-        image_height: int
+        image_size: int
             determines the width and height of the rendered image
         manual_collision : bool, optional
             if set to True, collisions cause the agent to return to its prior
@@ -121,7 +121,7 @@ class AntMazeEnv(gym.Env):
             2 + (y + size_scaling / 2) / size_scaling,
             2 + (x + size_scaling / 2) / size_scaling)
         # walls (immovable), chasms (fall), movable blocks
-        self.image_size = image_height
+        self.image_size = image_size
         self._view = np.zeros([5, 5, 3])
 
         height_offset = 0.
