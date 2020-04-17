@@ -307,7 +307,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             obs_dim=ob_space.shape[0],
             ac_dim=ac_space.shape[0],
             co_dim=None if co_space is None else co_space.shape[0],
-            goal_dim=meta_ob_dim[0],
+            goal_dim=meta_ac_space.shape[0],
             num_levels=num_levels
         )
 

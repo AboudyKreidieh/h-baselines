@@ -331,7 +331,8 @@ class HierReplayBuffer(object):
             if with_additional:
                 for j in range(len(candidate_obs)):
                     additional["worker_obses"][k, :, j] = \
-                        np.array(candidate_obs[j])
+                        np.array(self._get_obs(
+                            candidate_obs[j], candidate_action[0][j], 0))
                 for j in range(len(candidate_action[-1])):
                     additional["worker_actions"][k, :, j] = \
                         candidate_action[-1][j]
