@@ -396,7 +396,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             else:
                 self.intrinsic_reward_fn = intrinsic_reward_fn
         else:
-            raise ValueError("Unknown worker_reward_type: {}".format(
+            raise ValueError("Unknown intrinsic reward type: {}".format(
                 intrinsic_reward_type))
 
         # =================================================================== #

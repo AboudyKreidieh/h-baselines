@@ -306,15 +306,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Create the worker policy with inputs directly from the manager.
         with tf.compat.v1.variable_scope("level_1/model"):
-            worker_with_manager_obs = self.policy[-1].make_critic(
+            worker_with_meta_obs = self.policy[-1].make_critic(
                 obs, self.policy[-1].action_ph, reuse=True, scope="qf_0")
 
         # Create a tensorflow operation that mimics the reward function that is
         # used to provide feedback to the worker.
-        if self.worker_reward_type.startswith("scaled"):
+        if self.intrinsic_reward_type.startswith("scaled"):
             # Scale the observations/goals by the action space of the upper-
             # level policy if requested.
-            ac_space = self.manager.ac_space
+            ac_space = self.policy[0].ac_space
             scale = 0.5 * (ac_space.high - ac_space.low)
             worker_obs0 /= scale
             goal /= scale
@@ -324,21 +324,21 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             # Implement relative goals if requested.
             goal += worker_obs0
 
-        if self.worker_reward_type.endswith("exp_negative_distance"):
+        if self.intrinsic_reward_type.endswith("exp_negative_distance"):
             reward_fn = tf.reduce_mean(tf.exp(-tf.reduce_sum(
                 tf.square(worker_obs0 + goal - worker_obs1), axis=1)))
-        elif self.worker_reward_type.endswith("negative_distance"):
+        elif self.intrinsic_reward_type.endswith("negative_distance"):
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
                 worker_obs0 + goal, worker_obs1)
         else:
-            raise ValueError("Unknown worker reward type: {}".format(
-                self.worker_reward_type))
+            raise ValueError("Unknown intrinsic reward type: {}".format(
+                self.intrinsic_reward_type))
 
         # Scale by the worker reward scale.
-        reward_fn *= self.worker_reward_scale
+        reward_fn *= self.intrinsic_reward_scale
 
-        # Compute the worker loss with respect to the manager actions.
-        self.cg_loss = - tf.reduce_mean(worker_with_manager_obs) - reward_fn
+        # Compute the worker loss with respect to the meta policy actions.
+        self.cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
 
         # Create the optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.policy[0].actor_lr)

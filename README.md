@@ -471,7 +471,7 @@ can be used by starting the string with "scaled_", for example:
 **scaled_negative_distance** or **scaled_exp_negative_distance**.
 
 To assign your choice of intrinsic rewards when training a hierarchical policy,
-set the `worker_reward_type` attribute to the type of intrinsic reward you 
+set the `intrinsic_reward_type` attribute to the type of intrinsic reward you 
 would like to use:
 
 ```python
@@ -483,7 +483,7 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # assign the intrinsic reward you would like to use
-        "worker_reward_type": "scaled_negative_distance"
+        "intrinsic_reward_type": "scaled_negative_distance"
     }
 )
 ```
