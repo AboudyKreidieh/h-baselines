@@ -248,11 +248,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             fingerprint_dim=self.fingerprint_dim
         )
 
-        meta_ob_dim = self._get_ob_dim(
-            ob_space=ob_space,
-            co_space=co_space
-        )
-
         # =================================================================== #
         # Step 1: Create the policies for the individual levels.              #
         # =================================================================== #
