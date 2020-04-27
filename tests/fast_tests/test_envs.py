@@ -854,17 +854,17 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # test observation space
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(75)]),
-            expected_max=np.array([float("inf") for _ in range(75)]),
-            expected_size=75,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
         )
 
         # test action space
         test_space(
             env.action_space,
-            expected_min=np.array([-1 for _ in range(15)]),
-            expected_max=np.array([1 for _ in range(15)]),
-            expected_size=15,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
         )
 
         # kill the environment

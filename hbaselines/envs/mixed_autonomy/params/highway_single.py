@@ -154,7 +154,7 @@ def get_flow_params(evaluate=False, multiagent=False):
                 "penalty": 1,
                 "inflows": None,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 15,
+                "num_rl": 10,
                 "ghost_length": 500,
             }
         ),
