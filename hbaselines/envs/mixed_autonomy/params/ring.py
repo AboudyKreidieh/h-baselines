@@ -131,6 +131,7 @@ def get_flow_params(num_automated=5,
             additional_params={
                 "max_accel": 1,
                 "max_decel": 1,
+                "target_velocity": 30,
                 "penalty_type": "acceleration",
                 "penalty": 1,
                 "num_vehicles": [50, 75],

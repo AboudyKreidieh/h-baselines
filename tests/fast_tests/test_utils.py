@@ -281,15 +281,15 @@ class TestMisc(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([30 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
             expected_size=5,
         )
 
         ac_space = get_meta_ac_space(env_name="ring", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-30 for _ in range(5)]),
-            expected_max=np.array([30 for _ in range(5)]),
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
             expected_size=5,
         )
 
@@ -412,6 +412,23 @@ class TestMisc(unittest.TestCase):
             expected_size=14,
         )
 
+        # test for highway-single
+        ac_space = get_meta_ac_space(env_name="highway-single", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        ac_space = get_meta_ac_space(env_name="highway-single", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
         # test for Point2DEnv
         ac_space = get_meta_ac_space(env_name="Point2DEnv", **params)
         test_space(
@@ -517,6 +534,12 @@ class TestMisc(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="figureeight2", **params),
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        )
+
+        # test for highway-single
+        self.assertListEqual(
+            get_state_indices(env_name="highway-single", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         )
 
         # test for Point2DEnv

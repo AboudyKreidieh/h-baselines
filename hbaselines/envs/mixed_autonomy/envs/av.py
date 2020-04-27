@@ -14,6 +14,8 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
+    # desired velocity for all vehicles in the network, in m/s
+    target_velocity=30,
     # the penalty type, one of: {"acceleration", "time_headway", "both"}
     penalty_type="acceleration",
     # scaling term for the action penalty by the AVs
@@ -43,6 +45,8 @@ OPEN_ENV_PARAMS.update(dict(
     rl_penetration=0.1,
     # maximum number of controllable vehicles in the network
     num_rl=5,
+    # the initial length (in meters) in which automated vehicles are ignored
+    ghost_length=500,
 ))
 
 # Scale the normalized speeds and headways are scaled by. Headways are squashed
@@ -115,7 +119,6 @@ class AVEnv(Env):
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
 
-    @property
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
 
@@ -147,16 +150,35 @@ class AVEnv(Env):
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
-        self.k.vehicle.apply_acceleration(self.rl_ids, rl_actions)
+        self.k.vehicle.apply_acceleration(self.rl_ids(), rl_actions)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
         if self.env_params.evaluate or rl_actions is None:
             return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
         else:
-            # Reward high system-level average speeds.
-            reward = np.mean(
-                self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            # =============================================================== #
+            # Reward high system-level average speeds.                        #
+            # =============================================================== #
+
+            num_vehicles = self.k.vehicle.num_vehicles
+            vel = np.array(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+
+            if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
+                # in case of collisions or an empty network
+                reward = 0
+            else:
+                # Compute a positive form of the two-norm from a desired target
+                # velocity.
+                target = self.env_params.additional_params['target_velocity']
+                max_cost = np.array([target] * num_vehicles)
+                max_cost = np.linalg.norm(max_cost)
+                cost = np.linalg.norm(vel - target)
+                reward = max(max_cost - cost, 0)
+
+            # =============================================================== #
+            # Penalize congestion style behaviors.                            #
+            # =============================================================== #
 
             penalty_type = self.env_params.additional_params["penalty_type"]
             penalty_scale = self.env_params.additional_params["penalty"]
@@ -170,7 +192,7 @@ class AVEnv(Env):
             elif penalty_type in ["time_headway", "both"]:
                 cost2 = 0
                 t_min = 1  # smallest acceptable time headway
-                for rl_id in self.rl_ids:
+                for rl_id in self.rl_ids():
                     lead_id = self.k.vehicle.get_leader(rl_id)
                     if lead_id not in ["", None] \
                             and self.k.vehicle.get_speed(rl_id) > 0:
@@ -195,7 +217,7 @@ class AVEnv(Env):
         # Initialize a set on empty observations
         obs = [0 for _ in range(self.observation_space.shape[0])]
 
-        for i, veh_id in enumerate(self.rl_ids):
+        for i, veh_id in enumerate(self.rl_ids()):
             # Add the speed of the ego vehicle.
             obs[5 * max_lanes * i] = self.k.vehicle.get_speed(veh_id)
 
@@ -213,8 +235,8 @@ class AVEnv(Env):
                         / max_length * HEADWAY_SCALE
                     self.leader.append(lead_id)
 
-                obs[5 * i + 1] = lead_speed
-                obs[5 * i + 2] = lead_head
+                obs[5 * max_lanes * i + 1] = lead_speed
+                obs[5 * max_lanes * i + 2] = lead_head
             else:
                 pass  # TODO
 
@@ -232,8 +254,8 @@ class AVEnv(Env):
                         / max_length * HEADWAY_SCALE
                     self.follower.append(follow_id)
 
-                obs[5 * i + 3] = follow_speed
-                obs[5 * i + 4] = follow_head
+                obs[5 * max_lanes * i + 3] = follow_speed
+                obs[5 * max_lanes * i + 4] = follow_head
             else:
                 pass  # TODO
 
@@ -319,7 +341,6 @@ class AVClosedEnv(AVEnv):
                 "InitialConfig.shuffle must be set to False when using even " \
                 "distributions."
 
-    @property
     def rl_ids(self):
         """See parent class."""
         if self.env_params.additional_params["sort_vehicles"]:
@@ -492,15 +513,6 @@ class AVOpenEnv(AVEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        pass  # TODO
-
-        # queue of rl vehicles waiting to be controlled
-        self._rl_queue = collections.deque()
-
-        # additional attributes
-        self._current_rl_ids = []
-
         super(AVOpenEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -508,14 +520,68 @@ class AVOpenEnv(AVEnv):
             simulator=simulator,
         )
 
-    @property
+        # maximum number of controlled vehicles
+        self.num_rl = env_params.additional_params["num_rl"]
+
+        # queue of rl vehicles waiting to be controlled
+        self.rl_queue = collections.deque()
+
+        # names of the rl vehicles controlled at any step
+        self.rl_veh = []
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
+        self.leader = []
+        self.follower = []
+
     def rl_ids(self):
         """See parent class."""
-        return self._current_rl_ids
+        return self.rl_veh
+
+    def additional_command(self):
+        """See parent class.
+
+        This method performs to auxiliary tasks:
+
+        * Define which vehicles are observed for visualization purposes.
+        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
+          vehicles that are represented in the state space does not change
+          until one of the vehicles in the state space leaves the network.
+          Then, the next vehicle in the queue is added to the state space and
+          provided with actions from the policy.
+        """
+        # add rl vehicles that just entered the network into the rl queue
+        for veh_id in self.k.vehicle.get_rl_ids():
+            if veh_id not in list(self.rl_queue) + self.rl_veh:
+                self.rl_queue.append(veh_id)
+
+        # remove rl vehicles that exited the network
+        for veh_id in list(self.rl_queue):
+            if veh_id not in self.k.vehicle.get_rl_ids():
+                self.rl_queue.remove(veh_id)
+        for veh_id in self.rl_veh:
+            if veh_id not in self.k.vehicle.get_rl_ids():
+                self.rl_veh.remove(veh_id)
+
+        # fill up rl_veh until they are enough controlled vehicles
+        while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
+            # ignore vehicles that are in the ghost edges
+            if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
+                    self.env_params.additional_params["ghost_length"]:
+                break
+
+            rl_id = self.rl_queue.popleft()
+            self.rl_veh.append(rl_id)
+
+        # specify observed vehicles
+        for veh_id in self.leader + self.follower:
+            self.k.vehicle.set_observed(veh_id)
 
     def reset(self):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
             pass  # TODO
 
+        self.leader = []
+        self.follower = []
         return super(AVOpenEnv, self).reset()

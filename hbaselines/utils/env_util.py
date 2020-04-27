@@ -27,6 +27,8 @@ try:
         import get_flow_params as ring_small
     from hbaselines.envs.mixed_autonomy.params.figure_eight \
         import get_flow_params as figure_eight
+    from hbaselines.envs.mixed_autonomy.params.highway_single \
+        import get_flow_params as highway_single
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
@@ -217,8 +219,8 @@ ENV_ATTRIBUTES = {
 
     "ring": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-30 if relative_goals else 0,
-            high=30,
+            low=-1 if relative_goals else 0,
+            high=1,
             shape=(5,),
             dtype=np.float32
         ),
@@ -412,6 +414,25 @@ ENV_ATTRIBUTES = {
                 exp_num=2,
                 horizon=6000,
                 simulator="traci",
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-single": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-1 if relative_goals else 0,
+            high=1,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway_single(
                 multiagent=multiagent,
             ),
             render=render,

@@ -12,9 +12,12 @@ from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
+
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
+
 from hbaselines.envs.mixed_autonomy import FlowEnv
+
 from hbaselines.envs.mixed_autonomy.params.merge \
     import get_flow_params as merge
 from hbaselines.envs.mixed_autonomy.params.ring \
@@ -23,6 +26,9 @@ from hbaselines.envs.mixed_autonomy.params.ring_small \
     import get_flow_params as ring_small
 from hbaselines.envs.mixed_autonomy.params.figure_eight \
     import get_flow_params as figure_eight
+from hbaselines.envs.mixed_autonomy.params.highway_single \
+    import get_flow_params as highway_single
+
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
@@ -833,6 +839,40 @@ class TestMixedAutonomyParams(unittest.TestCase):
     #     # kill the environment
     #     env.wrapped_env.terminate()
 
+    def test_single_agent_highway_single(self):
+        # create the base environment
+        env = FlowEnv(
+            flow_params=highway_single(
+                multiagent=False
+            ),
+            multiagent=False,
+            shared=False,
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_highway_single(self):
+        pass  # TODO
+
 
 class TestAV(unittest.TestCase):
     """Tests the automated vehicles single agent environments."""
@@ -882,6 +922,7 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                 },
@@ -962,6 +1003,7 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                     "num_vehicles": [50, 75],
@@ -1057,6 +1099,7 @@ class TestAVMulti(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                 },
