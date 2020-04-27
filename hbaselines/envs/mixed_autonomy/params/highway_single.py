@@ -149,7 +149,7 @@ def get_flow_params(evaluate=False, multiagent=False):
             additional_params={
                 "max_accel": 1,
                 "max_decel": 1,
-                "target_velocity": 25,
+                "target_velocity": 30,
                 "penalty_type": "time_headway",
                 "penalty": 1,
                 "inflows": None,

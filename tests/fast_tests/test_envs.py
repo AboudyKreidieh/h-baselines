@@ -922,6 +922,7 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                 },
@@ -1002,6 +1003,7 @@ class TestAV(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                     "num_vehicles": [50, 75],
@@ -1097,6 +1099,7 @@ class TestAVMulti(unittest.TestCase):
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
+                    "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
                 },

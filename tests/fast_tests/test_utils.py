@@ -418,7 +418,7 @@ class TestMisc(unittest.TestCase):
             ac_space,
             expected_min=np.array([0 for _ in range(15)]),
             expected_max=np.array([1 for _ in range(15)]),
-            expected_size=5,
+            expected_size=15,
         )
 
         ac_space = get_meta_ac_space(env_name="highway-single", **rel_params)
@@ -426,7 +426,7 @@ class TestMisc(unittest.TestCase):
             ac_space,
             expected_min=np.array([-1 for _ in range(15)]),
             expected_max=np.array([1 for _ in range(15)]),
-            expected_size=5,
+            expected_size=15,
         )
 
         # test for Point2DEnv

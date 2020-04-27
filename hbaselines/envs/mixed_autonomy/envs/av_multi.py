@@ -14,6 +14,8 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
+    # desired velocity for all vehicles in the network, in m/s
+    target_velocity=30,
     # the penalty type, one of: {"acceleration", "time_headway", "both"}
     penalty_type="acceleration",
     # scaling term for the action penalty by the AVs
@@ -153,9 +155,28 @@ class AVMultiAgentEnv(MultiEnv):
         if self.env_params.evaluate or rl_actions is None:
             return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
         else:
-            # Reward high system-level average speeds.
-            reward = np.mean(
-                self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            # =============================================================== #
+            # Reward high system-level average speeds.                        #
+            # =============================================================== #
+
+            num_vehicles = self.k.vehicle.num_vehicles
+            vel = np.array(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+
+            if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
+                # in case of collisions or an empty network
+                reward = 0
+            else:
+                # Compute a positive form of the two-norm from a desired target
+                # velocity.
+                target = self.env_params.additional_params['target_velocity']
+                max_cost = np.array([target] * num_vehicles)
+                max_cost = np.linalg.norm(max_cost)
+                cost = np.linalg.norm(vel - target)
+                reward = max(max_cost - cost, 0)
+
+            # =============================================================== #
+            # Penalize congestion style behaviors.                            #
+            # =============================================================== #
 
             penalty_type = self.env_params.additional_params["penalty_type"]
             penalty_scale = self.env_params.additional_params["penalty"]

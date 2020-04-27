@@ -15,7 +15,7 @@ BASE_ENV_PARAMS = dict(
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
     # desired velocity for all vehicles in the network, in m/s
-    target_velocity=25,
+    target_velocity=30,
     # the penalty type, one of: {"acceleration", "time_headway", "both"}
     penalty_type="acceleration",
     # scaling term for the action penalty by the AVs
