@@ -135,3 +135,7 @@ class FlowEnv(gym.Env):
                 shape=self.full_observation_fn(self.wrapped_env).shape,
                 dtype=np.float32,
             )
+
+    def render(self, mode='human'):
+        """See parent class."""
+        pass
