@@ -23,8 +23,6 @@ from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
 def get_flow_params(evaluate=False, multiagent=False):
     """Return the flow-specific parameters of the single lane highway network.
 
-    TODO
-
     Parameters
     ----------
     evaluate : bool
