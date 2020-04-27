@@ -24,9 +24,18 @@ install:
   - pushd $HOME
   - git clone https://github.com/flow-project/flow
   - pushd flow
+  - git checkout new-inflow  # TODO: this is temporary
   - pip install -e .
   - ./scripts/setup_sumo_ubuntu1604.sh
   - source ~/.bashrc
+  - popd
+  - popd
+
+  # Install multiworld
+  - pushd $HOME
+  - git clone https://github.com/vitchyr/multiworld.git
+  - pushd multiworld
+  - pip install -e .
   - popd
   - popd
 
@@ -35,9 +44,6 @@ install:
   - pip install coveralls
   - pip install nose2
   - pip install pydocstyle
-
-#  # third-party tools
-#  - ./scripts/install_thirdparty.sh
 
 before_script:
   - flake8 --show-source

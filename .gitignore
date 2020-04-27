@@ -1,7 +1,10 @@
 *.csv
 *.pyc
-hbaselines.egg*
+*h_baselines.egg-info/
+*hbaselines.egg-info/
 __pycache__
 *zip
 run_tests.sh
 debug
+*.idea/
+*.ipynb_checkpoints/

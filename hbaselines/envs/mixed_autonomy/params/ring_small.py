@@ -45,7 +45,7 @@ def get_flow_params(num_automated=1,
                     simulator="traci",
                     evaluate=False,
                     multiagent=False):
-    """Return the flow-specific parameters of the ring road network.
+    """Return the flow-specific parameters of the smaller ring road network.
 
     This scenario consists of 21 human-driven vehicles and one automated
     vehicle placed on a sing-lane circular track whose length is varied for

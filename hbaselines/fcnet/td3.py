@@ -524,13 +524,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         Parameters
         ----------
-        obs0 : np.ndarray
+        obs0 : array_like
             batch of observations
-        actions : numpy float
+        actions : array_like
             batch of actions executed given obs_batch
-        rewards : numpy float
+        rewards : array_like
             rewards received as results of executing act_batch
-        obs1 : np.ndarray
+        obs1 : array_like
             next set of observations seen after executing act_batch
         terminals1 : numpy bool
             done_mask[i] = 1 if executing act_batch[i] resulted in the end of
@@ -595,15 +595,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 action = np.clip(action, self.ac_space.low, self.ac_space.high)
 
         return action
-
-    def value(self, obs, context, action):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        return self.sess.run(
-            self.critic_tf,
-            feed_dict={self.obs_ph: obs, self.action_ph: action})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):

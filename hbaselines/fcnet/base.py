@@ -167,26 +167,6 @@ class ActorCriticPolicy(object):
         """
         raise NotImplementedError
 
-    def value(self, obs, context, action):
-        """Call the critic methods to compute the value.
-
-        Parameters
-        ----------
-        obs : array_like
-            the observation
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        action : array_like
-            the actions performed in the given observation
-
-        Returns
-        -------
-        array_like
-            computed value by the critic
-        """
-        raise NotImplementedError
-
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, evaluate=False):
         """Store a transition in the replay buffer.

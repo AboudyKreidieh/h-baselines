@@ -97,6 +97,7 @@ following commands:
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
+git submodule add -f https://github.com/florensacc/snn4hrl.git sandbox/snn4hrl
 ```
 
 While all other environments run on all version of MuJoCo, this one will 
@@ -105,7 +106,7 @@ as well that are required by rllab. If you're installation is
 successful, the following command should not fail:
 
 ```
-python experiments/run_fcnet.py
+python experiments/run_fcnet.py "AntGather"
 ```
 
 ## Supported Models/Algorithms
@@ -411,7 +412,7 @@ print(SAC_PARAMS)
 
 ### Meta Period
 
-The Manager action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
+The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
@@ -423,7 +424,7 @@ alg = OffPolicyRLAlgorithm(
     policy=GoalConditionedPolicy,
     ...,
     policy_kwargs={
-        # specify the Manager action period
+        # specify the meta-policy action period
         "meta_period": 10
     }
 )
@@ -564,9 +565,9 @@ with the subgoal state achieved in hindsight. For example, given an original
 sub-policy transition:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" g_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" g_0,
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -579,7 +580,7 @@ sub-policy transition:
             ...
             a_{k-1}
         ],
-        "worker rewards": [
+        "intrinsic rewards": [
             r_w(s_0, g_0, s_1),
             r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
@@ -590,9 +591,9 @@ sub-policy transition:
 The original goal is relabeled to match the original as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" s_k, <---- the changed component
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" s_k, <---- the changed component
+        "meta reward" r,
         "worker observations" [
             (s_0, g_0),
             (s_1, h(g_0, s_0, s_1)),
@@ -605,7 +606,7 @@ The original goal is relabeled to match the original as follows:
             ...
             a_{k-1}
         ],
-        "worker rewards": [
+        "intrinsic rewards": [
             r_w(s_0, g_0, s_1),
             r_w(s_1, h(g_0, s_0, s_1), s_2),
             ...
@@ -627,9 +628,9 @@ observations and intrinsic rewards within the sample as well. This is done by
 modifying the relevant worker-specific features as follows:
 
     sample = {
-        "manager observation": s_0,
-        "manager action" \bar{g}_0,
-        "manager reward" r,
+        "meta observation": s_0,
+        "meta action" \bar{g}_0,
+        "meta reward" r,
         "worker observations" [ <------------
             (s_0, \bar{g}_0),               |
             (s_1, \bar{g}_1),               |---- the changed components
@@ -642,7 +643,7 @@ modifying the relevant worker-specific features as follows:
             ...
             a_{k-1}
         ],
-        "worker rewards": [ <----------------
+        "intrinsic rewards": [ <----------------
             r_w(s_0, \bar{g}_0, s_1),       |
             r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
             ...                             |
@@ -703,7 +704,7 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
-        # procedure to the Manager policy
+        # procedure to the higher-level policies
         "connected_gradients": True,
         # specify the connected gradient (lambda) weight
         "cg_weights": 0.01
@@ -805,7 +806,7 @@ defined as follows:
 
 This benchmark consists of the following variations:
 
-* ring0: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
+* ring_small: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
   <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/351ed9c9a71df22eb3e86de90dd9699a.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
 
 **Figure Eight**
