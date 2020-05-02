@@ -7,6 +7,7 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
@@ -586,9 +587,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         noisy_actor_target : tf.Variable
             the output from the shared noisy actor target
         all_obs_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the current step full state observations
         all_obs1_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the next step full state observations
         rew_ph : tf.compat.v1.placeholder
             placeholder for the rewards of the agent
         terminals1 : tf.compat.v1.placeholder
@@ -671,14 +672,14 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = self._layer(
+                pi_h = layer(
                     pi_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            policy = self._layer(
+            policy = layer(
                 pi_h, ac_space.shape[0], 'output',
                 act_fun=tf.nn.tanh,
                 kernel_initializer=tf.random_uniform_initializer(
@@ -718,14 +719,14 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = self._layer(
+                qf_h = layer(
                     qf_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            qvalue_fn = self._layer(
+            qvalue_fn = layer(
                 qf_h, 1, 'qf_output',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)
@@ -747,7 +748,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         critic : tf.Variable
             the output from the centralized critic of the agent
         all_obs1_ph : tf.compat.v1.placeholder
-            TODO
+             the placeholder for the full-state observation
         actor_target : tf.Variable
             the output from the combined target actors of all agents
         rew_ph : tf.compat.v1.placeholder

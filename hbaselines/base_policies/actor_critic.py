@@ -1,7 +1,6 @@
 """Script containing the abstract policy class."""
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import get_target_updates
@@ -258,47 +257,6 @@ class ActorCriticPolicy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
-
-    @staticmethod
-    def _layer(val,
-               num_outputs,
-               name,
-               act_fun=None,
-               kernel_initializer=slim.variance_scaling_initializer(
-                   factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-               layer_norm=False):
-        """Create a fully-connected layer.
-
-        Parameters
-        ----------
-        val : tf.Variable
-            the input to the layer
-        num_outputs : int
-            number of outputs from the layer
-        name : str
-            the scope of the layer
-        act_fun : tf.nn.* or None
-            the activation function
-        kernel_initializer : Any
-            the initializing operation to the weights of the layer
-        layer_norm : bool
-            whether to enable layer normalization
-
-        Returns
-        -------
-        tf.Variable
-            the output from the layer
-        """
-        val = tf.layers.dense(
-            val, num_outputs, name=name, kernel_initializer=kernel_initializer)
-
-        if layer_norm:
-            val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
-
-        if act_fun is not None:
-            val = act_fun(val)
-
-        return val
 
     @staticmethod
     def _setup_target_updates(model_scope, target_scope, scope, tau, verbose):

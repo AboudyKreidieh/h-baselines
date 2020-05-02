@@ -125,35 +125,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         co_space = Box(0, 1, shape=(3,), dtype=np.float32)
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
-    def test_layer(self):
-        """Check the functionality of the _layer() method.
-
-        This method is tested for the following features:
-
-        1. the number of outputs from the layer equals num_outputs
-        2. the name is properly used
-        3. the proper activation function applied if requested
-        4. weights match what the kernel_initializer requests (tested on a
-           constant initializer)
-        5. layer_norm is applied if requested
-        """
-        # policy = ActorCriticPolicy(**self.policy_params)
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # test case 5
-        pass  # TODO
-
     def test_setup_target_updates(self):
         """Check the functionality of the _setup_target_updates() method.
 
