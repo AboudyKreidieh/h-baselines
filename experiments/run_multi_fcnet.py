@@ -29,7 +29,7 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
-    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters

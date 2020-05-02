@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 import random
 
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
@@ -82,7 +82,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions
-    policy : list of hbaselines.fcnet.base.ActorCriticPolicy
+    policy : list of hbaselines.base_policies.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.HierReplayBuffer
@@ -197,9 +197,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             being used
         centralized_value_functions : bool
             specifies whether to use centralized value functions
-        meta_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+        meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use for the meta policies
-        worker_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+        worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use for the worker policy
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
