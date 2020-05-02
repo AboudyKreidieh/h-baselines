@@ -95,7 +95,6 @@ def get_flow_params(evaluate=False, multiagent=False):
             "a": 0.3,
             "b": 2.0,
             "noise": 0.5,
-            "ignore_noise": [(0, 500)],
         }),
     )
 

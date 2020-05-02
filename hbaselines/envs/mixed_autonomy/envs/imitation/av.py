@@ -37,9 +37,7 @@ class AVImitationEnv(AVEnv):
         # Update this term to contain the number of vehicles starting with "rl"
         # in their name.
         self.num_rl = len(
-            [veh_id for veh_id in self.initial_vehicles.get_ids()
-             if veh_id.startswith("rl")]
-        )
+            [veh_id for veh_id in self.initial_ids if veh_id.startswith("rl")])
 
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
@@ -88,9 +86,7 @@ class AVClosedImitationEnv(AVClosedEnv):
         # Update this term to contain the number of vehicles starting with "rl"
         # in their name.
         self.num_rl = len(
-            [veh_id for veh_id in self.initial_vehicles.get_ids()
-             if veh_id.startswith("rl")]
-        )
+            [veh_id for veh_id in self.initial_ids if veh_id.startswith("rl")])
 
     def rl_ids(self):
         """See parent class."""
@@ -123,7 +119,7 @@ class AVClosedImitationEnv(AVClosedEnv):
             # Create a new VehicleParams object with a new number of human-
             # driven vehicles.
             n_vehicles = self.env_params.additional_params["num_vehicles"]
-            n_rl = self._network_vehicles.num_rl_vehicles
+            n_rl = self.num_rl
             n_vehicles_low = n_vehicles[0] - n_rl
             n_vehicles_high = n_vehicles[1] - n_rl
             new_n_vehicles = random.randint(n_vehicles_low, n_vehicles_high)

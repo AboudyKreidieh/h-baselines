@@ -28,6 +28,10 @@ from hbaselines.envs.mixed_autonomy.params.figure_eight \
     import get_flow_params as figure_eight
 from hbaselines.envs.mixed_autonomy.params.highway_single \
     import get_flow_params as highway_single
+from hbaselines.envs.mixed_autonomy.params.imitation.ring \
+    import get_flow_params as ring_imitation
+from hbaselines.envs.mixed_autonomy.params.imitation.highway_single \
+    import get_flow_params as highway_single_imitation
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
@@ -36,6 +40,8 @@ from hbaselines.envs.mixed_autonomy.envs.av \
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
+from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 from hbaselines.envs.point2d import Point2DEnv
 
 
@@ -400,6 +406,39 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # create the base environment
         env = FlowEnv(
             flow_params=ring(
+                num_automated=5,
+                simulator="traci",
+                multiagent=False
+            ),
+            multiagent=False,
+            shared=False,
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_single_agent_ring_imitation(self):
+        # create the base environment
+        env = FlowEnv(
+            flow_params=ring_imitation(
                 num_automated=5,
                 simulator="traci",
                 multiagent=False
@@ -870,6 +909,37 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
+    def test_single_agent_highway_single_imitation(self):
+        # create the base environment
+        env = FlowEnv(
+            flow_params=highway_single_imitation(
+                multiagent=False
+            ),
+            multiagent=False,
+            shared=False,
+            version=1
+        )
+        env.reset()
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
     def test_multi_agent_highway_single(self):
         pass  # TODO
 
@@ -1192,6 +1262,167 @@ class TestAVMulti(unittest.TestCase):
 
         # test case 2
         pass  # TODO
+
+
+class TestAVImitation(unittest.TestCase):
+    """Tests the automated vehicles single agent imitation environments."""
+
+    def setUp(self):
+        self.sim_params = deepcopy(ring_imitation())["sim"]
+        self.sim_params.render = False
+
+        # for AVClosedEnv
+        flow_params_closed = deepcopy(ring_imitation())
+
+        self.network_closed = flow_params_closed["network"](
+            name="test_closed",
+            vehicles=flow_params_closed["veh"],
+            net_params=flow_params_closed["net"],
+        )
+        self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
+
+        # for AVOpenEnv
+        pass  # TODO
+
+    def test_base_env(self):
+        """Validate the functionality of the AVImitationEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2. that the observation space matches its expected values
+           a. for the single lane case
+           b. for the multi-lane case
+        3. that the action space matches its expected values
+           a. for the single lane case
+           b. for the multi-lane case
+        4. that the observed vehicle IDs after a reset matches its expected
+           values
+           a. for the single lane case
+           b. for the multi-lane case
+        """
+        # test case 1
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVImitationEnv,
+                sim_params=self.sim_params,
+                network=self.network_closed,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "penalty_type": "acceleration",
+                    "penalty": 1,
+                },
+            )
+        )
+
+        # Set a random seed.
+        random.seed(0)
+        np.random.seed(0)
+
+        # Create a single lane environment.
+        env_single = AVImitationEnv(
+            env_params=self.env_params_closed,
+            sim_params=self.sim_params,
+            network=self.network_closed
+        )
+
+        # Create a multi-lane environment.
+        env_multi = None  # TODO
+        del env_multi
+
+        # test case 2.a
+        self.assertTrue(
+            test_space(
+                gym_space=env_single.observation_space,
+                expected_size=25,
+                expected_min=-float("inf"),
+                expected_max=float("inf"),
+            )
+        )
+
+        # test case 2.b
+        pass  # TODO
+
+        # test case 3.a
+        self.assertTrue(
+            test_space(
+                gym_space=env_single.action_space,
+                expected_size=5,
+                expected_min=-1,
+                expected_max=1,
+            )
+        )
+
+        # test case 3.b
+        pass  # TODO
+
+        # test case 4.a
+        self.assertTrue(
+            test_observed(
+                env_class=AVImitationEnv,
+                sim_params=self.sim_params,
+                network=self.network_closed,
+                env_params=self.env_params_closed,
+                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
+                                   'human_0_0', 'human_0_44', 'rl_0_0']
+            )
+        )
+
+        # test case 4.b
+        pass  # TODO
+
+    def test_closed_env(self):
+        """Validate the functionality of the AVClosedImitationEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2, that the number of vehicles is properly modified in between resets
+        """
+        # test case 1
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVClosedImitationEnv,
+                sim_params=self.sim_params,
+                network=self.network_closed,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "penalty_type": "acceleration",
+                    "penalty": 1,
+                    "num_vehicles": [50, 75],
+                    "even_distribution": False,
+                    "sort_vehicles": True,
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
+
+        # test case 2
+        env = AVClosedImitationEnv(
+            env_params=self.env_params_closed,
+            sim_params=self.sim_params,
+            network=self.network_closed
+        )
+
+        # reset the network several times and check its length
+        self.assertEqual(env.k.vehicle.num_vehicles, 50)
+        self.assertEqual(env.num_rl, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 54)
+        self.assertEqual(env.num_rl, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 58)
+        self.assertEqual(env.num_rl, 5)
 
 
 class TestPoint2D(unittest.TestCase):
