@@ -147,7 +147,7 @@ class OffPolicyRLAlgorithm(object):
 
     Attributes
     ----------
-    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
@@ -198,7 +198,7 @@ class OffPolicyRLAlgorithm(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.fcnet.base.ActorCriticPolicy
+    policy_tf : hbaselines.base_policies.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -269,7 +269,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+        policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)

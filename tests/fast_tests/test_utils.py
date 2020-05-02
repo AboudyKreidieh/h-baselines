@@ -563,6 +563,35 @@ class TestTFUtil(unittest.TestCase):
     def tearDown(self):
         self.sess.close()
 
+    def test_layer(self):
+        """Check the functionality of the _layer() method.
+
+        This method is tested for the following features:
+
+        1. the number of outputs from the layer equals num_outputs
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. weights match what the kernel_initializer requests (tested on a
+           constant initializer)
+        5. layer_norm is applied if requested
+        """
+        # policy = ActorCriticPolicy(**self.policy_params)
+
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
+        # test case 5
+        pass  # TODO
+
     def test_gaussian_likelihood(self):
         """Check the functionality of the gaussian_likelihood() method."""
         input_ = tf.constant([[0, 1, 2]], dtype=tf.float32)

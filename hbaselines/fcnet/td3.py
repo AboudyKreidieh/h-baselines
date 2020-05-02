@@ -2,8 +2,9 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
+from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import print_params_shape
@@ -413,14 +414,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = self._layer(
+                pi_h = layer(
                     pi_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            policy = self._layer(
+            policy = layer(
                 pi_h, self.ac_space.shape[0], 'output',
                 act_fun=tf.nn.tanh,
                 kernel_initializer=tf.random_uniform_initializer(
@@ -469,14 +470,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = self._layer(
+                qf_h = layer(
                     qf_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            qvalue_fn = self._layer(
+            qvalue_fn = layer(
                 qf_h, 1, 'qf_output',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)
