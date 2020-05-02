@@ -1,7 +1,6 @@
 """Flow-specific parameters for the imitation ring scenario."""
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
-from flow.controllers import RLController
 from flow.core.params import SumoParams
 from flow.core.params import EnvParams
 from flow.core.params import InitialConfig
@@ -13,7 +12,6 @@ from flow.networks.ring import RingNetwork
 from flow.networks.ring import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
-from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 
 # Number of vehicles in the network
 NUM_VEHICLES = 50
@@ -88,7 +86,11 @@ def get_flow_params(num_automated=5,
             num_vehicles=NUM_VEHICLES - num_automated if i == 0 else 0)
         vehicles.add(
             veh_id="rl_{}".format(i),
-            acceleration_controller=(RLController, {}),
+            acceleration_controller=(IDMController, {
+                "a": 0.3,
+                "b": 2.0,
+                "noise": 0.5,
+            }),
             routing_controller=(ContinuousRouter, {}),
             car_following_params=SumoCarFollowingParams(
                 min_gap=0.5,
@@ -107,7 +109,7 @@ def get_flow_params(num_automated=5,
         exp_tag='multilane-ring',
 
         # name of the flow environment the experiment is running on
-        env_name=AVClosedMultiAgentEnv if multiagent else AVClosedEnv,
+        env_name=None if multiagent else AVClosedImitationEnv,
 
         # name of the network class the experiment is running on
         network=RingNetwork,

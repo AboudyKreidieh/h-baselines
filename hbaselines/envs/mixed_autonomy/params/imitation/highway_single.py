@@ -1,6 +1,5 @@
 """Flow-specific parameters for the imitation single lane highway scenario."""
 from flow.controllers import IDMController
-from flow.controllers import RLController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -108,7 +107,18 @@ def get_flow_params(evaluate=False, multiagent=False):
         vehicles.add(
             "rl",
             num_vehicles=0,
-            acceleration_controller=(RLController, {}),
+            lane_change_params=SumoLaneChangeParams(
+                lane_change_mode="strategic",
+            ),
+            car_following_params=SumoCarFollowingParams(
+                min_gap=0,
+            ),
+            acceleration_controller=(IDMController, {
+                "a": 0.3,
+                "b": 2.0,
+                "noise": 0.5,
+                "ignore_noise": [(0, 500)],
+            }),
         )
 
         inflows.add(
