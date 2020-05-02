@@ -1,6 +1,4 @@
 """Script containing the fcnet variant of the imitation learning policy."""
-import numpy as np
-import tensorflow as tf
 
 
 class ImitationLearningPolicy(object):
