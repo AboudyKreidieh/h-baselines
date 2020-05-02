@@ -587,9 +587,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         noisy_actor_target : tf.Variable
             the output from the shared noisy actor target
         all_obs_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the current step full state observations
         all_obs1_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the next step full state observations
         rew_ph : tf.compat.v1.placeholder
             placeholder for the rewards of the agent
         terminals1 : tf.compat.v1.placeholder
