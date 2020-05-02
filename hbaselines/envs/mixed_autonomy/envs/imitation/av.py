@@ -1,4 +1,4 @@
-"""Imitation variant of the environments in mixed_autonomy/envs/av.py"""
+"""Imitation variant of the environments in mixed_autonomy/envs/av.py."""
 import random
 
 from flow.core.params import VehicleParams
