@@ -350,104 +350,106 @@ class AVClosedEnv(AVEnv):
 
     def reset(self):
         """See class definition."""
-        # Skip if ring length is None.
         if self.env_params.additional_params["num_vehicles"] is None:
-            return super(AVClosedEnv, self).reset()
-
-        self.step_counter = 1
-        self.time_counter = 1
-
-        # Make sure restart instance is set to True when resetting.
-        self.sim_params.restart_instance = True
-
-        # Create a new VehicleParams object with a new number of human-
-        # driven vehicles.
-        n_vehicles = self.env_params.additional_params["num_vehicles"]
-        n_rl = self._network_vehicles.num_rl_vehicles
-        n_vehicles_low = n_vehicles[0] - n_rl
-        n_vehicles_high = n_vehicles[1] - n_rl
-        new_n_vehicles = random.randint(n_vehicles_low, n_vehicles_high)
-        params = self._network_vehicles.type_parameters
-
-        print("humans: {}, automated: {}".format(new_n_vehicles, n_rl))
-
-        if self.env_params.additional_params["even_distribution"]:
-            num_human = new_n_vehicles - n_rl
-            humans_remaining = num_human
-
-            new_vehicles = VehicleParams()
-            for i in range(n_rl):
-                # Add one automated vehicle.
-                new_vehicles.add(
-                    veh_id="rl_{}".format(i),
-                    acceleration_controller=params["rl_{}".format(i)][
-                        "acceleration_controller"],
-                    lane_change_controller=params["rl_{}".format(i)][
-                        "lane_change_controller"],
-                    routing_controller=params["rl_{}".format(i)][
-                        "routing_controller"],
-                    initial_speed=params["rl_{}".format(i)][
-                        "initial_speed"],
-                    car_following_params=params["rl_{}".format(i)][
-                        "car_following_params"],
-                    lane_change_params=params["rl_{}".format(i)][
-                        "lane_change_params"],
-                    num_vehicles=1)
-
-                # Add a fraction of the remaining human vehicles.
-                vehicles_to_add = round(humans_remaining / (n_rl - i))
-                humans_remaining -= vehicles_to_add
-                new_vehicles.add(
-                    veh_id="human_{}".format(i),
-                    acceleration_controller=params["human_{}".format(i)][
-                        "acceleration_controller"],
-                    lane_change_controller=params["human_{}".format(i)][
-                        "lane_change_controller"],
-                    routing_controller=params["human_{}".format(i)][
-                        "routing_controller"],
-                    initial_speed=params["human_{}".format(i)][
-                        "initial_speed"],
-                    car_following_params=params["human_{}".format(i)][
-                        "car_following_params"],
-                    lane_change_params=params["human_{}".format(i)][
-                        "lane_change_params"],
-                    num_vehicles=vehicles_to_add)
+            # Skip if ring length is None.
+            _ = super(AVClosedEnv, self).reset()
         else:
-            new_vehicles = VehicleParams()
-            new_vehicles.add(
-                "human_0",
-                acceleration_controller=params["human_0"][
-                    "acceleration_controller"],
-                lane_change_controller=params["human_0"][
-                    "lane_change_controller"],
-                routing_controller=params["human_0"]["routing_controller"],
-                initial_speed=params["human_0"]["initial_speed"],
-                car_following_params=params["human_0"]["car_following_params"],
-                lane_change_params=params["human_0"]["lane_change_params"],
-                num_vehicles=new_n_vehicles)
-            new_vehicles.add(
-                "rl_0",
-                acceleration_controller=params["rl_0"][
-                    "acceleration_controller"],
-                lane_change_controller=params["rl_0"][
-                    "lane_change_controller"],
-                routing_controller=params["rl_0"]["routing_controller"],
-                initial_speed=params["rl_0"]["initial_speed"],
-                car_following_params=params["rl_0"]["car_following_params"],
-                lane_change_params=params["rl_0"]["lane_change_params"],
-                num_vehicles=n_rl)
+            self.step_counter = 1
+            self.time_counter = 1
 
-        # Update the network.
-        self.network = self._network_cls(
-            self._network_name,
-            net_params=self._network_net_params,
-            vehicles=new_vehicles,
-            initial_config=self._network_initial_config,
-            traffic_lights=self._network_traffic_lights,
-        )
+            # Make sure restart instance is set to True when resetting.
+            self.sim_params.restart_instance = True
 
-        # Perform the reset operation.
-        _ = super(AVClosedEnv, self).reset()
+            # Create a new VehicleParams object with a new number of human-
+            # driven vehicles.
+            n_vehicles = self.env_params.additional_params["num_vehicles"]
+            n_rl = self._network_vehicles.num_rl_vehicles
+            n_vehicles_low = n_vehicles[0] - n_rl
+            n_vehicles_high = n_vehicles[1] - n_rl
+            new_n_vehicles = random.randint(n_vehicles_low, n_vehicles_high)
+            params = self._network_vehicles.type_parameters
+
+            print("humans: {}, automated: {}".format(new_n_vehicles, n_rl))
+
+            if self.env_params.additional_params["even_distribution"]:
+                num_human = new_n_vehicles - n_rl
+                humans_remaining = num_human
+
+                new_vehicles = VehicleParams()
+                for i in range(n_rl):
+                    # Add one automated vehicle.
+                    new_vehicles.add(
+                        veh_id="rl_{}".format(i),
+                        acceleration_controller=params["rl_{}".format(i)][
+                            "acceleration_controller"],
+                        lane_change_controller=params["rl_{}".format(i)][
+                            "lane_change_controller"],
+                        routing_controller=params["rl_{}".format(i)][
+                            "routing_controller"],
+                        initial_speed=params["rl_{}".format(i)][
+                            "initial_speed"],
+                        car_following_params=params["rl_{}".format(i)][
+                            "car_following_params"],
+                        lane_change_params=params["rl_{}".format(i)][
+                            "lane_change_params"],
+                        num_vehicles=1)
+
+                    # Add a fraction of the remaining human vehicles.
+                    vehicles_to_add = round(humans_remaining / (n_rl - i))
+                    humans_remaining -= vehicles_to_add
+                    new_vehicles.add(
+                        veh_id="human_{}".format(i),
+                        acceleration_controller=params["human_{}".format(i)][
+                            "acceleration_controller"],
+                        lane_change_controller=params["human_{}".format(i)][
+                            "lane_change_controller"],
+                        routing_controller=params["human_{}".format(i)][
+                            "routing_controller"],
+                        initial_speed=params["human_{}".format(i)][
+                            "initial_speed"],
+                        car_following_params=params["human_{}".format(i)][
+                            "car_following_params"],
+                        lane_change_params=params["human_{}".format(i)][
+                            "lane_change_params"],
+                        num_vehicles=vehicles_to_add)
+            else:
+                new_vehicles = VehicleParams()
+                new_vehicles.add(
+                    "human_0",
+                    acceleration_controller=params["human_0"][
+                        "acceleration_controller"],
+                    lane_change_controller=params["human_0"][
+                        "lane_change_controller"],
+                    routing_controller=params["human_0"]["routing_controller"],
+                    initial_speed=params["human_0"]["initial_speed"],
+                    car_following_params=params["human_0"][
+                        "car_following_params"],
+                    lane_change_params=params["human_0"]["lane_change_params"],
+                    num_vehicles=new_n_vehicles)
+                new_vehicles.add(
+                    "rl_0",
+                    acceleration_controller=params["rl_0"][
+                        "acceleration_controller"],
+                    lane_change_controller=params["rl_0"][
+                        "lane_change_controller"],
+                    routing_controller=params["rl_0"]["routing_controller"],
+                    initial_speed=params["rl_0"]["initial_speed"],
+                    car_following_params=params["rl_0"][
+                        "car_following_params"],
+                    lane_change_params=params["rl_0"]["lane_change_params"],
+                    num_vehicles=n_rl)
+
+            # Update the network.
+            self.network = self._network_cls(
+                self._network_name,
+                net_params=self._network_net_params,
+                vehicles=new_vehicles,
+                initial_config=self._network_initial_config,
+                traffic_lights=self._network_traffic_lights,
+            )
+
+            # Perform the reset operation.
+            _ = super(AVClosedEnv, self).reset()
 
         # Get the initial positions of the RL vehicles to allow us to sort the
         # vehicles by this term.

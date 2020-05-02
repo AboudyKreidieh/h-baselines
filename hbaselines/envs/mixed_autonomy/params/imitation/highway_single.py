@@ -1,8 +1,4 @@
-"""Multi-agent highway with ramps example.
-
-Trains a non-constant number of agents, all sharing the same policy, on the
-highway with ramps network.
-"""
+"""Flow-specific parameters for the imitation single lane highway scenario."""
 from flow.controllers import IDMController
 from flow.controllers import RLController
 from flow.core.params import EnvParams
@@ -16,8 +12,7 @@ from flow.core.params import SumoLaneChangeParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
-from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.imitation.av import AVOpenImitationEnv
 
 
 def get_flow_params(evaluate=False, multiagent=False):
@@ -132,7 +127,7 @@ def get_flow_params(evaluate=False, multiagent=False):
         exp_tag='highway-single',
 
         # name of the flow environment the experiment is running on
-        env_name=AVOpenMultiAgentEnv if multiagent else AVOpenEnv,
+        env_name=None if multiagent else AVOpenImitationEnv,
 
         # name of the network class the experiment is running on
         network=HighwayNetwork,

@@ -29,6 +29,10 @@ try:
         import get_flow_params as figure_eight
     from hbaselines.envs.mixed_autonomy.params.highway_single \
         import get_flow_params as highway_single
+    from hbaselines.envs.mixed_autonomy.params.imitation.ring \
+        import get_flow_params as ring_imitation
+    from hbaselines.envs.mixed_autonomy.params.imitation.highway_single \
+        import get_flow_params as highway_single_imitation
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
@@ -433,6 +437,49 @@ ENV_ATTRIBUTES = {
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway_single(
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    # ======================================================================= #
+    # Mixed autonomy traffic imitation environments.                          #
+    # ======================================================================= #
+
+    "ring-imitation": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-1 if relative_goals else 0,
+            high=1,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring_imitation(
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-single-imitation": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-1 if relative_goals else 0,
+            high=1,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway_single_imitation(
                 multiagent=multiagent,
             ),
             render=render,
