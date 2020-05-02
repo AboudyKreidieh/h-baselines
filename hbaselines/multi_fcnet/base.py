@@ -1,7 +1,7 @@
 """Base multi-agent feed-forward policy."""
 import tensorflow as tf
 
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 
 
 class MultiFeedForwardPolicy(ActorCriticPolicy):
@@ -89,13 +89,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         the number of agents in the networks. This is needed if using MADDPG
         with a shared policy to compute the length of the full action space.
         Otherwise, it is not used.
-    base_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+    base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the base (single agent) policy model used by all agents within the
         network
     additional_params : dict
         additional algorithm-specific policy parameters. Used internally by the
         class when instantiating other (child) policies.
-    agents : dict <str, hbaselines.fcnet.base.ActorCriticPolicy>
+    agents : dict <str, hbaselines.base_policies.ActorCriticPolicy>
         Actor policy for each agent in the network. If MADDPG variants of the
         policy are being used, this attribute is not used.
     """
@@ -170,7 +170,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         maddpg : bool
             whether to use an algorithm-specific variant of the MADDPG
             algorithm
-        base_policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+        base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the base (single agent) policy model used by all agents within the
             network
         all_ob_space : gym.spaces.*

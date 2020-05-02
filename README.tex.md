@@ -147,7 +147,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.fcnet.base.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.base_policies.ActorCriticPolicy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)

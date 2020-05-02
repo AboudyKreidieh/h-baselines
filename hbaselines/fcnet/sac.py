@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std

@@ -5,7 +5,7 @@ import tensorflow as tf
 from gym.spaces import Box
 
 from hbaselines.utils.tf_util import get_trainable_vars
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
@@ -23,7 +23,7 @@ from hbaselines.algorithms.off_policy import MULTI_FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
-    """Test ActorCriticPolicy in hbaselines/fcnet/base.py."""
+    """Test ActorCriticPolicy in hbaselines/base_policies/actor_critic.py."""
 
     def setUp(self):
         sess = tf.compat.v1.Session()
