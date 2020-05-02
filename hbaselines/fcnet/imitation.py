@@ -6,6 +6,7 @@ from hbaselines.fcnet.sac import LOG_STD_MIN
 from hbaselines.fcnet.sac import LOG_STD_MAX
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 
@@ -164,6 +165,8 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
+        self.loss = None
+
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             if self.stochastic:
                 self._setup_stochastic_optimizer()
@@ -296,7 +299,19 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         ops = []
         names = []
 
-        pass  # TODO
+        ops += [tf.reduce_mean(self.policy)]
+        names += ['{}/reference_action_mean'.format(base)]
+        ops += [reduce_std(self.policy)]
+        names += ['{}/reference_action_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.loss)]
+        names += ['{}/reference_loss_mean'.format(base)]
+        ops += [reduce_std(self.loss)]
+        names += ['{}/reference_loss_std'.format(base)]
+
+        # Add all names and ops to the tensorboard summary.
+        for op, name in zip(ops, names):
+            tf.compat.v1.summary.scalar(name, op)
 
         return ops, names
 
@@ -326,7 +341,19 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         array_like
             computed action by the policy
         """
-        pass  # TODO
+        # Add the contextual observation, if applicable.
+        obs = self._get_obs(obs, context, axis=1)
+
+        # Compute the action by the policy.
+        action = self.sess.run(self.policy, {self.obs_ph: obs})
+
+        if self.stochastic:
+            # Scale the action by the action space of the environment.
+            ac_means = 0.5 * (self.ac_space.high + self.ac_space.low)
+            ac_magnitudes = 0.5 * (self.ac_space.high - self.ac_space.low)
+            action = ac_magnitudes * action + ac_means
+
+        return action
 
     def store_transition(self, obs0, context0, action, obs1, context1):
         """Store a transition in the replay buffer.
@@ -346,8 +373,35 @@ class FeedForwardPolicy(ImitationLearningPolicy):
             the current contextual term. Set to None if no context is provided
             by the environment.
         """
-        pass  # TODO
+        # Add the contextual observation, if applicable.
+        obs0 = self._get_obs(obs0, context0, axis=0)
+        obs1 = self._get_obs(obs1, context1, axis=0)
+
+        self.replay_buffer.add(obs0, action, 0, obs1, float(False))
 
     def get_td_map(self):
-        """Return dict map for the summary (to be run in the algorithm)."""
-        pass  # TODO
+        """See parent class."""
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
+            return {}
+
+        # Get a batch.
+        obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
+
+        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
+
+    def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+        """Convert a batch to a td_map."""
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        td_map = {
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+            self.rew_ph: rewards,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
+        }
+
+        return td_map
