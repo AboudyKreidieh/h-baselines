@@ -5,7 +5,10 @@ import tensorflow as tf
 from gym.spaces import Box
 
 from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import ImitationLearningPolicy
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
+    as IMITATION_FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -111,35 +114,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         co_space = Box(0, 1, shape=(3,), dtype=np.float32)
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
-    def test_layer(self):
-        """Check the functionality of the _layer() method.
-
-        This method is tested for the following features:
-
-        1. the number of outputs from the layer equals num_outputs
-        2. the name is properly used
-        3. the proper activation function applied if requested
-        4. weights match what the kernel_initializer requests (tested on a
-           constant initializer)
-        5. layer_norm is applied if requested
-        """
-        # policy = ActorCriticPolicy(**self.policy_params)
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # test case 5
-        pass  # TODO
-
     def test_setup_target_updates(self):
         """Check the functionality of the _setup_target_updates() method.
 
@@ -189,6 +163,105 @@ class TestActorCriticPolicy(unittest.TestCase):
         new_val = policy._remove_fingerprint(val, 3, 2, 1)
         expected = np.array([[1, 0, 0, 4]])
         np.testing.assert_almost_equal(policy.sess.run(new_val), expected)
+
+
+class TestImitationLearningPolicy(unittest.TestCase):
+    """Test ImitationLearningPolicy in hbaselines/base_policies."""
+
+    def setUp(self):
+        sess = tf.compat.v1.Session()
+
+        self.policy_params = {
+            'sess': sess,
+            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
+            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'verbose': 0,
+        }
+        self.policy_params.update(IMITATION_FEEDFORWARD_PARAMS.copy())
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+    def test_init(self):
+        """Validate that the variables are initialized properly."""
+        policy = ImitationLearningPolicy(**self.policy_params)
+
+        # Check that the abstract class has all the required attributes.
+        self.assertEqual(policy.sess, self.policy_params['sess'])
+        self.assertEqual(policy.ob_space, self.policy_params['ob_space'])
+        self.assertEqual(policy.ac_space, self.policy_params['ac_space'])
+        self.assertEqual(policy.co_space, self.policy_params['co_space'])
+        self.assertEqual(policy.buffer_size, self.policy_params['buffer_size'])
+        self.assertEqual(policy.batch_size, self.policy_params['batch_size'])
+        self.assertEqual(policy.learning_rate,
+                         self.policy_params['learning_rate'])
+        self.assertEqual(policy.verbose, self.policy_params['verbose'])
+        self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
+        self.assertEqual(policy.layers, self.policy_params['layers'])
+        self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
+        self.assertEqual(policy.use_huber, self.policy_params['use_huber'])
+        self.assertEqual(policy.stochastic, self.policy_params['stochastic'])
+
+        # Check that the abstract class has all the required methods.
+        self.assertRaises(NotImplementedError, policy.update)
+        self.assertRaises(NotImplementedError, policy.get_action,
+                          obs=None, context=None)
+        self.assertRaises(NotImplementedError, policy.store_transition,
+                          obs0=None, context0=None, action=None, obs1=None,
+                          context1=None)
+        self.assertRaises(NotImplementedError, policy.get_td_map)
+
+    def test_get_obs(self):
+        """Check the functionality of the _get_obs() method.
+
+        This method is tested for three cases:
+
+        1. when the context is None
+        2. for 1-D observations and contexts
+        3. for 2-D observations and contexts
+        """
+        policy = ImitationLearningPolicy(**self.policy_params)
+
+        # test case 1
+        obs = np.array([0, 1, 2])
+        context = None
+        expected = obs
+        np.testing.assert_almost_equal(policy._get_obs(obs, context), expected)
+
+        # test case 2
+        obs = np.array([0, 1, 2])
+        context = np.array([3, 4])
+        expected = np.array([0, 1, 2, 3, 4])
+        np.testing.assert_almost_equal(policy._get_obs(obs, context), expected)
+
+        # test case 3
+        obs = np.array([[0, 1, 2]])
+        context = np.array([[3, 4]])
+        expected = np.array([[0, 1, 2, 3, 4]])
+        np.testing.assert_almost_equal(policy._get_obs(obs, context, axis=1),
+                                       expected)
+
+    def test_get_ob_dim(self):
+        """Check the functionality of the _get_ob_dim() method.
+
+        This method is tested for two cases:
+
+        1. when the context is None
+        2. when the context is not None
+        """
+        policy = ImitationLearningPolicy(**self.policy_params)
+
+        # test case 1
+        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
+        co_space = None
+        self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (2,))
+
+        # test case 2
+        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
+        co_space = Box(0, 1, shape=(3,), dtype=np.float32)
+        self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
 
 if __name__ == '__main__':

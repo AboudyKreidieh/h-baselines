@@ -19,10 +19,12 @@ class ImitationLearningPolicy(object):
         the max number of transitions to store
     batch_size : int
         SGD batch size
-        learning_rate : float
-            the learning rate for the policy
+    learning_rate : float
+        the learning rate for the policy
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    layer_norm : bool
+        enable layer normalisation
     layers : list of int or None
         the size of the Neural network for the policy
     act_fun : tf.nn.*
@@ -31,6 +33,8 @@ class ImitationLearningPolicy(object):
         specifies whether to use the huber distance function as the loss
         function. If set to False, the mean-squared error metric is used
         instead
+    stochastic : bool
+        specifies whether the policies are stochastic or deterministic
     """
 
     def __init__(self,
@@ -42,9 +46,11 @@ class ImitationLearningPolicy(object):
                  batch_size,
                  learning_rate,
                  verbose,
+                 layer_norm,
                  layers,
                  act_fun,
-                 use_huber):
+                 use_huber,
+                 stochastic):
         """Instantiate the base policy object.
 
         Parameters
@@ -66,6 +72,8 @@ class ImitationLearningPolicy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        layer_norm : bool
+            enable layer normalisation
         layers : list of int or None
             the size of the Neural network for the policy
         act_fun : tf.nn.*
@@ -74,6 +82,8 @@ class ImitationLearningPolicy(object):
             specifies whether to use the huber distance function as the loss
             function. If set to False, the mean-squared error metric is used
             instead
+        stochastic : bool
+            specifies whether the policies are stochastic or deterministic
         """
         self.sess = sess
         self.ob_space = ob_space
@@ -83,17 +93,11 @@ class ImitationLearningPolicy(object):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.verbose = verbose
+        self.layer_norm = layer_norm
         self.layers = layers
         self.act_fun = act_fun
         self.use_huber = use_huber
-
-    def initialize(self):
-        """Initialize the policy.
-
-        This is used at the beginning of training by the algorithm, after the
-        model parameters have been initialized.
-        """
-        raise NotImplementedError
+        self.stochastic = stochastic
 
     def update(self):
         """Perform a gradient update step.

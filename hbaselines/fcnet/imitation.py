@@ -1,12 +1,32 @@
 """Script containing the fcnet variant of the imitation learning policy."""
+import tensorflow as tf
+
+from hbaselines.base_policies import ImitationLearningPolicy
+from hbaselines.fcnet.sac import LOG_STD_MIN
+from hbaselines.fcnet.sac import LOG_STD_MAX
+from hbaselines.fcnet.replay_buffer import ReplayBuffer
+from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import gaussian_likelihood
+from hbaselines.utils.tf_util import apply_squashing_func
 
 
-class ImitationLearningPolicy(object):
+class FeedForwardPolicy(ImitationLearningPolicy):
     """Fully-connected neural network imitation learning policy.
 
     Attributes
     ----------
-    TODO
+    replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
+        the replay buffer
+    terminals1 : tf.compat.v1.placeholder
+        placeholder for the next step terminals
+    rew_ph : tf.compat.v1.placeholder
+        placeholder for the rewards
+    action_ph : tf.compat.v1.placeholder
+        placeholder for the actions
+    obs_ph : tf.compat.v1.placeholder
+        placeholder for the observations
+    obs1_ph : tf.compat.v1.placeholder
+        placeholder for the next step observations
     """
 
     def __init__(self,
@@ -18,9 +38,12 @@ class ImitationLearningPolicy(object):
                  batch_size,
                  learning_rate,
                  verbose,
+                 layer_norm,
                  layers,
                  act_fun,
-                 use_huber):
+                 use_huber,
+                 stochastic,
+                 scope=None):
         """Instantiate the policy object.
 
         Parameters
@@ -42,6 +65,8 @@ class ImitationLearningPolicy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        layer_norm : bool
+            enable layer normalisation
         layers : list of int or None
             the size of the Neural network for the policy
         act_fun : tf.nn.*
@@ -50,16 +75,230 @@ class ImitationLearningPolicy(object):
             specifies whether to use the huber distance function as the loss
             function. If set to False, the mean-squared error metric is used
             instead
+        stochastic : bool
+            specifies whether the policies are stochastic or deterministic
+        scope : str
+            an upper-level scope term. Used by policies that call this one.
         """
+        super(FeedForwardPolicy, self).__init__(
+            sess=sess,
+            ob_space=ob_space,
+            ac_space=ac_space,
+            co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            verbose=verbose,
+            layer_norm=layer_norm,
+            layers=layers,
+            act_fun=act_fun,
+            use_huber=use_huber,
+            stochastic=stochastic
+        )
+
+        assert len(self.layers) >= 1, \
+            "Error: must have at least one hidden layer for the policy."
+
+        # Compute the shape of the input observation space, which may include
+        # the contextual term.
+        ob_dim = self._get_ob_dim(ob_space, co_space)
+
+        # =================================================================== #
+        # Step 1: Create a replay buffer object.                              #
+        # =================================================================== #
+
+        self.replay_buffer = ReplayBuffer(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            obs_dim=ob_dim[0],
+            ac_dim=self.ac_space.shape[0],
+        )
+
+        # =================================================================== #
+        # Step 2: Create input variables.                                     #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("input", reuse=False):
+            self.terminals1 = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='terminals1')
+            self.rew_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='rewards')
+            self.action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ac_space.shape,
+                name='actions')
+            self.obs_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs0')
+            self.obs1_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs1')
+
+        # logging of rewards to tensorboard
+        with tf.compat.v1.variable_scope("input_info", reuse=False):
+            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
+
+        # =================================================================== #
+        # Step 3: Create policy variables.                                    #
+        # =================================================================== #
+
+        self.deterministic_policy = None
+        self.policy = None
+        self.logp_pi = None
+        self.logp_ac = None
+
+        # Create networks and core TF parts that are shared across setup parts.
+        with tf.compat.v1.variable_scope("model", reuse=False):
+            if self.stochastic:
+                self._setup_stochastic_policy(self.obs_ph, self.action_ph)
+            else:
+                self._setup_deterministic_policy(self.obs_ph)
+
+        # =================================================================== #
+        # Step 4: Setup the optimizers for the actor and critic.              #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("Optimizer", reuse=False):
+            if self.stochastic:
+                self._setup_stochastic_optimizer()
+            else:
+                self._setup_deterministic_optimizer()
+
+        # =================================================================== #
+        # Step 5: Setup the operations for computing model statistics.        #
+        # =================================================================== #
+
+        # Setup the running means and standard deviations of the model inputs
+        # and outputs.
+        self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
+
+    def _setup_stochastic_policy(self, obs, action, reuse=False, scope="pi"):
+        """Create the variables of a stochastic policy.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        action : tf.compat.v1.placeholder
+            the input action placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the policy
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                pi_h = layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
+
+            # create the output mean
+            policy_mean = layer(
+                pi_h, self.ac_space.shape[0], 'mean',
+                act_fun=None,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+            # create the output log_std
+            log_std = layer(
+                pi_h, self.ac_space.shape[0], 'log_std',
+                act_fun=None,
+            )
+
+        # OpenAI Variation to cap the standard deviation
+        log_std = tf.clip_by_value(log_std, LOG_STD_MIN, LOG_STD_MAX)
+
+        std = tf.exp(log_std)
+
+        # Reparameterization trick
+        policy = policy_mean + tf.random.normal(tf.shape(policy_mean)) * std
+        logp_pi = gaussian_likelihood(policy, policy_mean, log_std)
+        logp_ac = gaussian_likelihood(action, policy_mean, log_std)
+
+        # Apply squashing and account for it in the probability
+        _, _, logp_ac = apply_squashing_func(
+            policy_mean, action, logp_ac)
+        deterministic_policy, policy, logp_pi = apply_squashing_func(
+            policy_mean, policy, logp_pi)
+
+        # Store the variables under their respective parameters.
+        self.deterministic_policy = deterministic_policy
+        self.policy = policy
+        self.logp_pi = logp_pi
+        self.logp_ac = logp_ac
+
+    def _setup_stochastic_optimizer(self):
+        """Create the loss and optimizer of a stochastic policy."""
+        pass
+
+    def _setup_deterministic_policy(self, obs, reuse=False, scope="pi"):
+        """Create the variables of deterministic a policy.
+
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the policy
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = obs
+
+            # create the hidden layers
+            for i, layer_size in enumerate(self.layers):
+                pi_h = layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=self.act_fun,
+                    layer_norm=self.layer_norm
+                )
+
+            # create the output layer
+            policy = layer(
+                pi_h, self.ac_space.shape[0], 'output',
+                act_fun=tf.nn.tanh,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+            # scaling terms to the output from the policy
+            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
+
+            policy = ac_means + ac_magnitudes * tf.to_float(policy)
+
+        # Store the variables under their respective parameters.
+        self.policy = policy
+
+    def _setup_deterministic_optimizer(self):
+        """Create the loss and optimizer of a deterministic policy."""
+        pass
+
+    def _setup_stats(self, base):
+        """Create the running means and std of the model inputs and outputs.
+
+        This method also adds the same running means and stds as scalars to
+        tensorboard for additional storage.
+        """
+        ops = []
+        names = []
+
         pass  # TODO
 
-    def initialize(self):
-        """Initialize the policy.
-
-        This is used at the beginning of training by the algorithm, after the
-        model parameters have been initialized.
-        """
-        pass  # TODO: remove?
+        return ops, names
 
     def update(self):
         """Perform a gradient update step.
