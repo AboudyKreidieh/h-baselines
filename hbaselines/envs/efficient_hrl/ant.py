@@ -161,7 +161,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         """Create the viewer."""
         d = self.model.stat.extent
         d_to_center = d * 0.18
-        self.viewer.cam.distance = d
+        self.viewer.cam.distance = d * 0.8
         self.viewer.cam.azimuth = 0
         self.viewer.cam.elevation = -90.0
         self.viewer.cam.lookat[0] = d_to_center

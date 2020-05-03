@@ -78,6 +78,7 @@ class ActorCriticPolicy(object):
                  layers,
                  act_fun,
                  use_huber,
+                 ignore_flat_channels,
                  includes_image,
                  ignore_image,
                  image_height,
@@ -155,6 +156,7 @@ class ActorCriticPolicy(object):
         self.layer_norm = layer_norm
         self.act_fun = act_fun
         self.use_huber = use_huber
+        self.ignore_flat_channels = ignore_flat_channels
         self.includes_image = includes_image
         self.ignore_image = ignore_image
         self.image_height = image_height

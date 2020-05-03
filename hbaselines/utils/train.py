@@ -34,6 +34,7 @@ def get_hyperparameters(args, policy):
         "gamma": args.gamma,
         "layer_norm": args.layer_norm,
         "use_huber": args.use_huber,
+        "ignore_flat_channels": args.ignore_flat_channels,
         "includes_image": args.includes_image,
         "ignore_image": args.ignore_image,
         "image_height": args.image_height,
@@ -265,7 +266,12 @@ def create_feedforward_parser(parser):
         help="specifies whether to use the huber distance function as the "
              "loss for the critic. If set to False, the mean-squared error "
              "metric is used instead")
-    
+
+    parser.add_argument(
+        "--ignore_flat_channels",
+        type=int,
+        nargs="+",
+        help="specifies which channels of the observation to ignore")
     parser.add_argument(
         "--includes_image",
         action="store_true",

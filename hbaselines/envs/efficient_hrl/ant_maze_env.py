@@ -48,7 +48,7 @@ class AntMazeEnv(gym.Env):
                  observe_blocks=False,
                  put_spin_near_agent=False,
                  top_down_view=False,
-                 image_size=32,
+                 image_size=64,
                  manual_collision=False,
                  *args,
                  **kwargs):

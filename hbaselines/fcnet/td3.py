@@ -129,6 +129,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ignore_flat_channels,
                  includes_image,
                  ignore_image,
                  image_height,
@@ -236,6 +237,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            ignore_flat_channels=ignore_flat_channels,
             includes_image=includes_image,
             ignore_image=ignore_image,
             image_height=image_height,
@@ -470,6 +472,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 
                 original_pi_h = pi_h
                 pi_h = original_pi_h[:, image_size:]
+
+                pi_h = tf.gather(
+                    pi_h, [i for i in range(pi_h.shape[1])
+                           if i not in self.ignore_flat_channels],
+                    axis=1)
                     
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
@@ -572,6 +579,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 
                 original_qf_h = qf_h
                 qf_h = original_qf_h[:, image_size:]
+
+                qf_h = tf.gather(
+                    qf_h, [i for i in range(qf_h.shape[1])
+                           if i not in self.ignore_flat_channels],
+                    axis=1)
                     
                 # ignoring the image is useful for the lower level critic
                 # for creating an abstraction barrier

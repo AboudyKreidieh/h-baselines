@@ -87,22 +87,24 @@ FEEDFORWARD_PARAMS = dict(
     # used mainly for TerrainRL-based environments
     # convention is the image is in the last obs dimensions
 
+    # channels of the proprioceptive state to be ignored
+    ignore_flat_channels=[0, 1],
     # observation includes an image appended to it
-    includes_image=False,
+    includes_image=True,
     # observation includes an image but should it be ignored
-    ignore_image=True,
+    ignore_image=False,
     # the height of the image in the observation
-    image_height=32,
+    image_height=64,
     # the width of the image in the observation
-    image_width=32,
+    image_width=64,
     # the number of channels of the image in the observation
     image_channels=3,
     # the channels of the neural network conv layers for the policy
-    filters=[16, 16],
+    filters=[16, 16, 16],
     # the kernel size of the neural network conv layers for the policy
-    kernel_sizes=[6, 4],
+    kernel_sizes=[6, 4, 4],
     # the kernel size of the neural network conv layers for the policy
-    strides=[3, 2],
+    strides=[3, 2, 2],
 )
 
 
