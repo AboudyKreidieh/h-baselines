@@ -3,7 +3,7 @@
 Trains a non-constant number of agents, all sharing the same policy, on the
 highway with ramps network.
 """
-from flow.controllers import IDMController
+from flow.controllers import BandoFTLController
 from flow.controllers import RLController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
@@ -11,7 +11,6 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoCarFollowingParams
 from flow.core.params import SumoLaneChangeParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
@@ -19,6 +18,19 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+
+# the speed of entering vehicles
+TRAFFIC_SPEED = 11
+# the speed limit in the ghost edge
+END_SPEED = 16
+# inflow rate on the highway in vehicles per hour
+TRAFFIC_FLOW = 2056
+# number of steps per rollout
+HORIZON = 1800
+# percentage of autonomous vehicles compared to human vehicles on highway
+PENETRATION_RATE = 0.1
+# whether to include noise in the environment
+INCLUDE_NOISE = False
 
 
 def get_flow_params(evaluate=False, multiagent=False, imitation=False):
@@ -58,13 +70,6 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
     """
     # SET UP PARAMETERS FOR THE SIMULATION
 
-    # number of steps per rollout
-    HORIZON = 1800
-    # inflow rate on the highway in vehicles per hour
-    HIGHWAY_INFLOW_RATE = 2000
-    # percentage of autonomous vehicles compared to human vehicles on highway
-    PENETRATION_RATE = 0.1
-
     # SET UP PARAMETERS FOR THE NETWORK
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
@@ -76,7 +81,12 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         # speed limit for all edges
         "speed_limit": 30,
         # number of edges to divide the highway into
-        "num_edges": 2
+        "num_edges": 2,
+        # whether to include a ghost edge of length 500m. This edge is provided
+        # a different speed limit.
+        "use_ghost_edge": True,
+        # speed limit for the ghost edge
+        "ghost_speed_limit": END_SPEED
     })
 
     # CREATE VEHICLE TYPES AND INFLOWS
@@ -91,22 +101,22 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         lane_change_params=SumoLaneChangeParams(
             lane_change_mode="strategic",
         ),
-        car_following_params=SumoCarFollowingParams(
-            min_gap=0,
-        ),
-        acceleration_controller=(IDMController, {
-            "a": 0.3,
-            "b": 2.0,
-            "noise": 0.5,
+        acceleration_controller=(BandoFTLController, {
+            'alpha': .5,
+            'beta': 20.0,
+            'h_st': 12.0,
+            'h_go': 50.0,
+            'v_max': 30.0,
+            'noise': 1.0 if INCLUDE_NOISE else 0.0,
         }),
     )
 
     inflows.add(
         veh_type="human",
         edge="highway_0",
-        vehs_per_hour=int(HIGHWAY_INFLOW_RATE * (1 - PENETRATION_RATE)),
+        vehs_per_hour=int(TRAFFIC_FLOW * (1 - PENETRATION_RATE)),
         depart_lane="free",
-        depart_speed=15,
+        depart_speed=TRAFFIC_SPEED,
         name="idm_highway_inflow"
     )
 
@@ -121,9 +131,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         inflows.add(
             veh_type="rl",
             edge="highway_0",
-            vehs_per_hour=int(HIGHWAY_INFLOW_RATE * PENETRATION_RATE),
+            vehs_per_hour=int(TRAFFIC_FLOW * PENETRATION_RATE),
             depart_lane="free",
-            depart_speed=15,
+            depart_speed=TRAFFIC_SPEED,
             name="rl_highway_inflow"
         )
 
@@ -169,7 +179,13 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
                 "ghost_length": 500,
-                "expert_model": (),  # FIXME
+                "expert_model": (BandoFTLController, {
+                    'alpha': .5,
+                    'beta': 20.0,
+                    'h_st': 12.0,
+                    'h_go': 50.0,
+                    'v_max': 30.0,
+                }),
             }
         ),
 
