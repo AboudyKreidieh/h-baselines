@@ -81,7 +81,7 @@ class ImitationLearningPolicy(object):
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             function. If set to False, the mean-squared error metric is used
-            instead
+            instead. Only applies to deterministic policies.
         stochastic : bool
             specifies whether the policies are stochastic or deterministic
         """
