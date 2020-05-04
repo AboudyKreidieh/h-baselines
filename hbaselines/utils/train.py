@@ -4,6 +4,10 @@ from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
+    as FEEDFORWARD_IMITATION_PARAMS
+from hbaselines.algorithms.dagger import GOAL_CONDITIONED_PARAMS \
+    as GOAL_CONDITIONED_IMITATION_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy, is_td3_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -77,6 +81,175 @@ def get_hyperparameters(args, policy):
     algorithm_params['policy_kwargs'] = policy_kwargs
 
     return algorithm_params
+
+
+def get_imitation_hyperparameters(args, policy):
+    """Return the hyperparameters of an imitation algorithm from the parser."""
+    del policy  # unused for now
+
+    algorithm_params = {
+        "render": args.render,
+        "expert": args.expert,
+        "nb_train_steps": args.nb_train_steps,
+        "nb_rollout_steps": args.nb_rollout_steps,
+        "aggr_update_freq": args.aggr_update_freq,
+        "aggr_update_steps": args.aggr_update_steps,
+        "verbose": args.verbose,
+    }
+
+    # add FeedForwardPolicy parameters
+    policy_kwargs = {
+        "buffer_size": args.buffer_size,
+        "batch_size": args.batch_size,
+        "learning_rate": args.learning_rate,
+        "layer_norm": args.layer_norm,
+        "use_huber": args.use_huber,
+        "stochastic": args.stochastic,
+    }
+
+    # add the policy_kwargs term to the algorithm parameters
+    algorithm_params['policy_kwargs'] = policy_kwargs
+
+    return algorithm_params
+
+
+def parse_imitation_options(description, example_usage, args):
+    """Parse imitation learning options user can specify in command line.
+
+    Returns
+    -------
+    argparse.Namespace
+        the output parser object
+    """
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=description, epilog=example_usage)
+
+    # required input parameters
+    parser.add_argument(
+        'env_name', type=str,
+        help='Name of the gym environment. This environment must either be '
+             'registered in gym, be available in the computation framework '
+             'Flow, or be available within the hbaselines/envs folder.')
+
+    # optional input parameters
+    parser.add_argument(
+        '--n_training', type=int, default=1,
+        help='Number of training operations to perform. Each training '
+             'operation is performed on a new seed. Defaults to 1.')
+
+    # ======================================================================= #
+    # Algorithm-specific hyperparameters                                      #
+    # ======================================================================= #
+
+    # for the __init__ method
+    parser.add_argument(
+        '--render', action='store_true',
+        help='enable rendering of the environment')
+    parser.add_argument(
+        '--expert', type=str, default=None,
+        help='the path to the expert policy parameter that need to loaded '
+             'into the environment. If set to None, the expert is assumed to '
+             'be already loaded')
+    parser.add_argument(
+        '--aggr_update_freq', type=int, default=5000,
+        help='the number of steps before new aggregation steps are collected')
+    parser.add_argument(
+        '--aggr_update_steps', type=int, default=5000,
+        help='the number of aggregation steps to collect before returning to '
+             'the training operations')
+    parser.add_argument(
+        '--nb_train_steps', type=int, default=1,
+        help='the number of training steps')
+    parser.add_argument(
+        '--nb_rollout_steps', type=int, default=1,
+        help='the number of rollout steps')
+    parser.add_argument(
+        '--verbose', type=int, default=2,
+        help='the verbosity level: 0 none, 1 training information, '
+             '2 tensorflow debug')
+
+    # for the learn method
+    parser.add_argument(
+        '--total_steps',  type=int, default=1000000,
+        help='Total number of timesteps used during training.')
+    parser.add_argument(
+        '--seed', type=int, default=1,
+        help='Sets the seed for numpy, tensorflow, and random.')
+    parser.add_argument(
+        '--log_interval', type=int, default=2000,
+        help='the number of training steps before logging training results')
+    parser.add_argument(
+        '--save_interval', type=int, default=50000,
+        help='number of simulation steps in the training environment before '
+             'the model is saved')
+    parser.add_argument(
+        '--initial_sample_steps', type=int, default=10000,
+        help='the number of steps to initialize the replay buffer with before '
+             'beginning training')
+
+    # ======================================================================= #
+    # Policy-specific hyperparameters                                         #
+    # ======================================================================= #
+
+    # for fully-connected neural networks
+    parser.add_argument(
+        '--buffer_size',
+        type=int,
+        default=FEEDFORWARD_IMITATION_PARAMS["buffer_size"],
+        help='the max number of transitions to store')
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=FEEDFORWARD_IMITATION_PARAMS["batch_size"],
+        help='the size of the batch for learning the policy')
+    parser.add_argument(
+        '--learning_rate',
+        type=float,
+        default=FEEDFORWARD_IMITATION_PARAMS["learning_rate"],
+        help='the learning rate of the policy')
+    parser.add_argument(
+        "--layer_norm",
+        action="store_true",
+        help="enable layer normalisation")
+    parser.add_argument(
+        "--use_huber",
+        action="store_true",
+        help="specifies whether to use the huber distance function as the "
+             "loss for the critic. If set to False, the mean-squared error "
+             "metric is used instead. Only applies to deterministic policies.")
+    parser.add_argument(
+        "--stochastic",
+        action="store_true",
+        help="specifies whether the policies are stochastic or deterministic")
+
+    # for goal-conditioned networks
+    parser.add_argument(
+        '--num_levels',
+        type=int,
+        default=GOAL_CONDITIONED_IMITATION_PARAMS["num_levels"],
+        help='number of levels within the hierarchy. Must be greater than 1. '
+             'Two levels correspond to a Manager/Worker paradigm')
+    parser.add_argument(
+        '--meta_period',
+        type=int,
+        default=GOAL_CONDITIONED_IMITATION_PARAMS["meta_period"],
+        help='meta-policy action period')
+    parser.add_argument(
+        '--intrinsic_reward_scale',
+        type=float,
+        default=GOAL_CONDITIONED_IMITATION_PARAMS["intrinsic_reward_scale"],
+        help='the value that the intrinsic reward should be scaled by')
+    parser.add_argument(
+        "--relative_goals",
+        action="store_true",
+        help="specifies whether the goal issued by the higher-level policies "
+             "is meant to be a relative or absolute goal, i.e. specific state "
+             "or change in state")
+
+    # parse the arguments
+    flags, _ = parser.parse_known_args(args)
+    return flags
 
 
 def parse_options(description, example_usage, args):
