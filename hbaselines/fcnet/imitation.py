@@ -149,7 +149,7 @@ class FeedForwardPolicy(ImitationLearningPolicy):
                 self._setup_deterministic_policy(self.obs_ph)
 
         # =================================================================== #
-        # Step 4: Setup the optimizers for the actor and critic.              #
+        # Step 4: Setup the optimizer.                                        #
         # =================================================================== #
 
         self.loss = None

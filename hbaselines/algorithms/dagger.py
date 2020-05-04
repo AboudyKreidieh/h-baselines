@@ -35,14 +35,15 @@ FEEDFORWARD_PARAMS = dict(
     # the activation function to use in the neural network
     act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss
-    # function. If set to False, the mean-squared error metric is used instead
+    # function. If set to False, the mean-squared error metric is used instead.
+    # Only applies to stochastic policies.
     use_huber=False,
     # specifies whether the policies are stochastic or deterministic
     stochastic=False,
 )
 
 # =========================================================================== #
-#     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
+#                 Policy parameters for GoalConditionedPolicy                 #
 # =========================================================================== #
 
 GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
