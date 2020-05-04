@@ -18,9 +18,10 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
 
-def get_flow_params(evaluate=False, multiagent=False):
+def get_flow_params(evaluate=False, multiagent=False, imitation=False):
     """Return the flow-specific parameters of the single lane highway network.
 
     Parameters
@@ -31,6 +32,8 @@ def get_flow_params(evaluate=False, multiagent=False):
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
+    imitation : bool
+        whether to use the imitation environment
 
     Returns
     -------
@@ -126,12 +129,23 @@ def get_flow_params(evaluate=False, multiagent=False):
 
     # SET UP THE FLOW PARAMETERS
 
+    if multiagent:
+        if imitation:
+            env_name = None  # FIXME
+        else:
+            env_name = AVOpenMultiAgentEnv
+    else:
+        if imitation:
+            env_name = AVOpenEnv
+        else:
+            env_name = AVOpenImitationEnv
+
     return dict(
         # name of the experiment
         exp_tag='highway-single',
 
         # name of the flow environment the experiment is running on
-        env_name=AVOpenMultiAgentEnv if multiagent else AVOpenEnv,
+        env_name=env_name,
 
         # name of the network class the experiment is running on
         network=HighwayNetwork,
@@ -155,6 +169,7 @@ def get_flow_params(evaluate=False, multiagent=False):
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
                 "ghost_length": 500,
+                "expert_model": (),  # FIXME
             }
         ),
 
