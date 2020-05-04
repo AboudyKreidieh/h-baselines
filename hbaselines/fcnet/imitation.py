@@ -9,6 +9,8 @@ from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import print_params_shape
 
 
 class FeedForwardPolicy(ImitationLearningPolicy):
@@ -18,16 +20,19 @@ class FeedForwardPolicy(ImitationLearningPolicy):
     ----------
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
         the replay buffer
-    terminals1 : tf.compat.v1.placeholder
-        placeholder for the next step terminals
-    rew_ph : tf.compat.v1.placeholder
-        placeholder for the rewards
     action_ph : tf.compat.v1.placeholder
         placeholder for the actions
     obs_ph : tf.compat.v1.placeholder
         placeholder for the observations
-    obs1_ph : tf.compat.v1.placeholder
-        placeholder for the next step observations
+    policy : tf.Variable
+        the output from the imitation learning policy
+    logp_ac : tf.Operation
+        the operation that computes the log-probability of a given action. Only
+        applies to stochastic policies.
+    loss : tf.Operation
+        the operation that computes the loss
+    optimizer : tf.Operation
+        the operation that updates the trainable parameters of the policy
     """
 
     def __init__(self,
@@ -120,14 +125,6 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
-            self.terminals1 = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='terminals1')
-            self.rew_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='rewards')
             self.action_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,) + ac_space.shape,
@@ -136,22 +133,12 @@ class FeedForwardPolicy(ImitationLearningPolicy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs0')
-            self.obs1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ob_dim,
-                name='obs1')
-
-        # logging of rewards to tensorboard
-        with tf.compat.v1.variable_scope("input_info", reuse=False):
-            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
 
         # =================================================================== #
         # Step 3: Create policy variables.                                    #
         # =================================================================== #
 
-        self.deterministic_policy = None
         self.policy = None
-        self.logp_pi = None
         self.logp_ac = None
 
         # Create networks and core TF parts that are shared across setup parts.
@@ -166,12 +153,13 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         # =================================================================== #
 
         self.loss = None
+        self.optimizer = None
 
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             if self.stochastic:
-                self._setup_stochastic_optimizer()
+                self._setup_stochastic_optimizer(scope)
             else:
-                self._setup_deterministic_optimizer()
+                self._setup_deterministic_optimizer(self.action_ph, scope)
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
@@ -231,20 +219,34 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         logp_ac = gaussian_likelihood(action, policy_mean, log_std)
 
         # Apply squashing and account for it in the probability
-        _, _, logp_ac = apply_squashing_func(
-            policy_mean, action, logp_ac)
-        deterministic_policy, policy, logp_pi = apply_squashing_func(
-            policy_mean, policy, logp_pi)
+        _, _, logp_ac = apply_squashing_func(policy_mean, action, logp_ac)
+        _, policy, _ = apply_squashing_func(policy_mean, policy, logp_pi)
 
         # Store the variables under their respective parameters.
-        self.deterministic_policy = deterministic_policy
         self.policy = policy
-        self.logp_pi = logp_pi
         self.logp_ac = logp_ac
 
-    def _setup_stochastic_optimizer(self):
+    def _setup_stochastic_optimizer(self, scope):
         """Create the loss and optimizer of a stochastic policy."""
-        pass
+        scope_name = 'model/pi/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            print('setting up optimizer')
+            print_params_shape(scope_name, "policy")
+
+        # Define the loss function.
+        self.loss = - tf.reduce_mean(self.logp_ac)
+
+        # Create an optimizer object.
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate)
+
+        # Create the optimizer operation.
+        self.optimizer = optimizer.minimize(
+            loss=self.loss,
+            var_list=get_trainable_vars(scope_name)
+        )
 
     def _setup_deterministic_policy(self, obs, reuse=False, scope="pi"):
         """Create the variables of deterministic a policy.
@@ -286,9 +288,33 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         # Store the variables under their respective parameters.
         self.policy = policy
 
-    def _setup_deterministic_optimizer(self):
+    def _setup_deterministic_optimizer(self, action, scope=None):
         """Create the loss and optimizer of a deterministic policy."""
-        pass
+        scope_name = 'model/pi/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            print('setting up optimizer')
+            print_params_shape(scope_name, "policy")
+
+        # Choose the loss function.
+        if self.use_huber:
+            loss_fn = tf.compat.v1.losses.huber_loss
+        else:
+            loss_fn = tf.compat.v1.losses.mean_squared_error
+
+        # Define the loss function.
+        self.loss = loss_fn(action, self.policy)
+
+        # Create an optimizer object.
+        optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate)
+
+        # Create the optimizer operation.
+        self.optimizer = optimizer.minimize(
+            loss=self.loss,
+            var_list=get_trainable_vars(scope_name)
+        )
 
     def _setup_stats(self, base):
         """Create the running means and std of the model inputs and outputs.
@@ -316,31 +342,43 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         return ops, names
 
     def update(self):
-        """Perform a gradient update step.
+        """See parent class."""
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
+            return 0
+
+        # Get a batch.
+        obs0, actions, _, _, _ = self.replay_buffer.sample()
+
+        return self.update_from_batch(obs0, actions)
+
+    def update_from_batch(self, obs0, actions):
+        """Perform gradient update step given a batch of data.
+
+        Parameters
+        ----------
+        obs0 : array_like
+            batch of observations
+        actions : array_like
+            batch of actions executed given obs_batch
 
         Returns
         -------
         float
             policy loss
         """
-        pass  # TODO
+        loss, *_ = self.sess.run(
+            [self.loss, self.optimizer],
+            feed_dict={
+                self.obs_ph: obs0,
+                self.action_ph: actions,
+            }
+        )
+
+        return loss
 
     def get_action(self, obs, context):
-        """Compute the policy actions.
-
-        Parameters
-        ----------
-        obs : array_like
-            the observation
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-
-        Returns
-        -------
-        array_like
-            computed action by the policy
-        """
+        """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
@@ -356,23 +394,7 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         return action
 
     def store_transition(self, obs0, context0, action, obs1, context1):
-        """Store a transition in the replay buffer.
-
-        Parameters
-        ----------
-        obs0 : array_like
-            the last observation
-        context0 : array_like or None
-            the last contextual term. Set to None if no context is provided by
-            the environment.
-        action : array_like
-            the action
-        obs1 : array_like
-            the current observation
-        context1 : array_like or None
-            the current contextual term. Set to None if no context is provided
-            by the environment.
-        """
+        """See parent class."""
         # Add the contextual observation, if applicable.
         obs0 = self._get_obs(obs0, context0, axis=0)
         obs1 = self._get_obs(obs1, context1, axis=0)
@@ -386,22 +408,13 @@ class FeedForwardPolicy(ImitationLearningPolicy):
             return {}
 
         # Get a batch.
-        obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
+        obs0, actions, _, _, _ = self.replay_buffer.sample()
 
-        return self.get_td_map_from_batch(obs0, actions, rewards, obs1, done1)
+        return self.get_td_map_from_batch(obs0, actions)
 
-    def get_td_map_from_batch(self, obs0, actions, rewards, obs1, terminals1):
+    def get_td_map_from_batch(self, obs0, actions):
         """Convert a batch to a td_map."""
-        # Reshape to match previous behavior and placeholder shape.
-        rewards = rewards.reshape(-1, 1)
-        terminals1 = terminals1.reshape(-1, 1)
-
-        td_map = {
+        return {
             self.obs_ph: obs0,
             self.action_ph: actions,
-            self.rew_ph: rewards,
-            self.obs1_ph: obs1,
-            self.terminals1: terminals1
         }
-
-        return td_map
