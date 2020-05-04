@@ -24,7 +24,6 @@ install:
   - pushd $HOME
   - git clone https://github.com/flow-project/flow
   - pushd flow
-  - git checkout new-inflow  # TODO: this is temporary
   - pip install -e .
   - ./scripts/setup_sumo_ubuntu1604.sh
   - source ~/.bashrc

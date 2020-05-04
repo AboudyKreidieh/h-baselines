@@ -5,6 +5,7 @@ actions. The model used for the expert is specified under the "expert_model"
 attribute in env_params.additional_params.
 """
 from flow.controllers import IDMController
+from flow.core.params import SumoCarFollowingParams
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
@@ -57,7 +58,10 @@ class AVImitationEnv(AVEnv):
         for veh_id in self.rl_ids():
             # Add experts that are not currently available.
             model, params = self.env_params.additional_params["expert_model"]
-            self._expert_models[veh_id] = model(veh_id, **params)
+            self._expert_models[veh_id] = model(
+                veh_id,
+                car_following_params=SumoCarFollowingParams(min_gap=0.5),
+                **params)
 
             # Compute the expert action.
             expert_actions.append(self._expert_models[veh_id].get_action(self))
@@ -102,7 +106,10 @@ class AVClosedImitationEnv(AVClosedEnv):
         for veh_id in self.rl_ids():
             # Add experts that are not currently available.
             model, params = self.env_params.additional_params["expert_model"]
-            self._expert_models[veh_id] = model(veh_id, **params)
+            self._expert_models[veh_id] = model(
+                veh_id,
+                car_following_params=SumoCarFollowingParams(min_gap=0.5),
+                **params)
 
             # Compute the expert action.
             expert_actions.append(self._expert_models[veh_id].get_action(self))
@@ -152,7 +159,10 @@ class AVOpenImitationEnv(AVOpenEnv):
         for veh_id in self.rl_ids():
             # Add experts that are not currently available.
             model, params = self.env_params.additional_params["expert_model"]
-            self._expert_models[veh_id] = model(veh_id, **params)
+            self._expert_models[veh_id] = model(
+                veh_id,
+                car_following_params=SumoCarFollowingParams(min_gap=0.5),
+                **params)
 
             # Compute the expert action.
             expert_actions.append(self._expert_models[veh_id].get_action(self))

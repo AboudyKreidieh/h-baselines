@@ -7,8 +7,6 @@ from gym.spaces import Box
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.base_policies import ImitationLearningPolicy
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
-    as IMITATION_FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -178,7 +176,16 @@ class TestImitationLearningPolicy(unittest.TestCase):
             'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
             'verbose': 0,
         }
-        self.policy_params.update(IMITATION_FEEDFORWARD_PARAMS.copy())
+        self.policy_params.update({
+            "buffer_size": 200000,
+            "batch_size": 128,
+            "learning_rate": 3e-4,
+            "layer_norm": False,
+            "layers": [256, 256],
+            "act_fun": tf.nn.relu,
+            "use_huber": False,
+            "stochastic": False
+        })
 
     def tearDown(self):
         self.policy_params['sess'].close()

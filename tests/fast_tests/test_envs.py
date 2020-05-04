@@ -5,6 +5,7 @@ import random
 from copy import deepcopy
 
 from flow.core.params import EnvParams
+from flow.controllers import IDMController
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
     point_distance, construct_maze
@@ -28,20 +29,19 @@ from hbaselines.envs.mixed_autonomy.params.figure_eight \
     import get_flow_params as figure_eight
 from hbaselines.envs.mixed_autonomy.params.highway_single \
     import get_flow_params as highway_single
-from hbaselines.envs.mixed_autonomy.params.imitation.ring \
-    import get_flow_params as ring_imitation
-from hbaselines.envs.mixed_autonomy.params.imitation.highway_single \
-    import get_flow_params as highway_single_imitation
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
     import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
+from hbaselines.envs.mixed_autonomy.envs.av \
+    import OPEN_ENV_PARAMS as SA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 from hbaselines.envs.point2d import Point2DEnv
 
 
@@ -438,10 +438,11 @@ class TestMixedAutonomyParams(unittest.TestCase):
     def test_single_agent_ring_imitation(self):
         # create the base environment
         env = FlowEnv(
-            flow_params=ring_imitation(
+            flow_params=ring(
                 num_automated=5,
                 simulator="traci",
-                multiagent=False
+                multiagent=False,
+                imitation=True,
             ),
             multiagent=False,
             shared=False,
@@ -912,7 +913,8 @@ class TestMixedAutonomyParams(unittest.TestCase):
     def test_single_agent_highway_single_imitation(self):
         # create the base environment
         env = FlowEnv(
-            flow_params=highway_single_imitation(
+            flow_params=highway_single(
+                imitation=True,
                 multiagent=False
             ),
             multiagent=False,
@@ -1268,11 +1270,11 @@ class TestAVImitation(unittest.TestCase):
     """Tests the automated vehicles single agent imitation environments."""
 
     def setUp(self):
-        self.sim_params = deepcopy(ring_imitation())["sim"]
+        self.sim_params = deepcopy(ring(imitation=True))["sim"]
         self.sim_params.render = False
 
         # for AVClosedEnv
-        flow_params_closed = deepcopy(ring_imitation())
+        flow_params_closed = deepcopy(ring(imitation=True))
 
         self.network_closed = flow_params_closed["network"](
             name="test_closed",
@@ -1283,7 +1285,15 @@ class TestAVImitation(unittest.TestCase):
         self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
-        pass  # TODO
+        flow_params_open = deepcopy(highway_single(imitation=True))
+
+        self.network_open = flow_params_open["network"](
+            name="test_open",
+            vehicles=flow_params_open["veh"],
+            net_params=flow_params_open["net"],
+        )
+        self.env_params_open = flow_params_open["env"]
+        self.env_params_open.additional_params = SA_OPEN_ENV_PARAMS.copy()
 
     def test_base_env(self):
         """Validate the functionality of the AVImitationEnv class.
@@ -1302,7 +1312,14 @@ class TestAVImitation(unittest.TestCase):
            values
            a. for the single lane case
            b. for the multi-lane case
+        5. the the query_expert method returns the expected values
         """
+        env_params = deepcopy(self.env_params_closed)
+        env_params.additional_params["expert_model"] = (IDMController, {
+            "a": 0.3,
+            "b": 2.0,
+        })
+
         # test case 1
         self.assertTrue(
             test_additional_params(
@@ -1315,6 +1332,10 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "penalty_type": "acceleration",
                     "penalty": 1,
+                    "expert_model": (IDMController, {
+                        "a": 0.3,
+                        "b": 2.0,
+                    }),
                 },
             )
         )
@@ -1325,7 +1346,7 @@ class TestAVImitation(unittest.TestCase):
 
         # Create a single lane environment.
         env_single = AVImitationEnv(
-            env_params=self.env_params_closed,
+            env_params=env_params,
             sim_params=self.sim_params,
             network=self.network_closed
         )
@@ -1366,7 +1387,7 @@ class TestAVImitation(unittest.TestCase):
                 env_class=AVImitationEnv,
                 sim_params=self.sim_params,
                 network=self.network_closed,
-                env_params=self.env_params_closed,
+                env_params=env_params,
                 expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
                                    'human_0_0', 'human_0_44', 'rl_0_0']
             )
@@ -1375,6 +1396,19 @@ class TestAVImitation(unittest.TestCase):
         # test case 4.b
         pass  # TODO
 
+        # test case 5
+        env = AVImitationEnv(
+            sim_params=self.sim_params,
+            network=self.network_closed,
+            env_params=env_params,
+        )
+        env.reset()
+
+        np.testing.assert_almost_equal(
+            env.query_expert(None),
+            [0.0850658, 0.1037863, 0.092358, 0.0760671, -0.1428318]
+        )
+
     def test_closed_env(self):
         """Validate the functionality of the AVClosedImitationEnv class.
 
@@ -1382,8 +1416,15 @@ class TestAVImitation(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the number of vehicles is properly modified in between resets
+        2. that the number of vehicles is properly modified in between resets
+        3. the the query_expert method returns the expected values
         """
+        env_params = deepcopy(self.env_params_closed)
+        env_params.additional_params["expert_model"] = (IDMController, {
+            "a": 0.3,
+            "b": 2.0,
+        })
+
         # test case 1
         self.assertTrue(
             test_additional_params(
@@ -1399,6 +1440,10 @@ class TestAVImitation(unittest.TestCase):
                     "num_vehicles": [50, 75],
                     "even_distribution": False,
                     "sort_vehicles": True,
+                    "expert_model": (IDMController, {
+                        "a": 0.3,
+                        "b": 2.0,
+                    }),
                 },
             )
         )
@@ -1409,7 +1454,7 @@ class TestAVImitation(unittest.TestCase):
 
         # test case 2
         env = AVClosedImitationEnv(
-            env_params=self.env_params_closed,
+            env_params=env_params,
             sim_params=self.sim_params,
             network=self.network_closed
         )
@@ -1423,6 +1468,79 @@ class TestAVImitation(unittest.TestCase):
         env.reset()
         self.assertEqual(env.k.vehicle.num_vehicles, 58)
         self.assertEqual(env.num_rl, 5)
+
+        # test case 3
+        env = AVClosedImitationEnv(
+            sim_params=self.sim_params,
+            network=self.network_closed,
+            env_params=env_params,
+        )
+        env.reset()
+
+        np.testing.assert_almost_equal(
+            env.query_expert(None),
+            [-0.0792479, -0.0780102, -0.0052194, 0.0930974, 0.1589968]
+        )
+
+    def test_open_env(self):
+        """Validate the functionality of the AVOpenImitationEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2. that the inflow rate is properly modified in between resets
+        3. the the query_expert method returns the expected values
+        """
+        env_params = deepcopy(self.env_params_open)
+        env_params.additional_params["expert_model"] = (IDMController, {
+            "a": 0.3,
+            "b": 2.0,
+        })
+
+        # test case 1
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVOpenImitationEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "penalty_type": "acceleration",
+                    "penalty": 1,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "ghost_length": 500,
+                    "expert_model": (IDMController, {
+                        "a": 0.3,
+                        "b": 2.0,
+                    }),
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        env = AVOpenImitationEnv(
+            sim_params=self.sim_params,
+            network=self.network_open,
+            env_params=env_params,
+        )
+        env.reset()
+
+        np.testing.assert_almost_equal(
+            env.query_expert(None),
+            [0.0730258, -0.0180382, 0., 0., 0.]
+        )
 
 
 class TestPoint2D(unittest.TestCase):

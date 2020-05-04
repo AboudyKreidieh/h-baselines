@@ -459,9 +459,10 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring_imitation(
+            flow_params=ring(
                 evaluate=evaluate,
                 multiagent=multiagent,
+                imitation=True,
             ),
             render=render,
             multiagent=multiagent,
@@ -479,8 +480,9 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway_single_imitation(
+            flow_params=highway_single(
                 multiagent=multiagent,
+                imitation=True,
             ),
             render=render,
             multiagent=multiagent,
