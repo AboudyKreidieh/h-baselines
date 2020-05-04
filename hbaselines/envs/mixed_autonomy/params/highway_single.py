@@ -16,8 +16,8 @@ from flow.core.params import SumoLaneChangeParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
-from hbaselines.envs.mixed_autonomy.envs.av import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 
 
 def get_flow_params(evaluate=False, multiagent=False):
@@ -95,7 +95,6 @@ def get_flow_params(evaluate=False, multiagent=False):
             "a": 0.3,
             "b": 2.0,
             "noise": 0.5,
-            "ignore_noise": [(0, 500)],
         }),
     )
 
@@ -111,18 +110,18 @@ def get_flow_params(evaluate=False, multiagent=False):
     # automated vehicles
     if PENETRATION_RATE > 0.0:
         vehicles.add(
-            "av",
+            "rl",
             num_vehicles=0,
             acceleration_controller=(RLController, {}),
         )
 
         inflows.add(
-            veh_type="av",
+            veh_type="rl",
             edge="highway_0",
             vehs_per_hour=int(HIGHWAY_INFLOW_RATE * PENETRATION_RATE),
             depart_lane="free",
             depart_speed=15,
-            name="av_highway_inflow"
+            name="rl_highway_inflow"
         )
 
     # SET UP THE FLOW PARAMETERS

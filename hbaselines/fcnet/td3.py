@@ -619,7 +619,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         """
         self.sess.run(self.target_init_updates)
 
-    def _setup_stats(self, base="Model"):
+    def _setup_stats(self, base):
         """Create the running means and std of the model inputs and outputs.
 
         This method also adds the same running means and stds as scalars to

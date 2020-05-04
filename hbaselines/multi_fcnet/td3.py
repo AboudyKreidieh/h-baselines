@@ -748,7 +748,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         critic : tf.Variable
             the output from the centralized critic of the agent
         all_obs1_ph : tf.compat.v1.placeholder
-             the placeholder for the full-state observation
+            the placeholder for the full-state observation
         actor_target : tf.Variable
             the output from the combined target actors of all agents
         rew_ph : tf.compat.v1.placeholder

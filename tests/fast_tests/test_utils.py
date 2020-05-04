@@ -564,7 +564,7 @@ class TestTFUtil(unittest.TestCase):
         self.sess.close()
 
     def test_layer(self):
-        """Check the functionality of the _layer() method.
+        """Check the functionality of the layer() method.
 
         This method is tested for the following features:
 
@@ -575,8 +575,6 @@ class TestTFUtil(unittest.TestCase):
            constant initializer)
         5. layer_norm is applied if requested
         """
-        # policy = ActorCriticPolicy(**self.policy_params)
-
         # test case 1
         pass  # TODO
 
