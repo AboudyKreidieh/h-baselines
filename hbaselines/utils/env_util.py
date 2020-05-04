@@ -29,10 +29,6 @@ try:
         import get_flow_params as figure_eight
     from hbaselines.envs.mixed_autonomy.params.highway_single \
         import get_flow_params as highway_single
-    from hbaselines.envs.mixed_autonomy.params.imitation.ring \
-        import get_flow_params as ring_imitation
-    from hbaselines.envs.mixed_autonomy.params.imitation.highway_single \
-        import get_flow_params as highway_single_imitation
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
