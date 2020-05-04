@@ -139,3 +139,26 @@ class FlowEnv(gym.Env):
     def render(self, mode='human'):
         """See parent class."""
         pass
+
+    def query_expert(self, obs):
+        """Query the expert compute the expert actions.
+
+        Parameters
+        ----------
+        obs : array_like
+            the environmental observation
+
+        Returns
+        -------
+        array_like
+            the expert action
+
+        Raises
+        ------
+        ValueError
+            if the wrapped environment does not have the method
+        """
+        if hasattr(self.wrapped_env, "query_expert"):
+            return self.wrapped_env.query_expert(obs)
+        else:
+            raise ValueError("Environment does not have a query_expert method")

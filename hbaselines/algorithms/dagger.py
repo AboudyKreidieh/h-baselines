@@ -1,12 +1,13 @@
 """Script contain the DAgger training algorithm.
 
-See: TODO
+See: https://arxiv.org/pdf/1011.0686.pdf
 """
 import tensorflow as tf
 import numpy as np
 import random
 import os
-from collections import deque
+import time
+import csv
 from copy import deepcopy
 
 from hbaselines.algorithms.utils import is_feedforward_policy
@@ -69,23 +70,46 @@ class DAggerAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
-    env : TODO
-        TODO
+    env : gym.Env
+        the environment to learn from
+    render : bool
+        enable rendering of the training environment
     expert : str or None
         the path to the expert policy parameter that need to loaded into the
         environment. If set to None, the expert is assumed to be already loaded
-    aggr_update_freq : TODO
-        TODO
-    aggr_update_steps : TODO
-        TODO
-    nb_train_steps : TODO
-        TODO
-    nb_rollout_steps : TODO
-        TODO
-    verbose :
-        TODO
-    policy_kwargs : TODO
-        TODO
+    aggr_update_freq : int
+        the number of steps before new aggregation steps are collected
+    aggr_update_steps : int
+        the number of aggregation steps to collect before returning to the
+        training operations
+    nb_train_steps : int
+        the number of training steps
+    nb_rollout_steps : int
+        the number of rollout steps
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    policy_kwargs : dict
+        policy-specific hyperparameters
+    graph : tf.Graph
+        the current tensorflow graph
+    policy_tf : hbaselines.base_policies.ActorCriticPolicy
+        the policy object
+    sess : tf.compat.v1.Session
+        the current tensorflow session
+    summary : tf.Summary
+        tensorboard summary object
+    obs : array_like or dict < str, array_like >
+        the most recent training observation
+    episode_step : int
+        the number of steps since the most recent rollout began
+    total_steps : int
+        the total number of steps that have been executed since training began
+    epoch : int
+        the total number of training iterations
+    saver : tf.compat.v1.train.Saver
+        tensorflow saver object
+    trainable_vars : list of str
+        the trainable variables
     """
 
     def __init__(self,
@@ -114,9 +138,10 @@ class DAggerAlgorithm(object):
             the environment. If set to None, the expert is assumed to be
             already loaded.
         aggr_update_freq : int
-            TODO
+            the number of steps before new aggregation steps are collected
         aggr_update_steps : int
-            TODO
+            the number of aggregation steps to collect before returning to the
+            training operations
         nb_train_steps : int
             the number of training steps
         nb_rollout_steps : int
@@ -132,6 +157,7 @@ class DAggerAlgorithm(object):
             else env.__str__()
         self.env = create_env(
             env, render, shared=False, maddpg=False, evaluate=False)
+        self.render = render
         self.expert = expert
         self.aggr_update_freq = aggr_update_freq
         self.aggr_update_steps = aggr_update_steps
@@ -180,9 +206,6 @@ class DAggerAlgorithm(object):
         self.episode_step = 0
         self.total_steps = 0
         self.epoch = 0
-        self.rew_history = deque(maxlen=100)
-        self.rew_ph = None
-        self.rew_history_ph = None
         self.saver = None
 
         # Create the model variables and operations.
@@ -203,17 +226,6 @@ class DAggerAlgorithm(object):
                 self.context_space,
                 **self.policy_kwargs
             )
-
-            # for tensorboard logging
-            with tf.compat.v1.variable_scope("Train"):
-                self.rew_ph = tf.compat.v1.placeholder(tf.float32)
-                self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
-
-            # Add tensorboard scalars for the return, return history, and
-            # success rate.
-            tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
-            tf.compat.v1.summary.scalar("Train/return_history",
-                                        self.rew_history_ph)
 
             # Create the tensorboard summary.
             self.summary = tf.compat.v1.summary.merge_all()
@@ -250,7 +262,8 @@ class DAggerAlgorithm(object):
             number of simulation steps in the training environment before the
             model is saved
         initial_sample_steps : int
-            TODO
+            the number of steps to initialize the replay buffer with before
+            beginning training
         """
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
@@ -278,37 +291,48 @@ class DAggerAlgorithm(object):
             print('Using agent with the following configuration:')
             print(str(self.__dict__.items()))
 
+        start_time = time.time()
+
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
             self.obs = self.env.reset()
 
             # Collect the initial samples by the expert.
             print("Collecting initial expert samples...")
-            self._collect_samples(total_timesteps,
-                                  run_steps=initial_sample_steps)
+            self._collect_samples(initial_sample_steps, initialize=True)
             print("Done!")
 
             # Reset total statistics variables.
             self.total_steps = 0
-            self.rew_history = deque(maxlen=100)
 
+            loss = []
             for i in range(total_timesteps):
                 # Perform the training operation.
-                self._train()
+                next_loss = self._train()
+                loss.append(next_loss)
 
                 # Collect new data to add to the replay buffer.
                 if i > 0 and i % self.aggr_update_freq == 0:
-                    pass
+                    self._collect_samples(self.aggr_update_steps)
 
                 # Run and store summary.
                 if i > 0 and i % log_interval == 0:
-                    pass
+                    self._log_training(loss, train_filepath, start_time)
+
+                    td_map = self.policy_tf.get_td_map()
+
+                    # Check if td_map is empty.
+                    if not td_map:
+                        break
+
+                    summary = self.sess.run(self.summary, td_map)
+                    writer.add_summary(summary, self.total_steps)
 
                 # Save a checkpoint of the model.
                 if i > 0 and i % save_interval == 0:
-                    pass
+                    self.save(os.path.join(log_dir, "checkpoints/itr"))
 
-    def _collect_samples(self, total_timesteps, run_steps=None):
+    def _collect_samples(self, run_steps=None, initialize=False):
         """Perform the sample collection operation.
 
         This method is responsible for executing rollouts for a number of steps
@@ -317,16 +341,142 @@ class DAggerAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
+        initialize : bool
+            whether the replay buffer is being initialized. When initializing,
+            the expert policy actions is used in the environment.
         """
-        pass
+        for _ in range(run_steps or self.nb_rollout_steps):
+            # Collect the contextual term. None if it is not passed.
+            context = [self.env.current_context] \
+                if hasattr(self.env, "current_context") else None
+
+            # Collect the predicted and expert actions.
+            predicted_action, expert_action = self._policy(self.obs, context)
+
+            # Execute next action.
+            action = expert_action if initialize else predicted_action
+            new_obs, reward, done, info = self.env.step(action)
+
+            # Visualize the current step.
+            if self.render:
+                self.env.render()  # pragma: no cover
+
+            # Get the contextual term.
+            context0 = context1 = getattr(self.env, "current_context", None)
+
+            # Store a transition in the replay buffer.
+            self.policy_tf.store_transition(
+                obs0=self.obs,
+                context0=context0,
+                action=expert_action,
+                obs1=new_obs,
+                context1=context1
+            )
+
+            # Book-keeping.
+            self.total_steps += 1
+            self.episode_step += 1
+
+            # Update the current observation.
+            self.obs = new_obs.copy()
+
+            if done:
+                # Episode done.
+                self.episode_reward = 0
+                self.episode_step = 0
+
+                # Reset the environment.
+                self.obs = self.env.reset()
+
+    def _policy(self, obs, context):
+        """Get the actions from a given observation.
+
+        Parameters
+        ----------
+        obs : array_like
+            the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+
+        Returns
+        -------
+        array_like
+            the predicted action by the policy
+        array_like
+            the action by the expert
+        """
+        # Get the predicted action.
+        predicted_action = self.policy_tf.get_action(obs, context)
+
+        # Get the expert action.
+        if context is not None:
+            obs = np.concatenate((obs, context), axis=1)
+        expert_action = self.env.query_expert(obs)
+
+        # Flatten the actions.
+        predicted_action = predicted_action.flatten()
+        expert_action = expert_action.flatten()
+
+        return predicted_action, expert_action
 
     def _train(self):
         """Perform the training operation."""
+        loss = []
         for t_train in range(self.nb_train_steps):
-            _ = self.policy_tf.update()
+            loss.append(self.policy_tf.update())
+
+        return np.mean(loss)
+
+    def _log_training(self, loss, file_path, start_time):
+        """Log training statistics.
+
+        Parameters
+        ----------
+        file_path : str
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        start_time : float
+            the time when training began. This is used to print the total
+            training time.
+        """
+        # Log statistics.
+        duration = time.time() - start_time
+
+        combined_stats = {
+            'rollout/loss': np.mean(loss),
+            'total/epochs': self.epoch + 1,
+            'total/steps': self.total_steps,
+            'total/duration': duration,
+            'total/steps_per_second': self.total_steps / duration,
+        }
+
+        # Save combined_stats in a csv file.
+        if file_path is not None:
+            exists = os.path.exists(file_path)
+            with open(file_path, 'a') as f:
+                w = csv.DictWriter(f, fieldnames=combined_stats.keys())
+                if not exists:
+                    w.writeheader()
+                w.writerow(combined_stats)
+
+        # Print statistics.
+        print("-" * 67)
+        for key in sorted(combined_stats.keys()):
+            val = combined_stats[key]
+            print("| {:<30} | {:<30} |".format(key, val))
+        print("-" * 67)
+        print('')
+
+    def save(self, save_path):
+        """Save the parameters of a tensorflow model.
+
+        Parameters
+        ----------
+        save_path : str
+            Prefix of filenames created for the checkpoint
+        """
+        self.saver.save(self.sess, save_path, global_step=self.total_steps)

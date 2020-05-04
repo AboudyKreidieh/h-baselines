@@ -207,7 +207,7 @@ class OffPolicyRLAlgorithm(object):
     obs : array_like or dict < str, array_like >
         the most recent training observation. If you are using a multi-agent
         environment, this will be a dictionary of observations for each agent,
-        indexed by the agen ID.
+        indexed by the agent ID.
     all_obs : array_like or None
         additional information, used by MADDPG variants of the multi-agent
         policy to pass full-state information
