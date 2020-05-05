@@ -45,8 +45,8 @@ OPEN_ENV_PARAMS.update(dict(
     rl_penetration=0.1,
     # maximum number of controllable vehicles in the network
     num_rl=5,
-    # the initial length (in meters) in which automated vehicles are ignored
-    ghost_length=500,
+    # the interval (in meters) in which automated vehicles are controlled
+    control_range=[500, 2500],
 ))
 
 # Scale the normalized speeds and headways are scaled by. Headways are squashed
@@ -168,13 +168,15 @@ class AVEnv(Env):
                 # in case of collisions or an empty network
                 reward = 0
             else:
+                reward_scale = 0.01
+
                 # Compute a positive form of the two-norm from a desired target
                 # velocity.
                 target = self.env_params.additional_params['target_velocity']
                 max_cost = np.array([target] * num_vehicles)
                 max_cost = np.linalg.norm(max_cost)
                 cost = np.linalg.norm(vel - target)
-                reward = max(max_cost - cost, 0)
+                reward = reward_scale * max(max_cost - cost, 0)
 
             # =============================================================== #
             # Penalize congestion style behaviors.                            #
@@ -507,6 +509,8 @@ class AVOpenEnv(AVEnv):
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
     * num_rl: maximum number of controllable vehicles in the network
+    * control_range: the interval (in meters) in which automated vehicles are
+      controlled
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -552,24 +556,26 @@ class AVOpenEnv(AVEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
+        control_range = self.env_params.additional_params["control_range"]
+
         # add rl vehicles that just entered the network into the rl queue
         for veh_id in self.k.vehicle.get_rl_ids():
             if veh_id not in list(self.rl_queue) + self.rl_veh:
                 self.rl_queue.append(veh_id)
 
-        # remove rl vehicles that exited the network
+        # remove rl vehicles that exited the controllable range of the network
         for veh_id in list(self.rl_queue):
-            if veh_id not in self.k.vehicle.get_rl_ids():
+            if self.k.vehicle.get_x_by_id(veh_id) > control_range[1]:
                 self.rl_queue.remove(veh_id)
         for veh_id in self.rl_veh:
-            if veh_id not in self.k.vehicle.get_rl_ids():
+            if self.k.vehicle.get_x_by_id(veh_id) > control_range[1]:
                 self.rl_veh.remove(veh_id)
 
         # fill up rl_veh until they are enough controlled vehicles
         while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
             # ignore vehicles that are in the ghost edges
             if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
-                    self.env_params.additional_params["ghost_length"]:
+                    control_range[0]:
                 break
 
             rl_id = self.rl_queue.popleft()
