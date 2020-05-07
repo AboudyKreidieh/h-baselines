@@ -6,6 +6,10 @@ import random
 import numpy as np
 import tensorflow as tf
 import json
+import time
+from copy import deepcopy
+
+from flow.core.util import emission_to_csv
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
@@ -40,6 +44,7 @@ FLOW_ENV_NAMES = [
     "merge0",
     "merge1",
     "merge2",
+    "highway-single"
 ]
 
 
@@ -66,9 +71,15 @@ def parse_options(args):
         help='the checkpoint number. If not specified, the last checkpoint is '
              'used.')
     parser.add_argument(
-        '--num_rollouts', type=int, default=1, help='number of eval episodes')
+        '--num_rollouts', type=int, default=1,
+        help='number of eval episodes')
     parser.add_argument(
-        '--no_render', action='store_true', help='shuts off rendering')
+        '--no_render', action='store_true',
+        help='shuts off rendering')
+    parser.add_argument(
+        '--random_seed', action='store_true',
+        help='whether to run the simulation on a random seed. If not added, '
+             'the original seed is used.')
 
     flags, _ = parser.parse_known_args(args)
 
@@ -134,9 +145,10 @@ def main(args):
     )
 
     # setup the seed value
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.compat.v1.set_random_seed(seed)
+    if not flags.random_seed:
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
     # get the checkpoint number
     if flags.ckpt_num is None:
@@ -161,6 +173,13 @@ def main(args):
     # Perform the evaluation procedure.
     episdoe_rewards = []
 
+    # Add an emission path to Flow environments.
+    if env_name in FLOW_ENV_NAMES:
+        sim_params = deepcopy(env.wrapped_env.sim_params)
+        sim_params.emission_path = "./flow_results"
+        env.wrapped_env.restart_simulation(
+            sim_params, render=not flags.no_render)
+
     for episode_num in range(flags.num_rollouts):
         # Run a rollout.
         obs = env.reset()
@@ -175,7 +194,7 @@ def main(args):
                 random_actions=False,
             )
             obs, reward, done, _ = env.step(action[0])
-            if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+            if not flags.no_render:
                 env.render()
             total_reward += reward
             if done:
@@ -188,6 +207,22 @@ def main(args):
     # Print total statistics.
     print("Average, std return: {}, {}".format(
         np.mean(episdoe_rewards), np.std(episdoe_rewards)))
+
+    if env_name in FLOW_ENV_NAMES:
+        # wait a short period of time to ensure the xml file is readable
+        time.sleep(0.1)
+
+        # collect the location of the emission file
+        dir_path = env.wrapped_env.sim_params.emission_path
+        emission_filename = "{0}-emission.xml".format(
+            env.wrapped_env.network.name)
+        emission_path = os.path.join(dir_path, emission_filename)
+
+        # convert the emission file into a csv
+        emission_to_csv(emission_path)
+
+        # Delete the .xml version of the emission file.
+        os.remove(emission_path)
 
 
 if __name__ == '__main__':

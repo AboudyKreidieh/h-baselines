@@ -427,10 +427,10 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals: Box(
             low=-1 if relative_goals else 0,
             high=1,
-            shape=(10,),
+            shape=(5,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(10)],
+        "state_indices": [5 * i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway_single(
                 multiagent=multiagent,
@@ -493,9 +493,9 @@ ENV_ATTRIBUTES = {
 
     "BipedalSoccer": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+            low=np.array([0.75, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
-            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            high=np.array([1.0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         ),
         "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],

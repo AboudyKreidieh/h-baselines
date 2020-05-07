@@ -146,9 +146,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
             env_name = AVOpenMultiAgentEnv
     else:
         if imitation:
-            env_name = AVOpenEnv
-        else:
             env_name = AVOpenImitationEnv
+        else:
+            env_name = AVOpenEnv
 
     return dict(
         # name of the experiment
@@ -177,8 +177,8 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
                 "penalty": 1,
                 "inflows": None,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10,
-                "ghost_length": 500,
+                "num_rl": 5,
+                "control_range": [500, 2500],
                 "expert_model": (BandoFTLController, {
                     'alpha': .5,
                     'beta': 20.0,

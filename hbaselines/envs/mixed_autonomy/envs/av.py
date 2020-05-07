@@ -154,15 +154,36 @@ class AVEnv(Env):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
+        return self._compute_reward_util(
+            rl_actions,
+            self.k.vehicle.get_ids(),
+            **kwargs
+        )
+
+    def _compute_reward_util(self, rl_actions, veh_ids, **kwargs):
+        """Compute the reward over a specific list of vehicles.
+
+        Parameters
+        ----------
+        rl_actions : array_like
+            the actions performed by the automated vehicles
+        veh_ids : list of str
+            the vehicle IDs to compute the network-level rewards over
+
+        Returns
+        -------
+        float
+            the computed reward
+        """
         if self.env_params.evaluate or rl_actions is None:
-            return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            return np.mean(self.k.vehicle.get_speed(veh_ids))
         else:
             # =============================================================== #
             # Reward high system-level average speeds.                        #
             # =============================================================== #
 
-            num_vehicles = self.k.vehicle.num_vehicles
-            vel = np.array(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            num_vehicles = len(veh_ids)
+            vel = np.array(self.k.vehicle.get_speed(veh_ids))
 
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
                 # in case of collisions or an empty network
@@ -193,7 +214,7 @@ class AVEnv(Env):
             # Penalize small time headways.
             elif penalty_type in ["time_headway", "both"]:
                 cost2 = 0
-                t_min = 1  # smallest acceptable time headway
+                t_min = 2  # smallest acceptable time headway
                 for rl_id in self.rl_ids():
                     lead_id = self.k.vehicle.get_leader(rl_id)
                     if lead_id not in ["", None] \
@@ -221,7 +242,8 @@ class AVEnv(Env):
 
         for i, veh_id in enumerate(self.rl_ids()):
             # Add the speed of the ego vehicle.
-            obs[5 * max_lanes * i] = self.k.vehicle.get_speed(veh_id)
+            obs[5 * max_lanes * i] = self.k.vehicle.get_speed(veh_id) \
+                / max_speed * SPEED_SCALE
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
             if max_lanes == 1:
@@ -496,6 +518,10 @@ class AVOpenEnv(AVEnv):
       from the learning agent, and instead act as human-driven vehicles as
       well.
 
+    Finally, in order to ignore the effects of the boundaries when performing
+    control, autonomous vehicles are only performed and acted on within a
+    certain range specified under the "control_range" parameter.
+
     Required from env_params:
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
@@ -543,6 +569,19 @@ class AVOpenEnv(AVEnv):
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition."""
+        # Collect the names of the vehicles within the control range.
+        control_range = self.env_params.additional_params["control_range"]
+        control_min = control_range[0]
+        control_max = control_range[1]
+        veh_ids = [
+            veh_id for veh_id in self.k.vehicle.get_ids() if
+            control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
+        ]
+
+        return self._compute_reward_util(rl_actions, veh_ids, **kwargs)
 
     def additional_command(self):
         """See parent class.
