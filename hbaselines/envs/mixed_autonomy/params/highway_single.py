@@ -146,9 +146,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
             env_name = AVOpenMultiAgentEnv
     else:
         if imitation:
-            env_name = AVOpenEnv
-        else:
             env_name = AVOpenImitationEnv
+        else:
+            env_name = AVOpenEnv
 
     return dict(
         # name of the experiment

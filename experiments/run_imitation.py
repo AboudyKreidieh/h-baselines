@@ -87,7 +87,7 @@ def main(args, base_dir):
         params_with_extra['seed'] = seed
         params_with_extra['env_name'] = args.env_name
         params_with_extra['policy_name'] = "FeedForwardPolicy"
-        params_with_extra['algorithm'] = args.alg
+        params_with_extra['algorithm'] = 'DAgger'
         params_with_extra['date/time'] = now
 
         # Add the hyperparameters to the folder.

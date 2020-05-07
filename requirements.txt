@@ -6,4 +6,5 @@ redis==2.10.6
 matplotlib>=3.0.0
 pygame
 opencv-python
+tqdm
 # mujoco-py==1.50.1.68

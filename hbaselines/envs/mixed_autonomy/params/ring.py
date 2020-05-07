@@ -113,9 +113,9 @@ def get_flow_params(num_automated=5,
             env_name = AVClosedMultiAgentEnv
     else:
         if imitation:
-            env_name = AVClosedEnv
-        else:
             env_name = AVClosedImitationEnv
+        else:
+            env_name = AVClosedEnv
 
     return dict(
         # name of the experiment

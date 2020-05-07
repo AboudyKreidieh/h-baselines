@@ -4,9 +4,13 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces import Box
 
-from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.utils.train import parse_options
+from hbaselines.utils.train import get_hyperparameters
+from hbaselines.utils.train import parse_imitation_options
+from hbaselines.utils.train import get_imitation_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
+from hbaselines.utils.env_util import get_meta_ac_space
+from hbaselines.utils.env_util import get_state_indices
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
@@ -14,10 +18,93 @@ from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
+    as IMITATION_FEEDFORWARD_PARAMS
+from hbaselines.algorithms.dagger import GOAL_CONDITIONED_PARAMS \
+    as IMITATION_GOAL_CONDITIONED_PARAMS
 
 
 class TestTrain(unittest.TestCase):
     """A simple test to get Travis running."""
+
+    def test_parse_imitation_options(self):
+        # Test the default case.
+        args = parse_imitation_options("", "", args=["AntMaze"])
+        expected_args = {
+            'aggr_update_freq': 5000,
+            'aggr_update_steps': 5000,
+            'batch_size': IMITATION_FEEDFORWARD_PARAMS['batch_size'],
+            'buffer_size': IMITATION_FEEDFORWARD_PARAMS['buffer_size'],
+            'env_name': 'AntMaze',
+            'expert': None,
+            'initial_sample_steps': 10000,
+            'intrinsic_reward_scale': IMITATION_GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'layer_norm': False,
+            'learning_rate': IMITATION_FEEDFORWARD_PARAMS['learning_rate'],
+            'log_interval': 2000,
+            'meta_period': IMITATION_GOAL_CONDITIONED_PARAMS['meta_period'],
+            'n_training': 1,
+            'nb_rollout_steps': 1,
+            'nb_train_steps': 1,
+            'num_levels': IMITATION_GOAL_CONDITIONED_PARAMS['num_levels'],
+            'relative_goals': False,
+            'render': False,
+            'save_interval': 50000,
+            'seed': 1,
+            'stochastic': False,
+            'total_steps': 1000000,
+            'use_huber': False,
+            'verbose': 2
+        }
+        self.assertDictEqual(vars(args), expected_args)
+
+        # Test custom cases.
+        args = parse_imitation_options("", "", args=[
+            "AntMaze",
+            '--aggr_update_freq', '1',
+            '--aggr_update_steps', '2',
+            '--batch_size', '3',
+            '--buffer_size', '4',
+            '--expert', '5',
+            '--initial_sample_steps', '6',
+            '--intrinsic_reward_scale', '7',
+            '--layer_norm',
+            '--learning_rate', '8',
+            '--log_interval', '9',
+            '--meta_period', '10',
+            '--n_training', '11',
+            '--nb_rollout_steps', '12',
+            '--nb_train_steps', '13',
+            '--num_levels', '14',
+            '--relative_goals',
+            '--render',
+            '--save_interval', '15',
+            '--seed', '16',
+            '--stochastic',
+            '--total_steps', '17',
+            '--use_huber',
+            '--verbose', '18'
+        ])
+        hp = get_imitation_hyperparameters(args, None)
+        expected_hp = {
+            'render': True,
+            'expert': '5',
+            'nb_train_steps': 13,
+            'nb_rollout_steps': 12,
+            'aggr_update_freq': 1,
+            'aggr_update_steps': 2,
+            'verbose': 18,
+            'policy_kwargs': {
+                'buffer_size': 4,
+                'batch_size': 3,
+                'learning_rate': 8.0,
+                'layer_norm': True,
+                'use_huber': True,
+                'stochastic': True
+            }
+        }
+        self.assertDictEqual(hp, expected_hp)
 
     def test_parse_options(self):
         # Test the default case.

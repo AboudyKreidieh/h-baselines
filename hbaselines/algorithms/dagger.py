@@ -10,7 +10,7 @@ import time
 import csv
 from copy import deepcopy
 
-from hbaselines.algorithms.utils import is_feedforward_policy
+from hbaselines.fcnet.imitation import FeedForwardPolicy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
@@ -171,9 +171,9 @@ class DAggerAlgorithm(object):
         self.policy_kwargs = {'verbose': verbose}
 
         # add the default policy kwargs to the policy_kwargs term
-        if is_feedforward_policy(policy):
+        if policy == FeedForwardPolicy:
             self.policy_kwargs.update(FEEDFORWARD_PARAMS.copy())
-        elif is_goal_conditioned_policy(policy):
+        elif is_goal_conditioned_policy(policy):  # FIXME
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
 
@@ -231,10 +231,9 @@ class DAggerAlgorithm(object):
             # Create the tensorboard summary.
             self.summary = tf.compat.v1.summary.merge_all()
 
-            # Initialize the model parameters and optimizers.
+            # Initialize the model parameters.
             with self.sess.as_default():
                 self.sess.run(tf.compat.v1.global_variables_initializer())
-                self.policy_tf.initialize()
 
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
@@ -411,16 +410,16 @@ class DAggerAlgorithm(object):
             the action by the expert
         """
         # Get the predicted action.
-        predicted_action = self.policy_tf.get_action(obs, context)
+        predicted_action = self.policy_tf.get_action([obs], context)
 
         # Get the expert action.
         if context is not None:
-            obs = np.concatenate((obs, context), axis=1)
+            obs = np.concatenate((obs, context), axis=0)
         expert_action = self.env.query_expert(obs)
 
         # Flatten the actions.
         predicted_action = predicted_action.flatten()
-        expert_action = expert_action.flatten()
+        expert_action = np.asarray(expert_action).flatten()
 
         return predicted_action, expert_action
 

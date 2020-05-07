@@ -63,8 +63,9 @@ class AVImitationEnv(AVEnv):
                 car_following_params=SumoCarFollowingParams(min_gap=0.5),
                 **params)
 
-            # Compute the expert action.
-            expert_actions.append(self._expert_models[veh_id].get_action(self))
+            # Compute the expert action. None values are defaulted to 0.
+            action = self._expert_models[veh_id].get_action(self) or 0
+            expert_actions.append(action)
 
         return expert_actions
 
@@ -111,8 +112,9 @@ class AVClosedImitationEnv(AVClosedEnv):
                 car_following_params=SumoCarFollowingParams(min_gap=0.5),
                 **params)
 
-            # Compute the expert action.
-            expert_actions.append(self._expert_models[veh_id].get_action(self))
+            # Compute the expert action. None values are defaulted to 0.
+            action = self._expert_models[veh_id].get_action(self) or 0
+            expert_actions.append(action)
 
         return expert_actions
 
@@ -151,7 +153,8 @@ class AVOpenImitationEnv(AVOpenEnv):
         del obs  # unused
 
         # Remove experts that are no longer in the environment.
-        for veh_id in self._expert_models.keys():
+        current_rl_ids = list(self._expert_models.keys())
+        for veh_id in current_rl_ids:
             if veh_id not in self.rl_ids():
                 del self._expert_models[veh_id]
 
@@ -164,8 +167,9 @@ class AVOpenImitationEnv(AVOpenEnv):
                 car_following_params=SumoCarFollowingParams(min_gap=0.5),
                 **params)
 
-            # Compute the expert action.
-            expert_actions.append(self._expert_models[veh_id].get_action(self))
+            # Compute the expert action. None values are defaulted to 0.
+            action = self._expert_models[veh_id].get_action(self) or 0
+            expert_actions.append(action)
 
         # Pad the actions for the non-existent vehicles with zeroes.
         for _ in range(self.action_space.shape[0] - len(expert_actions)):
