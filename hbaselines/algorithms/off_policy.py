@@ -363,6 +363,7 @@ class OffPolicyRLAlgorithm(object):
         elif is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
+            self.policy_kwargs['num_cpus'] = num_cpus
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = getattr(
@@ -421,7 +422,7 @@ class OffPolicyRLAlgorithm(object):
                 (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
-            self.observation_space = Box(low=low, high=high, dtype=np.float32)
+            self.observation_space = Box(low, high, dtype=np.float32)
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -926,7 +927,8 @@ class OffPolicyRLAlgorithm(object):
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
         if is_goal_conditioned_policy(self.policy):
-            self.policy_tf.clear_memory()
+            for env_num in range(self.num_cpus):
+                self.policy_tf.clear_memory(env_num)
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.

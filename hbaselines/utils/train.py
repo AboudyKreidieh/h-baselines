@@ -165,6 +165,12 @@ def create_algorithm_parser(parser):
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
     parser.add_argument(
+        '--num_cpus', type=int, default=1,
+        help='number of CPUs used to run simulations in parallel. Each CPU is '
+             'used to generate a separate environment and run the policy on '
+             'said environments in parallel. Must be less than or equal to '
+             'nb_rollout_steps.')
+    parser.add_argument(
         '--verbose', type=int, default=2,
         help='the verbosity level: 0 none, 1 training information, '
              '2 tensorflow debug')
