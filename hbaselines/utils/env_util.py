@@ -219,8 +219,8 @@ ENV_ATTRIBUTES = {
 
     "ring": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
+            low=-10 if relative_goals else 0,
+            high=10 if relative_goals else 30,
             shape=(5,),
             dtype=np.float32
         ),
@@ -425,12 +425,12 @@ ENV_ATTRIBUTES = {
 
     "highway-single": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
-            shape=(5,),
+            low=-10 if relative_goals else 0,
+            high=10 if relative_goals else 30,
+            shape=(10,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(5)],
+        "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway_single(
                 multiagent=multiagent,
