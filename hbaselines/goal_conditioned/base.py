@@ -571,7 +571,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
             # Compute the current state goals to add to the final observation.
             for i in range(self.num_levels - 1):
-                self._actions[i].append(self.goal_transition_fn(
+                self._actions[env_num][i].append(self.goal_transition_fn(
                     obs0=obs0[self.goal_indices],
                     goal=self._meta_action[env_num][i],
                     obs1=obs1[self.goal_indices]
@@ -596,16 +596,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         self._get_obs(self._observations[env_num][i],
                                       self._actions[env_num][0][i], 0)
                         for i in range(len(self._observations[env_num]))]
-                    intrinsic_rewards = self._rewards[-1]
+                    intrinsic_rewards = self._rewards[env_num][-1]
 
                     # Implement hindsight action and goal transitions.
                     goal, rewards = self._hindsight_actions_goals(
                         initial_observations=worker_obses,
                         initial_rewards=intrinsic_rewards
                     )
-                    new_actions = deepcopy(self._actions)
+                    new_actions = deepcopy(self._actions[env_num])
                     new_actions[0] = goal
-                    new_rewards = deepcopy(self._rewards)
+                    new_rewards = deepcopy(self._rewards[env_num])
                     new_rewards[-1] = rewards
 
                     # Store the hindsight sample in the replay buffer.

@@ -13,7 +13,6 @@ EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --meta_period 10'
 
 def run_exp(env,
             policy,
-            num_cpus,
             hp,
             steps,
             dir_name,
@@ -31,9 +30,6 @@ def run_exp(env,
         the training/testing environment
     policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the policy class to use
-    num_cpus : int
-        number of CPUs used to run simulations. Each CPU is used to generate an
-        environment and run the policy on said environments in parallel.
     hp : dict
         additional algorithm hyper-parameters
     steps : int
@@ -62,7 +58,6 @@ def run_exp(env,
         policy=policy,
         env=env,
         eval_env=eval_env,
-        num_cpus=num_cpus,
         **hp
     )
 
@@ -117,7 +112,6 @@ def main(args, base_dir):
         run_exp(
             env=args.env_name,
             policy=GoalConditionedPolicy,
-            num_cpus=args.num_cpus,
             hp=hp,
             steps=args.total_steps,
             dir_name=dir_name,

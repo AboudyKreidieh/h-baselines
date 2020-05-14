@@ -21,6 +21,7 @@ def get_hyperparameters(args, policy):
         "render": args.render,
         "render_eval": args.render_eval,
         "verbose": args.verbose,
+        "num_cpus": args.num_cpus,
         "_init_setup_model": True,
     }
 
