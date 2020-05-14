@@ -636,7 +636,12 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
+def create_env(env,
+               render=False,
+               shared=False,
+               maddpg=False,
+               env_num=0,
+               evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -651,6 +656,9 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     maddpg : bool
         whether to use an environment variant that is compatible with the
         MADDPG algorithm
+    env_num : int
+        the environment number. Used to handle environment generation in gym
+        when multiple environments are being used.
     evaluate : bool
         specifies whether this is a training or evaluation environment
 
@@ -679,7 +687,7 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
             flow_params = benchmark.flow_params
 
             # Get the env name and a creator for the environment.
-            creator, _ = make_create_env(flow_params, version=0, render=render)
+            creator, _ = make_create_env(flow_params, env_num, render=render)
 
             # Create the environment.
             env = creator()

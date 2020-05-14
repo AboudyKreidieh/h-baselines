@@ -758,7 +758,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.sess.run(self.target_init_updates)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, is_final_step, evaluate=False):
+                         done, is_final_step, env_num=0, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.

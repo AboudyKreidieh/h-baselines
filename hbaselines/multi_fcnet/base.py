@@ -305,6 +305,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                          is_final_step,
                          all_obs0=None,
                          all_obs1=None,
+                         env_num=0,
                          evaluate=False):
         """Store a transition in the replay buffer.
 
@@ -334,6 +335,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             the last full-state observation
         all_obs1 : array_like
             the current full-state observation
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
