@@ -166,6 +166,9 @@ follows:
 * **reward_scale** (float) : the value the reward should be scaled by
 * **render** (bool) : enable rendering of the training environment
 * **render_eval** (bool) : enable rendering of the evaluation environment
+* **num_cpus** (int) : number of CPUs used to run simulations in parallel. Each
+  CPU is used to generate a separate environment and run the policy on said 
+  environments in parallel. Must be less than or equal to nb_rollout_steps.
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
