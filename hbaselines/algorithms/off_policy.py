@@ -11,13 +11,14 @@ environments and hierarchical policies.
 """
 import os
 import time
-from collections import deque
 import csv
 import random
-from copy import deepcopy
-from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
+import math
+from collections import deque
+from copy import deepcopy
+from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
@@ -208,13 +209,13 @@ class OffPolicyRLAlgorithm(object):
         the current tensorflow session
     summary : tf.Summary
         tensorboard summary object
-    obs : array_like or dict < str, array_like >
+    obs : list of array_like or list of dict < str, array_like >
         the most recent training observation. If you are using a multi-agent
         environment, this will be a dictionary of observations for each agent,
-        indexed by the agent ID.
-    all_obs : array_like or None
+        indexed by the agent ID. One element for each environment.
+    all_obs : list of array_like or list of None
         additional information, used by MADDPG variants of the multi-agent
-        policy to pass full-state information
+        policy to pass full-state information. One element for each environment
     episode_step : list of int
         the number of steps since the most recent rollout began. One for each
         environment.
@@ -397,8 +398,8 @@ class OffPolicyRLAlgorithm(object):
         self.policy_tf = None
         self.sess = None
         self.summary = None
-        self.obs = None
-        self.all_obs = None
+        self.obs = [None for _ in range(num_cpus)]
+        self.all_obs = [None for _ in range(num_cpus)]
         self.episode_step = [0 for _ in range(num_cpus)]
         self.episodes = 0
         self.total_steps = 0
@@ -466,7 +467,12 @@ class OffPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, context, apply_noise=True, random_actions=False):
+    def _policy(self,
+                obs,
+                context,
+                apply_noise=True,
+                random_actions=False,
+                env_num=0):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -482,6 +488,9 @@ class OffPolicyRLAlgorithm(object):
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
 
         Returns
         -------
@@ -506,7 +515,8 @@ class OffPolicyRLAlgorithm(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions
+            random_actions=random_actions,
+            env_num=env_num,
         )
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
@@ -642,17 +652,19 @@ class OffPolicyRLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
-            obs = self.env[0].reset()
-            self.obs, self.all_obs = self._get_obs(obs)
+            for i in range(self.num_cpus):
+                obs = self.env[i].reset()
+                self.obs[i], self.all_obs[i] = self._get_obs(obs)
 
-            # Add the fingerprint term, if needed.
-            self.obs = self._add_fingerprint(
-                self.obs, self.total_steps, total_timesteps)
+                # Add the fingerprint term, if needed.
+                self.obs[i] = self._add_fingerprint(
+                    self.obs[i], self.total_steps, total_timesteps)
 
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            for _ in range(initial_exploration_steps):
-                self._collect_sample(total_timesteps, random_actions=True)
+            self._collect_samples(total_timesteps,
+                                  run_steps=initial_exploration_steps,
+                                  random_actions=True)
             print("Done!")
 
             # Reset total statistics variables.
@@ -673,8 +685,7 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
-                    for _ in range(self.nb_rollout_steps):
-                        self._collect_sample(total_timesteps)
+                    self._collect_samples(total_timesteps)
 
                     # Train.
                     self._train()
@@ -750,16 +761,49 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
+    def _collect_samples(self,
+                         total_timesteps,
+                         run_steps=None,
+                         random_actions=False):
+        """Perform the sample collection operation over multiple steps.
+
+        This method calls _collect_samples for a multiple steps, and attempts
+        to run the operation in parallel if multiple CPUs/environments are
+        available.
+
+        Parameters
+        ----------
+        total_timesteps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
+        run_steps : int, optional
+            number of steps to collect samples from. If not provided, the value
+            defaults to `self.nb_rollout_steps`.
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
+        """
+        run_steps = run_steps or self.nb_rollout_steps
+        n_itr = math.ceil(run_steps / self.num_cpus)
+        for itr in range(n_itr):
+            n_steps = self.num_cpus if itr < n_itr - 1 \
+                else run_steps - n_itr * (self.num_cpus - 1)
+            _ = [self._collect_sample(total_timesteps,
+                                      env_num=env_num,
+                                      random_actions=random_actions)
+                 for env_num in range(n_steps)]
+
     def _collect_sample(self,
                         total_timesteps,
                         env_num=0,
                         random_actions=False):
-        """Perform the sample collection operation.
+        """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
-        environment. This is perform a number of times in the learn method
-        before training is executed. The data from the rollouts is stored in
-        the policy's replay buffer(s).
+        environment. This is perform a number of times in the _collect_samples
+        method before training is executed. The data from the rollouts is
+        stored in the policy's replay buffer(s).
 
         Parameters
         ----------
@@ -785,6 +829,7 @@ class OffPolicyRLAlgorithm(object):
             context=context,
             apply_noise=True,
             random_actions=random_actions,
+            env_num=env_num,
         )
 
         # Execute next action.
@@ -832,8 +877,8 @@ class OffPolicyRLAlgorithm(object):
         self.total_steps += 1
         self.episode_step[env_num] += 1
         if isinstance(reward, dict):
-            self.episode_reward[env_num] += sum(reward[k]
-                                                for k in reward.keys())
+            self.episode_reward[env_num] += sum(
+                reward[k] for k in reward.keys())
         else:
             self.episode_reward[env_num] += reward
 
@@ -950,9 +995,11 @@ class OffPolicyRLAlgorithm(object):
                     if hasattr(env, "current_context") else None
 
                 eval_action = self._policy(
-                    eval_obs, context,
+                    obs=eval_obs,
+                    context=context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
+                    env_num=0,
                 )
 
                 obs, eval_r, done, info = env.step(eval_action)

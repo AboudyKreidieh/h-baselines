@@ -577,7 +577,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def get_action(self, obs, context, apply_noise, random_actions):
+    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)

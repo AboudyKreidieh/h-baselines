@@ -262,7 +262,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         else:
             return self._update_basic(update_actor, **kwargs)
 
-    def get_action(self, obs, context, apply_noise, random_actions):
+    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """Call the actor methods to compute policy actions.
 
         Parameters
@@ -280,6 +280,9 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
 
         Returns
         -------
