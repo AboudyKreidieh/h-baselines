@@ -175,7 +175,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
                 "penalty": 1,
                 "inflows": None,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 5,
+                "num_rl": 10,
                 "control_range": [500, 2500],
                 "expert_model": (IDMController, {
                     'a': 1.3,
