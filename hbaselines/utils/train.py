@@ -34,12 +34,23 @@ def get_hyperparameters(args, policy):
         "gamma": args.gamma,
         "layer_norm": args.layer_norm,
         "use_huber": args.use_huber,
-        "ignore_flat_channels": args.ignore_flat_channels,
+        "ignore_flat_channels": args.ignore_flat_channels
+        if args.ignore_flat_channels is not None
+        else FEEDFORWARD_PARAMS["ignore_flat_channels"],
         "includes_image": args.includes_image,
         "ignore_image": args.ignore_image,
         "image_height": args.image_height,
         "image_width": args.image_width,
         "image_channels": args.image_channels,
+        "filters": args.filters
+        if args.filters is not None
+        else FEEDFORWARD_PARAMS["filters"],
+        "kernel_sizes": args.kernel_sizes
+        if args.kernel_sizes is not None
+        else FEEDFORWARD_PARAMS["kernel_sizes"],
+        "strides": args.strides
+        if args.strides is not None
+        else FEEDFORWARD_PARAMS["strides"],
     }
 
     # add TD3 parameters
@@ -297,6 +308,21 @@ def create_feedforward_parser(parser):
         type=int,
         default=FEEDFORWARD_PARAMS["image_channels"],
         help="the number of channels of the image observation")
+    parser.add_argument(
+        "--filters",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional filters per layer")
+    parser.add_argument(
+        "--kernel_sizes",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional kernel sizes per layer")
+    parser.add_argument(
+        "--strides",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional strides per layer")
 
     return parser
 
