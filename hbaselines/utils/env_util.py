@@ -88,28 +88,28 @@ ENV_ATTRIBUTES = {
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [64*64*3 + i for i in range(15)],
+        "state_indices": [32*32*3 + i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[16, 0],
-                image_size=64,
+                image_size=32,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[16, 16],
-                image_size=64,
+                image_size=32,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[0, 16],
-                image_size=64,
+                image_size=32,
             )
         ] if evaluate else ImageAntMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)],
-            image_size=64,
+            image_size=32,
         ),
     },
 

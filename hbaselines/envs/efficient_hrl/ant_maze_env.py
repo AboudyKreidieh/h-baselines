@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ET
 import math
 import numpy as np
 import gym
+import cv2
 
 from hbaselines.envs.efficient_hrl import maze_env_utils
 from hbaselines.envs.efficient_hrl.ant import AntEnv
@@ -176,7 +177,8 @@ class AntMazeEnv(gym.Env):
                         material="",
                         contype="1",
                         conaffinity="1",
-                        rgba="0.4 0.4 0.4 1",
+                        rgba="{} {} 0.4 1".format(i / len(structure),
+                                                  j / len(structure[0])),
                     )
                 elif maze_env_utils.can_move(struct):  # Movable block.
                     # The "falling" blocks are shrunk slightly and increased in
@@ -601,6 +603,7 @@ class AntMazeEnv(gym.Env):
         dict
             extra information dictionary
         """
+        self.wrapped_env.update_cam()
         self.t += 1
         if self._manual_collision:
             old_pos = self.wrapped_env.get_xy()

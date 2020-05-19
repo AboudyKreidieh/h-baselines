@@ -95,17 +95,17 @@ FEEDFORWARD_PARAMS = dict(
     # observation includes an image but should it be ignored
     ignore_image=False,
     # the height of the image in the observation
-    image_height=64,
+    image_height=32,
     # the width of the image in the observation
-    image_width=64,
+    image_width=32,
     # the number of channels of the image in the observation
     image_channels=3,
     # the channels of the neural network conv layers for the policy
     filters=[16, 16, 16],
     # the kernel size of the neural network conv layers for the policy
-    kernel_sizes=[6, 4, 4],
+    kernel_sizes=[5, 5, 5],
     # the kernel size of the neural network conv layers for the policy
-    strides=[3, 2, 2],
+    strides=[2, 2, 2],
 )
 
 
