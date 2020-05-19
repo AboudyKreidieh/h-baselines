@@ -1,6 +1,7 @@
 """Script containing the HierReplayBuffer object."""
 import random
 import numpy as np
+import pickle as pkl
 
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 
@@ -65,6 +66,53 @@ class HierReplayBuffer(ReplayBuffer):
             batch_size, dtype=np.float32)
         self.worker_done = np.zeros(
             batch_size, dtype=np.float32)
+
+    def save(self, save_path):
+        """Save parameters for the replay buffer"""
+        with open(save_path + ".storage.pkl", "wb") as f:
+            pkl.dump(self._storage, f)
+        np.save(save_path + '.meta_obs0.npy', self.meta_obs0)
+        np.save(save_path + '.meta_obs1.npy', self.meta_obs1)
+        np.save(save_path + '.meta_act.npy', self.meta_act)
+        np.save(save_path + '.meta_rew.npy', self.meta_rew)
+        np.save(save_path + '.meta_done.npy', self.meta_done)
+        np.save(save_path + '.worker_obs0.npy', self.worker_obs0)
+        np.save(save_path + '.worker_obs1.npy', self.worker_obs1)
+        np.save(save_path + '.worker_act.npy', self.worker_act)
+        np.save(save_path + '.worker_rew.npy', self.worker_rew)
+        np.save(save_path + '.worker_done.npy', self.worker_done)
+        np.save(save_path + '.config.npy', np.array([
+            self._maxsize,
+            self._size,
+            self._current_idx,
+            self._next_idx,
+            self._batch_size,
+            self._meta_period,
+            self._worker_ob_dim,
+            self._worker_ac_dim]))
+
+    def load(self, save_path):
+        """Load parameters for the replay buffer"""
+        with open(save_path + ".storage.pkl", "rb") as f:
+            self._storage = pkl.load(f)
+        self.meta_obs0 = np.load(save_path + '.meta_obs0.npy')
+        self.meta_obs1 = np.load(save_path + '.meta_obs1.npy')
+        self.meta_act = np.load(save_path + '.meta_act.npy')
+        self.meta_rew = np.load(save_path + '.meta_rew.npy')
+        self.meta_done = np.load(save_path + '.meta_done.npy')
+        self.worker_obs0 = np.load(save_path + '.worker_obs0.npy')
+        self.worker_obs1 = np.load(save_path + '.worker_obs1.npy')
+        self.worker_act = np.load(save_path + '.worker_act.npy')
+        self.worker_rew = np.load(save_path + '.worker_rew.npy')
+        self.worker_done = np.load(save_path + '.worker_done.npy')
+        (self._maxsize,
+         self._size,
+         self._current_idx,
+         self._next_idx,
+         self._batch_size,
+         self._meta_period,
+         self._worker_ob_dim,
+         self._worker_ac_dim) = np.load(save_path + '.config.npy')
 
     def add(self, obs_t, goal_t, action_t, reward_t, done, **kwargs):
         """Add a new transition to the buffer.

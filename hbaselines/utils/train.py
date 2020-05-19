@@ -146,6 +146,10 @@ def parse_options(description, example_usage, args):
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
+    parser.add_argument(
+        '--dir_name', type=str, default='',
+        help='an optional directory to save the current experiment '
+             'to or load an existing one from')
 
     # algorithm-specific hyperparameters
     parser = create_algorithm_parser(parser)

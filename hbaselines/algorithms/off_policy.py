@@ -18,7 +18,7 @@ from copy import deepcopy
 from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
-import pickle as pkl
+
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
@@ -611,6 +611,16 @@ class OffPolicyRLAlgorithm(object):
         ensure_dir(log_dir)
         ensure_dir(os.path.join(log_dir, "checkpoints"))
 
+        # reload the model if one exists
+        filenames = os.listdir(os.path.join(log_dir, "checkpoints"))
+        if len(filenames) > 0:
+            metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
+            metanum = [int(f.split("-")[-1]) for f in metafiles]
+            ckpt_num = max(metanum)
+            ckpt = os.path.join(log_dir, "checkpoints/itr-{}".format(ckpt_num))
+            self.load(ckpt)
+            self.total_steps += ckpt_num
+
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
         writer = tf.compat.v1.summary.FileWriter(save_path)
@@ -642,11 +652,12 @@ class OffPolicyRLAlgorithm(object):
                 self.obs, self.total_steps, total_timesteps)
 
             # Collect preliminary random samples.
-            print("Collecting initial exploration samples...")
-            self._collect_samples(total_timesteps,
-                                  run_steps=initial_exploration_steps,
-                                  random_actions=True)
-            print("Done!")
+            if len(filenames) == 0:
+                print("Collecting initial exploration samples...")
+                self._collect_samples(total_timesteps,
+                                      run_steps=initial_exploration_steps,
+                                      random_actions=True)
+                print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0
@@ -666,12 +677,15 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
+                    print("Perform rollouts.")
                     self._collect_samples(total_timesteps)
 
                     # Train.
+                    print("Perform Train.")
                     self._train()
 
                 # Log statistics.
+                print("Perform Log.")
                 self._log_training(train_filepath, start_time)
 
                 # Evaluate.
@@ -701,6 +715,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
+                    print("saving summaries")
                     td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
@@ -716,6 +731,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Save a checkpoint of the model.
                 if (self.total_steps - save_steps_incr) >= save_interval:
+                    print("saving model")
                     save_steps_incr += save_interval
                     self.save(os.path.join(log_dir, "checkpoints/itr"))
 
@@ -733,9 +749,8 @@ class OffPolicyRLAlgorithm(object):
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
         # add the capability to save replay buffers
-        with tf.io.gfile.GFile(
-                save_path + "-{}.rb".format(self.total_steps), "wb") as f:
-            pkl.dump(self.policy_tf.replay_buffer, f)
+        self.policy_tf.replay_buffer.save(
+            save_path + "-{}.rb".format(self.total_steps))
 
     def load(self, load_path):
         """Load model parameters from a checkpoint.
@@ -748,8 +763,7 @@ class OffPolicyRLAlgorithm(object):
         self.saver.restore(self.sess, load_path)
 
         # add the capability to load pre existing replay buffers
-        with tf.io.gfile.GFile(load_path + ".rb", "rb") as f:
-            self.policy_tf.replay_buffer = pkl.load(f)
+        self.policy_tf.replay_buffer.load(load_path + ".rb")
 
     def _collect_samples(self,
                          total_timesteps,
