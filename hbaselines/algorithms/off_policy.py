@@ -733,7 +733,8 @@ class OffPolicyRLAlgorithm(object):
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
         # add the capability to save replay buffers
-        with tf.io.gfile.GFile(save_path + ".rb", "wb") as f:
+        with tf.io.gfile.GFile(
+                save_path + "-{}.rb".format(self.total_steps), "wb") as f:
             pkl.dump(self.policy_tf.replay_buffer, f)
 
     def load(self, load_path):
