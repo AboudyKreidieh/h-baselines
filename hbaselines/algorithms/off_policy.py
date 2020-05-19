@@ -677,15 +677,12 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
-                    print("Perform rollouts.")
                     self._collect_samples(total_timesteps)
 
                     # Train.
-                    print("Perform Train.")
                     self._train()
 
                 # Log statistics.
-                print("Perform Log.")
                 self._log_training(train_filepath, start_time)
 
                 # Evaluate.
@@ -715,7 +712,6 @@ class OffPolicyRLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
-                    print("saving summaries")
                     td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
@@ -731,7 +727,6 @@ class OffPolicyRLAlgorithm(object):
 
                 # Save a checkpoint of the model.
                 if (self.total_steps - save_steps_incr) >= save_interval:
-                    print("saving model")
                     save_steps_incr += save_interval
                     self.save(os.path.join(log_dir, "checkpoints/itr"))
 
