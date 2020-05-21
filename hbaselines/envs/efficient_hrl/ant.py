@@ -163,9 +163,9 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def update_cam(self):
         x, y = self.get_xy()
-        self.viewer.cam.azimuth = self.get_ori()
-        self.viewer.cam.distance = 0
-        self.viewer.cam.elevation = 0
+        self.viewer.cam.azimuth = 0
+        self.viewer.cam.distance = 15.
+        self.viewer.cam.elevation = -90
         self.viewer.cam.lookat[0] = x
         self.viewer.cam.lookat[1] = y
 
