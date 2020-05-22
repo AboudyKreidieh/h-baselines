@@ -132,8 +132,7 @@ class AVEnv(Env):
         return Box(
             low=-abs(self.env_params.additional_params['max_decel']),
             high=self.env_params.additional_params['max_accel'],
-            shape=(self.num_rl,),
-            dtype=np.float32)
+            shape=(self.num_rl,))
 
     @property
     def observation_space(self):
@@ -145,8 +144,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(self.num_rl * (1 + 4 * max_lanes),),
-            dtype=np.float32)
+            shape=(self.num_rl * (1 + 4 * max_lanes),))
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""

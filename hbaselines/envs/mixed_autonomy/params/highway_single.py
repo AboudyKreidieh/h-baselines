@@ -95,7 +95,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
     vehicles.add(
         "human",
         num_vehicles=0,
-        acceleration_controller=(IDMController, {
+        acceleration_controller=(IDMController {
             'a': 1.3,
             'b': 2.0,
             'noise': 0.3 if INCLUDE_NOISE else 0.0
@@ -168,8 +168,8 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
             warmup_steps=500,
             sims_per_step=3,
             additional_params={
-                "max_accel": 1,
-                "max_decel": 1,
+                "max_accel": 0.5,
+                "max_decel": 0.5,
                 "target_velocity": 10,
                 "penalty_type": "acceleration",
                 "penalty": 1,

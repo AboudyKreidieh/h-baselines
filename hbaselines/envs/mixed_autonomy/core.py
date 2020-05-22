@@ -133,7 +133,6 @@ class FlowEnv(gym.Env):
                 low=-float("inf"),
                 high=float("inf"),
                 shape=self.full_observation_fn(self.wrapped_env).shape,
-                dtype=np.float32,
             )
 
     def render(self, mode='human'):

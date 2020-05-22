@@ -26,11 +26,11 @@ class ReplayBuffer(object):
         self._next_idx = 0
         self._batch_size = batch_size
 
-        self.obs_t = np.zeros((buffer_size, obs_dim), dtype=np.float32)
-        self.action_t = np.zeros((buffer_size, ac_dim), dtype=np.float32)
-        self.reward = np.zeros(buffer_size, dtype=np.float32)
-        self.obs_tp1 = np.zeros((buffer_size, obs_dim), dtype=np.float32)
-        self.done = np.zeros(buffer_size, dtype=np.float32)
+        self.obs_t = np.zeros((buffer_size, obs_dim))
+        self.action_t = np.zeros((buffer_size, ac_dim))
+        self.reward = np.zeros(buffer_size)
+        self.obs_tp1 = np.zeros((buffer_size, obs_dim))
+        self.done = np.zeros(buffer_size)
 
     def __len__(self):
         """Return the number of elements stored."""

@@ -249,12 +249,10 @@ class Environment(gym.Env):
                     context_low.append(low)
                     context_high.append(high)
                 return Box(low=np.asarray(context_low),
-                           high=np.asarray(context_high),
-                           dtype=np.float32)
+                           high=np.asarray(context_high))
             else:
                 return Box(low=np.asarray(self.context_range),
-                           high=np.asarray(self.context_range),
-                           dtype=np.float32)
+                           high=np.asarray(self.context_range))
         else:
             return None
 
