@@ -29,7 +29,7 @@ TRAFFIC_FLOW = 2215
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 0.1
+PENETRATION_RATE = 1/12
 # whether to include noise in the environment
 INCLUDE_NOISE = True
 
@@ -165,18 +165,18 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=625,
+            warmup_steps=500,
             sims_per_step=3,
             additional_params={
                 "max_accel": 1,
                 "max_decel": 1,
-                "target_velocity": 30,
-                "penalty_type": "time_headway",
+                "target_velocity": 10,
+                "penalty_type": "acceleration",
                 "penalty": 1,
                 "inflows": None,
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
-                "control_range": [500, 2500],
+                "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     'a': 1.3,
                     'b': 2.0,
