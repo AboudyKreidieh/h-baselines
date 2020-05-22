@@ -666,6 +666,9 @@ def create_env(env,
     -------
     gym.Env or list of gym.Env
         gym-compatible environment(s)
+    array_like or list of array_like or None
+        the observation(s) from the environment(s) upon reset. Set to None if
+        no environment is being returned.
     """
     if env is None:
         # No environment (for evaluation environments).
@@ -698,9 +701,10 @@ def create_env(env,
     # Reset the environment.
     if env is not None:
         if isinstance(env, list):
-            for next_env in env:
-                next_env.reset()
+            obs = [next_env.reset() for next_env in env]
         else:
-            env.reset()
+            obs = env.reset()
+    else:
+        obs = None
 
-    return env
+    return env, obs

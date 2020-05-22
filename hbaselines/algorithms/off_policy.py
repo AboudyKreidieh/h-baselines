@@ -9,6 +9,7 @@ Supported algorithms through this class:
 This algorithm class also contains modifications to support contextual
 environments and hierarchical policies.
 """
+import ray
 import os
 import time
 import csv
@@ -24,6 +25,8 @@ from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
+from hbaselines.algorithms.utils import add_fingerprint
+from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -187,13 +190,6 @@ class OffPolicyRLAlgorithm(object):
         in parallel. Must be less than or equal to nb_rollout_steps.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    action_space : gym.spaces.*
-        the action space of the training environment
-    observation_space : gym.spaces.*
-        the observation space of the training environment
-    context_space : gym.spaces.*
-        the context space of the training environment (i.e. the same of the
-        desired environmental goal)
     policy_kwargs : dict
         policy-specific hyperparameters
     horizon : int
@@ -334,13 +330,14 @@ class OffPolicyRLAlgorithm(object):
         assert num_cpus <= nb_rollout_steps, \
             "num_cpus must be less than or equal to nb_rollout_steps"
 
+        # Instantiate the ray instance.
+        if num_cpus > 1:
+            ray.init(num_cpus=num_cpus)
+
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
-        self.env = [
-            create_env(env, render, shared, maddpg, env_num, evaluate=False)
-            for env_num in range(num_cpus)]
-        self.eval_env = create_env(
+        self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -353,10 +350,16 @@ class OffPolicyRLAlgorithm(object):
         self.eval_deterministic = eval_deterministic
         self.num_cpus = num_cpus
         self.verbose = verbose
-        self.action_space = self.env[0].action_space
-        self.observation_space = self.env[0].observation_space
-        self.context_space = getattr(self.env[0], "context_space", None)
         self.policy_kwargs = {'verbose': verbose}
+
+        # Create the environment and collect the initial observations.
+        env_obs = [
+            create_env(env, render, shared, maddpg, env_num, evaluate=False)
+            for env_num in range(num_cpus)]
+        obs = [get_obs(eo[1]) for eo in env_obs]
+        self.env = [eo[0] for eo in env_obs]
+        self.obs = [ob[0] for ob in obs]  # FIXME: add fingerprint
+        self.all_obs = [ob[1] for ob in obs]
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -398,8 +401,6 @@ class OffPolicyRLAlgorithm(object):
         self.policy_tf = None
         self.sess = None
         self.summary = None
-        self.obs = [None for _ in range(num_cpus)]
-        self.all_obs = [None for _ in range(num_cpus)]
         self.episode_step = [0 for _ in range(num_cpus)]
         self.episodes = 0
         self.total_steps = 0
@@ -439,9 +440,9 @@ class OffPolicyRLAlgorithm(object):
             # Create the policy.
             self.policy_tf = self.policy(
                 self.sess,
-                self.observation_space,
-                self.action_space,
-                self.context_space,
+                self.env[0].observation_space,
+                self.env[0].action_space,
+                context_space=getattr(self.env[0], "context_space", None),
                 **self.policy_kwargs
             )
 
@@ -466,66 +467,6 @@ class OffPolicyRLAlgorithm(object):
 
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
-
-    def _policy(self,
-                obs,
-                context,
-                apply_noise=True,
-                random_actions=False,
-                env_num=0):
-        """Get the actions and critic output, from a given observation.
-
-        Parameters
-        ----------
-        obs : array_like
-            the observation
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        apply_noise : bool
-            enable the noise
-        random_actions : bool
-            if set to True, actions are sampled randomly from the action space
-            instead of being computed by the policy. This is used for
-            exploration purposes.
-        env_num : int
-            the environment number. Used to handle situations when multiple
-            parallel environments are being used.
-
-        Returns
-        -------
-        list of float
-            the action value
-        """
-        # Reshape the observation to match the input structure of the policy.
-        if isinstance(obs, dict):
-            # In multi-agent environments, observations come in dict form
-            for key in obs.keys():
-                # Shared policies with have one observation space, while
-                # independent policies have a different observation space based
-                # on their agent ID.
-                if isinstance(self.observation_space, dict):
-                    ob_shape = self.observation_space[key].shape
-                else:
-                    ob_shape = self.observation_space.shape
-                obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
-        else:
-            obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-
-        action = self.policy_tf.get_action(
-            obs, context,
-            apply_noise=apply_noise,
-            random_actions=random_actions,
-            env_num=env_num,
-        )
-
-        # Flatten the actions. Dictionaries correspond to multi-agent policies.
-        if isinstance(action, dict):
-            action = {key: action[key].flatten() for key in action.keys()}
-        else:
-            action = action.flatten()
-
-        return action
 
     def _store_transition(self,
                           obs0,
@@ -651,15 +592,6 @@ class OffPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            # Prepare everything.
-            for i in range(self.num_cpus):
-                obs = self.env[i].reset()
-                self.obs[i], self.all_obs[i] = self._get_obs(obs)
-
-                # Add the fingerprint term, if needed.
-                self.obs[i] = self._add_fingerprint(
-                    self.obs[i], self.total_steps, total_timesteps)
-
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
             self._collect_samples(total_timesteps,
@@ -762,7 +694,7 @@ class OffPolicyRLAlgorithm(object):
         self.saver.restore(self.sess, load_path)
 
     def _collect_samples(self,
-                         total_timesteps,
+                         total_steps,
                          run_steps=None,
                          random_actions=False):
         """Perform the sample collection operation over multiple steps.
@@ -773,7 +705,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on. Used by the fingerprint
             element
         run_steps : int, optional
@@ -789,15 +721,85 @@ class OffPolicyRLAlgorithm(object):
         for itr in range(n_itr):
             n_steps = self.num_cpus if itr < n_itr - 1 \
                 else run_steps - n_itr * (self.num_cpus - 1)
-            _ = [self._collect_sample(total_timesteps,
-                                      env_num=env_num,
-                                      random_actions=random_actions)
-                 for env_num in range(n_steps)]
+            ret = [
+                self._collect_sample(
+                    env=self.env[env_num],
+                    policy_tf=self.policy_tf,
+                    obs=self.obs[env_num],
+                    env_num=env_num,
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    apply_noise=True,
+                    random_actions=random_actions,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False)
+                )
+                for env_num in range(n_steps)
+            ]
 
-    def _collect_sample(self,
-                        total_timesteps,
-                        env_num=0,
-                        random_actions=False):
+            # Visualize the current step.
+            if self.render:
+                self.env[0].render()  # pragma: no cover
+
+            # Book-keeping.
+            self.total_steps += n_steps
+
+            for ret_i in ret:
+                num = ret_i["env_num"]
+                context = ret_i["context"]
+                action = ret_i["action"]
+                reward = ret_i["reward"]
+                obs = ret_i["obs"]
+                done = ret_i["done"]
+                all_obs = ret_i["all_obs"]
+
+                # Book-keeping.
+                self.episode_step[num] += 1
+                if isinstance(reward, dict):
+                    self.episode_reward[num] += sum(
+                        reward[k] for k in reward.keys())
+                else:
+                    self.episode_reward[num] += reward
+
+                # Store a transition in the replay buffer.
+                self._store_transition(
+                    obs0=self.obs[num],
+                    context0=context,
+                    action=action,
+                    reward=reward,
+                    obs1=obs[0] if done else obs,
+                    context1=context,
+                    terminal1=done,
+                    is_final_step=(self.episode_step[num] >= self.horizon - 1),
+                    all_obs0=self.all_obs[num],
+                    all_obs1=all_obs[0] if done else all_obs,
+                    env_num=num,
+                )
+
+                # Update the current observation.
+                self.obs[num] = (obs[1] if done else obs).copy()
+                self.all_obs[num] = all_obs[1] if done else all_obs
+
+                # Handle episode done.
+                if done:
+                    self.epoch_episode_rewards.append(self.episode_reward[num])
+                    self.episode_rew_history.append(self.episode_reward[num])
+                    self.epoch_episode_steps.append(self.episode_step[num])
+                    self.episode_reward[num] = 0
+                    self.episode_step[num] = 0
+                    self.epoch_episodes += 1
+                    self.episodes += 1
+
+    @staticmethod
+    def _collect_sample(env,
+                        policy_tf,
+                        obs,
+                        env_num,
+                        steps,
+                        total_steps,
+                        apply_noise=False,
+                        random_actions=False,
+                        use_fingerprints=False):
         """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
@@ -807,102 +809,118 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
+        env : gym.Env
+            TODO
+        policy_tf : hbaselines.base_policies.ActorCriticPolicy
+            the policy object
+        obs : array_like
+            the previous observation. Used to compute the action by the policy
         env_num : int
             the environment number. Used to handle situations when multiple
             parallel environments are being used.
+        steps : int
+            the total number of steps that have been executed since training
+            began
+        total_steps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
+        apply_noise : bool
+            whether to add noise to the output of the actor
         random_actions : bool
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
+        use_fingerprints : bool
+            specifies whether to add a time-dependent fingerprint to the
+            observations
+
+        Returns
+        -------
+        dict
+            information from the most recent environment update step,
+            consisting of the following terms:
+
+            * obs : TODO
+            * context : the contextual term from the environment
+            * action : the action performed by the agent(s)
+            * reward : the reward from the most recent step
+            * done : the done mask
+            * env_num : the environment number
+            * all_obs : TODO
         """
         # Collect the contextual term. None if it is not passed.
-        context = [self.env[env_num].current_context] \
-            if hasattr(self.env[env_num], "current_context") else None
+        context = [env.current_context] \
+            if hasattr(env, "current_context") else None
 
-        # Predict next action. Use random actions when initializing the
-        # replay buffer.
-        action = self._policy(
-            obs=self.obs[env_num],
-            context=context,
-            apply_noise=True,
+        # =================================================================== #
+        # Compute next action.                                                #
+        # =================================================================== #
+
+        # Reshape the observation to match the input structure of the policy.
+        if isinstance(obs, dict):
+            # In multi-agent environments, observations come in dict form
+            for key in obs.keys():
+                # Shared policies with have one observation space, while
+                # independent policies have a different observation space based
+                # on their agent ID.
+                if isinstance(env.observation_space, dict):
+                    ob_shape = env.observation_space[key].shape
+                else:
+                    ob_shape = env.observation_space.shape
+                obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
+        else:
+            obs = np.array(obs).reshape((-1,) + env.observation_space.shape)
+
+        action = policy_tf.get_action(
+            obs, context,
+            apply_noise=apply_noise,
             random_actions=random_actions,
             env_num=env_num,
         )
 
-        # Execute next action.
-        new_obs, reward, done, info = self.env[env_num].step(action)
-        new_obs, new_all_obs = self._get_obs(new_obs)
+        # Flatten the actions. Dictionaries correspond to multi-agent policies.
+        if isinstance(action, dict):
+            action = {key: action[key].flatten() for key in action.keys()}
+        else:
+            action = action.flatten()
+
+        # =================================================================== #
+        # Execute next action.                                                #
+        # =================================================================== #
+
+        obs, reward, done, info = env.step(action)
+        obs, all_obs = get_obs(obs)
 
         # Done mask for multi-agent policies is slightly different.
-        if is_multiagent_policy(self.policy):
+        if is_multiagent_policy(policy_tf):
             done = done["__all__"]
 
-        # Visualize the current step.
-        if self.render and env_num == 0:
-            self.env[env_num].render()  # pragma: no cover
-
-        # Add the fingerprint term, if needed. When collecting the initial
-        # random actions, we assume the fingerprint does not change from
-        # its initial value.
-        new_obs = self._add_fingerprint(
-            new_obs,
-            0 if random_actions else self.total_steps,
-            total_timesteps)
-
         # Get the contextual term.
-        context0 = getattr(self.env[env_num], "current_context", None)
-        context1 = context0
+        context = getattr(env, "current_context", None)
 
-        # Store a transition in the replay buffer. The terminal flag is
-        # chosen to match the TD3 implementation (see Appendix 1 of their
-        # paper).
-        self._store_transition(
-            obs0=self.obs[env_num],
-            context0=context0,
-            action=action,
-            reward=reward,
-            obs1=new_obs,
-            context1=context1,
-            terminal1=done,
-            is_final_step=self.episode_step[env_num] >= self.horizon - 1,
-            all_obs0=self.all_obs[env_num],
-            all_obs1=new_all_obs,
-            env_num=env_num,
-        )
-
-        # Book-keeping.
-        self.total_steps += 1
-        self.episode_step[env_num] += 1
-        if isinstance(reward, dict):
-            self.episode_reward[env_num] += sum(
-                reward[k] for k in reward.keys())
-        else:
-            self.episode_reward[env_num] += reward
-
-        # Update the current observation.
-        self.obs[env_num] = new_obs.copy()
-        self.all_obs[env_num] = new_all_obs
+        # Add the fingerprint term to this observation, if needed.
+        obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
 
         if done:
-            # Episode done.
-            self.epoch_episode_rewards.append(self.episode_reward[env_num])
-            self.episode_rew_history.append(self.episode_reward[env_num])
-            self.epoch_episode_steps.append(self.episode_step[env_num])
-            self.episode_reward[env_num] = 0
-            self.episode_step[env_num] = 0
-            self.epoch_episodes += 1
-            self.episodes += 1
-
             # Reset the environment.
-            obs = self.env[env_num].reset()
-            self.obs[env_num], self.all_obs[env_num] = self._get_obs(obs)
+            reset_obs = env.reset()
+            reset_obs, reset_all_obs = get_obs(reset_obs)
 
             # Add the fingerprint term, if needed.
-            self.obs[env_num] = self._add_fingerprint(
-                self.obs[env_num], self.total_steps, total_timesteps)
+            obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
+        else:
+            reset_obs = None
+            reset_all_obs = None
+
+        return {
+            "obs": obs if not done else (obs, reset_obs),
+            "context": context,
+            "action": action,
+            "reward": reward,
+            "done": done,
+            "env_num": env_num,
+            "all_obs": all_obs if not done else (all_obs, reset_all_obs)
+        }
 
     def _train(self):
         """Perform the training operation.
@@ -1094,80 +1112,6 @@ class OffPolicyRLAlgorithm(object):
             self.policy_tf.clear_memory()
 
         return eval_episode_rewards, eval_episode_successes, ret_info
-
-    def _add_fingerprint(self, obs, steps, total_steps):
-        """Add a fingerprint element to the observation.
-
-        This should be done when setting "use_fingerprints" in policy_kwargs to
-        True. The new observation looks as follows:
-
-                  ---------------------------------------------------
-        new_obs = || obs || 5 * frac_steps || 5 * (1 - frac_steps) ||
-                  ---------------------------------------------------
-
-        where frac_steps is the fraction of the total requested number of
-        training steps that have been performed. Note that the "5" term is a
-        fixed hyperparameter, and can be changed based on its effect on
-        training performance.
-
-        If "use_fingerprints" is set to False in policy_kwargs, or simply not
-        specified, this method returns the current observation without the
-        fingerprint term.
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation without the fingerprint element
-        steps : int
-            the total number of steps that have been performed
-
-        Returns
-        -------
-        array_like
-            the observation with the fingerprint element
-        """
-        # if the fingerprint element should not be added, simply return the
-        # current observation.
-        if not self.policy_kwargs.get("use_fingerprints", False):
-            return obs
-
-        # compute the fingerprint term
-        frac_steps = float(steps) / float(total_steps)
-        fp = [5 * frac_steps, 5 * (1 - frac_steps)]
-
-        # append the fingerprint term to the current observation
-        new_obs = np.concatenate((obs, fp), axis=0)
-
-        return new_obs
-
-    @staticmethod
-    def _get_obs(obs):
-        """Get the observation from a (potentially unprocessed) variable.
-
-        We assume multi-agent MADDPG style policies return a dictionary
-        observations, containing the keys "obs" and "all_obs".
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation
-
-        Returns
-        -------
-        array_like
-            the agent-level observation. May be the initial observation
-        array_like or None
-            the full-state observation, if using environments that support
-            MADDPG. Otherwise, this variable is a None value.
-        """
-        if isinstance(obs, dict) and "all_obs" in obs.keys():
-            all_obs = obs["all_obs"]
-            obs = obs["obs"]
-        else:
-            all_obs = None
-            obs = obs
-
-        return obs, all_obs
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.
