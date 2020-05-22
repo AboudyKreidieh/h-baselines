@@ -1,0 +1,38 @@
+from collections import defaultdict
+import tensorflow as tf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import argparse
+import os
+import seaborn as sns; sns.set()
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--files", type=str, nargs="+")
+    parser.add_argument("--names", type=str, nargs="+")
+    parser.add_argument("--out", type=str, default="out.png")
+    parser.add_argument("--y", type=str, default="success_rate")
+    args = parser.parse_args()
+
+    all_results = defaultdict(list)
+    for path, name in zip(args.files, args.names):
+        results = defaultdict(list)
+
+        for filepath in tf.io.gfile.glob(os.path.join(path, "*/eval*.csv")):
+            data = pd.read_csv(filepath)
+            results[os.path.basename(filepath)[:-4]].append(data)
+
+        for key in results.keys():
+            data = pd.concat(results[key])
+            data["name"] = name
+            all_results[key].append(data)
+
+    for key in all_results.keys():
+
+        plt.clf()
+        ax = sns.lineplot(x="total_step", y=args.y, hue="name",
+                          data=pd.concat(all_results[key]))
+        plt.savefig(args.out.replace(".", "_{}.".format(key)))
