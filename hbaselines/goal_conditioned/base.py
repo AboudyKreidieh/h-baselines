@@ -337,6 +337,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Define the intrinsic reward function.
         def intrinsic_reward_fn(states, goals, next_states):
+            # Offset the distance measure by the maximum possible distance to
+            # ensure non-negativity.
+            offset = np.sqrt(np.sum(np.square(
+                meta_ac_space.high - meta_ac_space.low), -1))
+
             return negative_distance(
                 states=states,
                 state_indices=self.goal_indices,
@@ -344,7 +349,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 next_states=next_states,
                 relative_context=relative_goals,
                 offset=0.0
-            )
+            ) + offset
         self.intrinsic_reward_fn = intrinsic_reward_fn
 
         # =================================================================== #

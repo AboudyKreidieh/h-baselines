@@ -493,9 +493,9 @@ ENV_ATTRIBUTES = {
 
     "BipedalSoccer": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([0.75, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+            low=np.array([-0.5, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
-            high=np.array([1.0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            high=np.array([0.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         ),
         "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],

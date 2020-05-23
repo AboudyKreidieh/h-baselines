@@ -263,6 +263,8 @@ class HierReplayBuffer(object):
             additional information; used for features such as the off-policy
             corrections or centralized value functions
         """
+        meta_period = self.meta_period
+        num_levels = self.num_levels
         obses = [[] for _ in range(self.num_levels)]
         contexts = [[] for _ in range(self.num_levels)]
         actions = [[] for _ in range(self.num_levels)]
@@ -311,19 +313,17 @@ class HierReplayBuffer(object):
                 obses[i].append(
                     candidate_obs[idx_val])
                 contexts[i].append(candidate_action[i - 1][
-                    int(idx_val /
-                        self.meta_period ** (self.num_levels - i - 1))])
+                    int(idx_val / meta_period ** (num_levels - i - 1))])
                 actions[i].append(candidate_action[i][
-                    int(idx_val /
-                        self.meta_period ** max(self.num_levels - i - 2, 0))])
+                    int(idx_val / meta_period ** max(num_levels - i - 2, 0))])
                 next_obses[i].append(candidate_obs[
-                    idx_val + self.meta_period ** (self.num_levels-i-1)])
+                    idx_val + meta_period ** (num_levels-i-1)])
                 next_contexts[i].append(candidate_action[i - 1][
-                    int(idx_val /
-                        self.meta_period ** (self.num_levels - i - 1)) + 1])
+                    int(idx_val / meta_period ** (num_levels - i - 1)) + 1])
                 rewards[i].append(candidate_reward[i][
-                    int(idx_val / self.meta_period ** (self.num_levels-i-1))])
-                dones[i].append(0)    # FIXME
+                    int(idx_val / meta_period ** (num_levels-i-1))])
+                dones[i].append(
+                    candidate_done[idx_val])
 
                 idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
 

@@ -95,7 +95,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
     vehicles.add(
         "human",
         num_vehicles=0,
-        acceleration_controller=(IDMController {
+        acceleration_controller=(IDMController, {
             'a': 1.3,
             'b': 2.0,
             'noise': 0.3 if INCLUDE_NOISE else 0.0
