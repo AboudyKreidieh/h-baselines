@@ -6,6 +6,7 @@ import gym
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.deeploco.envs import BipedalObstacles
 from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
 from hbaselines.envs.efficient_hrl.envs import ImageAntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
@@ -74,6 +75,33 @@ ENV_ATTRIBUTES = {
                 context_range=[0, 16]
             )
         ] if evaluate else AntMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-4, 20), (-4, 20)]
+        ),
+    },
+
+    "HumanoidMaze": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, 0.8]),
+            high=np.array([10,  10, 2.0]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(3)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[16, 0]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[16, 16]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[0, 16]
+            )
+        ] if evaluate else HumanoidMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)]

@@ -162,12 +162,13 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.update_cam()
 
     def update_cam(self):
-        x, y = self.get_xy()
-        self.viewer.cam.azimuth = 0
-        self.viewer.cam.distance = 15.
-        self.viewer.cam.elevation = -90
-        self.viewer.cam.lookat[0] = x
-        self.viewer.cam.lookat[1] = y
+        if self.viewer is not None:
+            x, y = self.get_xy()
+            self.viewer.cam.azimuth = 0
+            self.viewer.cam.distance = 15.
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = x
+            self.viewer.cam.lookat[1] = y
 
     def get_ori(self):
         """Return the orientation of the agent."""
