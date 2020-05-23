@@ -32,7 +32,10 @@ if __name__ == "__main__":
 
     for key in all_results.keys():
 
+        df = pd.concat(all_results[key])
+        stop = df.groupby("name")["total_step"].max().min()
+        df = df[df['total_step'] < stop]
         plt.clf()
         ax = sns.lineplot(x="total_step", y=args.y, hue="name",
-                          data=pd.concat(all_results[key]))
+                          data=df)
         plt.savefig(args.out.replace(".", "_{}.".format(key)))
