@@ -485,7 +485,7 @@ also include a scaled variant of each of the above intrinsic rewards were the
 states and goals are divided by goal space of the higher level policies. The 
 new scaled rewards are then:
 
-<p align="center"><img src="/tex/576d825d1ec8aefbb96b45845ffb8a9b.svg?invert_in_darkmode&sanitize=true" align=middle width=487.3370667pt height=33.58376834999999pt/></p>
+<p align="center"><img src="/tex/035cf72d718b01e1226cc5500d4f07ac.svg?invert_in_darkmode&sanitize=true" align=middle width=571.9927834499999pt height=33.58376834999999pt/></p>
 
 where <img src="/tex/3308c39b78e1420bdfeb77271eeb8aa8.svg?invert_in_darkmode&sanitize=true" align=middle width=32.09870894999999pt height=14.15524440000002pt/> is the goal-space high values and <img src="/tex/47bed696feac0f0a4a4d81159c1140ec.svg?invert_in_darkmode&sanitize=true" align=middle width=29.62151939999999pt height=14.15524440000002pt/> are the 
 goal-space low values. These intrinsic rewards can be used by initializing the 
