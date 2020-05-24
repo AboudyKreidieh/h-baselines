@@ -285,6 +285,15 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
+        # test for ring-imitation
+        ac_space = get_meta_ac_space(env_name="ring-imitation", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
         ac_space = get_meta_ac_space(env_name="ring", **rel_params)
         test_space(
             ac_space,
@@ -421,6 +430,16 @@ class TestMisc(unittest.TestCase):
             expected_size=10,
         )
 
+        # test for highway-single
+        ac_space = get_meta_ac_space(env_name="highway-single-imitation",
+                                     **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
         ac_space = get_meta_ac_space(env_name="highway-single", **rel_params)
         test_space(
             ac_space,
@@ -494,6 +513,12 @@ class TestMisc(unittest.TestCase):
             [0, 5, 10, 15, 20]
         )
 
+        # test for ring-imitation
+        self.assertListEqual(
+            get_state_indices(env_name="ring-imitation", **params),
+            [0, 5, 10, 15, 20]
+        )
+
         # test for ring_small
         self.assertListEqual(
             get_state_indices(env_name="ring_small", **params),
@@ -542,6 +567,12 @@ class TestMisc(unittest.TestCase):
             [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         )
 
+        # test for highway-single-imitation
+        self.assertListEqual(
+            get_state_indices(env_name="highway-single-imitation", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+        )
+
         # test for Point2DEnv
         self.assertListEqual(
             get_state_indices(env_name="Point2DEnv", **params),
@@ -562,6 +593,33 @@ class TestTFUtil(unittest.TestCase):
 
     def tearDown(self):
         self.sess.close()
+
+    def test_layer(self):
+        """Check the functionality of the layer() method.
+
+        This method is tested for the following features:
+
+        1. the number of outputs from the layer equals num_outputs
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. weights match what the kernel_initializer requests (tested on a
+           constant initializer)
+        5. layer_norm is applied if requested
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
+        # test case 5
+        pass  # TODO
 
     def test_gaussian_likelihood(self):
         """Check the functionality of the gaussian_likelihood() method."""
