@@ -40,6 +40,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_huber,
                  num_levels,
                  meta_period,
+                 intrinsic_reward_type,
                  intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -102,6 +103,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             levels correspond to a Manager/Worker paradigm.
         meta_period : int
             meta-policy action period
+        intrinsic_reward_type : str
+            the reward function to be used by the lower-level policies. See the
+            base goal-conditioned policy for a description.
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -151,6 +155,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_huber=use_huber,
             num_levels=num_levels,
             meta_period=meta_period,
+            intrinsic_reward_type=intrinsic_reward_type,
             intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
@@ -293,28 +298,47 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             # Goal is the direct output from the meta policy in this case.
             goal = self.policy[0].actor_tf
 
-        # concatenate the output from the manager with the worker policy.
+        # Concatenate the output from the manager with the worker policy.
         obs_shape = self.policy[-1].ob_space.shape[0]
         obs = tf.concat([self.policy[-1].obs_ph[:, :obs_shape], goal], axis=-1)
 
-        # create the worker policy with inputs directly from the manager
+        # Create the worker policy with inputs directly from the manager.
         with tf.compat.v1.variable_scope("level_1/model"):
             worker_with_meta_obs = self.policy[-1].make_critic(
                 obs, self.policy[-1].action_ph, reuse=True, scope="qf_0")
 
-        # create a tensorflow operation that mimics the reward function that is
-        # used to provide feedback to the worker
+        # Create a tensorflow operation that mimics the reward function that is
+        # used to provide feedback to the worker.
+        if self.intrinsic_reward_type.startswith("scaled"):
+            # Scale the observations/goals by the action space of the upper-
+            # level policy if requested.
+            ac_space = self.policy[0].ac_space
+            scale = 0.5 * (ac_space.high - ac_space.low)
+            worker_obs0 /= scale
+            goal /= scale
+            worker_obs1 /= scale
+
         if self.relative_goals:
+            # Implement relative goals if requested.
+            goal += worker_obs0
+
+        if self.intrinsic_reward_type.endswith("exp_negative_distance"):
+            reward_fn = tf.reduce_mean(tf.exp(-tf.reduce_sum(
+                tf.square(worker_obs0 + goal - worker_obs1), axis=1)))
+        elif self.intrinsic_reward_type.endswith("negative_distance"):
             reward_fn = -tf.compat.v1.losses.mean_squared_error(
                 worker_obs0 + goal, worker_obs1)
         else:
-            reward_fn = -tf.compat.v1.losses.mean_squared_error(
-                goal, worker_obs1)
+            raise ValueError("Unknown intrinsic reward type: {}".format(
+                self.intrinsic_reward_type))
 
-        # compute the worker loss with respect to the meta policy actions
+        # Scale by the worker reward scale.
+        reward_fn *= self.intrinsic_reward_scale
+
+        # Compute the worker loss with respect to the meta policy actions.
         self.cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
 
-        # create the optimizer object
+        # Create the optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.policy[0].actor_lr)
         self.cg_optimizer = optimizer.minimize(
             self.policy[0].actor_loss + self.cg_weights * self.cg_loss,

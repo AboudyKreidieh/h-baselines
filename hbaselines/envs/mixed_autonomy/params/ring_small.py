@@ -40,7 +40,7 @@ def full_observation_fn(env):
 
 
 def get_flow_params(num_automated=1,
-                    horizon=7500,
+                    horizon=1500,
                     ring_length=None,
                     simulator="traci",
                     evaluate=False,
@@ -108,6 +108,9 @@ def get_flow_params(num_automated=1,
             veh_id="rl_{}".format(i),
             acceleration_controller=(RLController, {}),
             routing_controller=(ContinuousRouter, {}),
+            car_following_params=SumoCarFollowingParams(
+                min_gap=0,
+            ),
             num_vehicles=1)
 
         # Add a fraction of the remaining human vehicles.
