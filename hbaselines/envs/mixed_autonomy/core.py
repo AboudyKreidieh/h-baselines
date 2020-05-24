@@ -137,7 +137,7 @@ class FlowEnv(gym.Env):
             )
 
     def render(self, mode='human'):
-        """See parent class."""
+        """Do nothing."""
         pass
 
     def query_expert(self, obs):

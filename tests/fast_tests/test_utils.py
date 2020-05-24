@@ -20,6 +20,7 @@ class TestTrain(unittest.TestCase):
     """A simple test to get Travis running."""
 
     def test_parse_options(self):
+        self.maxDiff = None
         # Test the default case.
         args = parse_options("", "", args=["AntMaze"])
         expected_args = {
@@ -58,6 +59,8 @@ class TestTrain(unittest.TestCase):
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
             'intrinsic_reward_scale':
                 GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
+            'intrinsic_reward_type':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_type'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'hindsight': False,
@@ -105,6 +108,7 @@ class TestTrain(unittest.TestCase):
             '--num_levels', '23',
             '--meta_period', '24',
             '--intrinsic_reward_scale', '25',
+            '--intrinsic_reward_type', 'woop',
             '--relative_goals',
             '--off_policy_corrections',
             '--hindsight',
@@ -143,6 +147,7 @@ class TestTrain(unittest.TestCase):
                 'num_levels': 23,
                 'meta_period': 24,
                 'intrinsic_reward_scale': 25.0,
+                'intrinsic_reward_type': 'woop',
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'hindsight': True,

@@ -96,6 +96,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     num_levels=2,
     # meta-policy action period
     meta_period=10,
+    # the reward function to be used by lower-level policies. See the base
+    # goal-conditioned policy for a description.
+    intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,
     # specifies whether the goal issued by the higher-level policies is meant

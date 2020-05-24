@@ -55,6 +55,7 @@ def get_hyperparameters(args, policy):
         policy_kwargs.update({
             "num_levels": args.num_levels,
             "meta_period": args.meta_period,
+            "intrinsic_reward_type": args.intrinsic_reward_type,
             "intrinsic_reward_scale": args.intrinsic_reward_scale,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
@@ -81,6 +82,15 @@ def get_hyperparameters(args, policy):
 
 def parse_options(description, example_usage, args):
     """Parse training options user can specify in command line.
+
+    Parameters
+    ----------
+    description : str
+        the description of the script using this parser
+    example_usage : str
+        an example of the runner script being used
+    args : list of str
+        command-line arguments
 
     Returns
     -------
@@ -278,6 +288,12 @@ def create_goal_conditioned_parser(parser):
         type=int,
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
         help="meta-policy action period")
+    parser.add_argument(
+        "--intrinsic_reward_type",
+        type=str,
+        default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_type"],
+        help="the reward function to be used by the lower-level policies. See "
+             "the base goal-conditioned policy for a description.")
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,
