@@ -455,7 +455,7 @@ reward functions:
   from being incentivized from falling/dying in environments that can terminate
   prematurely. This is done by offsetting the value by the maximum assignable 
   distance, assuming that the states always fall within the goal space 
-  (g_\text{min}, g_\text{max}). This reward is of the form:
+  ($g_\text{min}$, $g_\text{max}$). This reward is of the form:
 
   $$r_w(s_t, g_t, s_{t+1}) = ||(g_\text{max} - g_\text{min})||_2 - ||g_t - s_{t+1}||_2$$
 
@@ -485,7 +485,7 @@ also include a scaled variant of each of the above intrinsic rewards were the
 states and goals are divided by goal space of the higher level policies. The 
 new scaled rewards are then:
 
-$$r_{w,\text{scaled}} = r_w(\frac{s_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{g_t}}{0.5 (g_\text{max} - g_\text{min}), \frac{s_{t+1}}}{0.5 (g_\text{max} - g_\text{min}))$$
+$$r_{w,\text{scaled}} = r_w(\frac{s_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{g_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{s_{t+1}}{0.5 (g_\text{max} - g_\text{min})})$$
 
 where $g_\text{max}$ is the goal-space high values and $g_\text{min}$ are the 
 goal-space low values. These intrinsic rewards can be used by initializing the 
