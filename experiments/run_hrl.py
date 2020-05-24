@@ -125,13 +125,12 @@ def main(args, base_dir):
 
 
 if __name__ == '__main__':
-    # collect arguments
-    args = parse_options(
-        description='Test the performance of goal-conditioned hierarchical '
-                    'models on various environments.',
-        example_usage=EXAMPLE_USAGE,
-        args=sys.argv[1:]
+    main(
+        parse_options(
+            description='Test the performance of goal-conditioned '
+                        'hierarchical models on various environments.',
+            example_usage=EXAMPLE_USAGE,
+            args=sys.argv[1:]
+        ),
+        'data/goal-conditioned'
     )
-
-    # execute the training procedure
-    main(args, 'data/goal-conditioned')
