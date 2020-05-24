@@ -100,6 +100,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     num_levels=2,
     # meta-policy action period
     meta_period=10,
+    # the reward function to be used by lower-level policies. See the base
+    # goal-conditioned policy for a description.
+    intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,
     # specifies whether the goal issued by the higher-level policies is meant
@@ -358,8 +361,13 @@ class OffPolicyRLAlgorithm(object):
             for env_num in range(num_cpus)]
         obs = [get_obs(eo[1]) for eo in env_obs]
         self.env = [eo[0] for eo in env_obs]
-        self.obs = [ob[0] for ob in obs]  # FIXME: add fingerprint
+        self.obs = [ob[0] for ob in obs]
         self.all_obs = [ob[1] for ob in obs]
+
+        # Collect the spaces of the environments.
+        self.action_space = self.env[0].action_space
+        self.observation_space = self.env[0].observation_space
+        self.context_space = getattr(self.env[0], "context_space", None)
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -416,15 +424,17 @@ class OffPolicyRLAlgorithm(object):
         self.eval_success_ph = None
         self.saver = None
 
-        # Append the fingerprint dimension to the observation dimension, if
-        # needed.
         if self.policy_kwargs.get("use_fingerprints", False):
+            # Append the fingerprint dimension to the observation dimension.
             fingerprint_range = self.policy_kwargs["fingerprint_range"]
             low = np.concatenate(
                 (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
             self.observation_space = Box(low, high, dtype=np.float32)
+
+            # Add the fingerprint term to the first observation.
+            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -439,10 +449,10 @@ class OffPolicyRLAlgorithm(object):
 
             # Create the policy.
             self.policy_tf = self.policy(
-                sess=self.sess,
-                ob_space=self.env[0].observation_space,
-                ac_space=self.env[0].action_space,
-                co_space=getattr(self.env[0], "context_space", None),
+                self.sess,
+                self.observation_space,
+                self.action_space,
+                self.context_space,
                 **self.policy_kwargs
             )
 

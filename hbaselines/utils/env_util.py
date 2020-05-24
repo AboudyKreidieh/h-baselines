@@ -664,8 +664,9 @@ def create_env(env,
 
     Returns
     -------
-    gym.Env or list of gym.Env
-        gym-compatible environment(s)
+    gym.Env or list of gym.Env or None
+        gym-compatible environment(s). Set to None if no environment is being
+        returned.
     array_like or list of array_like or None
         the observation(s) from the environment(s) upon reset. Set to None if
         no environment is being returned.

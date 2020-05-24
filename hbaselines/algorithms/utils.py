@@ -65,6 +65,10 @@ def add_fingerprint(obs, steps, total_steps, use_fingerprints):
         the current observation without the fingerprint element
     steps : int
         the total number of steps that have been performed
+    total_steps : int
+        TODO
+    use_fingerprints : bool
+        TODO
 
     Returns
     -------
