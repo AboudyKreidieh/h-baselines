@@ -128,12 +128,12 @@ class BipedalObstacles(gym.Env):
             1.00000000, 1.00000000, 1.00000000, 1.00000000, 1.00000000,
             1.00000000, 1.00000000, 1.00000000, 1.00000000, 1.00000000,
             1.00000000, 1.00000000, 1.00000000, 1.00000000, 1.00000000]),
-    )
+        dtype=np.float32)
 
     context_space = gym.spaces.Box(
         low=np.array([-1.00000000, -1.00000000]),
         high=np.array([1.00000000, 1.00000000]),
-    )
+        dtype=np.float32)
 
     action_space = gym.spaces.Box(
         low=np.array([
@@ -144,7 +144,7 @@ class BipedalObstacles(gym.Env):
             1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 2.57, 0.5,
             1.0, 1.0, 1.0, 1.57, 1.0, 1.0, 1.0, 2.57, 0.50,
             1.0, 1.0, 1.0, 1.57]),
-    )
+        dtype=np.float32)
 
     def __init__(self, render):
         """Instantiate the environment.

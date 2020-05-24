@@ -129,7 +129,8 @@ class AVMultiAgentEnv(MultiEnv):
         return Box(
             low=-abs(self.env_params.additional_params['max_decel']),
             high=self.env_params.additional_params['max_accel'],
-            shape=(1,))
+            shape=(1,),
+            dtype=np.float32)
 
     @property
     def observation_space(self):
@@ -141,7 +142,8 @@ class AVMultiAgentEnv(MultiEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(1 + 4 * max_lanes,))
+            shape=(1 + 4 * max_lanes,),
+            dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
