@@ -455,7 +455,7 @@ reward functions:
   from being incentivized from falling/dying in environments that can terminate
   prematurely. This is done by offsetting the value by the maximum assignable 
   distance, assuming that the states always fall within the goal space 
-  (g_\text{min}, g_\text{max}). This reward is of the form:
+  (<img src="/tex/47bed696feac0f0a4a4d81159c1140ec.svg?invert_in_darkmode&sanitize=true" align=middle width=29.62151939999999pt height=14.15524440000002pt/>, <img src="/tex/3308c39b78e1420bdfeb77271eeb8aa8.svg?invert_in_darkmode&sanitize=true" align=middle width=32.09870894999999pt height=14.15524440000002pt/>). This reward is of the form:
 
   <p align="center"><img src="/tex/099fe613c002c9305182bc0be946c803.svg?invert_in_darkmode&sanitize=true" align=middle width=355.27606784999995pt height=16.438356pt/></p>
 
@@ -485,7 +485,7 @@ also include a scaled variant of each of the above intrinsic rewards were the
 states and goals are divided by goal space of the higher level policies. The 
 new scaled rewards are then:
 
-<p align="center"><img src="/tex/ea665948041d3849109f4ef27175fab0.svg?invert_in_darkmode&sanitize=true" align=middle width=439.7384210999999pt height=81.25502715pt/></p>
+<p align="center"><img src="/tex/576d825d1ec8aefbb96b45845ffb8a9b.svg?invert_in_darkmode&sanitize=true" align=middle width=487.3370667pt height=33.58376834999999pt/></p>
 
 where <img src="/tex/3308c39b78e1420bdfeb77271eeb8aa8.svg?invert_in_darkmode&sanitize=true" align=middle width=32.09870894999999pt height=14.15524440000002pt/> is the goal-space high values and <img src="/tex/47bed696feac0f0a4a4d81159c1140ec.svg?invert_in_darkmode&sanitize=true" align=middle width=29.62151939999999pt height=14.15524440000002pt/> are the 
 goal-space low values. These intrinsic rewards can be used by initializing the 
