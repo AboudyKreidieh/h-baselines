@@ -19,9 +19,9 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }
@@ -407,7 +407,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                           np.array([1, 1]),
                           np.array([0, 0])],
                          [np.array([0]),
-                          np.array([1]), 
+                          np.array([1]),
                           np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
@@ -565,9 +565,9 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }
@@ -933,9 +933,9 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }
