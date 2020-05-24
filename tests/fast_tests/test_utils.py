@@ -469,7 +469,7 @@ class TestMisc(unittest.TestCase):
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=Box(-1, 1, shape=(2,), dtype=np.float32),
+            ob_space=Box(-1, 1, shape=(2,)),
             use_fingerprints=False,
             fingerprint_dim=1,
         )
