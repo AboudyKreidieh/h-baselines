@@ -485,7 +485,7 @@ also include a scaled variant of each of the above intrinsic rewards were the
 states and goals are divided by goal space of the higher level policies. The 
 new scaled rewards are then:
 
-$$r_{w,\text{scaled}} = r_w(\frac{s_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{g_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{s_{t+1}}{0.5 (g_\text{max} - g_\text{min})})$$
+$$r_{w,\text{scaled}}(s_t, g_t, s_{t+1}) = r_w(\frac{s_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{g_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{s_{t+1}}{0.5 (g_\text{max} - g_\text{min})})$$
 
 where $g_\text{max}$ is the goal-space high values and $g_\text{min}$ are the 
 goal-space low values. These intrinsic rewards can be used by initializing the 
