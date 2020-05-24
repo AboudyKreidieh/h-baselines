@@ -672,7 +672,7 @@ def create_env(env,
     """
     if env is None:
         # No environment (for evaluation environments).
-        return None
+        return None, None
     elif isinstance(env, str):
         if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](

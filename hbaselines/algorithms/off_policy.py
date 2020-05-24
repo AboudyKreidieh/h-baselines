@@ -439,10 +439,10 @@ class OffPolicyRLAlgorithm(object):
 
             # Create the policy.
             self.policy_tf = self.policy(
-                self.sess,
-                self.env[0].observation_space,
-                self.env[0].action_space,
-                context_space=getattr(self.env[0], "context_space", None),
+                sess=self.sess,
+                ob_space=self.env[0].observation_space,
+                ac_space=self.env[0].action_space,
+                co_space=getattr(self.env[0], "context_space", None),
                 **self.policy_kwargs
             )
 
@@ -810,7 +810,7 @@ class OffPolicyRLAlgorithm(object):
         Parameters
         ----------
         env : gym.Env
-            TODO
+            the environment to collect samples from
         policy_tf : hbaselines.base_policies.ActorCriticPolicy
             the policy object
         obs : array_like
@@ -840,13 +840,19 @@ class OffPolicyRLAlgorithm(object):
             information from the most recent environment update step,
             consisting of the following terms:
 
-            * obs : TODO
+            * obs : the most recent observation. This consists of a single
+              observation if no reset occured, and a tuple of (last observation
+              from the previous rollout, first observation of the next rollout)
+              if a reset occured.
             * context : the contextual term from the environment
             * action : the action performed by the agent(s)
             * reward : the reward from the most recent step
             * done : the done mask
             * env_num : the environment number
-            * all_obs : TODO
+            * all_obs : the most recent full-state observation. This consists
+              of a single observation if no reset occured, and a tuple of (last
+              observation from the previous rollout, first observation of the
+              next rollout) if a reset occured.
         """
         # Collect the contextual term. None if it is not passed.
         context = [env.current_context] \
