@@ -51,11 +51,6 @@ class BipedalSoccer(gym.Env):
         """See parent class."""
         return self.wrapped_env.action_space
 
-    @property
-    def horizon(self):
-        """Specify the time horizon of the environment."""
-        return 512
-
     def step(self, action):
         """See parent class."""
         obs, rew, done, info = self.wrapped_env.step(np.array([action]))
