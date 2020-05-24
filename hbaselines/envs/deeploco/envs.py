@@ -41,6 +41,9 @@ class BipedalSoccer(gym.Env):
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Soccer-v1")
 
+        # Add the time horizon.
+        self.horizon = 512
+
     @property
     def observation_space(self):
         """See parent class."""
@@ -151,14 +154,15 @@ class BipedalObstacles(gym.Env):
         render : bool
             whether to render the environment
         """
-        # TODO: is it possible to set the horizon outside the environment
-        self.horizon = 2000
         self.t = 0
 
         if render:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
+
+        # Add the time horizon.
+        self.horizon = 2000
 
     @property
     def current_context(self):

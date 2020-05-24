@@ -17,9 +17,9 @@ class TestActorCriticPolicy(unittest.TestCase):
 
         self.policy_params = {
             'sess': sess,
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
             'verbose': 0,
         }
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
@@ -103,13 +103,13 @@ class TestActorCriticPolicy(unittest.TestCase):
         policy = ActorCriticPolicy(**self.policy_params)
 
         # test case 1
-        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
+        ob_space = Box(0, 1, shape=(2,))
         co_space = None
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (2,))
 
         # test case 2
-        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
-        co_space = Box(0, 1, shape=(3,), dtype=np.float32)
+        ob_space = Box(0, 1, shape=(2,))
+        co_space = Box(0, 1, shape=(3,))
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
     def test_setup_target_updates(self):
@@ -171,9 +171,9 @@ class TestImitationLearningPolicy(unittest.TestCase):
 
         self.policy_params = {
             'sess': sess,
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
             'verbose': 0,
         }
         self.policy_params.update({
@@ -261,13 +261,13 @@ class TestImitationLearningPolicy(unittest.TestCase):
         policy = ImitationLearningPolicy(**self.policy_params)
 
         # test case 1
-        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
+        ob_space = Box(0, 1, shape=(2,))
         co_space = None
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (2,))
 
         # test case 2
-        ob_space = Box(0, 1, shape=(2,), dtype=np.float32)
-        co_space = Box(0, 1, shape=(3,), dtype=np.float32)
+        ob_space = Box(0, 1, shape=(2,))
+        co_space = Box(0, 1, shape=(3,))
         self.assertTupleEqual(policy._get_ob_dim(ob_space, co_space), (5,))
 
 

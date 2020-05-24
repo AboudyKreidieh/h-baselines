@@ -315,9 +315,7 @@ class OffPolicyRLAlgorithm(object):
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
-        self.env = create_env(
-            env, render, shared, maddpg, evaluate=False)
-        self.eval_env = create_env(
+        self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -329,12 +327,18 @@ class OffPolicyRLAlgorithm(object):
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
         self.verbose = verbose
+        self.policy_kwargs = {'verbose': verbose}
+
+        # Create the environment and collect the initial observations.
+        self.env, obs = create_env(env, render, shared, maddpg, evaluate=False)
+        self.obs, self.all_obs = self._get_obs(obs)
+
+        # Collect the spaces of the environments.
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.context_space = getattr(self.env, "context_space", None)
-        self.policy_kwargs = {'verbose': verbose}
 
-        # add the default policy kwargs to the policy_kwargs term
+        # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
             self.policy_kwargs.update(FEEDFORWARD_PARAMS.copy())
         elif is_goal_conditioned_policy(policy):
@@ -373,8 +377,6 @@ class OffPolicyRLAlgorithm(object):
         self.policy_tf = None
         self.sess = None
         self.summary = None
-        self.obs = None
-        self.all_obs = None
         self.episode_step = 0
         self.episodes = 0
         self.total_steps = 0
@@ -399,6 +401,9 @@ class OffPolicyRLAlgorithm(object):
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
             self.observation_space = Box(low=low, high=high, dtype=np.float32)
+
+        # Add the fingerprint term to the first observation, if needed.
+        self.obs = self._add_fingerprint(self.obs, 0, 1)
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -612,14 +617,6 @@ class OffPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            # Prepare everything.
-            obs = self.env.reset()
-            self.obs, self.all_obs = self._get_obs(obs)
-
-            # Add the fingerprint term, if needed.
-            self.obs = self._add_fingerprint(
-                self.obs, self.total_steps, total_timesteps)
-
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
             self._collect_samples(total_timesteps,

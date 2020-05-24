@@ -656,12 +656,16 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
 
     Returns
     -------
-    gym.Env or list of gym.Env
-        gym-compatible environment(s)
+    gym.Env or list of gym.Env or None
+        gym-compatible environment(s). Set to None if no environment is being
+        returned.
+    array_like or list of array_like or None
+        the observation(s) from the environment(s) upon reset. Set to None if
+        no environment is being returned.
     """
     if env is None:
         # No environment (for evaluation environments).
-        return None
+        return None, None
     elif isinstance(env, str):
         if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](
@@ -690,9 +694,10 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     # Reset the environment.
     if env is not None:
         if isinstance(env, list):
-            for next_env in env:
-                next_env.reset()
+            obs = [next_env.reset() for next_env in env]
         else:
-            env.reset()
+            obs = env.reset()
+    else:
+        obs = None
 
-    return env
+    return env, obs
