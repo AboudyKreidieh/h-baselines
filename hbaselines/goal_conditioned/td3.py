@@ -104,9 +104,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         meta_period : int
             meta-policy action period
         intrinsic_reward_type : str
-            the reward function to be used by the lower-level policies. Must be
-            one of: "negative_distance", "scaled_negative_distance",
-            "exp_negative_distance", or "scaled_exp_negative_distance". See the
+            the reward function to be used by the lower-level policies. See the
             base goal-conditioned policy for a description.
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by

@@ -292,11 +292,8 @@ def create_goal_conditioned_parser(parser):
         "--intrinsic_reward_type",
         type=str,
         default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_type"],
-        help="the reward function to be used by the lower-level policies. "
-             "Must be one of: \"negative_distance\", "
-             "\"scaled_negative_distance\", \"exp_negative_distance\", or "
-             "\"scaled_exp_negative_distance\". See the base goal-conditioned "
-             "policy for a description.")
+        help="the reward function to be used by the lower-level policies. See "
+             "the base goal-conditioned policy for a description.")
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,

@@ -450,6 +450,22 @@ reward functions:
   if `relative_goals` is set to True. This attribute is described in the 
 [section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
 
+* **non_negative_distance**: This reward function is designed to maintain a 
+  positive value within the intrinsic rewards to prevent the lower-level agents
+  from being incentivized from falling/dying in environments that can terminate
+  prematurely. This is done by offsetting the value by the maximum assignable 
+  distance, assuming that the states always fall within the goal space 
+  (g_\text{min}, g_\text{max}). This reward is of the form:
+
+  $$r_w(s_t, g_t, s_{t+1}) = ||(g_\text{max} - g_\text{min})||_2 - ||g_t - s_{t+1}||_2$$
+
+  if `relative_goals` is set to False, and
+
+  $$r_w(s_t, g_t, s_{t+1}) = ||(g_\text{max} - g_\text{min})||_2 - ||s_t + g_t - s_{t+1}||_2$$
+
+  if `relative_goals` is set to True. This attribute is described in the 
+[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
+
 * **exp_negative_distance**: This reward function is designed to maintain the 
   reward between 0 and 1 for environments that may terminate prematurely. This 
   is of the form:
@@ -466,9 +482,15 @@ reward functions:
 Intrinsic rewards of the form above are not scaled by the any term, and as such
 may be dominated by the largest term in the goal space. To circumvent this, we 
 also include a scaled variant of each of the above intrinsic rewards were the 
-states and goals are divided by goal space of the higher level policies. These 
-can be used by starting the string with "scaled_", for example: 
-**scaled_negative_distance** or **scaled_exp_negative_distance**.
+states and goals are divided by goal space of the higher level policies. The 
+new scaled rewards are then:
+
+$$r_{w,\text{scaled}} = r_w(\frac{s_t}{0.5 (g_\text{max} - g_\text{min})}, \frac{g_t}}{0.5 (g_\text{max} - g_\text{min}), \frac{s_{t+1}}}{0.5 (g_\text{max} - g_\text{min}))$$
+
+where $g_\text{max}$ is the goal-space high values and $g_\text{min}$ are the 
+goal-space low values. These intrinsic rewards can be used by initializing the 
+string with "scaled_", for example: **scaled_negative_distance**, 
+**scaled_non_negative_distance**, or **scaled_exp_negative_distance**.
 
 To assign your choice of intrinsic rewards when training a hierarchical policy,
 set the `intrinsic_reward_type` attribute to the type of intrinsic reward you 

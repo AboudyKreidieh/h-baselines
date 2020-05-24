@@ -58,6 +58,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         * "scaled_negative_distance": similar to the negative distance reward
           where the states, goals, and next states are scaled by the inverse of
           the action space of the manager policy
+        * "non_negative_distance": the negative two norm between the states and
+          desired absolute or relative goals offset by the maximum goal space
+          (to ensure non-negativity)
+        * "scaled_non_negative_distance": similar to the non-negative distance
+          reward where the states, goals, and next states are scaled by the
+          inverse of the action space of the manager policy
         * "exp_negative_distance": equal to exp(-negative_distance^2). The
           result is a reward between 0 and 1. This is useful for policies that
           terminate early.
@@ -189,6 +195,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             * "scaled_negative_distance": similar to the negative distance
               reward where the states, goals, and next states are scaled by the
               inverse of the action space of the manager policy
+            * "non_negative_distance": the negative two norm between the states
+              and desired absolute or relative goals offset by the maximum goal
+              space (to ensure non-negativity)
+            * "scaled_non_negative_distance": similar to the non-negative
+              distance reward where the states, goals, and next states are
+              scaled by the inverse of the action space of the manager policy
             * "exp_negative_distance": equal to exp(-negative_distance^2). The
               result is a reward between 0 and 1. This is useful for policies
               that terminate early.
@@ -367,8 +379,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Define the intrinsic reward function.
         if intrinsic_reward_type in ["negative_distance",
                                      "scaled_negative_distance",
+                                     "non_negative_distance",
+                                     "scaled_non_negative_distance",
                                      "exp_negative_distance",
                                      "scaled_exp_negative_distance"]:
+            # Offset the distance measure by the maximum possible distance to
+            # ensure non-negativity.
+            if "non_negative" in intrinsic_reward_type:
+                offset = np.sqrt(np.sum(np.square(
+                    meta_ac_space.high - meta_ac_space.low), -1))
+            else:
+                offset = 0
+
             # Scale the outputs from the state by the meta-action space if you
             # wish to scale the worker reward.
             if intrinsic_reward_type.startswith("scaled"):
@@ -383,7 +405,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     next_states=next_states[self.goal_indices] / scale,
                     relative_context=relative_goals,
                     offset=0.0
-                )
+                ) + offset
 
             # Perform the exponential and squashing operations to keep the
             # intrinsic reward between 0 and 1.

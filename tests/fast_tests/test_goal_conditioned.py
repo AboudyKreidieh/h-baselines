@@ -476,8 +476,11 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         1. intrinsic_reward_type = "negative_distance"
         2. intrinsic_reward_type = "scaled_negative_distance"
-        3. intrinsic_reward_type = "exp_negative_distance"
-        4. intrinsic_reward_type = "scaled_exp_negative_distance"
+        3. intrinsic_reward_type = "non_negative_distance"
+        4. intrinsic_reward_type = "scaled_non_negative_distance"
+        5. intrinsic_reward_type = "exp_negative_distance"
+        6. intrinsic_reward_type = "scaled_exp_negative_distance"
+        7. intrinsic_reward_type = "error" -> raises ValueError
         """
         # test case 1
         policy_params = self.policy_params.copy()
@@ -517,6 +520,42 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         # test case 3
         policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "non_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            2.0513028772015867
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 4
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "scaled_non_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            3.8540785149197134
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 5
+        policy_params = self.policy_params.copy()
         policy_params["intrinsic_reward_type"] = "exp_negative_distance"
         policy = TD3GoalConditionedPolicy(**policy_params)
 
@@ -533,7 +572,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         del policy
         tf.compat.v1.reset_default_graph()
 
-        # test case 4
+        # test case 6
         policy_params = self.policy_params.copy()
         policy_params["intrinsic_reward_type"] = "scaled_exp_negative_distance"
         policy = TD3GoalConditionedPolicy(**policy_params)
@@ -550,6 +589,12 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Clear the graph.
         del policy
         tf.compat.v1.reset_default_graph()
+
+        # test case 7
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "error"
+        self.assertRaises(
+            ValueError, TD3GoalConditionedPolicy, **policy_params)
 
     def test_relative_goals(self):
         """Validate the functionality of relative goals.
