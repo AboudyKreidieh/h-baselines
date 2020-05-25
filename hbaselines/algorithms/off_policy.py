@@ -730,7 +730,7 @@ class OffPolicyRLAlgorithm(object):
         n_itr = math.ceil(run_steps / self.num_cpus)
         for itr in range(n_itr):
             n_steps = self.num_cpus if itr < n_itr - 1 \
-                else run_steps - n_itr * (self.num_cpus - 1)
+                else run_steps - (n_itr - 1) * self.num_cpus
             ret = [
                 self._collect_sample(
                     env=self.env[env_num],
