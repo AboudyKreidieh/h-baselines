@@ -28,6 +28,7 @@ from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.sampler import Sampler
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.env_util import create_env
 
 
 # =========================================================================== #
@@ -159,8 +160,8 @@ class OffPolicyRLAlgorithm(object):
         policies
     sampler : hbaselines.utils.sampler.Sampler
         the training environment sampler object
-    eval_sampler : hbaselines.utils.sampler.Sampler or None
-        the evaluation environment sampler object
+    eval_env : gym.Env or list of gym.Env
+        the environment(s) to evaluate from
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -320,6 +321,8 @@ class OffPolicyRLAlgorithm(object):
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
+        self.eval_env, _ = create_env(
+            eval_env, render_eval, shared, maddpg, evaluate=True)
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -341,15 +344,6 @@ class OffPolicyRLAlgorithm(object):
             evaluate=False,
         )
         self.obs, self.all_obs = get_obs(self.sampler.get_init_obs())
-
-        # Create the evaluation sampler.
-        self.eval_sampler = Sampler(
-            env_name=eval_env,
-            render=render_eval,
-            shared=shared,
-            maddpg=maddpg,
-            evaluate=True,
-        )
 
         # Collect the spaces of the environments.
         self.action_space = self.sampler.action_space()
@@ -655,24 +649,24 @@ class OffPolicyRLAlgorithm(object):
                 self._log_training(train_filepath, start_time)
 
                 # Evaluate.
-                if self.eval_sampler is not None and \
+                if self.eval_env is not None and \
                         (self.total_steps - eval_steps_incr) >= eval_interval:
                     eval_steps_incr += eval_interval
 
                     # Run the evaluation operations over the evaluation env(s).
                     # Note that multiple evaluation envs can be provided.
-                    if isinstance(self.eval_sampler, list):
+                    if isinstance(self.eval_env, list):
                         eval_rewards = []
                         eval_successes = []
                         eval_info = []
-                        for sampler in self.eval_sampler:
-                            r, suc, inf = self._evaluate(total_steps, sampler)
-                            eval_rewards.append(r)
+                        for env in self.eval_env:
+                            rew, suc, inf = self._evaluate(total_steps, env)
+                            eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_steps, self.eval_sampler)
+                            self._evaluate(total_steps, self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -835,7 +829,7 @@ class OffPolicyRLAlgorithm(object):
             # Run a step of training from batch.
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_steps, sampler):
+    def _evaluate(self, total_steps, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -845,8 +839,8 @@ class OffPolicyRLAlgorithm(object):
         ----------
         total_steps : int
             the total number of samples to train on
-        sampler : hbaselines.utils.sampler.Sampler
-            the evaluation environment sampler
+        env : gym.Env
+            the evaluation environment that the policy is meant to be tested on
 
         Returns
         -------
@@ -879,7 +873,12 @@ class OffPolicyRLAlgorithm(object):
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
-            eval_obs, eval_all_obs = sampler.reset(
+            eval_obs = env.reset()
+            eval_obs, eval_all_obs = get_obs(eval_obs)
+
+            # Add the fingerprint term, if needed.
+            eval_obs = add_fingerprint(
+                obs=eval_obs,
                 steps=self.total_steps,
                 total_steps=total_steps,
                 use_fingerprints=self.policy_kwargs.get(
@@ -892,46 +891,41 @@ class OffPolicyRLAlgorithm(object):
 
             rets = np.array([])
             while True:
+                # Collect the contextual term. None if it is not passed.
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
                 eval_action = self._policy(
                     obs=eval_obs,
-                    context=sampler.get_context(),
+                    context=context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
                 )
 
                 # Update the environment.
-                ret = sampler.collect_sample(
-                    action=eval_action,
-                    multiagent=is_multiagent_policy(self.policy),
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False),
-                )
-
-                obs = ret["obs"]
-                context = ret["context"]
-                eval_r = ret["reward"]
-                done = ret["done"]
-                all_obs = ret["all_obs"]
-                info = ret["info"]
+                obs, eval_r, done, info = env.step(eval_action)
+                obs, all_obs = get_obs(obs)
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
                 if context is not None:
-                    reward_fn = sampler.get_contextual_reward()
+                    context = getattr(env, "current_context")
+                    reward_fn = getattr(env, "contextual_reward")
                     rets = np.append(rets, reward_fn(eval_obs, context, obs))
+
+                # Get the contextual term.
+                context0 = context1 = getattr(env, "current_context", None)
 
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
                 # of the policy.
                 self._store_transition(
                     obs0=eval_obs,
-                    context0=context,
+                    context0=context0,
                     action=eval_action,
                     reward=eval_r,
                     obs1=obs,
-                    context1=context,
+                    context1=context1,
                     terminal1=False,
                     is_final_step=False,
                     all_obs0=eval_all_obs,
@@ -942,6 +936,15 @@ class OffPolicyRLAlgorithm(object):
                 # Update the previous step observation.
                 eval_obs = obs.copy()
                 eval_all_obs = all_obs
+
+                # Add the fingerprint term, if needed.
+                eval_obs = add_fingerprint(
+                    obs=eval_obs,
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False),
+                )
 
                 # Increment the reward and step count.
                 num_steps += 1
@@ -964,7 +967,7 @@ class OffPolicyRLAlgorithm(object):
                         else:
                             print("%d/%d" % (i + 1, self.nb_eval_episodes))
 
-                    if context is not None:
+                    if hasattr(env, "current_context"):
                         ret_info['initial'].append(rets[0])
                         ret_info['final'].append(rets[-1])
                         ret_info['average'].append(float(rets.mean()))
