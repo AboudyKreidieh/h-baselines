@@ -11,18 +11,20 @@ environments and hierarchical policies.
 """
 import os
 import time
-from collections import deque
 import csv
 import random
-from copy import deepcopy
-from gym.spaces import Box
 import numpy as np
 import tensorflow as tf
+from collections import deque
+from copy import deepcopy
+from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
+from hbaselines.algorithms.utils import add_fingerprint
+from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -334,7 +336,7 @@ class OffPolicyRLAlgorithm(object):
 
         # Create the environment and collect the initial observations.
         self.env, obs = create_env(env, render, shared, maddpg, evaluate=False)
-        self.obs, self.all_obs = self._get_obs(obs)
+        self.obs, self.all_obs = get_obs(obs)
 
         # Collect the spaces of the environments.
         self.action_space = self.env.action_space
@@ -395,18 +397,17 @@ class OffPolicyRLAlgorithm(object):
         self.eval_success_ph = None
         self.saver = None
 
-        # Append the fingerprint dimension to the observation dimension, if
-        # needed.
         if self.policy_kwargs.get("use_fingerprints", False):
+            # Append the fingerprint dimension to the observation dimension.
             fingerprint_range = self.policy_kwargs["fingerprint_range"]
             low = np.concatenate(
                 (self.observation_space.low, fingerprint_range[0]))
             high = np.concatenate(
                 (self.observation_space.high, fingerprint_range[1]))
-            self.observation_space = Box(low=low, high=high, dtype=np.float32)
+            self.observation_space = Box(low, high, dtype=np.float32)
 
-        # Add the fingerprint term to the first observation, if needed.
-        self.obs = self._add_fingerprint(self.obs, 0, 1)
+            # Add the fingerprint term to the first observation.
+            self.obs = add_fingerprint(self.obs, 0, 1, True)
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -490,7 +491,7 @@ class OffPolicyRLAlgorithm(object):
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
-            random_actions=random_actions
+            random_actions=random_actions,
         )
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
@@ -722,10 +723,10 @@ class OffPolicyRLAlgorithm(object):
         self.saver.restore(self.sess, load_path)
 
     def _collect_samples(self,
-                         total_timesteps,
+                         total_steps,
                          run_steps=None,
                          random_actions=False):
-        """Perform the sample collection operation.
+        """Perform the sample collection operation over multiple steps.
 
         This method is responsible for executing rollouts for a number of steps
         before training is executed. The data from the rollouts is stored in
@@ -733,7 +734,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on. Used by the fingerprint
             element
         run_steps : int, optional
@@ -759,7 +760,7 @@ class OffPolicyRLAlgorithm(object):
 
             # Execute next action.
             new_obs, reward, done, info = self.env.step(action)
-            new_obs, new_all_obs = self._get_obs(new_obs)
+            new_obs, new_all_obs = get_obs(new_obs)
 
             # Done mask for multi-agent policies is slightly different.
             if is_multiagent_policy(self.policy):
@@ -772,10 +773,13 @@ class OffPolicyRLAlgorithm(object):
             # Add the fingerprint term, if needed. When collecting the initial
             # random actions, we assume the fingerprint does not change from
             # its initial value.
-            new_obs = self._add_fingerprint(
-                new_obs,
-                0 if random_actions else self.total_steps,
-                total_timesteps)
+            new_obs = add_fingerprint(
+                obs=new_obs,
+                steps=0 if random_actions else self.total_steps,
+                total_steps=total_steps,
+                use_fingerprints=self.policy_kwargs.get(
+                    "use_fingerprints", False),
+            )
 
             # Get the contextual term.
             context0 = context1 = getattr(self.env, "current_context", None)
@@ -820,11 +824,16 @@ class OffPolicyRLAlgorithm(object):
 
                 # Reset the environment.
                 obs = self.env.reset()
-                self.obs, self.all_obs = self._get_obs(obs)
+                self.obs, self.all_obs = get_obs(obs)
 
                 # Add the fingerprint term, if needed.
-                self.obs = self._add_fingerprint(
-                    self.obs, self.total_steps, total_timesteps)
+                self.obs = add_fingerprint(
+                    obs=self.obs,
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False),
+                )
 
     def _train(self):
         """Perform the training operation.
@@ -854,7 +863,7 @@ class OffPolicyRLAlgorithm(object):
             # Run a step of training from batch.
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_timesteps, env):
+    def _evaluate(self, total_steps, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -862,7 +871,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
@@ -899,11 +908,16 @@ class OffPolicyRLAlgorithm(object):
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = env.reset()
-            eval_obs, eval_all_obs = self._get_obs(eval_obs)
+            eval_obs, eval_all_obs = get_obs(eval_obs)
 
             # Add the fingerprint term, if needed.
-            eval_obs = self._add_fingerprint(
-                eval_obs, self.total_steps, total_timesteps)
+            eval_obs = add_fingerprint(
+                obs=eval_obs,
+                steps=self.total_steps,
+                total_steps=total_steps,
+                use_fingerprints=self.policy_kwargs.get(
+                    "use_fingerprints", False),
+            )
 
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
@@ -922,7 +936,7 @@ class OffPolicyRLAlgorithm(object):
                 )
 
                 obs, eval_r, done, info = env.step(eval_action)
-                obs, all_obs = self._get_obs(obs)
+                obs, all_obs = get_obs(obs)
 
                 # Visualize the current step.
                 if self.render_eval:
@@ -960,8 +974,13 @@ class OffPolicyRLAlgorithm(object):
                 eval_all_obs = all_obs
 
                 # Add the fingerprint term, if needed.
-                eval_obs = self._add_fingerprint(
-                    eval_obs, self.total_steps, total_timesteps)
+                eval_obs = add_fingerprint(
+                    obs=eval_obs,
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False),
+                )
 
                 # Increment the reward and step count.
                 num_steps += 1
@@ -1013,80 +1032,6 @@ class OffPolicyRLAlgorithm(object):
             self.policy_tf.clear_memory()
 
         return eval_episode_rewards, eval_episode_successes, ret_info
-
-    def _add_fingerprint(self, obs, steps, total_steps):
-        """Add a fingerprint element to the observation.
-
-        This should be done when setting "use_fingerprints" in policy_kwargs to
-        True. The new observation looks as follows:
-
-                  ---------------------------------------------------
-        new_obs = || obs || 5 * frac_steps || 5 * (1 - frac_steps) ||
-                  ---------------------------------------------------
-
-        where frac_steps is the fraction of the total requested number of
-        training steps that have been performed. Note that the "5" term is a
-        fixed hyperparameter, and can be changed based on its effect on
-        training performance.
-
-        If "use_fingerprints" is set to False in policy_kwargs, or simply not
-        specified, this method returns the current observation without the
-        fingerprint term.
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation without the fingerprint element
-        steps : int
-            the total number of steps that have been performed
-
-        Returns
-        -------
-        array_like
-            the observation with the fingerprint element
-        """
-        # if the fingerprint element should not be added, simply return the
-        # current observation.
-        if not self.policy_kwargs.get("use_fingerprints", False):
-            return obs
-
-        # compute the fingerprint term
-        frac_steps = float(steps) / float(total_steps)
-        fp = [5 * frac_steps, 5 * (1 - frac_steps)]
-
-        # append the fingerprint term to the current observation
-        new_obs = np.concatenate((obs, fp), axis=0)
-
-        return new_obs
-
-    @staticmethod
-    def _get_obs(obs):
-        """Get the observation from a (potentially unprocessed) variable.
-
-        We assume multi-agent MADDPG style policies return a dictionary
-        observations, containing the keys "obs" and "all_obs".
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation
-
-        Returns
-        -------
-        array_like
-            the agent-level observation. May be the initial observation
-        array_like or None
-            the full-state observation, if using environments that support
-            MADDPG. Otherwise, this variable is a None value.
-        """
-        if isinstance(obs, dict) and "all_obs" in obs.keys():
-            all_obs = obs["all_obs"]
-            obs = obs["obs"]
-        else:
-            all_obs = None
-            obs = obs
-
-        return obs, all_obs
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.
