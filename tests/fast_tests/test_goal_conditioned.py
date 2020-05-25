@@ -170,17 +170,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
-                          np.array([5, 5]), np.array([4, 4])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([4, 4])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
