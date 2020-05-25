@@ -83,7 +83,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -159,7 +159,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -348,7 +348,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         # unchanged sample
