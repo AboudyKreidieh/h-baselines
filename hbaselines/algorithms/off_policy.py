@@ -908,7 +908,7 @@ class OffPolicyRLAlgorithm(object):
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
-                if context is not None:
+                if hasattr(env, "current_context"):
                     context = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
                     rets = np.append(rets, reward_fn(eval_obs, context, obs))
@@ -936,6 +936,10 @@ class OffPolicyRLAlgorithm(object):
                 # Update the previous step observation.
                 eval_obs = obs.copy()
                 eval_all_obs = all_obs
+
+                # Visualize the current step.
+                if self.render_eval:
+                    self.eval_env.render()  # pragma: no cover
 
                 # Add the fingerprint term, if needed.
                 eval_obs = add_fingerprint(
