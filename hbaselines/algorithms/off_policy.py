@@ -896,7 +896,7 @@ class OffPolicyRLAlgorithm(object):
             # Run a step of training from batch.
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_timesteps, env):
+    def _evaluate(self, total_steps, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -904,7 +904,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
@@ -948,7 +948,7 @@ class OffPolicyRLAlgorithm(object):
             eval_obs = add_fingerprint(
                 obs=eval_obs,
                 steps=self.total_steps,
-                total_steps=total_timesteps,
+                total_steps=total_steps,
                 use_fingerprints=self.policy_kwargs.get(
                     "use_fingerprints", False),
             )
@@ -1013,7 +1013,7 @@ class OffPolicyRLAlgorithm(object):
                 eval_obs = add_fingerprint(
                     obs=eval_obs,
                     steps=self.total_steps,
-                    total_steps=total_timesteps,
+                    total_steps=total_steps,
                     use_fingerprints=self.policy_kwargs.get(
                         "use_fingerprints", False),
                 )
