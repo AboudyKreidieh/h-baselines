@@ -336,7 +336,7 @@ class OffPolicyRLAlgorithm(object):
 
         # Create the environment and collect the initial observations.
         self.env, obs = create_env(env, render, shared, maddpg, evaluate=False)
-        self.obs, self.all_obs = self._get_obs(obs)
+        self.obs, self.all_obs = get_obs(obs)
 
         # Collect the spaces of the environments.
         self.action_space = self.env.action_space
