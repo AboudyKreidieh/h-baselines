@@ -294,8 +294,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
                   initial_exploration_steps=0)
         self.assertEqual(
             len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+            alg.observation_space.shape[0])
         np.testing.assert_almost_equal(
             alg.obs[-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
@@ -305,8 +304,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
                   initial_exploration_steps=0)
         self.assertEqual(
             len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+            alg.observation_space.shape[0])
         np.testing.assert_almost_equal(
             alg.obs[-alg.policy_tf.fingerprint_dim[0]:],
             np.array([4.99, 0.01]))
