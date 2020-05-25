@@ -97,7 +97,7 @@ class Sampler(object):
         action : array_like
             the action to be performed by the agent(s) within the environment
         multiagent : bool
-            TODO
+             whether the policy is multi-agent
         steps : int
             the total number of steps that have been executed since training
             began
@@ -162,5 +162,5 @@ class Sampler(object):
             "action": action,
             "reward": reward,
             "done": done,
-            "all_obs": all_obs if not done else (all_obs, reset_all_obs)
+            "all_obs": all_obs if not done else (all_obs, reset_all_obs),
         }

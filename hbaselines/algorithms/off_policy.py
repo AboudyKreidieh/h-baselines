@@ -560,7 +560,7 @@ class OffPolicyRLAlgorithm(object):
         )
 
     def learn(self,
-              total_timesteps,
+              total_steps,
               log_dir=None,
               seed=None,
               log_interval=2000,
@@ -571,7 +571,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on
         log_dir : str
             the directory where the training and evaluation statistics, as well
@@ -593,8 +593,7 @@ class OffPolicyRLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval
-        )
+            max_to_keep=total_steps // save_interval)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -624,7 +623,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_timesteps,
+            self._collect_samples(total_steps,
                                   run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
@@ -643,11 +642,11 @@ class OffPolicyRLAlgorithm(object):
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps >= total_timesteps:
+                    if self.total_steps >= total_steps:
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_timesteps)
+                    self._collect_samples(total_steps)
 
                     # Train.
                     self._train()
@@ -656,29 +655,28 @@ class OffPolicyRLAlgorithm(object):
                 self._log_training(train_filepath, start_time)
 
                 # Evaluate.
-                # if self.eval_env is not None and \
-                #         (self.total_steps - eval_steps_incr) >= eval_interval:
-                #     eval_steps_incr += eval_interval
-                #
-                #     # Run the evaluation operations over the evaluation env(s).
-                #     # Note that multiple evaluation envs can be provided.
-                #     if isinstance(self.eval_env, list):
-                #         eval_rewards = []
-                #         eval_successes = []
-                #         eval_info = []
-                #         for env in self.eval_env:
-                #             rew, suc, inf = \
-                #                 self._evaluate(total_timesteps, env)
-                #             eval_rewards.append(rew)
-                #             eval_successes.append(suc)
-                #             eval_info.append(inf)
-                #     else:
-                #         eval_rewards, eval_successes, eval_info = \
-                #             self._evaluate(total_timesteps, self.eval_env)
-                #
-                #     # Log the evaluation statistics.
-                #     self._log_eval(eval_filepath, start_time, eval_rewards,
-                #                    eval_successes, eval_info)
+                if self.eval_sampler is not None and \
+                        (self.total_steps - eval_steps_incr) >= eval_interval:
+                    eval_steps_incr += eval_interval
+
+                    # Run the evaluation operations over the evaluation env(s).
+                    # Note that multiple evaluation envs can be provided.
+                    if isinstance(self.eval_sampler, list):
+                        eval_rewards = []
+                        eval_successes = []
+                        eval_info = []
+                        for sampler in self.eval_sampler:
+                            r, suc, inf = self._evaluate(total_steps, sampler)
+                            eval_rewards.append(r)
+                            eval_successes.append(suc)
+                            eval_info.append(inf)
+                    else:
+                        eval_rewards, eval_successes, eval_info = \
+                            self._evaluate(total_steps, self.eval_sampler)
+
+                    # Log the evaluation statistics.
+                    self._log_eval(eval_filepath, start_time, eval_rewards,
+                                   eval_successes, eval_info)
 
                 # Run and store summary.
                 if writer is not None:
@@ -761,7 +759,7 @@ class OffPolicyRLAlgorithm(object):
                 action=action,
                 multiagent=is_multiagent_policy(self.policy),
                 steps=0 if random_actions else self.total_steps,
-                total_steps=self.total_steps,
+                total_steps=total_steps,
                 use_fingerprints=self.policy_kwargs.get(
                     "use_fingerprints", False),
             )
@@ -882,8 +880,8 @@ class OffPolicyRLAlgorithm(object):
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs, eval_all_obs = sampler.reset(
-                steps=total_steps,
-                total_steps=self.total_steps,
+                steps=self.total_steps,
+                total_steps=total_steps,
                 use_fingerprints=self.policy_kwargs.get(
                     "use_fingerprints", False),
             )
@@ -896,24 +894,33 @@ class OffPolicyRLAlgorithm(object):
             while True:
                 eval_action = self._policy(
                     obs=eval_obs,
-                    context=self.eval_sampler.get_context(),
+                    context=sampler.get_context(),
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
                 )
 
                 # Update the environment.
-                obs, eval_r, done, info = env.step(eval_action)
-                obs, all_obs = get_obs(obs)
+                ret = sampler.collect_sample(
+                    action=eval_action,
+                    multiagent=is_multiagent_policy(self.policy),
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False),
+                )
+
+                obs = ret["obs"]
+                context = ret["context"]
+                eval_r = ret["reward"]
+                done = ret["done"]
+                all_obs = ret["all_obs"]
+                info = ret["info"]
 
                 # Add the distance to this list for logging purposes (applies
                 # only to the Ant* environments).
-                if hasattr(env, "current_context"):
-                    context = getattr(env, "current_context")
-                    reward_fn = getattr(env, "contextual_reward")
+                if context is not None:
+                    reward_fn = sampler.get_contextual_reward()
                     rets = np.append(rets, reward_fn(eval_obs, context, obs))
-
-                # Get the contextual term.
-                context = self.eval_sampler.get_context()
 
                 # Store a transition in the replay buffer. This is just for the
                 # purposes of calling features in the store_transition method
@@ -957,7 +964,7 @@ class OffPolicyRLAlgorithm(object):
                         else:
                             print("%d/%d" % (i + 1, self.nb_eval_episodes))
 
-                    if hasattr(env, "current_context"):
+                    if context is not None:
                         ret_info['initial'].append(rets[0])
                         ret_info['final'].append(rets[-1])
                         ret_info['average'].append(float(rets.mean()))
