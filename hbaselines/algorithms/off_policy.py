@@ -27,7 +27,7 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
-from hbaselines.algorithms.utils import collect_sample
+from hbaselines.algorithms.utils import Sampler
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -364,18 +364,25 @@ class OffPolicyRLAlgorithm(object):
         self.policy_kwargs = {'verbose': verbose}
 
         # Create the environment and collect the initial observations.
-        env_obs = [
-            create_env(env, render, shared, maddpg, env_num, evaluate=False)
-            for env_num in range(num_cpus)]
-        obs = [get_obs(eo[1]) for eo in env_obs]
-        self.env = [eo[0] for eo in env_obs]
-        self.obs = [ob[0] for ob in obs]
-        self.all_obs = [ob[1] for ob in obs]
+        self.sampler = [
+            Sampler.remote(
+                env,
+                render,
+                shared,
+                maddpg,
+                env_num,
+                # evaluate=False
+            )
+            for env_num in range(num_cpus)
+        ]
+        self.obs = ray.get(
+            [sampler.get_init_obs.remote() for sampler in self.sampler])
+        self.all_obs = [None for _ in range(num_cpus)]  # FIXME
 
         # Collect the spaces of the environments.
-        self.action_space = self.env[0].action_space
-        self.observation_space = self.env[0].observation_space
-        self.context_space = getattr(self.env[0], "context_space", None)
+        self.action_space = ray.get(self.sampler[0].action_space.remote())
+        self.observation_space = ray.get(self.sampler[0].observation_space.remote())
+        self.context_space = ray.get(self.sampler[0].context_space.remote())
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -386,9 +393,8 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs['num_cpus'] = num_cpus
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
-            self.policy_kwargs["all_ob_space"] = getattr(
-                self.env[0], "all_observation_space",
-                Box(-1, 1, (1,), dtype=np.float32))
+            self.policy_kwargs["all_ob_space"] = ray.get(
+                self.sampler[0].all_observation_space.remote())
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -402,15 +408,7 @@ class OffPolicyRLAlgorithm(object):
         # implementation (see appendix A of their paper). If the horizon cannot
         # be found, it is assumed to be 500 (default value for most gym
         # environments).
-        if hasattr(self.env[0], "horizon"):
-            self.horizon = self.env[0].horizon
-        elif hasattr(self.env[0], "_max_episode_steps"):
-            self.horizon = self.env[0]._max_episode_steps
-        elif hasattr(self.env[0], "env_params"):
-            # for Flow environments
-            self.horizon = self.env[0].env_params.horizon
-        else:
-            raise ValueError("Horizon attribute not found.")
+        self.horizon = ray.get(self.sampler[0].horizon.remote())
 
         # init
         self.graph = None
@@ -798,13 +796,11 @@ class OffPolicyRLAlgorithm(object):
         for itr in range(n_itr):
             n_steps = self.num_cpus if itr < n_itr - 1 \
                 else run_steps - (n_itr - 1) * self.num_cpus
-            ret = [
-                collect_sample(
-                    env=self.env[env_num],
+            ret = ray.get([
+                self.sampler[env_num].collect_sample.remote(
                     action=self._policy(
                         obs=self.obs[env_num],
-                        context=[self.env[env_num].current_context] if hasattr(
-                            self.env[env_num], "current_context") else None,
+                        context=None,  # FIXME
                         apply_noise=True,
                         random_actions=random_actions,
                         env_num=env_num,
@@ -817,7 +813,7 @@ class OffPolicyRLAlgorithm(object):
                         "use_fingerprints", False)
                 )
                 for env_num in range(n_steps)
-            ]
+            ])
 
             # Visualize the current step.
             if self.render:

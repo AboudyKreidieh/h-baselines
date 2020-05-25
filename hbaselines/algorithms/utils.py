@@ -1,5 +1,7 @@
 """Utility method for the algorithm classes."""
+import ray
 import numpy as np
+from gym.spaces import Box
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForward
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
@@ -11,6 +13,7 @@ from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.utils.env_util import create_env
 
 
 def is_td3_policy(policy):
@@ -121,92 +124,145 @@ def get_obs(obs):
     return obs, all_obs
 
 
-def collect_sample(env,
-                   action,
-                   env_num,
-                   multiagent,
-                   steps,
-                   total_steps,
-                   use_fingerprints=False):
-    """Perform the sample collection operation over a single step.
+@ray.remote
+class Sampler(object):
 
-    This method is responsible for executing a single step of the environment.
-    This is perform a number of times in the _collect_samples method before
-    training is executed. The data from the rollouts is stored in the policy's
-    replay buffer(s).
+    def __init__(self, env, render, shared, maddpg, env_num):
+        """
 
-    Parameters
-    ----------
-    env : gym.Env
-        the environment to collect samples from
-    action : array_like
-        the action to be performed by the agent(s) within the environment
-    env_num : int
-        the environment number. Used to handle situations when multiple
-        parallel environments are being used.
-    multiagent : bool
-        whether the policy is multi-agent
-    steps : int
-        the total number of steps that have been executed since training
-        began
-    total_steps : int
-        the total number of samples to train on. Used by the fingerprint
-        element
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
+        :param env:
+        :param render:
+        :param shared:
+        :param maddpg:
+        :param env_num:
+        """
+        self.env, self._init_obs = create_env(
+            env,
+            render,
+            shared,
+            maddpg,
+            env_num,
+            evaluate=False
+        )
 
-    Returns
-    -------
-    dict
-        information from the most recent environment update step, consisting of
-        the following terms:
+    def get_init_obs(self):
+        """TODO."""
+        return self._init_obs
 
-        * obs : the most recent observation. This consists of a single
-          observation if no reset occured, and a tuple of (last observation
-          from the previous rollout, first observation of the next rollout) if
-          a reset occured.
-        * context : the contextual term from the environment
-        * action : the action performed by the agent(s)
-        * reward : the reward from the most recent step
-        * done : the done mask
-        * env_num : the environment number
-        * all_obs : the most recent full-state observation. This consists of a
-          single observation if no reset occured, and a tuple of (last
-          observation from the previous rollout, first observation of the next
-          rollout) if a reset occured.
-    """
-    # Execute the next action.
-    obs, reward, done, info = env.step(action)
-    obs, all_obs = get_obs(obs)
+    def observation_space(self):
+        """TODO."""
+        return self.env.observation_space
 
-    # Done mask for multi-agent policies is slightly different.
-    if multiagent:
-        done = done["__all__"]
+    def action_space(self):
+        """TODO."""
+        return self.env.action_space
 
-    # Get the contextual term.
-    context = getattr(env, "current_context", None)
+    def context_space(self):
+        """TODO."""
+        return getattr(self.env, "context_space", None)
 
-    # Add the fingerprint term to this observation, if needed.
-    obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
+    def all_observation_space(self):
+        """TODO."""
+        return getattr(self.env, "all_observation_space", Box(-1, 1, (1,)))
 
-    if done:
-        # Reset the environment.
-        reset_obs = env.reset()
-        reset_obs, reset_all_obs = get_obs(reset_obs)
+    def horizon(self):
+        """TODO."""
+        if hasattr(self.env, "horizon"):
+            return self.env.horizon
+        elif hasattr(self.env, "_max_episode_steps"):
+            return self.env._max_episode_steps
+        elif hasattr(self.env, "env_params"):
+            # for Flow environments
+            return self.env.env_params.horizon
+        else:
+            raise ValueError("Horizon attribute not found.")
 
-        # Add the fingerprint term, if needed.
+    def collect_sample(self,
+                       action,
+                       env_num,
+                       multiagent,
+                       steps,
+                       total_steps,
+                       use_fingerprints=False):
+        """Perform the sample collection operation over a single step.
+
+        This method is responsible for executing a single step of the
+        environment. This is perform a number of times in the _collect_samples
+        method before training is executed. The data from the rollouts is
+        stored in the policy's replay buffer(s).
+
+        Parameters
+        ----------
+        env : gym.Env
+            the environment to collect samples from
+        action : array_like
+            the action to be performed by the agent(s) within the environment
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
+        multiagent : bool
+            whether the policy is multi-agent
+        steps : int
+            the total number of steps that have been executed since training
+            began
+        total_steps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
+        use_fingerprints : bool
+            specifies whether to add a time-dependent fingerprint to the
+            observations
+
+        Returns
+        -------
+        dict
+            information from the most recent environment update step,
+            consisting of the following terms:
+
+            * obs : the most recent observation. This consists of a single
+              observation if no reset occured, and a tuple of (last observation
+              from the previous rollout, first observation of the next rollout)
+              if a reset occured.
+            * context : the contextual term from the environment
+            * action : the action performed by the agent(s)
+            * reward : the reward from the most recent step
+            * done : the done mask
+            * env_num : the environment number
+            * all_obs : the most recent full-state observation. This consists
+              of a single observation if no reset occured, and a tuple of (last
+              observation from the previous rollout, first observation of the
+              next rollout) if a reset occured.
+        """
+        # Execute the next action.
+        obs, reward, done, info = self.env.step(action)
+        obs, all_obs = get_obs(obs)
+
+        # Done mask for multi-agent policies is slightly different.
+        if multiagent:
+            done = done["__all__"]
+
+        # Get the contextual term.
+        context = getattr(self.env, "current_context", None)
+
+        # Add the fingerprint term to this observation, if needed.
         obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
-    else:
-        reset_obs = None
-        reset_all_obs = None
 
-    return {
-        "obs": obs if not done else (obs, reset_obs),
-        "context": context,
-        "action": action,
-        "reward": reward,
-        "done": done,
-        "env_num": env_num,
-        "all_obs": all_obs if not done else (all_obs, reset_all_obs)
-    }
+        if done:
+            # Reset the environment.
+            reset_obs = self.env.reset()
+            reset_obs, reset_all_obs = get_obs(reset_obs)
+
+            # Add the fingerprint term, if needed.
+            obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
+        else:
+            reset_obs = None
+            reset_all_obs = None
+
+        return {
+            "obs": obs if not done else (obs, reset_obs),
+            "context": context,
+            "action": action,
+            "reward": reward,
+            "done": done,
+            "env_num": env_num,
+            "all_obs": all_obs if not done else (all_obs, reset_all_obs)
+        }
