@@ -759,7 +759,8 @@ class OffPolicyRLAlgorithm(object):
             # Update the environment.
             ret = self.sampler.collect_sample(
                 action=action,
-                steps=total_steps,
+                multiagent=is_multiagent_policy(self.policy),
+                steps=0 if random_actions else self.total_steps,
                 total_steps=self.total_steps,
                 use_fingerprints=self.policy_kwargs.get(
                     "use_fingerprints", False),
@@ -767,14 +768,10 @@ class OffPolicyRLAlgorithm(object):
 
             obs = ret["obs"]
             context0 = context1 = ret["context"]
-            action = ret["context"]
+            action = ret["action"]
             reward = ret["reward"]
             done = ret["done"]
             all_obs = ret["all_obs"]
-
-            # Done mask for multi-agent policies is slightly different.
-            if is_multiagent_policy(self.policy):
-                done = done["__all__"]
 
             # Store a transition in the replay buffer.
             self._store_transition(

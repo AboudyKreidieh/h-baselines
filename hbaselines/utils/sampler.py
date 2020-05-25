@@ -79,7 +79,12 @@ class Sampler(object):
         else:
             raise ValueError("Horizon attribute not found.")
 
-    def collect_sample(self, action, steps, total_steps, use_fingerprints):
+    def collect_sample(self,
+                       action,
+                       multiagent,
+                       steps,
+                       total_steps,
+                       use_fingerprints):
         """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
@@ -91,6 +96,8 @@ class Sampler(object):
         ----------
         action : array_like
             the action to be performed by the agent(s) within the environment
+        multiagent : bool
+            TODO
         steps : int
             the total number of steps that have been executed since training
             began
@@ -133,6 +140,10 @@ class Sampler(object):
 
         # Add the fingerprint term to this observation, if needed.
         obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
+
+        # Done mask for multi-agent policies is slightly different.
+        if multiagent:
+            done = done["__all__"]
 
         if done:
             # Reset the environment.
