@@ -193,6 +193,13 @@ class OffPolicyRLAlgorithm(object):
         in parallel. Must be less than or equal to nb_rollout_steps.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    action_space : gym.spaces.*
+        the action space of the training environment
+    observation_space : gym.spaces.*
+        the observation space of the training environment
+    context_space : gym.spaces.*
+        the context space of the training environment (i.e. the same of the
+        desired environmental goal)
     policy_kwargs : dict
         policy-specific hyperparameters
     horizon : int
