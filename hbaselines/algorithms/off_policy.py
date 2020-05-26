@@ -343,8 +343,7 @@ class OffPolicyRLAlgorithm(object):
             "num_cpus must be less than or equal to nb_rollout_steps"
 
         # Instantiate the ray instance.
-        if num_cpus > 1:
-            ray.init(num_cpus=num_cpus)
+        ray.init(num_cpus=num_cpus, ignore_reinit_error=True)
 
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
@@ -377,8 +376,8 @@ class OffPolicyRLAlgorithm(object):
             for env_num in range(num_cpus)
         ]
         obs = ray.get([s.get_init_obs.remote() for s in self.sampler])
-        self.obs = [o[0] for o in get_obs(obs)]
-        self.all_obs = [o[1] for o in get_obs(obs)]
+        self.obs = [get_obs(o)[0] for o in obs]
+        self.all_obs = [get_obs(o)[1] for o in obs]
 
         # Collect the spaces of the environments.
         self.ac_space = ray.get(self.sampler[0].action_space.remote())
@@ -800,18 +799,17 @@ class OffPolicyRLAlgorithm(object):
             # replay buffer.
             action = [self._policy(
                 obs=self.obs[env_num],
-                context=ray.get(self.sampler[env_num].get_context()),
+                context=ray.get(self.sampler[env_num].get_context.remote()),
                 apply_noise=True,
                 random_actions=random_actions,
                 env_num=env_num,
-            ) for env_num in n_steps]
+            ) for env_num in range(n_steps)]
 
             # Update the environment.
             ret = ray.get([
                 self.sampler[env_num].collect_sample.remote(
                     action=action[env_num],
                     multiagent=is_multiagent_policy(self.policy),
-                    env_num=env_num,
                     steps=self.total_steps,
                     total_steps=total_steps,
                     use_fingerprints=self.policy_kwargs.get(

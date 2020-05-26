@@ -294,9 +294,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         # `_collect_samples` method.
         alg.learn(1, log_dir='results', log_interval=1,
                   initial_exploration_steps=0)
-        self.assertEqual(
-            len(alg.obs[0]),
-            alg.env[0].observation_space.shape[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
             alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
@@ -304,9 +302,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         # a reset in the `_collect_samples` method.
         alg.learn(500, log_dir='results', log_interval=500,
                   initial_exploration_steps=0)
-        self.assertEqual(
-            len(alg.obs[0]),
-            alg.env[0].observation_space.shape[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
             alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:],
             np.array([4.99, 0.01]))

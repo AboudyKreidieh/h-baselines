@@ -2,6 +2,7 @@
 import unittest
 import os
 import shutil
+import ray
 
 from hbaselines.utils.train import parse_options
 from experiments.run_fcnet import main as run_fcnet
@@ -27,6 +28,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             os.path.join(os.getcwd(), "data/fcnet/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_fcent_sac(self):
@@ -45,6 +47,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             os.path.join(os.getcwd(), "data/fcnet/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_fcent_failure(self):
@@ -81,6 +84,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/goal-conditioned/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_hrl_sac(self):
@@ -103,6 +107,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/goal-conditioned/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_hrl_failure(self):
@@ -121,6 +126,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/goal-conditioned')
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_independent(self):
@@ -140,6 +146,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_independent(self):
@@ -160,6 +167,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_independent(self):
@@ -176,6 +184,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_shared(self):
@@ -196,6 +205,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_shared(self):
@@ -217,6 +227,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_shared(self):
@@ -234,6 +245,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_maddpg_independent(self):
@@ -254,6 +266,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_maddpg_independent(self):
@@ -275,6 +288,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_maddpg_independent(self):
@@ -292,6 +306,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_maddpg_shared(self):
@@ -313,6 +328,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_maddpg_shared(self):
@@ -335,6 +351,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_maddpg_shared(self):
@@ -353,6 +370,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
+        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
 
