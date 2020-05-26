@@ -7,4 +7,5 @@ matplotlib
 pygame
 opencv-python
 dm-tree
+ray[tune]
 # mujoco-py==1.50.1.68
