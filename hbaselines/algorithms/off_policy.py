@@ -787,19 +787,29 @@ class OffPolicyRLAlgorithm(object):
             instead of being computed by the policy. This is used for
             exploration purposes.
         """
+        # Loop through the sampling procedure the number of times it would
+        # require to run through each environment in parallel until the number
+        # of required steps have been collected.
         run_steps = run_steps or self.nb_rollout_steps
         n_itr = math.ceil(run_steps / self.num_cpus)
         for itr in range(n_itr):
             n_steps = self.num_cpus if itr < n_itr - 1 \
                 else run_steps - (n_itr - 1) * self.num_cpus
+
+            # Predict next action. Use random actions when initializing the
+            # replay buffer.
+            action = [self._policy(
+                obs=self.obs[env_num],
+                context=ray.get(self.sampler[env_num].get_context()),
+                apply_noise=True,
+                random_actions=random_actions,
+                env_num=env_num,
+            ) for env_num in n_steps]
+
+            # Update the environment.
             ret = ray.get([
                 self.sampler[env_num].collect_sample.remote(
-                    action=self._policy(
-                        obs=self.obs[env_num],
-                        context=None,  # FIXME
-                        apply_noise=True,
-                        random_actions=random_actions,
-                    ),
+                    action=action[env_num],
                     multiagent=is_multiagent_policy(self.policy),
                     env_num=env_num,
                     steps=self.total_steps,
@@ -809,9 +819,6 @@ class OffPolicyRLAlgorithm(object):
                 )
                 for env_num in range(n_steps)
             ])
-
-            # Book-keeping.
-            self.total_steps += n_steps
 
             for ret_i in ret:
                 num = ret_i["env_num"]
@@ -823,6 +830,7 @@ class OffPolicyRLAlgorithm(object):
                 all_obs = ret_i["all_obs"]
 
                 # Book-keeping.
+                self.total_steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
                     self.episode_reward[num] += sum(
