@@ -829,15 +829,6 @@ class OffPolicyRLAlgorithm(object):
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
 
-                # Book-keeping.
-                self.total_steps += 1
-                self.episode_step[num] += 1
-                if isinstance(reward, dict):
-                    self.episode_reward[num] += sum(
-                        reward[k] for k in reward.keys())
-                else:
-                    self.episode_reward[num] += reward
-
                 # Store a transition in the replay buffer.
                 self._store_transition(
                     obs0=self.obs[num],
@@ -852,6 +843,15 @@ class OffPolicyRLAlgorithm(object):
                     all_obs1=all_obs[0] if done else all_obs,
                     env_num=num,
                 )
+
+                # Book-keeping.
+                self.total_steps += 1
+                self.episode_step[num] += 1
+                if isinstance(reward, dict):
+                    self.episode_reward[num] += sum(
+                        reward[k] for k in reward.keys())
+                else:
+                    self.episode_reward[num] += reward
 
                 # Update the current observation.
                 self.obs[num] = (obs[1] if done else obs).copy()
