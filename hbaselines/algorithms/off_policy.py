@@ -27,7 +27,11 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
+<<<<<<< HEAD
 from hbaselines.algorithms.utils import Sampler
+=======
+from hbaselines.utils.sampler import Sampler
+>>>>>>> e8d90de7e203de19008a4d717c1739472c199ba8
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -160,10 +164,17 @@ class OffPolicyRLAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
+<<<<<<< HEAD
     env : list of gym.Env
         the environment to learn from. One environment is provided for each CPU
     eval_env : gym.Env or str
         the environment to evaluate from (if registered in Gym, can be str)
+=======
+    sampler : hbaselines.utils.sampler.Sampler
+        the training environment sampler object
+    eval_env : gym.Env or list of gym.Env
+        the environment(s) to evaluate from
+>>>>>>> e8d90de7e203de19008a4d717c1739472c199ba8
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -366,18 +377,18 @@ class OffPolicyRLAlgorithm(object):
         # Create the environment and collect the initial observations.
         self.sampler = [
             Sampler.remote(
-                env,
-                render,
-                shared,
-                maddpg,
-                env_num,
-                # evaluate=False
+                env_name=env,
+                render=render,
+                shared=shared,
+                maddpg=maddpg,
+                env_num=env_num,
+                evaluate=False,
             )
             for env_num in range(num_cpus)
         ]
-        self.obs = ray.get(
-            [sampler.get_init_obs.remote() for sampler in self.sampler])
-        self.all_obs = [None for _ in range(num_cpus)]  # FIXME
+        obs = ray.get([s.get_init_obs.remote() for s in self.sampler])
+        self.obs = [o[0] for o in get_obs(obs)]
+        self.all_obs = [o[1] for o in get_obs(obs)]
 
         # Collect the spaces of the environments.
         self.action_space = ray.get(self.sampler[0].action_space.remote())
@@ -404,10 +415,7 @@ class OffPolicyRLAlgorithm(object):
         self.policy_kwargs.update(policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
-        # terminated early and used to compute the done mask as per TD3
-        # implementation (see appendix A of their paper). If the horizon cannot
-        # be found, it is assumed to be 500 (default value for most gym
-        # environments).
+        # terminated early and used to compute the done mask for TD3.
         self.horizon = ray.get(self.sampler[0].horizon.remote())
 
         # init
@@ -606,7 +614,7 @@ class OffPolicyRLAlgorithm(object):
         )
 
     def learn(self,
-              total_timesteps,
+              total_steps,
               log_dir=None,
               seed=None,
               log_interval=2000,
@@ -617,7 +625,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on
         log_dir : str
             the directory where the training and evaluation statistics, as well
@@ -639,8 +647,7 @@ class OffPolicyRLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval
-        )
+            max_to_keep=total_steps // save_interval)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -670,7 +677,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_timesteps,
+            self._collect_samples(total_steps,
                                   run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
@@ -689,11 +696,11 @@ class OffPolicyRLAlgorithm(object):
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps >= total_timesteps:
+                    if self.total_steps >= total_steps:
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_timesteps)
+                    self._collect_samples(total_steps)
 
                     # Train.
                     self._train()
@@ -713,14 +720,13 @@ class OffPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = \
-                                self._evaluate(total_timesteps, env)
+                            rew, suc, inf = self._evaluate(total_steps, env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_timesteps, self.eval_env)
+                            self._evaluate(total_steps, self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -814,10 +820,6 @@ class OffPolicyRLAlgorithm(object):
                 )
                 for env_num in range(n_steps)
             ])
-
-            # Visualize the current step.
-            if self.render:
-                self.env[0].render()  # pragma: no cover
 
             # Book-keeping.
             self.total_steps += n_steps
@@ -971,6 +973,7 @@ class OffPolicyRLAlgorithm(object):
                     env_num=0,
                 )
 
+                # Update the environment.
                 obs, eval_r, done, info = env.step(eval_action)
                 obs, all_obs = get_obs(obs)
 

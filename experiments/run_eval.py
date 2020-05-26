@@ -156,7 +156,7 @@ def main(args):
 
     # some variables that will be needed when replaying the rollout
     policy = alg.policy_tf
-    env = alg.env[0]
+    env = alg.sampler.env[0]
 
     # Perform the evaluation procedure.
     episdoe_rewards = []
