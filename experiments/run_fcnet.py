@@ -63,7 +63,7 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_timesteps=steps,
+        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,

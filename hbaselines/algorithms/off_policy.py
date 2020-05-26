@@ -25,6 +25,7 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
+from hbaselines.utils.sampler import Sampler
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -157,10 +158,10 @@ class OffPolicyRLAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
-    env : gym.Env or str
-        the environment to learn from (if registered in Gym, can be str)
-    eval_env : gym.Env or str
-        the environment to evaluate from (if registered in Gym, can be str)
+    sampler : hbaselines.utils.sampler.Sampler
+        the training environment sampler object
+    eval_env : gym.Env or list of gym.Env
+        the environment(s) to evaluate from
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -334,14 +335,20 @@ class OffPolicyRLAlgorithm(object):
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
-        # Create the environment and collect the initial observations.
-        self.env, obs = create_env(env, render, shared, maddpg, evaluate=False)
-        self.obs, self.all_obs = get_obs(obs)
+        # Create the training sampler and collect the initial observations.
+        self.sampler = Sampler(
+            env_name=env,
+            render=render,
+            shared=shared,
+            maddpg=maddpg,
+            evaluate=False,
+        )
+        self.obs, self.all_obs = get_obs(self.sampler.get_init_obs())
 
         # Collect the spaces of the environments.
-        self.action_space = self.env.action_space
-        self.observation_space = self.env.observation_space
-        self.context_space = getattr(self.env, "context_space", None)
+        self.action_space = self.sampler.action_space()
+        self.observation_space = self.sampler.observation_space()
+        self.context_space = self.sampler.context_space()
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -351,9 +358,8 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs['env_name'] = self.env_name.__str__()
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
-            self.policy_kwargs["all_ob_space"] = getattr(
-                self.env, "all_observation_space",
-                Box(-1, 1, (1,), dtype=np.float32))
+            self.policy_kwargs["all_ob_space"] = \
+                self.sampler.all_observation_space()
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -363,19 +369,8 @@ class OffPolicyRLAlgorithm(object):
         self.policy_kwargs.update(policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
-        # terminated early and used to compute the done mask as per TD3
-        # implementation (see appendix A of their paper). If the horizon cannot
-        # be found, it is assumed to be 500 (default value for most gym
-        # environments).
-        if hasattr(self.env, "horizon"):
-            self.horizon = self.env.horizon
-        elif hasattr(self.env, "_max_episode_steps"):
-            self.horizon = self.env._max_episode_steps
-        elif hasattr(self.env, "env_params"):
-            # for Flow environments
-            self.horizon = self.env.env_params.horizon
-        else:
-            raise ValueError("Horizon attribute not found.")
+        # terminated early and used to compute the done mask for TD3.
+        self.horizon = self.sampler.horizon()
 
         # init
         self.graph = None
@@ -559,7 +554,7 @@ class OffPolicyRLAlgorithm(object):
         )
 
     def learn(self,
-              total_timesteps,
+              total_steps,
               log_dir=None,
               seed=None,
               log_interval=2000,
@@ -570,7 +565,7 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_timesteps : int
+        total_steps : int
             the total number of samples to train on
         log_dir : str
             the directory where the training and evaluation statistics, as well
@@ -592,8 +587,7 @@ class OffPolicyRLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_timesteps // save_interval
-        )
+            max_to_keep=total_steps // save_interval)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -623,7 +617,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_timesteps,
+            self._collect_samples(total_steps,
                                   run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
@@ -642,11 +636,11 @@ class OffPolicyRLAlgorithm(object):
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps >= total_timesteps:
+                    if self.total_steps >= total_steps:
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_timesteps)
+                    self._collect_samples(total_steps)
 
                     # Train.
                     self._train()
@@ -666,14 +660,13 @@ class OffPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = \
-                                self._evaluate(total_timesteps, env)
+                            rew, suc, inf = self._evaluate(total_steps, env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_timesteps, self.eval_env)
+                            self._evaluate(total_steps, self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -746,58 +739,44 @@ class OffPolicyRLAlgorithm(object):
             exploration purposes.
         """
         for _ in range(run_steps or self.nb_rollout_steps):
-            # Collect the contextual term. None if it is not passed.
-            context = [self.env.current_context] \
-                if hasattr(self.env, "current_context") else None
-
             # Predict next action. Use random actions when initializing the
             # replay buffer.
             action = self._policy(
-                self.obs, context,
+                obs=self.obs,
+                context=self.sampler.get_context(),
                 apply_noise=True,
                 random_actions=random_actions,
             )
 
-            # Execute next action.
-            new_obs, reward, done, info = self.env.step(action)
-            new_obs, new_all_obs = get_obs(new_obs)
-
-            # Done mask for multi-agent policies is slightly different.
-            if is_multiagent_policy(self.policy):
-                done = done["__all__"]
-
-            # Visualize the current step.
-            if self.render:
-                self.env.render()  # pragma: no cover
-
-            # Add the fingerprint term, if needed. When collecting the initial
-            # random actions, we assume the fingerprint does not change from
-            # its initial value.
-            new_obs = add_fingerprint(
-                obs=new_obs,
+            # Update the environment.
+            ret = self.sampler.collect_sample(
+                action=action,
+                multiagent=is_multiagent_policy(self.policy),
                 steps=0 if random_actions else self.total_steps,
                 total_steps=total_steps,
                 use_fingerprints=self.policy_kwargs.get(
                     "use_fingerprints", False),
             )
 
-            # Get the contextual term.
-            context0 = context1 = getattr(self.env, "current_context", None)
+            obs = ret["obs"]
+            context0 = context1 = ret["context"]
+            action = ret["action"]
+            reward = ret["reward"]
+            done = ret["done"]
+            all_obs = ret["all_obs"]
 
-            # Store a transition in the replay buffer. The terminal flag is
-            # chosen to match the TD3 implementation (see Appendix 1 of their
-            # paper).
+            # Store a transition in the replay buffer.
             self._store_transition(
                 obs0=self.obs,
                 context0=context0,
                 action=action,
                 reward=reward,
-                obs1=new_obs,
+                obs1=obs[0] if done else obs,
                 context1=context1,
                 terminal1=done,
                 is_final_step=self.episode_step >= self.horizon - 1,
                 all_obs0=self.all_obs,
-                all_obs1=new_all_obs,
+                all_obs1=all_obs[0] if done else all_obs,
             )
 
             # Book-keeping.
@@ -809,8 +788,8 @@ class OffPolicyRLAlgorithm(object):
                 self.episode_reward += reward
 
             # Update the current observation.
-            self.obs = new_obs.copy()
-            self.all_obs = new_all_obs
+            self.obs = obs[1].copy() if done else obs.copy()
+            self.all_obs = all_obs[1] if done else all_obs
 
             if done:
                 # Episode done.
@@ -821,19 +800,6 @@ class OffPolicyRLAlgorithm(object):
                 self.episode_step = 0
                 self.epoch_episodes += 1
                 self.episodes += 1
-
-                # Reset the environment.
-                obs = self.env.reset()
-                self.obs, self.all_obs = get_obs(obs)
-
-                # Add the fingerprint term, if needed.
-                self.obs = add_fingerprint(
-                    obs=self.obs,
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False),
-                )
 
     def _train(self):
         """Perform the training operation.
@@ -930,11 +896,13 @@ class OffPolicyRLAlgorithm(object):
                     if hasattr(env, "current_context") else None
 
                 eval_action = self._policy(
-                    eval_obs, context,
+                    obs=eval_obs,
+                    context=context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
                 )
 
+                # Update the environment.
                 obs, eval_r, done, info = env.step(eval_action)
                 obs, all_obs = get_obs(obs)
 
