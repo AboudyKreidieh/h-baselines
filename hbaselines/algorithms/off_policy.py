@@ -27,11 +27,7 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
-<<<<<<< HEAD
-from hbaselines.algorithms.utils import Sampler
-=======
 from hbaselines.utils.sampler import Sampler
->>>>>>> e8d90de7e203de19008a4d717c1739472c199ba8
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -164,17 +160,11 @@ class OffPolicyRLAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
-<<<<<<< HEAD
-    env : list of gym.Env
-        the environment to learn from. One environment is provided for each CPU
-    eval_env : gym.Env or str
-        the environment to evaluate from (if registered in Gym, can be str)
-=======
-    sampler : hbaselines.utils.sampler.Sampler
-        the training environment sampler object
+    sampler : list of hbaselines.utils.sampler.Sampler
+        the training environment sampler object. One environment is provided
+        for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
->>>>>>> e8d90de7e203de19008a4d717c1739472c199ba8
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -809,7 +799,6 @@ class OffPolicyRLAlgorithm(object):
                         context=None,  # FIXME
                         apply_noise=True,
                         random_actions=random_actions,
-                        env_num=env_num,
                     ),
                     multiagent=is_multiagent_policy(self.policy),
                     env_num=env_num,
