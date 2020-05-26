@@ -6,4 +6,5 @@ gym==0.10.8
 matplotlib
 pygame
 opencv-python
+dm-tree
 # mujoco-py==1.50.1.68
