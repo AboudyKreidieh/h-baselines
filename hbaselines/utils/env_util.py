@@ -427,10 +427,10 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals: Box(
             low=-10 if relative_goals else 0,
             high=10 if relative_goals else 30,
-            shape=(15,),
+            shape=(10,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(15)],
+        "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway_single(
                 multiagent=multiagent,
