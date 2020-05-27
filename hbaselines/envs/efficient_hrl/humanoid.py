@@ -147,9 +147,10 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def reset_model(self):
         """Reset the state of the agent to a particle original pos/vel."""
-        qpos = self.init_qpos + self.np_random.uniform(
-            size=self.model.nq, low=-.1, high=.1)
-        qvel = self.init_qvel + self.np_random.randn(self.model.nv) * .1
+        qpos = self.init_qpos + \
+            self.np_random.uniform(size=self.model.nq, low=-.1, high=.1)
+        qvel = self.init_qvel + \
+            self.np_random.randn(self.model.nv) * .1
 
         # Set everything other than humanoid to original position and 0 velocity.
         qpos[28:] = self.init_qpos[28:]
@@ -165,8 +166,8 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if self.viewer is not None:
             x, y = self.get_xy()
             self.viewer.cam.azimuth = 0
-            self.viewer.cam.distance = 15.
-            self.viewer.cam.elevation = -90
+            self.viewer.cam.distance = 5.
+            self.viewer.cam.elevation = -180
             self.viewer.cam.lookat[0] = x
             self.viewer.cam.lookat[1] = y
 

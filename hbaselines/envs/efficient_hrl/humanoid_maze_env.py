@@ -616,5 +616,5 @@ class HumanoidMazeEnv(gym.Env):
             inner_next_obs, inner_reward, done, info = self.wrapped_env.step(
                 action)
         next_obs = self._get_obs()
-        done = False
+        #done = False
         return next_obs, inner_reward, done, info

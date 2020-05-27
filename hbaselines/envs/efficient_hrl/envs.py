@@ -128,7 +128,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     context_low.append(low)
                     context_high.append(high)
                 return Box(low=np.asarray(context_low),
-                           high=np.asarray(context_high))
+                           high=np.asarray(context_high),
+                           dtype=np.float32)
             else:
                 # If there are a list of possible goals, use the min and max
                 # values of each index for the context space.
@@ -144,7 +145,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     # Use the original context as the context space. It is a
                     # fixed value in this case.
                     return Box(low=np.asarray(self.context_range),
-                               high=np.asarray(self.context_range))
+                               high=np.asarray(self.context_range),
+                               dtype=np.float32)
         else:
             return None
 
@@ -176,6 +178,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
         if self.use_contexts:
             # Add success to the info dict
+            offset = np.sqrt(np.sum(np.square(
+                self.context_space.high - self.context_space.low), -1))
             dist = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
@@ -184,7 +188,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
-            rew = dist
+            rew = dist + offset
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -254,7 +258,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                  maze_size_scaling=8,
                  top_down_view=False,
                  image_size=32,
-                 horizon=500):
+                 horizon=1000):
         """Initialize the Universal environment.
 
         Parameters
@@ -350,7 +354,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                     context_low.append(low)
                     context_high.append(high)
                 return Box(low=np.asarray(context_low),
-                           high=np.asarray(context_high))
+                           high=np.asarray(context_high),
+                           dtype=np.float32)
             else:
                 # If there are a list of possible goals, use the min and max
                 # values of each index for the context space.
@@ -366,7 +371,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                     # Use the original context as the context space. It is a
                     # fixed value in this case.
                     return Box(low=np.asarray(self.context_range),
-                               high=np.asarray(self.context_range))
+                               high=np.asarray(self.context_range),
+                               dtype=np.float32)
         else:
             return None
 
@@ -398,6 +404,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
 
         if self.use_contexts:
             # Add success to the info dict
+            offset = np.sqrt(np.sum(np.square(
+                self.context_space.high - self.context_space.low), -1))
             dist = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
@@ -406,7 +414,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
-            rew = dist
+            rew = dist + offset
 
         # Check if the time horizon has been met.
         self.step_number += 1

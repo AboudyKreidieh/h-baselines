@@ -222,7 +222,7 @@ class HierReplayBuffer(ReplayBuffer):
             worker_obs1 = worker_obses[indx_val + 1]
             worker_action = worker_actions[indx_val]
             intrinsic_reward = intrinsic_rewards[indx_val]
-            worker_done = 0  # see docstring
+            worker_done = worker_dones[indx_val]
 
             # Add the new sample to the list of returned samples.
             self.meta_obs0[i, :] = np.array(meta_obs0, copy=False)

@@ -89,9 +89,9 @@ FEEDFORWARD_PARAMS = dict(
     # convention is the image is in the last obs dimensions
 
     # channels of the proprioceptive state to be ignored
-    ignore_flat_channels=[0, 1],
+    ignore_flat_channels=[],
     # observation includes an image appended to it
-    includes_image=True,
+    includes_image=False,
     # observation includes an image but should it be ignored
     ignore_image=False,
     # the height of the image in the observation

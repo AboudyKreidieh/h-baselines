@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--names", type=str, nargs="+")
     parser.add_argument("--out", type=str, default="out.png")
     parser.add_argument("--y", type=str, default="success_rate")
+    parser.add_argument("--x", type=str, default="total_step")
     args = parser.parse_args()
 
     all_results = defaultdict(list)
@@ -35,7 +36,8 @@ if __name__ == "__main__":
         df = pd.concat(all_results[key])
         stop = df.groupby("name")["total_step"].max().min()
         df = df[df['total_step'] < stop]
+        #df[args.x] = (df[args.x] / 10000).astype(int) * 10000
         plt.clf()
-        ax = sns.lineplot(x="total_step", y=args.y, hue="name",
+        ax = sns.lineplot(x=args.x, y=args.y, hue="name",
                           data=df)
         plt.savefig(args.out.replace(".", "_{}.".format(key)))
