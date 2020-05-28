@@ -517,8 +517,8 @@ class TestMixedAutonomyParams(unittest.TestCase):
 
         # test the agent IDs.
         self.assertListEqual(
-            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
-                                 'rl_0_4'])
+            sorted(env.agents), ['rl_0_0', 'rl_1_0', 'rl_2_0', 'rl_3_0',
+                                 'rl_4_0'])
 
         # test observation space
         test_space(
@@ -1514,6 +1514,7 @@ class TestAVImitation(unittest.TestCase):
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "ghost_length": 500,
+                    "control_range": [500, 700],
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
