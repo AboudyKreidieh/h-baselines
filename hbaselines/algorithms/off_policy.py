@@ -807,26 +807,29 @@ class OffPolicyRLAlgorithm(object):
         Through this method, the actor and critic networks are updated within
         the policy, and the summary information is logged to tensorboard.
         """
-        for t_train in range(self.nb_train_steps):
-            if is_goal_conditioned_policy(self.policy):
-                # specifies whether to update the meta actor and critic
-                # policies based on the meta and actor update frequencies
-                kwargs = {
-                    "update_meta":
-                        (self.total_steps + t_train)
-                        % self.meta_update_freq == 0,
-                    "update_meta_actor":
-                        (self.total_steps + t_train)
-                        % (self.meta_update_freq * self.actor_update_freq) == 0
-                }
-            else:
-                kwargs = {}
+        # Added to adjust the actor update frequency based on the rate at which
+        # training occurs.
+        total_steps = int(self.total_steps / self.nb_rollout_steps)
 
-            # specifies whether to update the actor policy, base on the actor
-            # update frequency
-            update = (self.total_steps + t_train) % self.actor_update_freq == 0
+        if is_goal_conditioned_policy(self.policy):
+            # specifies whether to update the meta actor and critic
+            # policies based on the meta and actor update frequencies
+            kwargs = {
+                "update_meta":
+                    total_steps % self.meta_update_freq == 0,
+                "update_meta_actor":
+                    total_steps %
+                    (self.meta_update_freq * self.actor_update_freq) == 0
+            }
+        else:
+            kwargs = {}
 
-            # Run a step of training from batch.
+        # Specifies whether to update the actor policy, base on the actor
+        # update frequency.
+        update = total_steps % self.actor_update_freq == 0
+
+        # Run a step of training from batch.
+        for _ in range(self.nb_train_steps):
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
     def _evaluate(self, total_steps, env):
