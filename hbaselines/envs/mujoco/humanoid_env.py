@@ -30,11 +30,16 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self,
             horizon=1000):
 
+        self.horizon = horizon
+        self.t = 0
+
         file_path = os.path.join(MODEL_DIR, HumanoidEnv.FILE)
         mujoco_env.MujocoEnv.__init__(self, file_path, 5)
         utils.EzPickle.__init__(self)
 
-        self.horizon = horizon
+    def reset(self):
+        self.t = 0
+        return mujoco_env.MujocoEnv.reset(self)
 
     def _get_obs(self):
         data = self.sim.data
@@ -57,8 +62,9 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         quad_impact_cost = min(quad_impact_cost, 10)
         r = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
         qpos = self.sim.data.qpos
-        done = bool((qpos[2] < 1.0) or (qpos[2] > 2.0))
-        return self._get_obs(), r, done, dict(
+        self.t += 1
+        d = bool((qpos[2] < 1.0) or (qpos[2] > 2.0) or self.t > self.horizon)
+        return self._get_obs(), np.nan_to_num(r), d, dict(
             reward_linvel=lin_vel_cost,
             reward_quadctrl=-quad_ctrl_cost,
             reward_alive=alive_bonus,

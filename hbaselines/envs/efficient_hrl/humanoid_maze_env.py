@@ -84,6 +84,7 @@ class HumanoidMazeEnv(gym.Env):
             position
         """
         self._maze_id = maze_id
+        self.t = 0
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
@@ -123,14 +124,13 @@ class HumanoidMazeEnv(gym.Env):
             2 + (x + size_scaling / 2) / size_scaling)
         # walls (immovable), chasms (fall), movable blocks
         self.image_size = image_size
-        self._view = np.zeros([5, 5, 3])
 
         height_offset = 0.
         if self.elevated:
-            # Increase initial z-pos of ant.
+            # Increase initial z-pos of humanoid.
             height_offset = height * size_scaling
             torso = tree.find(".//body[@name='torso']")
-            torso.set('pos', '0 0 %.2f' % (0.75 + height_offset))
+            torso.set('pos', '0 0 %.2f' % (1.4 + height_offset))
         if self.blocks:
             # If there are movable blocks, change simulation settings to
             # perform better contact detection.
@@ -276,102 +276,11 @@ class HumanoidMazeEnv(gym.Env):
 
         _, file_path = tempfile.mkstemp(text=True, suffix='.xml')
         tree.write(file_path)
-
-        try:
-            self.wrapped_env = model_cls(*args, file_path=file_path, **kwargs)
-        except AssertionError:
-            # for testing purposes
-            pass
+        self.wrapped_env = model_cls(*args, file_path=file_path, **kwargs)
 
     def get_ori(self):
-        """Return the orientation of the ant."""
+        """Return the orientation of the humanoid."""
         return self.wrapped_env.get_ori()
-
-    def get_top_down_view(self):
-        """Return the top-down view."""
-        self._view = np.zeros_like(self._view)
-
-        def valid(row, col):
-            return self._view.shape[0] > row >= 0 and self._view.shape[
-                1] > col >= 0
-
-        def update_view(x, y, d, row=None, col=None):
-            if row is None or col is None:
-                x = x - self._robot_x
-                y = y - self._robot_y
-                # th = self._robot_ori
-
-                row, col = self._xy_to_rowcol(x, y)
-                update_view(x, y, d, row=row, col=col)
-                return
-
-            row, row_frac, col, col_frac = int(row), row % 1, int(col), col % 1
-            if row_frac < 0:
-                row_frac += 1
-            if col_frac < 0:
-                col_frac += 1
-
-            if valid(row, col):
-                self._view[row, col, d] += (
-                        (min(1., row_frac + 0.5) - max(0., row_frac - 0.5)) *
-                        (min(1., col_frac + 0.5) - max(0., col_frac - 0.5)))
-            if valid(row - 1, col):
-                self._view[row - 1, col, d] += (
-                        (max(0., 0.5 - row_frac)) *
-                        (min(1., col_frac + 0.5) - max(0., col_frac - 0.5)))
-            if valid(row + 1, col):
-                self._view[row + 1, col, d] += (
-                        (max(0., row_frac - 0.5)) *
-                        (min(1., col_frac + 0.5) - max(0., col_frac - 0.5)))
-            if valid(row, col - 1):
-                self._view[row, col - 1, d] += (
-                        (min(1., row_frac + 0.5) - max(0., row_frac - 0.5)) *
-                        (max(0., 0.5 - col_frac)))
-            if valid(row, col + 1):
-                self._view[row, col + 1, d] += (
-                        (min(1., row_frac + 0.5) - max(0., row_frac - 0.5)) *
-                        (max(0., col_frac - 0.5)))
-            if valid(row - 1, col - 1):
-                self._view[row - 1, col - 1, d] += (
-                        (max(0., 0.5 - row_frac)) * max(0., 0.5 - col_frac))
-            if valid(row - 1, col + 1):
-                self._view[row - 1, col + 1, d] += (
-                        (max(0., 0.5 - row_frac)) * max(0., col_frac - 0.5))
-            if valid(row + 1, col + 1):
-                self._view[row + 1, col + 1, d] += (
-                        (max(0., row_frac - 0.5)) * max(0., col_frac - 0.5))
-            if valid(row + 1, col - 1):
-                self._view[row + 1, col - 1, d] += (
-                        (max(0., row_frac - 0.5)) * max(0., 0.5 - col_frac))
-
-        # Draw ant.
-        robot_x, robot_y = self.wrapped_env.get_body_com("torso")[:2]
-        self._robot_x = robot_x
-        self._robot_y = robot_y
-        self._robot_ori = self.get_ori()
-
-        structure = self.MAZE_STRUCTURE
-        size_scaling = self.MAZE_SIZE_SCALING
-        # height = self.MAZE_HEIGHT
-
-        # Draw immovable blocks and chasms.
-        for i in range(len(structure)):
-            for j in range(len(structure[0])):
-                if structure[i][j] == 1:  # Wall.
-                    update_view(j * size_scaling - self._init_torso_x,
-                                i * size_scaling - self._init_torso_y,
-                                0)
-                if structure[i][j] == -1:  # Chasm.
-                    update_view(j * size_scaling - self._init_torso_x,
-                                i * size_scaling - self._init_torso_y,
-                                1)
-
-        # Draw movable blocks.
-        for block_name, block_type in self.movable_blocks:
-            block_x, block_y = self.wrapped_env.get_body_com(block_name)[:2]
-            update_view(block_x, block_y, 2)
-
-        return self._view
 
     def get_range_sensor_obs(self):
         """Return egocentric range sensor observations of maze."""
@@ -472,8 +381,7 @@ class HumanoidMazeEnv(gym.Env):
             img = self.render(mode='rgb_array',
                               width=self.image_size,
                               height=self.image_size)
-            img = img.astype(np.float32) / 255.0
-            view = [img.flat]
+            view = [(img.astype(np.float32) / 255.0).flat]
         else:
             view = []
 
@@ -488,13 +396,12 @@ class HumanoidMazeEnv(gym.Env):
         range_sensor_obs = self.get_range_sensor_obs()
         return np.concatenate(view +
                               [wrapped_obs,
-                               range_sensor_obs.flat] +
-                              [[self.t * 0.001]])
+                               range_sensor_obs.flat,
+                               [self.t * 0.001]])
 
     def reset(self):
         """Reset the environment."""
         self.t = 0
-        self.trajectory = []
         self.wrapped_env.reset()
         if len(self._init_positions) > 1:
             xy = random.choice(self._init_positions)
@@ -615,6 +522,4 @@ class HumanoidMazeEnv(gym.Env):
         else:
             inner_next_obs, inner_reward, done, info = self.wrapped_env.step(
                 action)
-        next_obs = self._get_obs()
-        #done = False
-        return next_obs, inner_reward, done, info
+        return self._get_obs(), inner_reward, done, info

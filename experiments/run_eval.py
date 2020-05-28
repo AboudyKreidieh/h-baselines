@@ -193,9 +193,10 @@ def main(args):
                 )
                 obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
-                    frame = env.render(mode='rgb_array', height=64, width=64)
-                    #frame = np.flip(frame, axis=0)
-                    #out.writeFrame(frame)
+                    frame = env.render(mode='rgb_array')
+                    if frame is not None:
+                        frame = np.flip(frame, axis=0)
+                        out.writeFrame(frame)
                 total_reward += reward
                 if done:
                     break

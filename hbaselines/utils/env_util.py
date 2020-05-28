@@ -12,7 +12,7 @@ from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.envs import UR5, Pendulum
-from hbaselines.envs.rllab.humanoid_env import HumanoidEnv
+from hbaselines.envs.mujoco.humanoid_env import HumanoidEnv
 
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv

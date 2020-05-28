@@ -1,42 +1,25 @@
-# Copyright 2018 The TensorFlow Authors All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-"""Wrapper for creating the ant environment in gym_mujoco."""
+import gym
+import gym.spaces
 import math
 import numpy as np
+import mujoco_py
+import random
+import os
 from gym import utils
-try:
-    import mujoco_py
-    from gym.envs.mujoco import mujoco_env
-except ModuleNotFoundError:
-    import gym
-    mujoco_py = object()
+from gym.envs.mujoco import mujoco_env
 
-    def mujoco_env():
-        """Create a dummy environment for testing purposes."""
-        return None
-    setattr(mujoco_env, "MujocoEnv", gym.Env)
+
+def mass_center(model, sim):
+    mass = np.expand_dims(model.body_mass, 1)
+    xpos = sim.data.xipos
+    return (np.sum(mass * xpos, 0) / np.sum(mass))[0]
 
 
 def q_inv(a):
-    """Return the inverse of a quaternion."""
     return [a[0], -a[1], -a[2], -a[3]]
 
 
 def q_mult(a, b):
-    """Multiply two quaternion."""
     w = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
     i = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
     j = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]
@@ -45,152 +28,80 @@ def q_mult(a, b):
 
 
 class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    """Gym representation of the Humanoid MuJoCo environment."""
 
-    FILE = "humanoid.xml"
-    ORI_IND = 3
+    FILE = 'humanoid.xml'
 
-    def __init__(self, file_path=None, expose_all_qpos=True,
-                 expose_body_coms=None, expose_body_comvels=None):
-        """Instantiate the Humanoid environment.
-
-        Parameters
-        ----------
-        file_path : str
-            path to the xml file
-        expose_all_qpos : bool
-            whether to provide all qpos values via the observation
-        expose_body_coms : list of str
-            whether to provide all body_coms values via the observation
-        expose_body_comvels : list of str
-            whether to provide all body_comvels values via the observation
-        """
-        self._expose_all_qpos = expose_all_qpos
-        self._expose_body_coms = expose_body_coms
-        self._expose_body_comvels = expose_body_comvels
-        self._body_com_indices = {}
-        self._body_comvel_indices = {}
-
-        try:
-            mujoco_env.MujocoEnv.__init__(self, file_path, 5)
-        except TypeError:
-            # for testing purposes
-            pass
+    def __init__(
+            self,
+            file_path):
+        """Create a humanoid agent."""
+        mujoco_env.MujocoEnv.__init__(self, file_path, 5)
         utils.EzPickle.__init__(self)
 
-    @property
-    def physics(self):
-        """Return the MuJoCo physics model."""
-        # check mujoco version is greater than version 1.50 to call correct
-        # physics model containing PyMjData object for getting and setting
-        # position/velocity check https://github.com/openai/mujoco-py/issues/80
-        # for updates to api
-        if mujoco_py.get_version() >= '1.50':
-            return self.sim
-        else:
-            return self.model
-
-    def _step(self, a):
-        """Advance the simulation by one step."""
-        return self.step(a)
+    def _get_obs(self):
+        """Get the observation of the humanoid."""
+        data = self.sim.data
+        return np.concatenate([data.qpos.flat,
+                               data.qvel.flat,
+                               data.cinert.flat,
+                               data.cvel.flat,
+                               data.qfrc_actuator.flat,
+                               data.cfrc_ext.flat])
 
     def step(self, a):
-        """Advance the simulation by one step."""
-        xposbefore = self.get_body_com("torso")[0]
+        """Step the simulator forward in time."""
+        pos_before = mass_center(self.model, self.sim)
         self.do_simulation(a, self.frame_skip)
-        xposafter = self.get_body_com("torso")[0]
-        forward_reward = (xposafter - xposbefore) / self.dt
-        ctrl_cost = .5 * np.square(a).sum()
-        survive_reward = 1.0
-        reward = forward_reward - ctrl_cost + survive_reward
-        state = self.state_vector()
-        notdone = np.isfinite(state).all() and 0.8 <= state[2] <= 2.0
-        done = not notdone
-        ob = self._get_obs()
-        return ob, reward, done, dict(
-            reward_forward=forward_reward,
-            reward_ctrl=-ctrl_cost,
-            reward_survive=survive_reward)
-
-    def _get_obs(self):
-        """Return the Humanoid observations."""
-        # No cfrc observation
-        if self._expose_all_qpos:
-            obs = np.concatenate([
-                self.physics.data.qpos.flat,  # Ensures only humanoid obs.
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
-            ])
-        else:
-            obs = np.concatenate([
-                self.physics.data.qpos.flat[2:],
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
-            ])
-
-        if self._expose_body_coms is not None:
-            for name in self._expose_body_coms:
-                com = self.get_body_com(name)
-                if name not in self._body_com_indices:
-                    indices = range(len(obs), len(obs) + len(com))
-                    self._body_com_indices[name] = indices
-                obs = np.concatenate([obs, com])
-
-        if self._expose_body_comvels is not None:
-            for name in self._expose_body_comvels:
-                comvel = self.get_body_comvel(name)
-                if name not in self._body_comvel_indices:
-                    indices = range(len(obs), len(obs) + len(comvel))
-                    self._body_comvel_indices[name] = indices
-                obs = np.concatenate([obs, comvel])
-        return obs
+        pos_after = mass_center(self.model, self.sim)
+        alive_bonus = 5.0
+        data = self.sim.data
+        lin_vel_cost = 1.25 * (pos_after - pos_before) / self.dt
+        quad_ctrl_cost = 0.1 * np.square(data.ctrl).sum()
+        quad_impact_cost = .5e-6 * np.square(data.cfrc_ext).sum()
+        quad_impact_cost = min(quad_impact_cost, 10)
+        r = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
+        d = bool((data.qpos[2] < 1.0) or (data.qpos[2] > 2.0))
+        return self._get_obs(), np.nan_to_num(r), d, dict(
+            reward_linvel=lin_vel_cost,
+            reward_quadctrl=-quad_ctrl_cost,
+            reward_alive=alive_bonus,
+            reward_impact=-quad_impact_cost)
 
     def reset_model(self):
-        """Reset the state of the agent to a particle original pos/vel."""
-        qpos = self.init_qpos + \
-            self.np_random.uniform(size=self.model.nq, low=-.1, high=.1)
-        qvel = self.init_qvel + \
-            self.np_random.randn(self.model.nv) * .1
-
-        # Set everything other than humanoid to original position and 0 velocity.
-        qpos[28:] = self.init_qpos[28:]
-        qvel[27:] = 0.
-        self.set_state(qpos, qvel)
+        """Reset the humanoid to a starting location"""
+        c = 0.01
+        qpos = self.np_random.uniform(low=-c, high=c, size=self.model.nq)
+        qvel = self.np_random.uniform(low=-c, high=c, size=self.model.nv)
+        self.set_state(self.init_qpos + qpos, self.init_qvel + qvel)
         return self._get_obs()
 
     def viewer_setup(self):
         """Create the viewer."""
-        self.update_cam()
+        self.update_viewer()
 
-    def update_cam(self):
+    def update_viewer(self):
+        """Update the camera position and orientation."""
         if self.viewer is not None:
             x, y = self.get_xy()
             self.viewer.cam.azimuth = 0
-            self.viewer.cam.distance = 5.
-            self.viewer.cam.elevation = -180
+            self.viewer.cam.distance = 15.
+            self.viewer.cam.elevation = -90
             self.viewer.cam.lookat[0] = x
             self.viewer.cam.lookat[1] = y
 
     def get_ori(self):
         """Return the orientation of the agent."""
-        ori = [0, 1, 0, 0]
-        # take the quaternion
-        rot = self.physics.data.qpos[
-              self.__class__.ORI_IND:self.__class__.ORI_IND + 4]
-        # project onto x-y plane
-        ori = q_mult(q_mult(rot, ori), q_inv(rot))[1:3]
-        ori = math.atan2(ori[1], ori[0])
-        return ori
+        rot = self.sim.data.qpos[3:7]
+        ori = q_mult(q_mult(rot, [0, 1, 0, 0]), q_inv(rot))[1:3]
+        return math.atan2(ori[1], ori[0])
 
     def set_xy(self, xy):
         """Set the x,y position of the agent."""
-        qpos = np.copy(self.physics.data.qpos)
+        qpos = np.copy(self.sim.data.qpos)
         qpos[0] = xy[0]
         qpos[1] = xy[1]
-
-        qvel = self.physics.data.qvel
-        self.set_state(qpos, qvel)
+        self.set_state(qpos, self.sim.data.qvel)
 
     def get_xy(self):
         """Return the x,y position of the agent."""
-        return self.physics.data.qpos[:2]
+        return self.sim.data.qpos[:2]

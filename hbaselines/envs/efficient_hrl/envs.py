@@ -366,7 +366,9 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                         min_val.append(min(v[i] for v in self.context_range))
                         max_val.append(max(v[i] for v in self.context_range))
 
-                    return Box(low=np.array(min_val), high=np.array(max_val))
+                    return Box(low=np.array(min_val),
+                               high=np.array(max_val),
+                               dtype=np.float32)
                 else:
                     # Use the original context as the context space. It is a
                     # fixed value in this case.
