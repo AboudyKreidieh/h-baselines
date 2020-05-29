@@ -286,7 +286,7 @@ class TestMisc(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
             expected_size=5,
         )
 
@@ -302,8 +302,8 @@ class TestMisc(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="ring", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
+            expected_min=np.array([-10 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
 
@@ -431,7 +431,7 @@ class TestMisc(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
+            expected_max=np.array([10 for _ in range(10)]),
             expected_size=10,
         )
 
@@ -448,8 +448,8 @@ class TestMisc(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="highway-single", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-1 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
+            expected_min=np.array([-5 for _ in range(10)]),
+            expected_max=np.array([5 for _ in range(10)]),
             expected_size=10,
         )
 

@@ -3,7 +3,7 @@
 Trains a non-constant number of agents, all sharing the same policy, on the
 highway with ramps network.
 """
-from flow.controllers import BandoFTLController
+from flow.controllers import IDMController
 from flow.controllers import RLController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
@@ -12,6 +12,7 @@ from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
+from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
@@ -20,17 +21,17 @@ from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
 # the speed of entering vehicles
-TRAFFIC_SPEED = 11
+TRAFFIC_SPEED = 24.1
 # the speed limit in the ghost edge
-END_SPEED = 16
+END_SPEED = 6.0
 # inflow rate on the highway in vehicles per hour
-TRAFFIC_FLOW = 2056
+TRAFFIC_FLOW = 2215
 # number of steps per rollout
-HORIZON = 1800
+HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 0.1
+PENETRATION_RATE = 1/12
 # whether to include noise in the environment
-INCLUDE_NOISE = False
+INCLUDE_NOISE = True
 
 
 def get_flow_params(evaluate=False, multiagent=False, imitation=False):
@@ -68,10 +69,6 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
-    # SET UP PARAMETERS FOR THE SIMULATION
-
-    # SET UP PARAMETERS FOR THE NETWORK
-
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params.update({
         # length of the highway
@@ -86,10 +83,10 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         # a different speed limit.
         "use_ghost_edge": True,
         # speed limit for the ghost edge
-        "ghost_speed_limit": END_SPEED
+        "ghost_speed_limit": END_SPEED,
+        # length of the cell imposing a boundary
+        "boundary_cell_length": 300,
     })
-
-    # CREATE VEHICLE TYPES AND INFLOWS
 
     vehicles = VehicleParams()
     inflows = InFlows()
@@ -98,17 +95,18 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
     vehicles.add(
         "human",
         num_vehicles=0,
-        lane_change_params=SumoLaneChangeParams(
-            lane_change_mode="strategic",
-        ),
-        acceleration_controller=(BandoFTLController, {
-            'alpha': .5,
-            'beta': 20.0,
-            'h_st': 12.0,
-            'h_go': 50.0,
-            'v_max': 30.0,
-            'noise': 1.0 if INCLUDE_NOISE else 0.0,
+        acceleration_controller=(IDMController, {
+            'a': 1.3,
+            'b': 2.0,
+            'noise': 0.3 if INCLUDE_NOISE else 0.0
         }),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5
+        ),
+        lane_change_params=SumoLaneChangeParams(
+            model="SL2015",
+            lc_sublane=2.0,
+        ),
     )
 
     inflows.add(
@@ -146,9 +144,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
             env_name = AVOpenMultiAgentEnv
     else:
         if imitation:
-            env_name = AVOpenEnv
-        else:
             env_name = AVOpenImitationEnv
+        else:
+            env_name = AVOpenEnv
 
     return dict(
         # name of the experiment
@@ -167,33 +165,31 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=50,
-            sims_per_step=2,
+            warmup_steps=500,
+            sims_per_step=3,
             additional_params={
-                "max_accel": 1,
-                "max_decel": 1,
-                "target_velocity": 30,
-                "penalty_type": "time_headway",
+                "max_accel": 0.5,
+                "max_decel": 0.5,
+                "target_velocity": 10,
+                "penalty_type": "acceleration",
                 "penalty": 1,
                 "inflows": None,
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
-                "ghost_length": 500,
-                "expert_model": (BandoFTLController, {
-                    'alpha': .5,
-                    'beta': 20.0,
-                    'h_st': 12.0,
-                    'h_go': 50.0,
-                    'v_max': 30.0,
+                "control_range": [500, 2300],
+                "expert_model": (IDMController, {
+                    'a': 1.3,
+                    'b': 2.0,
                 }),
             }
         ),
 
         # sumo-related parameters (see flow.core.params.SumoParams)
         sim=SumoParams(
-            sim_step=0.5,
+            sim_step=0.4,
             render=False,
-            restart_instance=True
+            restart_instance=True,
+            use_ballistic=True,
         ),
 
         # network-related parameters (see flow.core.params.NetParams and the
