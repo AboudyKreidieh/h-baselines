@@ -22,9 +22,6 @@ NUM_VEHICLES = 50
 RING_LENGTH = 1500
 # Number of lanes in the ring
 NUM_LANES = 1
-# Whether to distribute the automated vehicles evenly among the human-driven
-# vehicles. Otherwise, they are randomly distributed.
-EVEN_DISTRIBUTION = True
 
 
 def get_flow_params(num_automated=5,
@@ -77,26 +74,7 @@ def get_flow_params(num_automated=5,
           (see flow.core.params.TrafficLightParams)
     """
     vehicles = VehicleParams()
-    num_human = 50
-    humans_remaining = num_human - num_automated
     for i in range(num_automated):
-        # Add one automated vehicle.
-        vehicles.add(
-            veh_id="rl_{}".format(i),
-            acceleration_controller=(RLController, {}),
-            routing_controller=(ContinuousRouter, {}),
-            car_following_params=SumoCarFollowingParams(
-                min_gap=0.5,
-            ),
-            lane_change_params=SumoLaneChangeParams(
-                lane_change_mode=0,
-                # no lane changes by automated vehicles
-            ),
-            num_vehicles=1)
-
-        # Add a fraction of the remaining human vehicles.
-        vehicles_to_add = round(humans_remaining / (num_automated - i))
-        humans_remaining -= vehicles_to_add
         vehicles.add(
             veh_id="human_{}".format(i),
             acceleration_controller=(IDMController, {
@@ -111,7 +89,18 @@ def get_flow_params(num_automated=5,
             lane_change_params=SumoLaneChangeParams(
                 lane_change_mode="strategic",
             ),
-            num_vehicles=vehicles_to_add)
+            num_vehicles=NUM_VEHICLES - num_automated if i == 0 else 0)
+        vehicles.add(
+            veh_id="rl_{}".format(i),
+            acceleration_controller=(RLController, {}),
+            routing_controller=(ContinuousRouter, {}),
+            car_following_params=SumoCarFollowingParams(
+                min_gap=0.5,
+            ),
+            lane_change_params=SumoLaneChangeParams(
+                lane_change_mode=0,  # no lane changes by automated vehicles
+            ),
+            num_vehicles=num_automated if i == 0 else 0)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params["length"] = RING_LENGTH
@@ -161,7 +150,7 @@ def get_flow_params(num_automated=5,
                 "penalty_type": "acceleration",
                 "penalty": 1,
                 "num_vehicles": [50, 75],
-                "even_distribution": EVEN_DISTRIBUTION,
+                "even_distribution": False,
                 "sort_vehicles": True,
                 "expert_model": (IDMController, {
                     "a": 0.3,
@@ -183,8 +172,8 @@ def get_flow_params(num_automated=5,
         # parameters specifying the positioning of vehicles upon init/reset
         # (see flow.core.params.InitialConfig)
         initial=InitialConfig(
-            spacing="uniform" if EVEN_DISTRIBUTION else "random",
+            spacing="random",
             min_gap=0.5,
-            shuffle=not EVEN_DISTRIBUTION,
+            shuffle=True,
         ),
     )
