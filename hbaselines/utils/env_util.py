@@ -219,8 +219,8 @@ ENV_ATTRIBUTES = {
 
     "ring": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
+            low=-10 if relative_goals else 0,
+            high=10 if relative_goals else 30,
             shape=(5,),
             dtype=np.float32
         ),
@@ -425,8 +425,8 @@ ENV_ATTRIBUTES = {
 
     "highway-single": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
             shape=(10,),
             dtype=np.float32
         ),
@@ -493,9 +493,9 @@ ENV_ATTRIBUTES = {
 
     "BipedalSoccer": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+            low=np.array([-0.5, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
-            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            high=np.array([0.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         ),
         "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
