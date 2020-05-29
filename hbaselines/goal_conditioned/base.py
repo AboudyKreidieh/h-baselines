@@ -486,14 +486,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         This method performs the following operations:
 
-        - It calls the initialization methods of the policies at every level of
-          the hierarchy.
         - It also imports the worker policy from a pre-trained checkpoint if a
           path to one is specified.
+        - It calls the initialization methods of the policies at every level of
+          the hierarchy to match the target value function parameters with the
+          current policy parameters.
         """
-        for i in range(self.num_levels):
-            self.policy[i].initialize()
-
         if self.pretrain_path is not None:
             # Add the "checkpoints" sub-directory.
             ckpt_path = os.path.join(self.pretrain_path, "checkpoints")
@@ -539,6 +537,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 if var_name.startswith("level_{}".format(self.num_levels-1)):
                     value = ckpt_reader.get_tensor(var_name)
                     self.sess.run(tf.compat.v1.assign(var_name, value))
+
+        # Initialize the separate policies in the hierarchy.
+        for i in range(self.num_levels):
+            self.policy[i].initialize()
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
