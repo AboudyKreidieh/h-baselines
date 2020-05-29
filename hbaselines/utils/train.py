@@ -358,6 +358,17 @@ def create_goal_conditioned_parser(parser):
         help="specifies whether you are pre-training the lower-level "
              "policies. Actions by the high-level policy are randomly sampled "
              "from its action space.")
+    parser.add_argument(
+        "--pretrain_path",
+        type=str,
+        default=GOAL_CONDITIONED_PARAMS["pretrain_path"],
+        help="path to the pre-trained worker policy checkpoints")
+    parser.add_argument(
+        "--pretrain_ckpt",
+        type=int,
+        default=GOAL_CONDITIONED_PARAMS["pretrain_ckpt"],
+        help="checkpoint number to use within the worker policy path. If set "
+             "to None, the most recent checkpoint is used.")
 
     return parser
 

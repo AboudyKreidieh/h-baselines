@@ -48,6 +48,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  centralized_value_functions,
                  cg_weights,
                  pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  env_name="",
                  num_cpus=1):
         """Instantiate the goal-conditioned hierarchical policy.
@@ -164,6 +166,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             centralized_value_functions=centralized_value_functions,
             env_name=env_name,
             pretrain_worker=pretrain_worker,
+            pretrain_path=pretrain_path,
+            pretrain_ckpt=pretrain_ckpt,
             num_cpus=num_cpus,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,

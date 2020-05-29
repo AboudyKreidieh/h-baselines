@@ -135,6 +135,11 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # specifies whether you are pre-training the lower-level policies. Actions
     # by the high-level policy are randomly sampled from its action space.
     pretrain_worker=False,
+    # path to the pre-trained worker policy checkpoints
+    pretrain_path=None,
+    # the checkpoint number to use within the worker policy path. If set to
+    # None, the most recent checkpoint is used.
+    pretrain_ckpt=None,
 ))
 
 
