@@ -1049,8 +1049,11 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=[
+                    'human_0_0', 'human_1_0', 'human_2_0', 'human_3_0',
+                    'human_4_0', 'human_4_8', 'human_0_8', 'human_1_8',
+                    'human_2_8', 'human_3_8'
+                ]
             )
         )
 
@@ -1226,8 +1229,11 @@ class TestAVMulti(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=[
+                    'human_0_0', 'human_1_0', 'human_2_0', 'human_3_0',
+                    'human_4_0', 'human_4_8', 'human_0_8', 'human_1_8',
+                    'human_2_8', 'human_3_8'
+                ]
             )
         )
 
@@ -1388,8 +1394,11 @@ class TestAVImitation(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=env_params,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=[
+                    'human_0_0', 'human_1_0', 'human_2_0', 'human_3_0',
+                    'human_4_0', 'human_4_8', 'human_0_8', 'human_1_8',
+                    'human_2_8', 'human_3_8'
+                ]
             )
         )
 
@@ -1406,7 +1415,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [0.0850658, 0.1037863, 0.092358, 0.0760671, -0.1428318]
+            [-0.1552087, -0.0491496, 0.0832154, 0.0902531, -0.1134]
         )
 
     def test_closed_env(self):
@@ -1513,7 +1522,6 @@ class TestAVImitation(unittest.TestCase):
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
-                    "ghost_length": 500,
                     "control_range": [500, 700],
                     "expert_model": (IDMController, {
                         "a": 0.3,
@@ -1540,7 +1548,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [0.0730258, -0.0180382, 0., 0., 0.]
+            [0.0920063, 0.0211631, -0.3895735, -0.0745612, 0.2004818]
         )
 
 

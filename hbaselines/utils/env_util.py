@@ -425,8 +425,8 @@ ENV_ATTRIBUTES = {
 
     "highway-single": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-10 if relative_goals else 0,
-            high=10 if relative_goals else 30,
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
             shape=(10,),
             dtype=np.float32
         ),
