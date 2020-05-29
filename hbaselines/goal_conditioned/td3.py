@@ -51,6 +51,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
+                 pretrain_worker,
                  env_name="",
                  num_cpus=1):
         """Instantiate the goal-conditioned hierarchical policy.
@@ -137,6 +138,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             being used
         centralized_value_functions : bool
             specifies whether to use centralized value functions
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -168,6 +173,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
             env_name=env_name,
+            pretrain_worker=pretrain_worker,
             num_cpus=num_cpus,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
