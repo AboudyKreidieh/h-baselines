@@ -65,6 +65,7 @@ def get_hyperparameters(args, policy):
             "cg_weights": args.cg_weights,
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
+            "pretrain_worker": args.pretrain_worker,
         })
 
     # add MultiFeedForwardPolicy parameters
@@ -344,6 +345,12 @@ def create_goal_conditioned_parser(parser):
         help="weights for the gradients of the loss of the lower-level "
              "policies with respect to the parameters of the higher-level "
              "policies. Only used if `connected_gradients` is set to True.")
+    parser.add_argument(
+        "--pretrain_worker",
+        action="store_true",
+        help="specifies whether you are pre-training the lower-level "
+             "policies. Actions by the high-level policy are randomly sampled "
+             "from its action space.")
 
     return parser
 

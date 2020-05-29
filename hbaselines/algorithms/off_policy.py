@@ -130,6 +130,9 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     fingerprint_range=([0, 0], [5, 5]),
     # specifies whether to use centralized value functions
     centralized_value_functions=False,
+    # specifies whether you are pre-training the lower-level policies. Actions
+    # by the high-level policy are randomly sampled from its action space.
+    pretrain_worker=False,
 ))
 
 

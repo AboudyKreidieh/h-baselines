@@ -101,6 +101,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         the shape of the fingerprint elements, if they are being used
     centralized_value_functions : bool
         specifies whether to use centralized value functions
+    pretrain_worker : bool
+        specifies whether you are pre-training the lower-level policies.
+        Actions by the high-level policy are randomly sampled from its action
+        space.
     policy : list of hbaselines.base_policies.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
@@ -141,6 +145,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
+                 pretrain_worker,
                  env_name="",
                  meta_policy=None,
                  worker_policy=None,
@@ -237,6 +242,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             being used
         centralized_value_functions : bool
             specifies whether to use centralized value functions
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from the
+            action space.
         meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use for the meta policies
         worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
@@ -279,6 +288,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.fingerprint_range = fingerprint_range
         self.fingerprint_dim = (len(self.fingerprint_range[0]),)
         self.centralized_value_functions = centralized_value_functions
+        self.pretrain_worker = pretrain_worker
 
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
@@ -503,7 +513,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         actor_loss = []
         critic_loss = []
 
-        if kwargs['update_meta']:
+        if kwargs['update_meta'] and not self.pretrain_worker:
             # Replace the goals with the most likely goals.
             if self.off_policy_corrections:
                 meta_act = self._sample_best_meta_action(
@@ -564,12 +574,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Loop through the policies in the hierarchy.
         for i in range(self.num_levels - 1):
             if self._update_meta(i):
-                context_i = context if i == 0 else self._meta_action[i - 1]
+                if self.pretrain_worker:
+                    # Sample goals randomly when performing pre-training.
+                    self._meta_action[i] = np.array([
+                        self.policy[i].ac_space.sample()])
+                else:
+                    context_i = context if i == 0 else self._meta_action[i - 1]
 
-                # Update the meta action based on the output from the policy if
-                # the time period requires is.
-                self._meta_action[i] = self.policy[i].get_action(
-                    obs, context_i, apply_noise, random_actions)
+                    # Update the meta action based on the output from the
+                    # policy if the time period requires is.
+                    self._meta_action[i] = self.policy[i].get_action(
+                        obs, context_i, apply_noise, random_actions)
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
