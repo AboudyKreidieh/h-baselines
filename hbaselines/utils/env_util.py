@@ -219,8 +219,8 @@ ENV_ATTRIBUTES = {
 
     "ring": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
+            low=-10 if relative_goals else 0,
+            high=10 if relative_goals else 30,
             shape=(5,),
             dtype=np.float32
         ),
@@ -425,8 +425,8 @@ ENV_ATTRIBUTES = {
 
     "highway-single": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
             shape=(10,),
             dtype=np.float32
         ),
@@ -493,9 +493,9 @@ ENV_ATTRIBUTES = {
 
     "BipedalSoccer": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+            low=np.array([-0.5, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
-            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            high=np.array([0.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         ),
         "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
@@ -656,12 +656,16 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
 
     Returns
     -------
-    gym.Env or list of gym.Env
-        gym-compatible environment(s)
+    gym.Env or list of gym.Env or None
+        gym-compatible environment(s). Set to None if no environment is being
+        returned.
+    array_like or list of array_like or None
+        the observation(s) from the environment(s) upon reset. Set to None if
+        no environment is being returned.
     """
     if env is None:
         # No environment (for evaluation environments).
-        return None
+        return None, None
     elif isinstance(env, str):
         if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](
@@ -690,9 +694,10 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     # Reset the environment.
     if env is not None:
         if isinstance(env, list):
-            for next_env in env:
-                next_env.reset()
+            obs = [next_env.reset() for next_env in env]
         else:
-            env.reset()
+            obs = env.reset()
+    else:
+        obs = None
 
-    return env
+    return env, obs

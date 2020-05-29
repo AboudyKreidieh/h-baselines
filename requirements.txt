@@ -1,9 +1,8 @@
-numpy==1.16.0
-tensorflow==1.15
+numpy==1.18.4
+tensorflow==1.15.2
 tensorflow-probability==0.8.0
-gym==0.10.8
-redis==2.10.6
-matplotlib>=3.0.0
+gym==0.14.0
+matplotlib
 pygame
 opencv-python
 tqdm

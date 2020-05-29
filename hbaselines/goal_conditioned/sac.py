@@ -36,6 +36,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  target_entropy,
                  num_levels,
                  meta_period,
+                 intrinsic_reward_type,
                  intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -92,6 +93,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             levels correspond to a Manager/Worker paradigm.
         meta_period : int
             meta-policy action period
+        intrinsic_reward_type : str
+            the reward function to be used by the lower-level policies. See the
+            base goal-conditioned policy for a description.
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -141,6 +145,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_huber=use_huber,
             num_levels=num_levels,
             meta_period=meta_period,
+            intrinsic_reward_type=intrinsic_reward_type,
             intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,

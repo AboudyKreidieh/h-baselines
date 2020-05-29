@@ -63,7 +63,7 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_timesteps=steps,
+        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
@@ -125,13 +125,12 @@ def main(args, base_dir):
 
 
 if __name__ == '__main__':
-    # collect arguments
-    args = parse_options(
-        description='Test the performance of fully connected network models '
-                    'on various environments.',
-        example_usage=EXAMPLE_USAGE,
-        args=sys.argv[1:]
+    main(
+        parse_options(
+            description='Test the performance of fully connected network '
+                        'models on various environments.',
+            example_usage=EXAMPLE_USAGE,
+            args=sys.argv[1:]
+        ),
+        'data/fcnet'
     )
-
-    # execute the training procedure
-    main(args, 'data/fcnet')

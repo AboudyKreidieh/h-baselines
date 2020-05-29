@@ -19,9 +19,9 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }
@@ -83,7 +83,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -94,17 +94,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
-                          np.array([5, 5]), np.array([5, 5])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -151,7 +159,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -162,17 +170,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
-                          np.array([5, 5]), np.array([4, 4])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([4, 4])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -230,17 +246,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
-                          np.array([5, 5]), np.array([5, 5])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -260,17 +284,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([4, 4]), np.array([4, 4]), np.array([4, 4]),
-                          np.array([4, 4]), np.array([4, 4])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([4, 4]),
+                          np.array([4, 4]),
+                          np.array([4, 4]),
+                          np.array([4, 4]),
+                          np.array([4, 4])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -316,7 +348,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
             )
 
         # unchanged sample
@@ -328,17 +360,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([5, 5]), np.array([5, 5]), np.array([5, 5]),
-                          np.array([5, 5]), np.array([4, 4])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([4, 4])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -358,17 +398,25 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # check the various attributes
         self.assertTrue(
             all(all(obs_t[i] ==
-                    [np.array([0, 0]), np.array([1, 1]), np.array([2, 2]),
-                     np.array([3, 3]), np.array([4, 4])][i])
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4])][i])
                 for i in range(len(obs_t)))
         )
 
         for i in range(len(action_t)):
             self.assertTrue(
                 all(all(action_t[i][j] ==
-                        [[np.array([4, 4]), np.array([3, 3]), np.array([2, 2]),
-                          np.array([1, 1]), np.array([0, 0])],
-                         [np.array([0]), np.array([1]), np.array([2]),
+                        [[np.array([4, 4]),
+                          np.array([3, 3]),
+                          np.array([2, 2]),
+                          np.array([1, 1]),
+                          np.array([0, 0])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
                           np.array([3])]][i][j])
                     for j in range(len(action_t[i])))
             )
@@ -430,8 +478,22 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         self.assertEqual(policy._update_meta(1), True)
 
     def test_intrinsic_rewards(self):
-        """Validate the functionality of the intrinsic rewards."""
-        policy = TD3GoalConditionedPolicy(**self.policy_params)
+        """Validate the functionality of the intrinsic rewards.
+
+        This is done for the following cases:
+
+        1. intrinsic_reward_type = "negative_distance"
+        2. intrinsic_reward_type = "scaled_negative_distance"
+        3. intrinsic_reward_type = "non_negative_distance"
+        4. intrinsic_reward_type = "scaled_non_negative_distance"
+        5. intrinsic_reward_type = "exp_negative_distance"
+        6. intrinsic_reward_type = "scaled_exp_negative_distance"
+        7. intrinsic_reward_type = "error" -> raises ValueError
+        """
+        # test case 1
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
 
         self.assertAlmostEqual(
             policy.intrinsic_reward_fn(
@@ -441,6 +503,106 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             ),
             -3.6055512754778567
         )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 2
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "scaled_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            -1.8027756377597297
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 3
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "non_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            2.0513028772015867
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 4
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "scaled_non_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            3.8540785149197134
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 5
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "exp_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            2.2603294067550214e-06
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 6
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "scaled_exp_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            0.03877420782784459
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 7
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "error"
+        self.assertRaises(
+            ValueError, TD3GoalConditionedPolicy, **policy_params)
 
     def test_relative_goals(self):
         """Validate the functionality of relative goals.
@@ -525,9 +687,9 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }
@@ -893,9 +1055,9 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(2,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(2,)),
             'layers': None,
             'verbose': 0,
         }

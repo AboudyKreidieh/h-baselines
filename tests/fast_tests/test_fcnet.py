@@ -21,9 +21,9 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
             'scope': None,
             'verbose': 0,
         }
@@ -181,9 +181,9 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
             'scope': None,
             'verbose': 0,
         }
@@ -336,9 +336,9 @@ class TestImitationFeedForwardPolicy(unittest.TestCase):
     def setUp(self):
         self.policy_params = {
             'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'ob_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'co_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
             'scope': None,
             'verbose': 0,
         }

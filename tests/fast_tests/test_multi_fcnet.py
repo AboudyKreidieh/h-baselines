@@ -22,10 +22,10 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
         # Shared policy parameters
         self.policy_params_shared = {
             'sess': self.sess,
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'co_space': Box(low=-2, high=2, shape=(2,)),
+            'ob_space': Box(low=-3, high=3, shape=(3,)),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,)),
             'layers': [256, 256],
             'verbose': 0,
         }
@@ -37,18 +37,18 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
         self.policy_params_independent = {
             'sess': self.sess,
             'ac_space': {
-                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+                'a': Box(low=-1, high=1, shape=(1,)),
+                'b': Box(low=-2, high=2, shape=(2,)),
             },
             'co_space': {
-                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+                'a': Box(low=-3, high=3, shape=(3,)),
+                'b': Box(low=-4, high=4, shape=(4,)),
             },
             'ob_space': {
-                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
-                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+                'a': Box(low=-5, high=5, shape=(5,)),
+                'b': Box(low=-6, high=6, shape=(6,)),
             },
-            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
+            'all_ob_space': Box(low=-6, high=6, shape=(18,)),
             'layers': [256, 256],
             'verbose': 0,
         }
@@ -148,10 +148,10 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         # Shared policy parameters
         self.policy_params_shared = {
             'sess': self.sess,
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'co_space': Box(low=-2, high=2, shape=(2,)),
+            'ob_space': Box(low=-3, high=3, shape=(3,)),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,)),
             'layers': [256, 256],
             'verbose': 0,
         }
@@ -163,18 +163,18 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         self.policy_params_independent = {
             'sess': self.sess,
             'ac_space': {
-                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+                'a': Box(low=-1, high=1, shape=(1,)),
+                'b': Box(low=-2, high=2, shape=(2,)),
             },
             'co_space': {
-                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+                'a': Box(low=-3, high=3, shape=(3,)),
+                'b': Box(low=-4, high=4, shape=(4,)),
             },
             'ob_space': {
-                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
-                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+                'a': Box(low=-5, high=5, shape=(5,)),
+                'b': Box(low=-6, high=6, shape=(6,)),
             },
-            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
+            'all_ob_space': Box(low=-6, high=6, shape=(18,)),
             'layers': [256, 256],
             'verbose': 0,
         }
@@ -863,10 +863,10 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         # Shared policy parameters
         self.policy_params_shared = {
             'sess': self.sess,
-            'ac_space': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'co_space': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
-            'ob_space': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-            'all_ob_space': Box(low=-3, high=3, shape=(10,), dtype=np.float32),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'co_space': Box(low=-2, high=2, shape=(2,)),
+            'ob_space': Box(low=-3, high=3, shape=(3,)),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,)),
             'layers': [256, 256],
             'verbose': 0,
         }
@@ -878,18 +878,18 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         self.policy_params_independent = {
             'sess': self.sess,
             'ac_space': {
-                'a': Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-                'b': Box(low=-2, high=2, shape=(2,), dtype=np.float32),
+                'a': Box(low=-1, high=1, shape=(1,)),
+                'b': Box(low=-2, high=2, shape=(2,)),
             },
             'co_space': {
-                'a': Box(low=-3, high=3, shape=(3,), dtype=np.float32),
-                'b': Box(low=-4, high=4, shape=(4,), dtype=np.float32),
+                'a': Box(low=-3, high=3, shape=(3,)),
+                'b': Box(low=-4, high=4, shape=(4,)),
             },
             'ob_space': {
-                'a': Box(low=-5, high=5, shape=(5,), dtype=np.float32),
-                'b': Box(low=-6, high=6, shape=(6,), dtype=np.float32),
+                'a': Box(low=-5, high=5, shape=(5,)),
+                'b': Box(low=-6, high=6, shape=(6,)),
             },
-            'all_ob_space': Box(low=-6, high=6, shape=(18,), dtype=np.float32),
+            'all_ob_space': Box(low=-6, high=6, shape=(18,)),
             'layers': [256, 256],
             'verbose': 0,
         }

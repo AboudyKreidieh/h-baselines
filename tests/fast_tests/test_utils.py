@@ -107,6 +107,7 @@ class TestTrain(unittest.TestCase):
         self.assertDictEqual(hp, expected_hp)
 
     def test_parse_options(self):
+        self.maxDiff = None
         # Test the default case.
         args = parse_options("", "", args=["AntMaze"])
         expected_args = {
@@ -145,6 +146,8 @@ class TestTrain(unittest.TestCase):
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
             'intrinsic_reward_scale':
                 GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
+            'intrinsic_reward_type':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_type'],
             'relative_goals': False,
             'off_policy_corrections': False,
             'hindsight': False,
@@ -192,6 +195,7 @@ class TestTrain(unittest.TestCase):
             '--num_levels', '23',
             '--meta_period', '24',
             '--intrinsic_reward_scale', '25',
+            '--intrinsic_reward_type', 'woop',
             '--relative_goals',
             '--off_policy_corrections',
             '--hindsight',
@@ -230,6 +234,7 @@ class TestTrain(unittest.TestCase):
                 'num_levels': 23,
                 'meta_period': 24,
                 'intrinsic_reward_scale': 25.0,
+                'intrinsic_reward_type': 'woop',
                 'relative_goals': True,
                 'off_policy_corrections': True,
                 'hindsight': True,
@@ -368,7 +373,7 @@ class TestMisc(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
+            expected_max=np.array([30 for _ in range(5)]),
             expected_size=5,
         )
 
@@ -384,8 +389,8 @@ class TestMisc(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="ring", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
+            expected_min=np.array([-10 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
 
@@ -513,7 +518,7 @@ class TestMisc(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
+            expected_max=np.array([10 for _ in range(10)]),
             expected_size=10,
         )
 
@@ -530,8 +535,8 @@ class TestMisc(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="highway-single", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-1 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
+            expected_min=np.array([-5 for _ in range(10)]),
+            expected_max=np.array([5 for _ in range(10)]),
             expected_size=10,
         )
 
@@ -556,7 +561,7 @@ class TestMisc(unittest.TestCase):
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=Box(-1, 1, shape=(2,), dtype=np.float32),
+            ob_space=Box(-1, 1, shape=(2,)),
             use_fingerprints=False,
             fingerprint_dim=1,
         )

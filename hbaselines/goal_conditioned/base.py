@@ -50,6 +50,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     ----------
     meta_period : int
         meta-policy action period
+    intrinsic_reward_type : str
+        the reward function to be used by the worker. Must be one of:
+
+        * "negative_distance": the negative two norm between the states and
+          desired absolute or relative goals.
+        * "scaled_negative_distance": similar to the negative distance reward
+          where the states, goals, and next states are scaled by the inverse of
+          the action space of the manager policy
+        * "non_negative_distance": the negative two norm between the states and
+          desired absolute or relative goals offset by the maximum goal space
+          (to ensure non-negativity)
+        * "scaled_non_negative_distance": similar to the non-negative distance
+          reward where the states, goals, and next states are scaled by the
+          inverse of the action space of the manager policy
+        * "exp_negative_distance": equal to exp(-negative_distance^2). The
+          result is a reward between 0 and 1. This is useful for policies that
+          terminate early.
+        * "scaled_exp_negative_distance": similar to the previous worker reward
+          type but with states, actions, and next states that are scaled.
     intrinsic_reward_scale : float
         the value that the intrinsic reward should be scaled by
     relative_goals : bool
@@ -111,6 +130,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  use_huber,
                  num_levels,
                  meta_period,
+                 intrinsic_reward_type,
                  intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -167,6 +187,26 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             levels correspond to a Manager/Worker paradigm.
         meta_period : int
             meta-policy action period
+        intrinsic_reward_type : str
+            the reward function to be used by the worker. Must be one of:
+
+            * "negative_distance": the negative two norm between the states and
+              desired absolute or relative goals.
+            * "scaled_negative_distance": similar to the negative distance
+              reward where the states, goals, and next states are scaled by the
+              inverse of the action space of the manager policy
+            * "non_negative_distance": the negative two norm between the states
+              and desired absolute or relative goals offset by the maximum goal
+              space (to ensure non-negativity)
+            * "scaled_non_negative_distance": similar to the non-negative
+              distance reward where the states, goals, and next states are
+              scaled by the inverse of the action space of the manager policy
+            * "exp_negative_distance": equal to exp(-negative_distance^2). The
+              result is a reward between 0 and 1. This is useful for policies
+              that terminate early.
+            * "scaled_exp_negative_distance": similar to the previous worker
+              reward type but with states, actions, and next states that are
+              scaled.
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -227,6 +267,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         self.num_levels = num_levels
         self.meta_period = meta_period
+        self.intrinsic_reward_type = intrinsic_reward_type
         self.intrinsic_reward_scale = intrinsic_reward_scale
         self.relative_goals = relative_goals
         self.off_policy_corrections = off_policy_corrections
@@ -336,16 +377,49 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # Define the intrinsic reward function.
-        def intrinsic_reward_fn(states, goals, next_states):
-            return negative_distance(
-                states=states,
-                state_indices=self.goal_indices,
-                goals=goals,
-                next_states=next_states,
-                relative_context=relative_goals,
-                offset=0.0
-            )
-        self.intrinsic_reward_fn = intrinsic_reward_fn
+        if intrinsic_reward_type in ["negative_distance",
+                                     "scaled_negative_distance",
+                                     "non_negative_distance",
+                                     "scaled_non_negative_distance",
+                                     "exp_negative_distance",
+                                     "scaled_exp_negative_distance"]:
+            # Offset the distance measure by the maximum possible distance to
+            # ensure non-negativity.
+            if "non_negative" in intrinsic_reward_type:
+                offset = np.sqrt(np.sum(np.square(
+                    meta_ac_space.high - meta_ac_space.low), -1))
+            else:
+                offset = 0
+
+            # Scale the outputs from the state by the meta-action space if you
+            # wish to scale the worker reward.
+            if intrinsic_reward_type.startswith("scaled"):
+                scale = 0.5 * (meta_ac_space.high - meta_ac_space.low)
+            else:
+                scale = 1
+
+            def intrinsic_reward_fn(states, goals, next_states):
+                return negative_distance(
+                    states=states[self.goal_indices] / scale,
+                    goals=goals / scale,
+                    next_states=next_states[self.goal_indices] / scale,
+                    relative_context=relative_goals,
+                    offset=0.0
+                ) + offset
+
+            # Perform the exponential and squashing operations to keep the
+            # intrinsic reward between 0 and 1.
+            if "exp" in intrinsic_reward_type:
+                def exp_intrinsic_reward_fn(states, goals, next_states):
+                    return np.exp(
+                        -1 *
+                        intrinsic_reward_fn(states, goals, next_states) ** 2)
+                self.intrinsic_reward_fn = exp_intrinsic_reward_fn
+            else:
+                self.intrinsic_reward_fn = intrinsic_reward_fn
+        else:
+            raise ValueError("Unknown intrinsic reward type: {}".format(
+                intrinsic_reward_type))
 
         # =================================================================== #
         # Step 3: Create algorithm-specific features.                         #
