@@ -1513,7 +1513,7 @@ class TestAVImitation(unittest.TestCase):
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
-                    "ghost_length": 500,
+                    "control_range": [500, 700],
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
@@ -1539,7 +1539,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [0.0730258, -0.0180382, 0., 0., 0.]
+            [0.023829, -0.0536327, 0.1970218, 0.1936684, 0.2325007]
         )
 
 
