@@ -486,12 +486,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         This method performs the following operations:
 
-        - It also imports the worker policy from a pre-trained checkpoint if a
-          path to one is specified.
         - It calls the initialization methods of the policies at every level of
           the hierarchy to match the target value function parameters with the
           current policy parameters.
+        - It also imports the worker policy from a pre-trained checkpoint if a
+          path to one is specified.
         """
+        # Initialize the separate policies in the hierarchy.
+        for i in range(self.num_levels):
+            self.policy[i].initialize()
+
         if self.pretrain_path is not None:
             # Add the "checkpoints" sub-directory.
             ckpt_path = os.path.join(self.pretrain_path, "checkpoints")
@@ -514,33 +518,37 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             assert var_list[-1][0].startswith(
                 "level_{}".format(self.num_levels-1)), \
                 "Number of levels between the checkpoint and current policy " \
-                "do not match. Policy={} levels, Checkpoint={} levels.".format(
-                    self.num_levels, int(var_list.split("/")[0][6:]) + 1)
+                "do not match. Policy={}, Checkpoint={}".format(
+                    self.num_levels,
+                    int(var_list[-1][0].split("/")[0][6:]) + 1)
 
             # Check that the names and shapes of the lowest-level policy
             # parameters match the current policy.
-            current_var_list = get_trainable_vars()
+            current_vars = {
+                v.name: v.shape.as_list()
+                for v in get_trainable_vars()
+            }
             for var in var_list:
                 var_name, var_shape = var
+                var_name = "{}:0".format(var_name)
                 # We only check the lowest level policies.
                 if var_name.startswith("level_{}".format(self.num_levels-1)):
-                    assert var_name in current_var_list, \
+                    assert var_name in current_vars.keys(), \
                         "{} not available in current policy.".format(var_name)
-                    current_shape = self.sess.run(tf.shape(var_name))
+                    current_shape = current_vars[var_name]
                     assert current_shape == var_shape, \
                         "Shape mismatch for {}, {} != {}".format(
                             var_name, var_shape, current_shape)
 
             # Import the lowest-level policy parameters.
+            current_vars = {v.name: v for v in get_trainable_vars()}
             for var in var_list:
                 var_name, var_shape = var
                 if var_name.startswith("level_{}".format(self.num_levels-1)):
                     value = ckpt_reader.get_tensor(var_name)
-                    self.sess.run(tf.compat.v1.assign(var_name, value))
-
-        # Initialize the separate policies in the hierarchy.
-        for i in range(self.num_levels):
-            self.policy[i].initialize()
+                    var_name = "{}:0".format(var_name)
+                    self.sess.run(
+                        tf.compat.v1.assign(current_vars[var_name], value))
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
