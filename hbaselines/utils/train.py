@@ -67,6 +67,8 @@ def get_hyperparameters(args, policy):
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
             "pretrain_worker": args.pretrain_worker,
+            "pretrain_path": args.pretrain_path,
+            "pretrain_ckpt": args.pretrain_ckpt,
         })
 
     # add MultiFeedForwardPolicy parameters

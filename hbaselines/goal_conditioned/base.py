@@ -683,7 +683,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Return the action to be performed within the environment (i.e. the
         # action by the lowest level policy).
         action = self.policy[-1].get_action(
-            obs, self._meta_action[env_num][-1], apply_noise, random_actions)
+            obs=obs,
+            context=self._meta_action[env_num][-1],
+            apply_noise=apply_noise,
+            random_actions=random_actions and self.pretrain_path is not None)
 
         return action
 

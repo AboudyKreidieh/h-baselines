@@ -430,7 +430,7 @@ ENV_ATTRIBUTES = {
             shape=(10,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(15)],
+        "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway_single(
                 multiagent=multiagent,
