@@ -178,8 +178,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
         if self.use_contexts:
             # Add success to the info dict
-            offset = np.sqrt(np.sum(np.square(
-                self.context_space.high - self.context_space.low), -1))
             dist = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
@@ -255,7 +253,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 maze_size_scaling=8,
+                 maze_size_scaling=4,
                  top_down_view=False,
                  image_size=32,
                  horizon=1000):
@@ -406,8 +404,6 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
 
         if self.use_contexts:
             # Add success to the info dict
-            offset = np.sqrt(np.sum(np.square(
-                self.context_space.high - self.context_space.low), -1))
             dist = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
@@ -416,7 +412,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
-            rew = dist + offset
+            rew = dist
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -512,8 +508,7 @@ class AntMaze(UniversalAntMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=REWARD_SCALE
-            )
+                reward_scales=REWARD_SCALE)
 
         super(AntMaze, self).__init__(
             maze_id=maze_id,
@@ -521,8 +516,7 @@ class AntMaze(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            maze_size_scaling=8,
-        )
+            maze_size_scaling=8)
 
 
 class HumanoidMaze(UniversalHumanoidMazeEnv):
@@ -568,10 +562,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 goals=goals,
                 next_states=next_states,
                 state_indices=[0, 1],
-                relative_context=False,
-                offset=0.0,
-                reward_scales=REWARD_SCALE
-            )
+                relative_context=False)
 
         super(HumanoidMaze, self).__init__(
             maze_id=maze_id,
@@ -579,8 +570,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            maze_size_scaling=8,
-        )
+            maze_size_scaling=4)
 
 
 class ImageAntMaze(UniversalAntMazeEnv):

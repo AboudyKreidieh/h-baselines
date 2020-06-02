@@ -195,8 +195,10 @@ def main(args):
                 if not flags.no_render:
                     frame = env.render(mode='rgb_array')
                     if frame is not None:
-                        frame = np.flip(frame, axis=0)
+                        #frame = np.flip(frame, axis=0)
                         out.writeFrame(frame)
+                    else:
+                        print("frame is None")
                 total_reward += reward
                 if done:
                     break

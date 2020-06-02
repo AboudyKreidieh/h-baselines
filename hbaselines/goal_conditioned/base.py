@@ -117,6 +117,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  filters,
                  kernel_sizes,
                  strides,
+                 pre_exp_reward_scale,
+                 pre_exp_reward_shift,
                  meta_period,
                  intrinsic_reward_scale,
                  relative_goals,
@@ -249,7 +251,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             image_channels=image_channels,
             filters=filters,
             kernel_sizes=kernel_sizes,
-            strides=strides
+            strides=strides,
         )
 
         self.meta_period = meta_period
@@ -374,19 +376,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             fingerprint_dim=self.fingerprint_dim
         )
 
+        max_distance = np.linalg.norm(
+            meta_ac_space.high - meta_ac_space.low)
+
         # Define the intrinsic reward function.
         def intrinsic_reward_fn(states, goals, next_states):
             # Offset the distance measure by the maximum possible distance to
             # ensure non-negativity.
-            offset = np.sqrt(np.sum(np.square(
-                meta_ac_space.high - meta_ac_space.low), -1))
-            return offset + negative_distance(
+            return negative_distance(
                 states=states,
                 state_indices=self.goal_indices,
                 goals=goals,
                 next_states=next_states,
                 relative_context=relative_goals,
-                offset=0.0)
+                offset=pre_exp_reward_shift * pre_exp_reward_scale,
+                reward_scales=(pre_exp_reward_scale / max_distance),
+                output_activation=np.exp)
         self.intrinsic_reward_fn = intrinsic_reward_fn
 
         # =================================================================== #

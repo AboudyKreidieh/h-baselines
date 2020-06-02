@@ -72,6 +72,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         c = 0.01
         qpos = self.np_random.uniform(low=-c, high=c, size=self.model.nq)
         qvel = self.np_random.uniform(low=-c, high=c, size=self.model.nv)
+        qvel[0] = 2.0  # set the agent to have a forward momentum
         self.set_state(self.init_qpos + qpos, self.init_qvel + qvel)
         return self._get_obs()
 
@@ -84,7 +85,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if self.viewer is not None:
             x, y = self.get_xy()
             self.viewer.cam.azimuth = 0
-            self.viewer.cam.distance = 15.
+            self.viewer.cam.distance = 7.
             self.viewer.cam.elevation = -90
             self.viewer.cam.lookat[0] = x
             self.viewer.cam.lookat[1] = y

@@ -42,7 +42,7 @@ class HumanoidMazeEnv(gym.Env):
     def __init__(self,
                  maze_id=None,
                  maze_height=0.5,
-                 maze_size_scaling=8,
+                 maze_size_scaling=4,
                  n_bins=0,
                  sensor_range=3.,
                  sensor_span=2 * math.pi,
@@ -510,7 +510,7 @@ class HumanoidMazeEnv(gym.Env):
         dict
             extra information dictionary
         """
-        self.wrapped_env.update_cam()
+        self.wrapped_env.update_viewer()
         self.t += 1
         if self._manual_collision:
             old_pos = self.wrapped_env.get_xy()

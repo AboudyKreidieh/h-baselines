@@ -257,7 +257,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             image_channels=image_channels,
             filters=filters,
             kernel_sizes=kernel_sizes,
-            strides=strides
+            strides=strides,
         )
         
         print(use_huber, includes_image, ignore_image, image_height)
