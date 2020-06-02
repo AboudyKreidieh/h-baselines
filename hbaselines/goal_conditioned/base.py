@@ -657,8 +657,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Loop through the policies in the hierarchy.
-        if env_num == 0:
-            self.t += 1
+        self.t += 1
         prob_random = max(0, 1 - self.t / 1e6)
         for i in range(self.num_levels - 1):
             if self._update_meta(i, env_num):
