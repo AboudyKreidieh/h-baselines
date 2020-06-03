@@ -282,6 +282,10 @@ class HumanoidMazeEnv(gym.Env):
         """Return the orientation of the humanoid."""
         return self.wrapped_env.get_ori()
 
+    def set_goal(self, goal):
+        """Set the goal position of the humanoid."""
+        self.wrapped_env.set_goal(goal)
+
     def get_range_sensor_obs(self):
         """Return egocentric range sensor observations of maze."""
         robot_x, robot_y, robot_z = self.wrapped_env.get_body_com("torso")[:3]

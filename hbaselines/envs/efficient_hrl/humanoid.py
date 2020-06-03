@@ -29,29 +29,31 @@ def q_mult(a, b):
 
 class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
-    FILE = 'humanoid.xml'
+    FILE = 'double_humanoid.xml'
 
     def __init__(
             self,
             file_path):
         """Create a humanoid agent."""
+        self._goal = None
         mujoco_env.MujocoEnv.__init__(self, file_path, 5)
         utils.EzPickle.__init__(self)
 
     def _get_obs(self):
         """Get the observation of the humanoid."""
         data = self.sim.data
-        return np.concatenate([data.qpos.flat,
-                               data.qvel.flat,
-                               data.cinert.flat,
-                               data.cvel.flat,
-                               data.qfrc_actuator.flat,
-                               data.cfrc_ext.flat])
+        return np.concatenate([data.qpos[:24].flat,
+                               data.qvel[:23].flat,
+                               data.cinert[:14].flat,
+                               data.cvel[:14].flat,
+                               data.qfrc_actuator[:23].flat,
+                               data.cfrc_ext[:14].flat])
 
     def step(self, a):
         """Step the simulator forward in time."""
         pos_before = mass_center(self.model, self.sim)
         self.do_simulation(a, self.frame_skip)
+        self.set_to_goal()
         pos_after = mass_center(self.model, self.sim)
         alive_bonus = 5.0
         data = self.sim.data
@@ -85,10 +87,10 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if self.viewer is not None:
             x, y = self.get_xy()
             self.viewer.cam.azimuth = 0
-            self.viewer.cam.distance = 7.
+            self.viewer.cam.distance = 35.
             self.viewer.cam.elevation = -90
-            self.viewer.cam.lookat[0] = x
-            self.viewer.cam.lookat[1] = y
+            self.viewer.cam.lookat[0] = 4.
+            self.viewer.cam.lookat[1] = 4.
 
     def get_ori(self):
         """Return the orientation of the agent."""
@@ -102,6 +104,20 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos[0] = xy[0]
         qpos[1] = xy[1]
         self.set_state(qpos, self.sim.data.qvel)
+
+    def set_goal(self, goal):
+        """Set the goal position of the agent."""
+        self._goal = goal
+
+    def set_to_goal(self):
+        """Update the goal position of the goal agent."""
+        qpos = np.copy(self.sim.data.qpos)
+        qvel = np.copy(self.sim.data.qvel)
+        if self._goal is not None:
+            qpos[24:48] = self._goal
+        qpos[26] = 2.4
+        qvel[23:46] = 0.0
+        self.set_state(qpos, qvel)
 
     def get_xy(self):
         """Return the x,y position of the agent."""

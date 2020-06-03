@@ -142,7 +142,7 @@ def main(args):
     env = alg.eval_env
 
     # Perform the evaluation procedure.
-    episdoe_rewards = []
+    episode_rewards = []
     if not flags.no_render:
         out = FFmpegWriter(flags.video)
 
@@ -152,59 +152,41 @@ def main(args):
         env_list = env
 
     for env in env_list:
-
-        env.images_are_rgb = True
-        env.boundary_dist = 4.
-
         for episode_num in range(flags.num_rollouts):
-            # Run a rollout.
-            obs = env.reset()
+            obs, total_reward = env.reset(), 0
 
-            # predict a trajectory using the dynamics
-            # if dynamics are present
-            try:
-                import matplotlib.pyplot as plt
-
-                goal_dim = env.current_context.shape[0]
-                goal = env.current_context - obs[:goal_dim]
-
-                o = np.concatenate([obs, goal], 0).astype(np.float32)
-                states, actions = policy.predict_trajectory(o[np.newaxis, :])
-                states = states[0]
-                actions = actions[0]
-                plt.figure()
-                ax = plt.subplot(111)
-                env.plot_trajectory(
-                    ax, states, actions, goal=env.current_context)
-                plt.savefig('episode{}.png'.format(episode_num))
-
-            except AttributeError:
-                print("Skipping trajectory prediction")
-
-            total_reward = 0
             while True:
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
+
                 action = policy.get_action(
-                    np.asarray([obs]),
-                    context=context,
-                    apply_noise=False,
-                    random_actions=False,
-                )
-                obs, reward, done, _ = env.step(action[0])
+                    np.asarray([obs]), context=context,
+                    apply_noise=False, random_actions=False)
+
+                # visualize the sub-goals of the hierarchical policy
+                if hasattr(policy, "_meta_action") \
+                        and policy._meta_action is not None \
+                        and hasattr(env, "set_goal"):
+                    goal = policy._meta_action[0][0] + (
+                        obs[policy.goal_indices] if policy.relative_goals else 0)
+                    env.set_goal(goal)
+
+                new_obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
-                    frame = env.render(mode='rgb_array')
-                    if frame is not None:
-                        #frame = np.flip(frame, axis=0)
-                        out.writeFrame(frame)
-                    else:
-                        print("frame is None")
+                    out.writeFrame(env.render(
+                        mode='rgb_array', height=1024, width=1024))
                 total_reward += reward
                 if done:
                     break
 
+                policy.store_transition(
+                    obs, context[0], action[0], reward, new_obs,
+                    context[0], done, done, evaluate=True)
+
+                obs = new_obs
+
             # Print total returns from a given episode.
-            episdoe_rewards.append(total_reward)
+            episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
 
     if not flags.no_render:
@@ -212,7 +194,7 @@ def main(args):
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
-        np.mean(episdoe_rewards), np.std(episdoe_rewards)))
+        np.mean(episode_rewards), np.std(episode_rewards)))
 
 
 if __name__ == '__main__':
