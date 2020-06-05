@@ -122,7 +122,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # parameters for the intrinsic reward function before exp
     pre_exp_reward_scale=2.0,
     # parameters for the intrinsic reward function before exp
-    pre_exp_reward_shift=0.5,
+    pre_exp_reward_shift=0.0,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,

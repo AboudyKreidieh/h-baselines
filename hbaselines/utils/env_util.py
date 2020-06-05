@@ -84,13 +84,13 @@ ENV_ATTRIBUTES = {
 
     "HumanoidMaze": {
         "meta_ac_space": lambda relative_goals: gym.spaces.Box(
-            low=np.array([-6.0, -6.0, -1.0, -1.0, -1.0, -1.0,
-                          -1.0, 0.785398, -0.9162995, -0.610865,
+            low=np.array([-3.0, -3.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                          0.785398, -0.9162995, -0.610865,
                           -0.26179925, -0.8290325, -1.134463, -1.3788117,
                           -0.26179925, -0.8290325, -1.134463, -1.3788117,
                           -1.265365, -1.265365, -1.2217325,
                           -1.265365, -1.265365, -1.2217325]),
-            high=np.array([6.0, 6.0, 1.0, 1.0, 1.0, 1.0,
+            high=np.array([3.0, 3.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 0.785398, 0.9162995, 0.610865,
                            0.26179925, 0.8290325, 1.134463, 1.3788117,
                            0.26179925, 0.8290325, 1.134463, 1.3788117,
@@ -110,6 +110,34 @@ ENV_ATTRIBUTES = {
                            1.0472, 1.0472, 0.872665,
                            1.48353, 1.48353, 0.872665]), dtype=np.float32),
         "state_indices": list(range(24)),
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 0]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 8]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[0, 8]
+            )
+        ] if evaluate else HumanoidMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-2, 10), (-2, 10)]
+        ),
+    },
+
+    "HumanoidMazeXY": {
+        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+            low=np.array([-3.0, -3.0]),
+            high=np.array([3.0, 3.0]), dtype=np.float32)
+        if relative_goals else gym.spaces.Box(
+            low=np.array([-2.0, -2.0]),
+            high=np.array([10.0, 10.0]), dtype=np.float32),
+        "state_indices": list(range(2)),
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,

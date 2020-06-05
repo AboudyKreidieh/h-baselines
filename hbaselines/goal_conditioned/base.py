@@ -388,10 +388,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 state_indices=self.goal_indices,
                 goals=goals,
                 next_states=next_states,
-                relative_context=relative_goals,
-                offset=pre_exp_reward_shift * pre_exp_reward_scale,
-                reward_scales=(pre_exp_reward_scale / max_distance),
-                output_activation=np.exp)
+                relative_context=relative_goals,)
+                #offset=pre_exp_reward_shift * pre_exp_reward_scale,
+                #reward_scales=(pre_exp_reward_scale / max_distance),
+                #output_activation=np.exp)
         self.intrinsic_reward_fn = intrinsic_reward_fn
 
         # =================================================================== #

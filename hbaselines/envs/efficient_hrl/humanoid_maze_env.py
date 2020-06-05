@@ -526,4 +526,5 @@ class HumanoidMazeEnv(gym.Env):
         else:
             inner_next_obs, inner_reward, done, info = self.wrapped_env.step(
                 action)
+        # change to ignore when the agent falls
         return self._get_obs(), inner_reward, done, info

@@ -186,7 +186,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
-            rew = dist + offset
+            rew = dist
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -524,7 +524,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
 
     In this task, immovable blocks are placed to confine the agent to a
     U-shaped corridor. That is, blocks are placed everywhere except at (0,0),
-    (8,0), (16,0), (16,8), (16,16), (8,16), and (0,16). The agent is
+    (4,0), (8,0), (8,4), (8,8), (4,8), and (0,8). The agent is
     initialized at position (0,0) and tasked at reaching a specific target
     position. "Success" in this environment is defined as being within an L2
     distance of 5 from the target.
@@ -562,7 +562,10 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 goals=goals,
                 next_states=next_states,
                 state_indices=[0, 1],
-                relative_context=False)
+                relative_context=False,
+                offset=0.0,
+                reward_scales=(2.0 / 11.313708499),
+                output_activation=np.exp)
 
         super(HumanoidMaze, self).__init__(
             maze_id=maze_id,

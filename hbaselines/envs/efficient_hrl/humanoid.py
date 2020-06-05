@@ -62,7 +62,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         quad_impact_cost = .5e-6 * np.square(data.cfrc_ext).sum()
         quad_impact_cost = min(quad_impact_cost, 10)
         r = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
-        d = bool((data.qpos[2] < 1.0) or (data.qpos[2] > 2.0))
+        d = bool((data.qpos[2] < 0.4) or (data.qpos[2] > 2.0))
         return self._get_obs(), np.nan_to_num(r), d, dict(
             reward_linvel=lin_vel_cost,
             reward_quadctrl=-quad_ctrl_cost,
@@ -114,7 +114,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos = np.copy(self.sim.data.qpos)
         qvel = np.copy(self.sim.data.qvel)
         if self._goal is not None:
-            qpos[24:48] = self._goal
+            qpos[24:24 + self._goal.size] = self._goal
         qpos[26] = 2.4
         qvel[23:46] = 0.0
         self.set_state(qpos, qvel)
