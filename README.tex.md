@@ -359,7 +359,7 @@ algorithms:
   we use a single centralized value function instead of a value function
   for each agent.
 
-### 2.4 Goal-Conditioned HRL
+## 2.4 Goal-Conditioned HRL
 
 Goal-conditioned HRL models, also known as feudal models, are a variant 
 of hierarchical models that have been widely studied in the HRL
