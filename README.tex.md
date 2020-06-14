@@ -13,31 +13,31 @@ available [here]().
 
 ## Contents
 
-1. [Setup Instructions](#1-setup-instructions)
-   1. [Basic Installation](#11-basic-installation)
-   2. [Installing MuJoCo](#12-installing-mujoco)
-   3. [Importing AntGather](#13-importing-antgather)
-2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)
-   1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)
-      1. [Synchronous Updates](#211-synchronous-updates)
-   2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)
-   3. [Multi-Agent Fully Connected Networks](#23-multi-agent-fully-connected-networks)
-   4. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)
-       1. [Meta Period](#241-meta-period)
-       2. [Intrinsic Rewards](#242-intrinsic-rewards)
-       3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#243-hiro-data-efficient-hierarchical-reinforcement-learning)
-       4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#244-hac-learning-multi-level-hierarchies-with-hindsight)
-       5. [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#245-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
-3. [Environments](#3-environments)
-   1. [MuJoCo Environments](#31-mujoco-environments)
-   2. [Flow Environments](#32-flow-environments)
+1. [Setup Instructions](#1-setup-instructions)  
+    1.1. [Basic Installation](#11-basic-installation)  
+    1.2. [Installing MuJoCo](#12-installing-mujoco)  
+    1.3. [Importing AntGather](#13-importing-antgather)  
+2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
+    2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
+    2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
+    2.3. [Multi-Agent Fully Connected Networks](#23-multi-agent-fully-connected-networks)  
+    2.4. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.1. [Meta Period](#241-meta-period)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.2. [Intrinsic Rewards](#242-intrinsic-rewards)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#243-hiro-data-efficient-hierarchical-reinforcement-learning)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#244-hac-learning-multi-level-hierarchies-with-hindsight)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.5. [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#245-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
+3. [Environments](#3-environments)  
+    3.1. [MuJoCo Environments](#31-mujoco-environments)  
+    3.2. [Flow Environments](#32-flow-environments)  
 4. [Citing](#4-citing)
 5. [Bibliography](#5-bibliography)
 6. [Useful Links](#6-useful-links)
 
-## 1. Setup Instructions
+# 1. Setup Instructions
 
-### 1.1 Basic Installation
+## 1.1 Basic Installation
 
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
@@ -78,7 +78,7 @@ The test should return a message along the lines of:
 
     OK
 
-### 1.2 Installing MuJoCo
+## 1.2 Installing MuJoCo
 
 In order to run the MuJoCo environments described within the README, you
 will need to install MuJoCo and the mujoco-py package. To install both
@@ -88,7 +88,7 @@ with all versions of MuJoCo (with some changes likely to the version of
 `gym` provided); however, the algorithms have been benchmarked to 
 perform well on `mujoco-py==1.50.1.68`.
 
-### 1.3 Importing AntGather
+## 1.3 Importing AntGather
 
 To properly import and run the AntGather environment, you will need to 
 first clone and install the `rllab` library. You can do so running the 
@@ -110,12 +110,12 @@ successful, the following command should not fail:
 python experiments/run_fcnet.py "AntGather"
 ```
 
-## 2. Supported Models/Algorithms
+# 2. Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-### 2.1 Off-Policy RL Algorithms
+## 2.1 Off-Policy RL Algorithms
 
 This repository supports the training of policies via two state-of-the-art 
 off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
@@ -175,7 +175,7 @@ follows:
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
 
-#### 2.1.1 Synchronous Updates
+### 2.1.1 Synchronous Updates
 
 This repository supports parallelism via synchronous updates to accelerate 
 training for environments that are relatively slow to simulate. A number of 
@@ -201,7 +201,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### 2.2 Fully Connected Neural Networks
+## 2.2 Fully Connected Neural Networks
 
 We include a generic feed-forward neural network within the repository 
 to validate the performance of typically used neural network model on 
@@ -305,7 +305,7 @@ from hbaselines.algorithms.off_policy import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
-### 2.3 Multi-Agent Fully Connected Networks
+## 2.3 Multi-Agent Fully Connected Networks
 
 In order to train multiple workers in a triangular hierarchical structure, this
 repository also supports the training of multi-agent policies as well. These 
@@ -334,7 +334,8 @@ algorithms:
 
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-
+  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
@@ -354,6 +355,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -372,8 +374,9 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
   
-    alg = OffPolicyRLAlgorithm(
+  alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={
@@ -387,7 +390,7 @@ algorithms:
   we use a single centralized value function instead of a value function
   for each agent.
 
-### 2.4 Goal-Conditioned HRL
+## 2.4 Goal-Conditioned HRL
 
 Goal-conditioned HRL models, also known as feudal models, are a variant 
 of hierarchical models that have been widely studied in the HRL
@@ -441,7 +444,7 @@ from hbaselines.algorithms.off_policy import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
-#### 2.4.1 Meta Period
+### 2.4.1 Meta Period
 
 The meta-policy action period, $k$, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
@@ -452,8 +455,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # specify the meta-policy action period
         "meta_period": 10
@@ -461,7 +464,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-#### 2.4.2 Intrinsic Rewards
+### 2.4.2 Intrinsic Rewards
 
 The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, define the rewards assigned
 to the lower level policies for achieving goals assigned by the policies 
@@ -532,8 +535,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # assign the intrinsic reward you would like to use
         "intrinsic_reward_type": "scaled_negative_distance"
@@ -542,7 +545,7 @@ alg = OffPolicyRLAlgorithm(
 ```
 
 
-#### 2.4.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
+### 2.4.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 The HIRO [3] algorithm provides two primary contributions to improve 
 training of generic goal-conditioned hierarchical policies. 
@@ -575,8 +578,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # add this line to include HIRO-style relative goals
         "relative_goals": True
@@ -602,8 +605,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
         "off_policy_corrections": True
@@ -731,8 +734,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # include hindsight action and goal transitions in the replay buffer
         "hindsight": True,
@@ -768,8 +771,8 @@ from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
 alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # add this line to include the connected gradient actor update 
         # procedure to the higher-level policies
@@ -780,7 +783,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-## 3. Environments
+# 3. Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
 [Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
@@ -788,7 +791,7 @@ We benchmark the performance of all algorithms on a set of standardized
 benchmarks. A description of each of the studied environments can be 
 found below.
 
-### 3.1 MuJoCo Environments
+## 3.1 MuJoCo Environments
 
 <img src="docs/img/mujoco-envs.png"/>
 
@@ -836,7 +839,7 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-### 3.3 Flow Environments
+## 3.3 Flow Environments
 
 <img src="docs/img/flow-envs.png"/>
 
@@ -993,7 +996,7 @@ This benchmark consists of the following variations:
 
 * highway0: TODO
 
-## 4. Citing
+# 4. Citing
 
 To cite this repository in publications, use the following:
 
@@ -1008,7 +1011,7 @@ To cite this repository in publications, use the following:
 }
 ```
 
-## 5. Bibliography
+# 5. Bibliography
 
 [1] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning." 
 Advances in neural information processing systems. 1993.
