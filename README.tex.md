@@ -34,9 +34,9 @@ available [here]().
 5. [Bibliography](#5-bibliography)
 6. [Useful Links](#6-useful-links)
 
-## 1. Setup Instructions
+# 1. Setup Instructions
 
-### 1.1 Basic Installation
+## 1.1 Basic Installation
 
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
@@ -77,7 +77,7 @@ The test should return a message along the lines of:
 
     OK
 
-### 1.2 Installing MuJoCo
+## 1.2 Installing MuJoCo
 
 In order to run the MuJoCo environments described within the README, you
 will need to install MuJoCo and the mujoco-py package. To install both
@@ -87,7 +87,7 @@ with all versions of MuJoCo (with some changes likely to the version of
 `gym` provided); however, the algorithms have been benchmarked to 
 perform well on `mujoco-py==1.50.1.68`.
 
-### 1.3 Importing AntGather
+## 1.3 Importing AntGather
 
 To properly import and run the AntGather environment, you will need to 
 first clone and install the `rllab` library. You can do so running the 
@@ -109,12 +109,12 @@ successful, the following command should not fail:
 python experiments/run_fcnet.py "AntGather"
 ```
 
-## 2. Supported Models/Algorithms
+# 2. Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-### 2.1 Off-Policy RL Algorithms
+## 2.1 Off-Policy RL Algorithms
 
 This repository supports the training of policies via two state-of-the-art 
 off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
@@ -170,7 +170,7 @@ follows:
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
 
-### 2.2 Fully Connected Neural Networks
+## 2.2 Fully Connected Neural Networks
 
 We include a generic feed-forward neural network within the repository 
 to validate the performance of typically used neural network model on 
@@ -274,7 +274,7 @@ from hbaselines.algorithms.off_policy import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
-### 2.3 Multi-Agent Fully Connected Networks
+## 2.3 Multi-Agent Fully Connected Networks
 
 In order to train multiple workers in a triangular hierarchical structure, this
 repository also supports the training of multi-agent policies as well. These 
@@ -413,7 +413,7 @@ from hbaselines.algorithms.off_policy import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
-#### 2.4.1 Meta Period
+### 2.4.1 Meta Period
 
 The meta-policy action period, $k$, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
@@ -433,7 +433,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-#### 2.4.2 Intrinsic Rewards
+### 2.4.2 Intrinsic Rewards
 
 The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, define the rewards assigned
 to the lower level policies for achieving goals assigned by the policies 
@@ -514,7 +514,7 @@ alg = OffPolicyRLAlgorithm(
 ```
 
 
-#### 2.4.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
+### 2.4.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 The HIRO [3] algorithm provides two primary contributions to improve 
 training of generic goal-conditioned hierarchical policies. 
@@ -752,7 +752,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-## 3. Environments
+# 3. Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
 [Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
@@ -760,7 +760,7 @@ We benchmark the performance of all algorithms on a set of standardized
 benchmarks. A description of each of the studied environments can be 
 found below.
 
-### 3.1 MuJoCo Environments
+## 3.1 MuJoCo Environments
 
 <img src="docs/img/mujoco-envs.png"/>
 
@@ -808,7 +808,7 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-### 3.3 Flow Environments
+## 3.3 Flow Environments
 
 <img src="docs/img/flow-envs.png"/>
 
@@ -965,7 +965,7 @@ This benchmark consists of the following variations:
 
 * highway0: TODO
 
-## 4. Citing
+# 4. Citing
 
 To cite this repository in publications, use the following:
 
@@ -980,7 +980,7 @@ To cite this repository in publications, use the following:
 }
 ```
 
-## 5. Bibliography
+# 5. Bibliography
 
 [1] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning." 
 Advances in neural information processing systems. 1993.
