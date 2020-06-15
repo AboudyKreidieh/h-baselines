@@ -965,6 +965,24 @@ This benchmark consists of the following variations:
 
 * highway0: TODO
 
+| Network type | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
+|--------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
+| ring         | ring-v0          |       5       |       50       |     1/10    |          --          |          yes         |        yes       |
+|              | ring-v1          |       5       |       50       |     1/10    |          --          |          yes         |        no        |
+|              | ring-v2          |       5       |       50       |     1/10    |          --          |          no          |        no        |
+|              | ring-v3          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
+|              | ring-v4          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
+|              | ring-v5          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| merge        | merge-v0         |       --      |       --       |             |                      |                      |                  |
+|              | merge-v1         |       --      |       --       |             |                      |                      |                  |
+|              | merge-v2         |       --      |       --       |             |                      |                      |                  |
+| highway      | highway-v0       |       --      |       --       |     1/12    |                      |          yes         |        yes       |
+|              | highway-v1       |       --      |       --       |     1/12    |                      |          yes         |        no        |
+|              | highway-v2       |       --      |       --       |     1/12    |                      |          no          |        no        |
+| I-210        | i210-v0          |       --      |       --       |             |                      |          yes         |        yes       |
+|              | i210-v1          |       --      |       --       |             |                      |          yes         |        no        |
+|              | i210-v2          |       --      |       --       |             |                      |          no          |        no        |
+
 # 4. Citing
 
 To cite this repository in publications, use the following:

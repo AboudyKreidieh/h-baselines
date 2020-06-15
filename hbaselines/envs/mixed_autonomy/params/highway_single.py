@@ -34,11 +34,22 @@ PENETRATION_RATE = 1/12
 INCLUDE_NOISE = True
 
 
-def get_flow_params(evaluate=False, multiagent=False, imitation=False):
+def get_flow_params(fixed_boundary,
+                    stopping_penalty,
+                    acceleration_penalty,
+                    evaluate=False,
+                    multiagent=False,
+                    imitation=False):
     """Return the flow-specific parameters of the single lane highway network.
 
     Parameters
     ----------
+    fixed_boundary : bool
+        TODO
+    stopping_penalty : bool
+        TODO
+    acceleration_penalty : bool
+        TODO
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -96,9 +107,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         "human",
         num_vehicles=0,
         acceleration_controller=(IDMController, {
-            'a': 1.3,
-            'b': 2.0,
-            'noise': 0.3 if INCLUDE_NOISE else 0.0
+            "a": 1.3,
+            "b": 2.0,
+            "noise": 0.3 if INCLUDE_NOISE else 0.0
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5
@@ -150,7 +161,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
 
     return dict(
         # name of the experiment
-        exp_tag='highway-single',
+        exp_tag="highway-single",
 
         # name of the flow environment the experiment is running on
         env_name=env_name,
@@ -159,7 +170,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         network=HighwayNetwork,
 
         # simulator that is used by the experiment
-        simulator='traci',
+        simulator="traci",
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
@@ -171,15 +182,15 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
                 "max_accel": 0.5,
                 "max_decel": 0.5,
                 "target_velocity": 10,
-                "penalty_type": "acceleration",
-                "penalty": 1,
-                "inflows": None,
+                "stopping_penalty": stopping_penalty,
+                "acceleration_penalty": acceleration_penalty,
+                "inflows": None if fixed_boundary else None,  # FIXME
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
-                    'a': 1.3,
-                    'b': 2.0,
+                    "a": 1.3,
+                    "b": 2.0,
                 }),
             }
         ),
