@@ -16,10 +16,10 @@ BASE_ENV_PARAMS = dict(
     max_decel=1,
     # desired velocity for all vehicles in the network, in m/s
     target_velocity=30,
-    # the penalty type, one of: {"acceleration", "time_headway", "both"}
-    penalty_type="acceleration",
-    # scaling term for the action penalty by the AVs
-    penalty=1,
+    # whether to include a stopping penalty
+    stopping_penalty=False,
+    # whether to include a regularizing penalty for accelerations by the AVs
+    acceleration_penalty=False,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -60,7 +60,9 @@ class AVMultiAgentEnv(MultiEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
