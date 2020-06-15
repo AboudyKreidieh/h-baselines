@@ -683,7 +683,7 @@ modifying the relevant worker-specific features as follows:
             ...
             a_{k-1}
         ],
-        "intrinsic rewards": [ <----------------
+        "intrinsic rewards": [ <-------------
             r_w(s_0, \bar{g}_0, s_1),       |
             r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
             ...                             |
