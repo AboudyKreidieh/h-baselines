@@ -867,7 +867,7 @@ speed, and is offset by largest possible negative term to ensure non-negativity
 if environments terminate prematurely. The exact mathematical formulation of 
 this reward is:
 
-<p align="center"><img src="/tex/25be28d347b828c25d7dd4e510291d8a.svg?invert_in_darkmode&sanitize=true" align=middle width=335.22347594999997pt height=16.438356pt/></p>
+<p align="center"><img src="/tex/2bf655f3f70c50002913f79c86690bc6.svg?invert_in_darkmode&sanitize=true" align=middle width=327.91753665pt height=16.438356pt/></p>
 
 where <img src="/tex/6c4adbc36120d62b98deef2a20d5d303.svg?invert_in_darkmode&sanitize=true" align=middle width=8.55786029999999pt height=14.15524440000002pt/> is the speed of the individual vehicles, <img src="/tex/f5f76957f34c6277702156f93f1d35ea.svg?invert_in_darkmode&sanitize=true" align=middle width=26.280957449999992pt height=14.15524440000002pt/> is the 
 desired speed, and <img src="/tex/55a049b8f161ae7cfeb0197d75aff967.svg?invert_in_darkmode&sanitize=true" align=middle width=9.86687624999999pt height=14.15524440000002pt/> is the number of vehicles in the network.
