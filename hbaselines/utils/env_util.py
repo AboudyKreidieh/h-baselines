@@ -640,7 +640,6 @@ def create_env(env,
                render=False,
                shared=False,
                maddpg=False,
-               env_num=0,
                evaluate=False):
     """Return, and potentially create, the environment.
 
@@ -656,9 +655,6 @@ def create_env(env,
     maddpg : bool
         whether to use an environment variant that is compatible with the
         MADDPG algorithm
-    env_num : int
-        the environment number. Used to handle environment generation in gym
-        when multiple environments are being used.
     evaluate : bool
         specifies whether this is a training or evaluation environment
 
@@ -691,7 +687,7 @@ def create_env(env,
             flow_params = benchmark.flow_params
 
             # Get the env name and a creator for the environment.
-            creator, _ = make_create_env(flow_params, env_num, render=render)
+            creator, _ = make_create_env(flow_params, render=render)
 
             # Create the environment.
             env = creator()
