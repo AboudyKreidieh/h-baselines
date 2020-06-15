@@ -23,12 +23,8 @@ from hbaselines.envs.mixed_autonomy.params.merge \
     import get_flow_params as merge
 from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
-from hbaselines.envs.mixed_autonomy.params.ring_small \
-    import get_flow_params as ring_small
-from hbaselines.envs.mixed_autonomy.params.figure_eight \
-    import get_flow_params as figure_eight
-from hbaselines.envs.mixed_autonomy.params.highway_single \
-    import get_flow_params as highway_single
+from hbaselines.envs.mixed_autonomy.params.highway \
+    import get_flow_params as highway
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
@@ -43,6 +39,7 @@ from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 from hbaselines.envs.point2d import Point2DEnv
+from hbaselines.utils.env_util import create_env
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -400,23 +397,31 @@ class TestPendulum(unittest.TestCase):
 
 
 class TestMixedAutonomyParams(unittest.TestCase):
-    """Test the functionality of features in envs/mixed_autonomy/params."""
+    """Test the functionality of features in envs/mixed_autonomy/params.
 
-    def test_single_agent_ring(self):
+    Each of these environments are tests for the following cases:
+
+    1. the observation space matches its expected values
+    2. the action space matches its expected values
+    3. the meta action space matches its expected values
+    4. the state indices matches its expected values
+
+    In addition, for environments that change in between resets, the following
+    test is performed:
+
+    5. the change in inflow/number of vehicles in between resets matches its
+       expected values (given a seed)
+    """
+
+    # ======================================================================= #
+    #                                 ring-v0                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v0(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=ring(
-                num_automated=5,
-                simulator="traci",
-                multiagent=False
-            ),
-            multiagent=False,
-            shared=False,
-            version=1
-        )
-        env.reset()
+        env = create_env("ring-v0")
 
-        # test observation space
+        # test case 1
         test_space(
             env.observation_space,
             expected_min=np.array([-float("inf") for _ in range(25)]),
@@ -424,7 +429,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
             expected_size=25,
         )
 
-        # test action space
+        # test case 2
         test_space(
             env.action_space,
             expected_min=np.array([-1 for _ in range(5)]),
@@ -432,88 +437,79 @@ class TestMixedAutonomyParams(unittest.TestCase):
             expected_size=5,
         )
 
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_single_agent_ring_imitation(self):
+    def test_multi_agent_ring_v0(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=ring(
-                num_automated=5,
-                simulator="traci",
-                multiagent=False,
-                imitation=True,
-            ),
-            multiagent=False,
-            shared=False,
-            version=1
-        )
-        env.reset()
+        env = create_env("multiagent-ring-v0")
 
-        # test observation space
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
-        )
+        # test the agent IDs.
+        self.assertListEqual(
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
 
-        # test action space
+        # test case 1
         test_space(
-            env.action_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
             expected_size=5,
         )
 
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_single_agent_ring_small(self):
-        # create the base environment
-        env = FlowEnv(
-            flow_params=ring_small(
-                num_automated=1,
-                horizon=1500,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=0
-        )
-        env.reset()
-
-        # test observation space
+        # test case 2
         test_space(
-            env.observation_space,
-            expected_min=np.array([-np.inf for _ in range(3)]),
-            expected_max=np.array([np.inf for _ in range(3)]),
-            expected_size=3,
-        )
-
-        # test action space
-        test_space(
-            env.action_space,
+            env.action_space["rl_0_0"],
             expected_min=np.array([-1]),
             expected_max=np.array([1]),
             expected_size=1,
         )
 
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_ring(self):
+    # ======================================================================= #
+    #                                 ring-v1                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v1(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=ring(
-                num_automated=5,
-                simulator="traci",
-                multiagent=True
-            ),
-            multiagent=True,
-            shared=False,
-            version=1
+        env = create_env("ring-v1")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
-        env.reset()
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring_v1(self):
+        # create the base environment
+        env = create_env("multiagent-ring-v1")
 
         # test the agent IDs.
         self.assertListEqual(
@@ -539,30 +535,48 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_ring_small(self):
+    # ======================================================================= #
+    #                                 ring-v2                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v2(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=ring_small(
-                num_automated=1,
-                horizon=1500,
-                simulator="traci",
-                multiagent=True
-            ),
-            multiagent=True,
-            shared=False,
-            version=1
+        env = create_env("ring-v2")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
-        env.reset()
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring_v2(self):
+        # create the base environment
+        env = create_env("multiagent-ring-v2")
 
         # test the agent IDs.
-        self.assertListEqual(env.agents, ["rl_0_0"])
+        self.assertListEqual(
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
 
         # test observation space
         test_space(
             env.observation_space["rl_0_0"],
-            expected_min=np.array([-5 for _ in range(3)]),
-            expected_max=np.array([5 for _ in range(3)]),
-            expected_size=3,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
         )
 
         # test action space
@@ -576,34 +590,53 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-        # create the environment with multiple automated vehicles
-        env = FlowEnv(
-            flow_params=ring_small(
-                num_automated=4,
-                horizon=1500,
-                simulator="traci",
-                multiagent=True
-            ),
-            multiagent=True,
-            shared=True,
-        )
-        env.reset()
+    # ======================================================================= #
+    #                                 ring-v3                                 #
+    # ======================================================================= #
 
-        # test the agent IDs.
-        self.assertListEqual(
-            env.agents, ["rl_0_0", "rl_1_0", "rl_2_0", "rl_3_0"])
+    def test_single_agent_ring_v3(self):
+        # create the base environment
+        env = create_env("ring-v3")
 
         # test observation space
         test_space(
             env.observation_space,
-            expected_min=np.array([-5 for _ in range(3)]),
-            expected_max=np.array([5 for _ in range(3)]),
-            expected_size=3,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test action space
         test_space(
             env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring_v3(self):
+        # create the base environment
+        env = create_env("multiagent-ring-v3")
+
+        # test the agent IDs.
+        self.assertListEqual(
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
+
+        # test observation space
+        test_space(
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test action space
+        test_space(
+            env.action_space["rl_0_0"],
             expected_min=np.array([-1]),
             expected_max=np.array([1]),
             expected_size=1,
@@ -612,124 +645,150 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_single_agent_figure_eight(self):
+    # ======================================================================= #
+    #                                 ring-v4                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v4(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=figure_eight(
-                num_automated=1,
-                horizon=1500,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=0
-        )
-        env.reset()
+        env = create_env("ring-v4")
 
         # test observation space
         test_space(
             env.observation_space,
-            expected_min=np.array([0 for _ in range(28)]),
-            expected_max=np.array([1 for _ in range(28)]),
-            expected_size=28,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test action space
         test_space(
             env.action_space,
-            expected_min=np.array([-3]),
-            expected_max=np.array([3]),
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_ring_v4(self):
+        # create the base environment
+        env = create_env("multiagent-ring-v4")
+
+        # test the agent IDs.
+        self.assertListEqual(
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
+
+        # test observation space
+        test_space(
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test action space
+        test_space(
+            env.action_space["rl_0_0"],
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
             expected_size=1,
         )
 
         # kill the environment
         env.wrapped_env.terminate()
 
-        # create the environment with multiple automated vehicles
-        env = FlowEnv(
-            flow_params=figure_eight(
-                num_automated=14,
-                horizon=1500,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=1
-        )
-        env.reset()
+    # ======================================================================= #
+    #                                 ring-v5                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v5(self):
+        # create the base environment
+        env = create_env("ring-v5")
 
         # test observation space
         test_space(
             env.observation_space,
-            expected_min=np.array([0 for _ in range(28)]),
-            expected_max=np.array([1 for _ in range(28)]),
-            expected_size=28,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test action space
         test_space(
             env.action_space,
-            expected_min=np.array([-3 for _ in range(14)]),
-            expected_max=np.array([3 for _ in range(14)]),
-            expected_size=14,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
         )
 
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_figure_eight(self):
+    def test_multi_agent_ring_v5(self):
         # create the base environment
-        env = FlowEnv(
-            flow_params=figure_eight(
-                num_automated=1,
-                horizon=1500,
-                simulator="traci",
-                multiagent=True
-            ),
-            version=0
-        )
-        env.reset()
+        env = create_env("multiagent-ring-v5")
+
+        # test the agent IDs.
+        self.assertListEqual(
+            sorted(env.agents), ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3',
+                                 'rl_0_4'])
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space["rl_0_0"],
+            expected_min=np.array([-1]),
+            expected_max=np.array([1]),
+            expected_size=1,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
-        # create the environment with multiple automated vehicles
-        env = FlowEnv(
-            flow_params=figure_eight(
-                num_automated=14,
-                horizon=1500,
-                simulator="traci",
-                multiagent=True
-            ),
-            version=1
-        )
-        env.reset()
+    # ======================================================================= #
+    #                             ring-imitation                              #
+    # ======================================================================= #
+
+    def test_single_agent_ring_imitation(self):
+        # create the base environment
+        env = create_env("ring-imitation")
 
         # test observation space
-        pass  # TODO
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
 
         # test action space
-        pass  # TODO
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_single_agent_merge(self):
+    # ======================================================================= #
+    #                                merge-v0                                 #
+    # ======================================================================= #
+
+    def test_single_agent_merge_v0(self):
         # create version 0 of the environment
-        env = FlowEnv(
-            flow_params=merge(
-                exp_num=0,
-                horizon=6000,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=0
-        )
-        env.reset()
+        env = create_env("merge-v0")
 
         # test observation space
         test_space(
@@ -750,200 +809,163 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-        # create version 1 of the environment
-        env = FlowEnv(
-            flow_params=merge(
-                exp_num=1,
-                horizon=6000,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=1
-        )
-        env.reset()
+    def test_multi_agent_merge_v0(self):
+        # create version 0 of the environment
+        env = create_env("multiagent-merge-v0")
 
         # test observation space
-        test_space(
-            env.observation_space,
-            expected_min=np.array([0 for _ in range(65)]),
-            expected_max=np.array([1 for _ in range(65)]),
-            expected_size=65,
-        )
-
-        # test action space
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1.5 for _ in range(13)]),
-            expected_max=np.array([1.5 for _ in range(13)]),
-            expected_size=13,
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-        # create version 2 of the environment
-        env = FlowEnv(
-            flow_params=merge(
-                exp_num=2,
-                horizon=6000,
-                simulator="traci",
-                multiagent=False
-            ),
-            version=2
-        )
-        env.reset()
-
-        # test observation space
-        test_space(
-            env.observation_space,
-            expected_min=np.array([0 for _ in range(85)]),
-            expected_max=np.array([1 for _ in range(85)]),
-            expected_size=85,
-        )
-
-        # test action space
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1.5 for _ in range(17)]),
-            expected_max=np.array([1.5 for _ in range(17)]),
-            expected_size=17,
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # def test_multi_agent_merge(self):
-    #     # create version 0 of the environment
-    #     env = FlowEnv(
-    #         env_name="merge",
-    #         env_params={
-    #             "exp_num": 0,
-    #             "horizon": 6000,
-    #             "simulator": "traci",
-    #             "multiagent": True
-    #         },
-    #         version=0
-    #     )
-    #     env.reset()
-    #
-    #     # test observation space
-    #     pass  # TODO
-    #
-    #     # test action space
-    #     pass  # TODO
-    #
-    #     # kill the environment
-    #     env.wrapped_env.terminate()
-    #
-    #     # create version 1 of the environment
-    #     env = FlowEnv(
-    #         env_name="merge",
-    #         env_params={
-    #             "exp_num": 1,
-    #             "horizon": 6000,
-    #             "simulator": "traci",
-    #             "multiagent": True
-    #         },
-    #         version=1
-    #     )
-    #     env.reset()
-    #
-    #     # test observation space
-    #     pass  # TODO
-    #
-    #     # test action space
-    #     pass  # TODO
-    #
-    #     # kill the environment
-    #     env.wrapped_env.terminate()
-    #
-    #     # create version 2 of the environment
-    #     env = FlowEnv(
-    #         env_name="merge",
-    #         env_params={
-    #             "exp_num": 2,
-    #             "horizon": 6000,
-    #             "simulator": "traci",
-    #             "multiagent": True
-    #         },
-    #         version=2
-    #     )
-    #     env.reset()
-    #
-    #     # test observation space
-    #     pass  # TODO
-    #
-    #     # test action space
-    #     pass  # TODO
-    #
-    #     # kill the environment
-    #     env.wrapped_env.terminate()
-
-    def test_single_agent_highway_single(self):
-        # create the base environment
-        env = FlowEnv(
-            flow_params=highway_single(
-                multiagent=False
-            ),
-            multiagent=False,
-            shared=False,
-            version=1
-        )
-        env.reset()
-
-        # test observation space
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
-        )
-
-        # test action space
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
-            expected_size=10,
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_single_agent_highway_single_imitation(self):
-        # create the base environment
-        env = FlowEnv(
-            flow_params=highway_single(
-                imitation=True,
-                multiagent=False
-            ),
-            multiagent=False,
-            shared=False,
-            version=1
-        )
-        env.reset()
-
-        # test observation space
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
-        )
-
-        # test action space
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
-            expected_size=10,
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_multi_agent_highway_single(self):
         pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                                merge-v1                                 #
+    # ======================================================================= #
+
+    def test_single_agent_merge_v1(self):
+        # create version 0 of the environment
+        env = create_env("merge-v1")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([1 for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(5)]),
+            expected_max=np.array([1.5 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_merge_v1(self):
+        # create version 0 of the environment
+        env = create_env("multiagent-merge-v1")
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                                merge-v2                                 #
+    # ======================================================================= #
+
+    def test_single_agent_merge_v2(self):
+        # create version 0 of the environment
+        env = create_env("merge-v2")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([1 for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.5 for _ in range(5)]),
+            expected_max=np.array([1.5 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_merge_v2(self):
+        # create version 0 of the environment
+        env = create_env("multiagent-merge-v2")
+
+        # test observation space
+        pass  # TODO
+
+        # test action space
+        pass  # TODO
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                               highway-v0                                #
+    # ======================================================================= #
+
+    def test_single_agent_highway(self):
+        # create the base environment
+        env = create_env("highway-v0")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_highway(self):
+        pass  # TODO
+
+    # ======================================================================= #
+    #                               highway-v1                                #
+    # ======================================================================= #
+
+    # ======================================================================= #
+    #                               highway-v2                                #
+    # ======================================================================= #
+
+    # ======================================================================= #
+    #                            highway-imitation                            #
+    # ======================================================================= #
+
+    def test_single_agent_highway_imitation(self):
+        # create the base environment
+        env = create_env("highway-imitation")
+
+        # test observation space
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test action space
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
 
 
 class TestAV(unittest.TestCase):
@@ -1285,7 +1307,7 @@ class TestAVImitation(unittest.TestCase):
         self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
-        flow_params_open = deepcopy(highway_single(imitation=True))
+        flow_params_open = deepcopy(highway(imitation=True))
 
         self.network_open = flow_params_open["network"](
             name="test_open",

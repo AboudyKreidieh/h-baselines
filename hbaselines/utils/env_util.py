@@ -23,8 +23,8 @@ try:
         import get_flow_params as merge
     from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.params.highway_single \
-        import get_flow_params as highway_single
+    from hbaselines.envs.mixed_autonomy.params.highway \
+        import get_flow_params as highway
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
@@ -426,7 +426,7 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway_single(
+            flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=True,
                 acceleration_penalty=True,
@@ -448,7 +448,7 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway_single(
+            flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=False,
                 acceleration_penalty=True,
@@ -470,7 +470,7 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway_single(
+            flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=False,
                 acceleration_penalty=False,
@@ -520,7 +520,7 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway_single(
+            flow_params=highway(
                 fixed_boundary=False,
                 stopping_penalty=False,
                 acceleration_penalty=False,

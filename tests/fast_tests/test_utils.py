@@ -307,23 +307,6 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
-        # test for ring_small
-        ac_space = get_meta_ac_space(env_name="ring_small", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
-        )
-
-        ac_space = get_meta_ac_space(env_name="ring_small", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
-        )
-
         # test for merge0
         ac_space = get_meta_ac_space(env_name="merge0", **params)
         test_space(
@@ -522,12 +505,6 @@ class TestMisc(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="ring-imitation", **params),
             [0, 5, 10, 15, 20]
-        )
-
-        # test for ring_small
-        self.assertListEqual(
-            get_state_indices(env_name="ring_small", **params),
-            [0]
         )
 
         # test for merge0
