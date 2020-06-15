@@ -758,8 +758,8 @@ alg = OffPolicyRLAlgorithm(
 # 3. Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
-[Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
-[Flow](https://github.com/flow-project/flow) (mixed-autonomy traffic) 
+[Mujoco](https://github.com/openai/mujoco-py) [7] (robotics) and 
+[Flow](https://github.com/flow-project/flow) [8] (mixed-autonomy traffic) 
 benchmarks. A description of each of the studied environments can be 
 found below.
 
@@ -838,9 +838,9 @@ Any of these environments can be used by passing the environment name to the
 | [merge](#merge)     | merge-v0         |       --      |       --       |             |                      |                      |                  |
 |                     | merge-v1         |       --      |       --       |             |                      |                      |                  |
 |                     | merge-v2         |       --      |       --       |             |                      |                      |                  |
-| [highway](#highway) | highway-v0       |       --      |       --       |     1/12    |                      |          yes         |        yes       |
-|                     | highway-v1       |       --      |       --       |     1/12    |                      |          yes         |        no        |
-|                     | highway-v2       |       --      |       --       |     1/12    |                      |          no          |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |       --       |     1/12    |                      |          yes         |        yes       |
+|                     | highway-v1       |      ~10      |       --       |     1/12    |                      |          yes         |        no        |
+|                     | highway-v2       |      ~10      |       --       |     1/12    |                      |          no          |        no        |
 | [I-210](#i-210)     | i210-v0          |       --      |       --       |             |                      |          yes         |        yes       |
 |                     | i210-v1          |       --      |       --       |             |                      |          yes         |        no        |
 |                     | i210-v2          |       --      |       --       |             |                      |          no          |        no        |
@@ -876,11 +876,31 @@ ignored.
 
 ### Rewards
 
-TODO
+The reward provided by the environment is equal to the negative vector normal 
+of the distance between the speed of all vehicles in the network and a desired 
+speed, and is offset by largest possible negative term to ensure non-negativity
+if environments terminate prematurely. The exact mathematical formulation of 
+this reward is:
+
+\begin{equation*}
+    r(v) = max\{ 0, ||v_\text{des} \cdot \mathbb{1}^n ||_2 - || v - v_\text{des} \cdot \mathbb{1}^n ||_2 \}
+\end{equation*}
+
+where $v$ is the speed of the individual vehicles, $v_\text{des}$ is the 
+desired speed, and $n$ is the number of vehicles in the network.
+
+This reward may only include two penalties:
+
+* **acceleration_penalty:** If set to True in env_params, the negative of the 
+  sum of squares of the accelerations by the AVs is added to the reward.
+* **stopping_penalty:** If set to True in env_params, a penalty of -5 is added 
+  to the reward for every RL vehicle that is not moving.
 
 ### Networks
 
-TODO
+We investigate the performance of our algorithms on a variety of network 
+configurations demonstrating diverse traffic instabilities and forms of 
+congestion. This networks are detailed below.
 
 #### ring
 
@@ -935,7 +955,9 @@ Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 networks for hierarchical reinforcement learning." arXiv preprint 
 arXiv:1704.03012 (2017).
 
-[7] TODO: mujoco
+[7] Todorov, Emanuel, Tom Erez, and Yuval Tassa. "Mujoco: A physics engine for 
+model-based control." 2012 IEEE/RSJ International Conference on Intelligent 
+Robots and Systems. IEEE, 2012.
 
 [8] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
 in Traffic." arXiv preprint arXiv:1710.05465 (2017).
