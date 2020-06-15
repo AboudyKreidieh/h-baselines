@@ -17,10 +17,6 @@ from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
 
-from hbaselines.envs.mixed_autonomy import FlowEnv
-
-from hbaselines.envs.mixed_autonomy.params.merge \
-    import get_flow_params as merge
 from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.params.highway \
