@@ -883,7 +883,7 @@ if environments terminate prematurely. The exact mathematical formulation of
 this reward is:
 
 \begin{equation*}
-    r(v) = max\{ 0, ||v_\text{des} \cdot \mathbb{1}^n ||_2 - || v - v_\text{des} \cdot \mathbb{1}^n ||_2 \}
+    r(v) = max\{ 0, ||v_\text{des} \cdot \mathbf{1}^n ||_2 - || v - v_\text{des} \cdot \mathbf{1}^n ||_2 \}
 \end{equation*}
 
 where $v$ is the speed of the individual vehicles, $v_\text{des}$ is the 
