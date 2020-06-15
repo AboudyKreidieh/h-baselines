@@ -838,12 +838,12 @@ the `env` parameter in the algorithm class.
 |                     | ring-v3          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
 |                     | ring-v4          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
 |                     | ring-v5          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
-| [merge](#merge)     | merge-v0         |       --      |       --       |      --     |         2000         |          yes         |        no        |
-|                     | merge-v1         |       --      |       --       |      --     |         2000         |          yes         |        no        |
-|                     | merge-v2         |       --      |       --       |      --     |         2000         |          yes         |        no        |
-| [highway](#highway) | highway-v0       |      ~10      |       --       |     1/12    |          --          |          yes         |        yes       |
-|                     | highway-v1       |      ~10      |       --       |     1/12    |          --          |          yes         |        no        |
-|                     | highway-v2       |      ~10      |       --       |     1/12    |          --          |          no          |        no        |
+| [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
+|                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
+|                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        yes       |
+|                     | highway-v1       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        no        |
+|                     | highway-v2       |      ~10      |      ~150      |     1/12    |         2215         |          no          |        no        |
 | [I-210](#i-210)     | i210-v0          |       --      |       --       |      --     |          --          |          yes         |        yes       |
 |                     | i210-v1          |       --      |       --       |      --     |          --          |          yes         |        no        |
 |                     | i210-v2          |       --      |       --       |      --     |          --          |          no          |        no        |
@@ -925,7 +925,9 @@ automated vehicle whose actions are sampled from an RL policy.
 
 This scenario consists of a single lane highway in which downstream traffic 
 instabilities brought about by an edge with a reduced speed limit generate 
-congestion in the form of stop-and-go waves.
+congestion in the form of stop-and-go waves. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
 #### I-210
 
