@@ -52,7 +52,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  fingerprint_range,
                  centralized_value_functions,
                  env_name="",
-                 num_cpus=1):
+                 num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -168,7 +168,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
             env_name=env_name,
-            num_cpus=num_cpus,
+            num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
             additional_params=dict(

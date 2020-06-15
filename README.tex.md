@@ -167,10 +167,10 @@ follows:
 * **reward_scale** (float) : the value the reward should be scaled by
 * **render** (bool) : enable rendering of the training environment
 * **render_eval** (bool) : enable rendering of the evaluation environment
-* **num_cpus** (int) : number of CPUs used to run simulations in parallel. Each
-  CPU is used to generate a separate environment and run the policy on said 
-  environments in parallel. Must be less than or equal to nb_rollout_steps. 
-  This term is covered in the following [section](#211-synchronous-updates).
+* **num_envs** (int) : number of environments used to run simulations in 
+  parallel. Each environment is run on a separate CPUS and uses the same policy
+  as the rest. Must be less than or equal to nb_rollout_steps. This term is 
+  covered in the following [section](#211-synchronous-updates).
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
@@ -187,15 +187,15 @@ rollout steps, as specified under `nb_rollout_steps`.
 <p align="center"><img src="docs/img/synchronous-updates.png" align="middle" width="50%"/></p>
 
 To assign multiple CPUs/environments for a given training algorithm, set the
-`num_cpus` term as seen below:
+`num_envs` term as seen below:
 
 ```python
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 
 alg = OffPolicyRLAlgorithm(
     ...,
-    # set num_cpus as seen in the above figure
-    num_cpus=3,
+    # set num_envs as seen in the above figure
+    num_envs=3,
     # set nb_rollout step as seen in the above figure
     nb_rollout_steps=5,
 )
