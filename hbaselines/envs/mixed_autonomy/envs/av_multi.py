@@ -73,9 +73,9 @@ class AVMultiAgentEnv(MultiEnv):
         all lanes.
 
     Actions
-        The action space consists of a vector of bounded accelerations for each
-        autonomous vehicle $i$. In order to ensure safety, these actions are
-        bounded by failsafes provided by the simulator at every time step.
+        The action space consists of a bounded acceleration for each autonomous
+        vehicle. In order to ensure safety, these actions are bounded by
+        failsafes provided by the simulator at every time step.
 
     Rewards
         The reward provided by the system is equal to the average speed of all
@@ -117,7 +117,6 @@ class AVMultiAgentEnv(MultiEnv):
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
 
-    @property
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
 
@@ -192,7 +191,7 @@ class AVMultiAgentEnv(MultiEnv):
             elif penalty_type in ["time_headway", "both"]:
                 cost2 = 0
                 t_min = 1  # smallest acceptable time headway
-                for rl_id in self.rl_ids:
+                for rl_id in self.rl_ids():
                     lead_id = self.k.vehicle.get_leader(rl_id)
                     if lead_id not in ["", None] \
                             and self.k.vehicle.get_speed(rl_id) > 0:
@@ -215,7 +214,7 @@ class AVMultiAgentEnv(MultiEnv):
         max_length = self.k.network.length()
 
         # Initialize a set on empty observations
-        obs = {key: [0 for _ in range(5)] for key in self.rl_ids}
+        obs = {key: [0 for _ in range(5)] for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add the speed of the ego vehicle.

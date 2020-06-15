@@ -161,7 +161,7 @@ def get_flow_params(fixed_boundary,
 
     return dict(
         # name of the experiment
-        exp_tag="highway-single",
+        exp_tag="highway",
 
         # name of the flow environment the experiment is running on
         env_name=env_name,

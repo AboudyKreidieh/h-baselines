@@ -511,7 +511,7 @@ ENV_ATTRIBUTES = {
         ),
     },
 
-    "highway-single-imitation": {
+    "highway-imitation": {
         "meta_ac_space": lambda relative_goals: Box(
             low=-1 if relative_goals else 0,
             high=1,
