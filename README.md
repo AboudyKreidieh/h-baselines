@@ -19,7 +19,7 @@ available [here]().
     1.3. [Importing AntGather](#13-importing-antgather)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
-        &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
     2.3. [Multi-Agent Fully Connected Networks](#23-multi-agent-fully-connected-networks)  
     2.4. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)  
