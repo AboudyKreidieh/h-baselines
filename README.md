@@ -806,11 +806,14 @@ traffic control tasks, built off the [Flow](https://github.com/flow-project/flow
 these environments, a subset of vehicles in any given network are replaced with
 "automated" vehicles whose actions are provided on an RL policy. A description 
 of the attributes of the MDP within these tasks is provided in the following 
-sub-sections.
+sub-sections. Additional information can be found through the 
+[environment classes](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/envs) 
+and 
+[flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-The below table describes all available tasks with this repository to train on.
-Any of these environments can be used by passing the environment name to the 
-`env` parameter in the algorithm class.
+The below table describes all available tasks within this repository to train 
+on. Any of these environments can be used by passing the environment name to 
+the `env` parameter in the algorithm class.
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
@@ -820,15 +823,15 @@ Any of these environments can be used by passing the environment name to the
 |                     | ring-v3          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
 |                     | ring-v4          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
 |                     | ring-v5          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
-| [merge](#merge)     | merge-v0         |       --      |       --       |             |                      |                      |                  |
-|                     | merge-v1         |       --      |       --       |             |                      |                      |                  |
-|                     | merge-v2         |       --      |       --       |             |                      |                      |                  |
-| [highway](#highway) | highway-v0       |      ~10      |       --       |     1/12    |                      |          yes         |        yes       |
-|                     | highway-v1       |      ~10      |       --       |     1/12    |                      |          yes         |        no        |
-|                     | highway-v2       |      ~10      |       --       |     1/12    |                      |          no          |        no        |
-| [I-210](#i-210)     | i210-v0          |       --      |       --       |             |                      |          yes         |        yes       |
-|                     | i210-v1          |       --      |       --       |             |                      |          yes         |        no        |
-|                     | i210-v2          |       --      |       --       |             |                      |          no          |        no        |
+| [merge](#merge)     | merge-v0         |       --      |       --       |      --     |         2000         |          yes         |        no        |
+|                     | merge-v1         |       --      |       --       |      --     |         2000         |          yes         |        no        |
+|                     | merge-v2         |       --      |       --       |      --     |         2000         |          yes         |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |       --       |     1/12    |          --          |          yes         |        yes       |
+|                     | highway-v1       |      ~10      |       --       |     1/12    |          --          |          yes         |        no        |
+|                     | highway-v2       |      ~10      |       --       |     1/12    |          --          |          no          |        no        |
+| [I-210](#i-210)     | i210-v0          |       --      |       --       |      --     |          --          |          yes         |        yes       |
+|                     | i210-v1          |       --      |       --       |      --     |          --          |          yes         |        no        |
+|                     | i210-v2          |       --      |       --       |      --     |          --          |          no          |        no        |
 
 ### States
 
@@ -874,9 +877,9 @@ desired speed, and <img src="/tex/55a049b8f161ae7cfeb0197d75aff967.svg?invert_in
 
 This reward may only include two penalties:
 
-* **acceleration_penalty:** If set to True in env_params, the negative of the 
+* **acceleration penalty:** If set to True in env_params, the negative of the 
   sum of squares of the accelerations by the AVs is added to the reward.
-* **stopping_penalty:** If set to True in env_params, a penalty of -5 is added 
+* **stopping penalty:** If set to True in env_params, a penalty of -5 is added 
   to the reward for every RL vehicle that is not moving.
 
 ### Networks
