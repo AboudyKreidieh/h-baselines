@@ -890,15 +890,25 @@ congestion. This networks are detailed below.
 
 #### ring
 
-TODO
+This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
+which are automated) are placed on a sing-lane circular track of length 1500m.
+In the absence of the automated vehicle, the human-driven vehicles exhibit 
+stop-and-go instabilities brought about by the string-unstable characteristic 
+of human car-following dynamics.
 
 #### merge
 
-TODO
+This scenarios is adapted from the following article [9]. It consists of a 
+single-lane highway network with an on-ramp used to generate periodic 
+perturbations to sustain congested behavior. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
 #### highway
 
-TODO
+This scenario consists of a single lane highway in which downstream traffic 
+instabilities brought about by an edge with a reduced speed limit generate 
+congestion in the form of stop-and-go waves.
 
 #### I-210
 
@@ -947,6 +957,12 @@ Robots and Systems. IEEE, 2012.
 
 [8] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
 in Traffic." arXiv preprint arXiv:1710.05465 (2017).
+
+[9] Kreidieh, Abdul Rahman, Cathy Wu, and Alexandre M. Bayen. "Dissipating 
+stop-and-go waves in closed and open networks via deep reinforcement learning."
+2018 21st International Conference on Intelligent Transportation Systems 
+(ITSC). IEEE, 2018.
+
 
 ## 6. Useful Links
 
