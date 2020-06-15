@@ -44,7 +44,6 @@ class Sampler(object):
             shared=shared,
             maddpg=maddpg,
             evaluate=evaluate,
-            env_num=env_num,
         )
         self._env_num = env_num
         self._render = render
