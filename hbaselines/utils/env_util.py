@@ -23,10 +23,6 @@ try:
         import get_flow_params as merge
     from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.params.ring_small \
-        import get_flow_params as ring_small
-    from hbaselines.envs.mixed_autonomy.params.figure_eight \
-        import get_flow_params as figure_eight
     from hbaselines.envs.mixed_autonomy.params.highway_single \
         import get_flow_params as highway_single
 except (ImportError, ModuleNotFoundError):  # pragma: no cover

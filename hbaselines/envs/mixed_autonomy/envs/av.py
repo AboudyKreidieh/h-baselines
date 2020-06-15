@@ -80,9 +80,17 @@ class AVEnv(Env):
         bounded by failsafes provided by the simulator at every time step.
 
     Rewards
-        The reward provided by the system is equal to the average speed of all
-        vehicles in the network minus a scaled penalty for the sum of squares
-        of the accelerations.
+        The reward provided by the environment is equal to the negative vector
+        normal of the distance between the speed of all vehicles in the network
+        and a desired speed, and is offset by largest possible negative term to
+        ensure non-negativity if environments terminate prematurely. This
+        reward may only include two penalties:
+
+        * acceleration_penalty: If set to True in env_params, the negative of
+          the sum of squares of the accelerations by the AVs is added to the
+          reward.
+        * stopping_penalty: If set to True in env_params, a penalty of -5 is
+          added to the reward for every RL vehicle that is not moving.
 
     Termination
         A rollout is terminated if the time horizon is reached or if two
