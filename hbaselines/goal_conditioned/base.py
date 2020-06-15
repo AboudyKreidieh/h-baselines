@@ -156,7 +156,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  pretrain_path,
                  pretrain_ckpt,
                  env_name="",
-                 num_cpus=1,
+                 num_envs=1,
                  meta_policy=None,
                  worker_policy=None,
                  additional_params=None):
@@ -377,32 +377,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # current action by the meta-level policies
         self._meta_action = [[None for _ in range(num_levels - 1)]
-                             for _ in range(num_cpus)]
+                             for _ in range(num_envs)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy. A separate element is
         # used for each environment.
         self._actions = [[[] for _ in range(self.num_levels)]
-                         for _ in range(num_cpus)]
+                         for _ in range(num_envs)]
 
         # a list of the rewards (intrinsic or other) experienced by every level
         # in the hierarchy, ordered from highest to lowest level policy. A
         # separate element is used for each environment.
         self._rewards = [[[0]] + [[] for _ in range(self.num_levels - 1)]
-                         for _ in range(num_cpus)]
+                         for _ in range(num_envs)]
 
         # a list of observations that stretch as long as the dilated horizon
         # chosen for the highest level policy. A separate element is used for
         # each environment.
-        self._observations = [[] for _ in range(num_cpus)]
+        self._observations = [[] for _ in range(num_envs)]
 
         # the first and last contextual term. A separate element is used for
         # each environment.
-        self._contexts = [[] for _ in range(num_cpus)]
+        self._contexts = [[] for _ in range(num_envs)]
 
         # a list of done masks at every time step. A separate element is used
         # for each environment.
-        self._dones = [[] for _ in range(num_cpus)]
+        self._dones = [[] for _ in range(num_envs)]
 
         # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(

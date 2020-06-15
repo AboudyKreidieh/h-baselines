@@ -16,10 +16,10 @@ BASE_ENV_PARAMS = dict(
     max_decel=1,
     # desired velocity for all vehicles in the network, in m/s
     target_velocity=30,
-    # the penalty type, one of: {"acceleration", "time_headway", "both"}
-    penalty_type="acceleration",
-    # scaling term for the action penalty by the AVs
-    penalty=1,
+    # whether to include a stopping penalty
+    stopping_penalty=False,
+    # whether to include a regularizing penalty for accelerations by the AVs
+    acceleration_penalty=False,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -62,9 +62,9 @@ class AVEnv(Env):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
-      "both"}
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
@@ -81,8 +81,13 @@ class AVEnv(Env):
 
     Rewards
         The reward provided by the system is equal to the average speed of all
-        vehicles in the network minus a scaled penalty for the sum of squares
-        of the accelerations.
+        vehicles in the network. This may only include two penalties:
+
+        * acceleration_penalty: If set to True in env_params, the negative of
+          the sum of squares of the accelerations by the AVs is added to the
+          reward.
+        * stopping_penalty: If set to True in env_params, a penalty of -5 is
+          added to the reward for every RL vehicle that is not moving.
 
     Termination
         A rollout is terminated if the time horizon is reached or if two
@@ -185,6 +190,10 @@ class AVEnv(Env):
         if self.env_params.evaluate or rl_actions is None:
             return np.mean(self.k.vehicle.get_speed(veh_ids))
         else:
+            params = self.env_params.additional_params
+            stopping_penalty = params["stopping_penalty"]
+            acceleration_penalty = params["acceleration_penalty"]
+
             num_vehicles = len(veh_ids)
             vel = np.array(self.k.vehicle.get_speed(veh_ids))
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
@@ -211,36 +220,17 @@ class AVEnv(Env):
                 # Penalize stopped RL vehicles.                               #
                 # =========================================================== #
 
-                # for veh_id in self.rl_ids():
-                #     speed = self.k.vehicle.get_speed(veh_id)
-                #     reward -= 5 * max(1 - speed, 0) ** 2
+                if stopping_penalty:
+                    for veh_id in self.rl_ids():
+                        speed = self.k.vehicle.get_speed(veh_id)
+                        reward -= 5 * max(1 - speed, 0) ** 2
 
                 # =========================================================== #
-                # Penalize congestion style behaviors.                        #
+                # Penalize the sum of squares of the AV accelerations.        #
                 # =========================================================== #
 
-                params = self.env_params.additional_params
-                penalty_type = params["penalty_type"]
-                penalty_scale = params["penalty"]
-
-                # Penalize the sum of squares of the accelerations.
-                if penalty_type in ["acceleration", "both"]:
-                    reward -= penalty_scale * \
-                        sum(np.square(rl_actions[:self.num_rl]))
-
-                # Penalize small time headways.
-                elif penalty_type in ["time_headway", "both"]:
-                    cost2 = 0
-                    t_min = 2  # smallest acceptable time headway
-                    for rl_id in self.rl_ids():
-                        lead_id = self.k.vehicle.get_leader(rl_id)
-                        if lead_id not in ["", None] \
-                                and self.k.vehicle.get_speed(rl_id) > 0:
-                            t_headway = max(
-                                self.k.vehicle.get_headway(rl_id) /
-                                self.k.vehicle.get_speed(rl_id), 0)
-                            cost2 += min((t_headway - t_min) / t_min, 0)
-                    reward += penalty_scale * cost2
+                if acceleration_penalty:
+                    reward -= sum(np.square(rl_actions[:self.num_rl]))
 
             return reward
 
