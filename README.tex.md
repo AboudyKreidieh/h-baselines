@@ -5,7 +5,10 @@
 # h-baselines
 
 `h-baselines` is a repository of high-performing and benchmarked 
-hierarchical reinforcement learning models and algorithms.
+hierarchical reinforcement learning models and algorithms. This repository is 
+motivated by, and partially adapted from, the 
+[baselines](https://github.com/openai/baselines) and 
+[stable-baselines](https://github.com/hill-a/stable-baselines) repositories.
 
 The models and algorithms supported within this repository can be found 
 [here](#2-supported-modelsalgorithms), and benchmarking results are 
@@ -808,7 +811,7 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-## 3.3 Flow Environments
+## 3.2 Flow Environments
 
 <img src="docs/img/flow-envs.png"/>
 
