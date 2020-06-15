@@ -171,7 +171,7 @@ def main(args):
     env = alg.sampler.env
 
     # Perform the evaluation procedure.
-    episdoe_rewards = []
+    episode_rewards = []
 
     # Add an emission path to Flow environments.
     if env_name in FLOW_ENV_NAMES:
@@ -201,12 +201,12 @@ def main(args):
                 break
 
         # Print total returns from a given episode.
-        episdoe_rewards.append(total_reward)
+        episode_rewards.append(total_reward)
         print("Round {}, return: {}".format(episode_num, total_reward))
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
-        np.mean(episdoe_rewards), np.std(episdoe_rewards)))
+        np.mean(episode_rewards), np.std(episode_rewards)))
 
     if env_name in FLOW_ENV_NAMES:
         # wait a short period of time to ensure the xml file is readable
