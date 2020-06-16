@@ -980,7 +980,7 @@ stop-and-go waves in closed and open networks via deep reinforcement learning."
 (ITSC). IEEE, 2018.
 
 
-## 6. Useful Links
+# 6. Useful Links
 
 The following bullet points contain links developed either by developers of
 this repository or external parties that may be of use to individuals
