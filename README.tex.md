@@ -35,7 +35,6 @@ available [here]().
     3.2. [Flow Environments](#32-flow-environments)  
 4. [Citing](#4-citing)
 5. [Bibliography](#5-bibliography)
-6. [Useful Links](#6-useful-links)
 
 # 1. Setup Instructions
 
@@ -978,13 +977,3 @@ in Traffic." arXiv preprint arXiv:1710.05465 (2017).
 stop-and-go waves in closed and open networks via deep reinforcement learning."
 2018 21st International Conference on Intelligent Transportation Systems 
 (ITSC). IEEE, 2018.
-
-
-# 6. Useful Links
-
-The following bullet points contain links developed either by developers of
-this repository or external parties that may be of use to individuals
-interested in further developing their understanding of hierarchical
-reinforcement learning:
-
-* https://thegradient.pub/the-promise-of-hierarchical-reinforcement-learning/
