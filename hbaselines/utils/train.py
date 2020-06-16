@@ -98,7 +98,6 @@ def parse_options(description, example_usage, args):
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=description, epilog=example_usage)
 
     # required input parameters

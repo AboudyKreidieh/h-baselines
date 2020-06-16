@@ -36,10 +36,18 @@ POLICY_DICT = {
 
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
-    "ring-v0", "ring-v1", "ring-v2",
-    "merge-v0", "merge-v1", "merge-v2",
-    "highway-v0", "highway-v1", "highway-v2",
-    "i210-v0", "i210-v1", "i210-v2",
+    "ring-v0",
+    "ring-v1",
+    "ring-v2",
+    "merge-v0",
+    "merge-v1",
+    "merge-v2",
+    "highway-v0",
+    "highway-v1",
+    "highway-v2",
+    "i210-v0",
+    "i210-v1",
+    "i210-v2",
 ]
 
 
@@ -52,7 +60,6 @@ def parse_options(args):
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Run evaluation episodes of a given checkpoint.',
         epilog='python run_eval "/path/to/dir_name" ckpt_num')
 
