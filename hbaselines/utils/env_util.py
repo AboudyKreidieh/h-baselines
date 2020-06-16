@@ -23,6 +23,8 @@ try:
         import get_flow_params as merge
     from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
+    from hbaselines.envs.mixed_autonomy.params.ring_small \
+        import get_flow_params as ring_small
     from hbaselines.envs.mixed_autonomy.params.highway \
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
@@ -214,6 +216,60 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
+
+    "ring_small": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-.5 if relative_goals else 0,
+            high=.5 if relative_goals else 1,
+            shape=(1,),
+            dtype=np.float32
+        ),
+        "state_indices": [0],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[230, 230],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            ),
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[260, 260],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            ),
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[290, 290],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            )
+        ] if evaluate else FlowEnv(
+            flow_params=ring_small(
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
 
     "ring-v0": {
         "meta_ac_space": lambda relative_goals: Box(

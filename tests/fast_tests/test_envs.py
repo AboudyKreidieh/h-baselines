@@ -511,7 +511,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
 
     def test_multi_agent_ring_v1(self):
         # create the environment
-        env, _ = create_env("multiagent-ring-v1")
+        env, _ = create_env("multiagent-ring_small")
 
         # test case 1
         test_space(
