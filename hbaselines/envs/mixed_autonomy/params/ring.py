@@ -1,6 +1,4 @@
 """Flow-specific parameters for the multi-lane ring scenario."""
-import numpy as np
-
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
 from flow.controllers import RLController
