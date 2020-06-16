@@ -25,6 +25,8 @@ try:
         import get_flow_params as ring
     from hbaselines.envs.mixed_autonomy.params.highway \
         import get_flow_params as highway
+    from hbaselines.envs.mixed_autonomy.params.i210 \
+        import get_flow_params as i210
 except (ImportError, ModuleNotFoundError):  # pragma: no cover
     pass  # pragma: no cover
 
@@ -471,6 +473,72 @@ ENV_ATTRIBUTES = {
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v0": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=True,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v1": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v2": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=False,
                 acceleration_penalty=False,

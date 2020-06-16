@@ -1,33 +1,35 @@
-"""Single lane highway example."""
-from flow.controllers import IDMController
+"""I-210 subnetwork example."""
+import os
+
 from flow.controllers import RLController
+from flow.controllers import I210Router
+from flow.controllers import IDMController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
-from flow.networks.highway import HighwayNetwork
-from flow.networks.highway import ADDITIONAL_NET_PARAMS
+from flow.core.params import SumoLaneChangeParams
+from flow.core.rewards import energy_consumption
+from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
+import flow.config as config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
-# the speed of entering vehicles
-TRAFFIC_SPEED = 24.1
-# the speed limit in the ghost edge
-END_SPEED = 6.0
-# inflow rate on the highway in vehicles per hour
-TRAFFIC_FLOW = 2215
-# number of steps per rollout
+# the inflow rate of vehicles (in veh/hr)
+INFLOW_RATE = 2050
+# the speed of inflowing vehicles from the main edge (in m/s)
+INFLOW_SPEED = 25.5
+# fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
+PENETRATION_RATE = 0.10
+# horizon over which to run the env
 HORIZON = 1500
-# percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 1/12
-# whether to include noise in the environment
-INCLUDE_NOISE = True
+# steps to run before follower-stopper is allowed to take control
+WARMUP_STEPS = 500
 
 
 def get_flow_params(fixed_boundary,
@@ -36,7 +38,7 @@ def get_flow_params(fixed_boundary,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
-    """Return the flow-specific parameters of the single lane highway network.
+    """Return the flow-specific parameters of the I-210 subnetwork.
 
     Parameters
     ----------
@@ -76,74 +78,46 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
-    additional_net_params = ADDITIONAL_NET_PARAMS.copy()
-    additional_net_params.update({
-        # length of the highway
-        "length": 2500,
-        # number of lanes
-        "lanes": 1,
-        # speed limit for all edges
-        "speed_limit": 30,
-        # number of edges to divide the highway into
-        "num_edges": 2,
-        # whether to include a ghost edge of length 500m. This edge is provided
-        # a different speed limit.
-        "use_ghost_edge": True,
-        # speed limit for the ghost edge
-        "ghost_speed_limit": END_SPEED,
-        # length of the cell imposing a boundary
-        "boundary_cell_length": 300,
-    })
-
+    # Create the base vehicle types that will be used for inflows.
     vehicles = VehicleParams()
-    inflows = InFlows()
-
-    # human vehicles
     vehicles.add(
         "human",
         num_vehicles=0,
+        routing_controller=(I210Router, {}),
         acceleration_controller=(IDMController, {
-            "a": 1.3,
-            "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0
+            'a': 1.3,
+            'b': 2.0,
+            'noise': 0.3
         }),
-        car_following_params=SumoCarFollowingParams(
-            min_gap=0.5
-        ),
         lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
+            lane_change_mode=1621,
         ),
     )
-
-    inflows.add(
-        veh_type="human",
-        edge="highway_0",
-        vehs_per_hour=int(TRAFFIC_FLOW * (1 - PENETRATION_RATE)),
-        depart_lane="free",
-        depart_speed=TRAFFIC_SPEED,
-        name="idm_highway_inflow"
+    vehicles.add(
+        "rl",
+        num_vehicles=0,
+        acceleration_controller=(RLController, {}),
     )
 
-    # automated vehicles
-    if PENETRATION_RATE > 0.0:
-        vehicles.add(
-            "rl",
-            num_vehicles=0,
-            acceleration_controller=(RLController, {}),
+    # Add the inflows from the main highway.
+    inflow = InFlows()
+    for lane in [0, 1, 2, 3, 4]:
+        inflow.add(
+            veh_type="human",
+            edge="119257914",
+            vehs_per_hour=int(INFLOW_RATE * (1 - PENETRATION_RATE)),
+            departLane=lane,
+            departSpeed=INFLOW_SPEED
         )
-
-        inflows.add(
+        inflow.add(
             veh_type="rl",
-            edge="highway_0",
-            vehs_per_hour=int(TRAFFIC_FLOW * PENETRATION_RATE),
-            depart_lane="free",
-            depart_speed=TRAFFIC_SPEED,
-            name="rl_highway_inflow"
+            edge="119257914",
+            vehs_per_hour=int(INFLOW_RATE * PENETRATION_RATE),
+            departLane=lane,
+            departSpeed=INFLOW_SPEED
         )
 
-    # SET UP THE FLOW PARAMETERS
-
+    # Choose the appropriate environment.
     if multiagent:
         if imitation:
             env_name = None  # FIXME
@@ -157,22 +131,29 @@ def get_flow_params(fixed_boundary,
 
     return dict(
         # name of the experiment
-        exp_tag="highway",
+        exp_tag='I-210_subnetwork',
 
         # name of the flow environment the experiment is running on
         env_name=env_name,
 
         # name of the network class the experiment is running on
-        network=HighwayNetwork,
+        network=I210SubNetwork,
 
         # simulator that is used by the experiment
-        simulator="traci",
+        simulator='traci',
+
+        # simulation-related parameters
+        sim=SumoParams(
+            sim_step=0.4,
+            render=False,
+            use_ballistic=True
+        ),
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=500,
+            warmup_steps=WARMUP_STEPS,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
@@ -183,7 +164,7 @@ def get_flow_params(fixed_boundary,
                 "inflows": None if fixed_boundary else None,  # FIXME
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
-                "control_range": [500, 2300],
+                "control_range": [500, 2300],  # FIXME
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
@@ -191,26 +172,28 @@ def get_flow_params(fixed_boundary,
             }
         ),
 
-        # sumo-related parameters (see flow.core.params.SumoParams)
-        sim=SumoParams(
-            sim_step=0.4,
-            render=False,
-            restart_instance=True,
-            use_ballistic=True,
-        ),
-
         # network-related parameters (see flow.core.params.NetParams and the
         # network's documentation or ADDITIONAL_NET_PARAMS component)
         net=NetParams(
-            inflows=inflows,
-            additional_params=additional_net_params
+            inflows=inflow,
+            template=os.path.join(
+                config.PROJECT_PATH,
+                "examples/exp_configs/templates/sumo/i210_with_ghost_cell_"
+                "with_downstream.xml"
+            ),
+            additional_params={
+                "on_ramp": False,
+                "ghost_edge": True,
+            }
         ),
 
         # vehicles to be placed in the network at the start of a rollout (see
         # flow.core.params.VehicleParams)
         veh=vehicles,
 
-        # parameters specifying the positioning of vehicles upon init/reset
+        # parameters specifying the positioning of vehicles upon init / reset
         # (see flow.core.params.InitialConfig)
-        initial=InitialConfig(),
+        initial=InitialConfig(
+            edges_distribution=EDGES_DISTRIBUTION.copy(),
+        ),
     )
