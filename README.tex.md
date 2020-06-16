@@ -844,9 +844,9 @@ the `env` parameter in the algorithm class.
 | [highway](#highway) | highway-v0       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        yes       |
 |                     | highway-v1       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        no        |
 |                     | highway-v2       |      ~10      |      ~150      |     1/12    |         2215         |          no          |        no        |
-| [I-210](#i-210)     | i210-v0          |       --      |       --       |      --     |          --          |          yes         |        yes       |
-|                     | i210-v1          |       --      |       --       |      --     |          --          |          yes         |        no        |
-|                     | i210-v2          |       --      |       --       |      --     |          --          |          no          |        no        |
+| [I-210](#i-210)     | i210-v0          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        yes       |
+|                     | i210-v1          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        no        |
+|                     | i210-v2          |      ~50      |      ~800      |     1/15    |         10250        |          no          |        no        |
 
 ### States
 

@@ -69,10 +69,7 @@ class AVEnv(Env):
     States
         The observation consists of the speeds and bumper-to-bumper headways of
         the vehicles immediately preceding and following autonomous vehicle, as
-        well as the ego speed of the autonomous vehicles. In multi-lane
-        settings, the observations will also include the speeds and
-        bumper-to-bumper headways of preceding and following vehicles across
-        all lanes.
+        well as the ego speed of the autonomous vehicles.
 
     Actions
         The action space consists of a vector of bounded accelerations for each
@@ -251,38 +248,32 @@ class AVEnv(Env):
             obs[5 * max_lanes * i] = self.k.vehicle.get_speed(veh_id, error=0)
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
-            if max_lanes == 1:
-                leader = self.k.vehicle.get_leader(veh_id)
-                if leader in ["", None]:
-                    # in case leader is not visible
-                    lead_speed = max_speed
-                    lead_head = max_length
-                else:
-                    lead_speed = self.k.vehicle.get_speed(leader, error=0)
-                    lead_head = self.k.vehicle.get_headway(veh_id, error=0)
-                    self.leader.append(leader)
-
-                obs[5 * max_lanes * i + 1] = lead_speed
-                obs[5 * max_lanes * i + 2] = lead_head
+            leader = self.k.vehicle.get_leader(veh_id)
+            if leader in ["", None]:
+                # in case leader is not visible
+                lead_speed = max_speed
+                lead_head = max_length
             else:
-                pass  # TODO
+                lead_speed = self.k.vehicle.get_speed(leader, error=0)
+                lead_head = self.k.vehicle.get_headway(veh_id, error=0)
+                self.leader.append(leader)
+
+            obs[5 * max_lanes * i + 1] = lead_speed
+            obs[5 * max_lanes * i + 2] = lead_head
 
             # Add the speed and bumper-to-bumper headway of following vehicles.
-            if max_lanes == 1:
-                follower = self.k.vehicle.get_follower(veh_id)
-                if follower in ["", None]:
-                    # in case follower is not visible
-                    follow_speed = max_speed
-                    follow_head = max_length
-                else:
-                    follow_speed = self.k.vehicle.get_speed(follower, error=0)
-                    follow_head = self.k.vehicle.get_headway(follower, error=0)
-                    self.follower.append(follower)
-
-                obs[5 * max_lanes * i + 3] = follow_speed
-                obs[5 * max_lanes * i + 4] = follow_head
+            follower = self.k.vehicle.get_follower(veh_id)
+            if follower in ["", None]:
+                # in case follower is not visible
+                follow_speed = max_speed
+                follow_head = max_length
             else:
-                pass  # TODO
+                follow_speed = self.k.vehicle.get_speed(follower, error=0)
+                follow_head = self.k.vehicle.get_headway(follower, error=0)
+                self.follower.append(follower)
+
+            obs[5 * max_lanes * i + 3] = follow_speed
+            obs[5 * max_lanes * i + 4] = follow_head
 
         return obs
 

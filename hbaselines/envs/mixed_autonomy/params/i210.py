@@ -10,9 +10,7 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoCarFollowingParams
 from flow.core.params import SumoLaneChangeParams
-from flow.core.rewards import energy_consumption
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as config
 
@@ -25,7 +23,7 @@ INFLOW_RATE = 2050
 # the speed of inflowing vehicles from the main edge (in m/s)
 INFLOW_SPEED = 25.5
 # fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
-PENETRATION_RATE = 0.10
+PENETRATION_RATE = 1/15
 # horizon over which to run the env
 HORIZON = 1500
 # steps to run before follower-stopper is allowed to take control
@@ -97,6 +95,9 @@ def get_flow_params(fixed_boundary,
         "rl",
         num_vehicles=0,
         acceleration_controller=(RLController, {}),
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=0,  # no lane changes by automated vehicles
+        ),
     )
 
     # Add the inflows from the main highway.

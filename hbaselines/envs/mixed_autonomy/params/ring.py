@@ -94,10 +94,10 @@ def get_flow_params(fixed_density,
             }),
             routing_controller=(ContinuousRouter, {}),
             car_following_params=SumoCarFollowingParams(
-                min_gap=0.5,  # FIXME
+                min_gap=0.5,
             ),
             lane_change_params=SumoLaneChangeParams(
-                lane_change_mode="strategic",
+                lane_change_mode=1621,
             ),
             num_vehicles=NUM_VEHICLES[0] - NUM_AUTOMATED if i == 0 else 0)
         vehicles.add(
