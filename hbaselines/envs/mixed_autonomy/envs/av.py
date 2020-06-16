@@ -45,7 +45,8 @@ OPEN_ENV_PARAMS.update(dict(
     rl_penetration=0.1,
     # maximum number of controllable vehicles in the network
     num_rl=5,
-    # the interval (in meters) in which automated vehicles are controlled
+    # the interval (in meters) in which automated vehicles are controlled. If
+    # set to None, the entire region is controllable.
     control_range=[500, 2500],
 ))
 
@@ -232,10 +233,6 @@ class AVEnv(Env):
         self.leader = []
         self.follower = []
 
-        # maximum number of lanes in any section
-        max_lanes = max(self.k.network.num_lanes(edge)
-                        for edge in self.k.network.get_edge_list())
-
         # normalizing constants
         max_speed = self.k.network.max_speed()
         max_length = self.k.network.length()
@@ -245,7 +242,7 @@ class AVEnv(Env):
 
         for i, veh_id in enumerate(self.rl_ids()):
             # Add the speed of the ego vehicle.
-            obs[5 * max_lanes * i] = self.k.vehicle.get_speed(veh_id, error=0)
+            obs[5 * i] = self.k.vehicle.get_speed(veh_id, error=0)
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
             leader = self.k.vehicle.get_leader(veh_id)
@@ -258,8 +255,8 @@ class AVEnv(Env):
                 lead_head = self.k.vehicle.get_headway(veh_id, error=0)
                 self.leader.append(leader)
 
-            obs[5 * max_lanes * i + 1] = lead_speed
-            obs[5 * max_lanes * i + 2] = lead_head
+            obs[5 * i + 1] = lead_speed
+            obs[5 * i + 2] = lead_head
 
             # Add the speed and bumper-to-bumper headway of following vehicles.
             follower = self.k.vehicle.get_follower(veh_id)
@@ -272,8 +269,8 @@ class AVEnv(Env):
                 follow_head = self.k.vehicle.get_headway(follower, error=0)
                 self.follower.append(follower)
 
-            obs[5 * max_lanes * i + 3] = follow_speed
-            obs[5 * max_lanes * i + 4] = follow_head
+            obs[5 * i + 3] = follow_speed
+            obs[5 * i + 4] = follow_head
 
         return obs
 
@@ -528,7 +525,7 @@ class AVOpenEnv(AVEnv):
       irrelevant.
     * num_rl: maximum number of controllable vehicles in the network
     * control_range: the interval (in meters) in which automated vehicles are
-      controlled
+      controlled. If set to None, the entire region is controllable.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -561,6 +558,11 @@ class AVOpenEnv(AVEnv):
         self.leader = []
         self.follower = []
 
+        # control range, updated to be entire network if not specified
+        self._control_range = \
+            self.env_params.additional_params["control_range"] or \
+            [0, self.k.network.length()]
+
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
@@ -568,9 +570,8 @@ class AVOpenEnv(AVEnv):
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
         # Collect the names of the vehicles within the control range.
-        control_range = self.env_params.additional_params["control_range"]
-        control_min = control_range[0]
-        control_max = control_range[1]
+        control_min = self._control_range[0]
+        control_max = self._control_range[1]
         veh_ids = [
             veh_id for veh_id in self.k.vehicle.get_ids() if
             control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
@@ -590,8 +591,6 @@ class AVOpenEnv(AVEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
-        control_range = self.env_params.additional_params["control_range"]
-
         # add rl vehicles that just entered the network into the rl queue
         for veh_id in self.k.vehicle.get_rl_ids():
             if veh_id not in \
@@ -600,7 +599,8 @@ class AVOpenEnv(AVEnv):
 
         # remove rl vehicles that exited the controllable range of the network
         for veh_id in self.rl_veh:
-            if self.k.vehicle.get_x_by_id(veh_id) > control_range[1]:
+            if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1] \
+                    or veh_id not in self.k.vehicle.get_rl_ids():
                 self.removed_veh.append(veh_id)
                 self.rl_veh.remove(veh_id)
 
@@ -608,14 +608,14 @@ class AVOpenEnv(AVEnv):
         while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
             # ignore vehicles that are in the ghost edges
             if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
-                    control_range[0]:
+                    self._control_range[0]:
                 break
 
             rl_id = self.rl_queue.popleft()
             veh_pos = self.k.vehicle.get_x_by_id(rl_id)
 
             # add the vehicle if it is within the control range
-            if veh_pos < control_range[1]:
+            if veh_pos < self._control_range[1]:
                 self.rl_veh.append(rl_id)
 
         # specify observed vehicles

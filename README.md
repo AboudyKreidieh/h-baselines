@@ -817,12 +817,9 @@ the `env` parameter in the algorithm class.
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
-| [ring](#ring)       | ring-v0          |       5       |       50       |     1/10    |          --          |          yes         |        yes       |
-|                     | ring-v1          |       5       |       50       |     1/10    |          --          |          yes         |        no        |
-|                     | ring-v2          |       5       |       50       |     1/10    |          --          |          no          |        no        |
-|                     | ring-v3          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
-|                     | ring-v4          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
-|                     | ring-v5          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| [ring](#ring)       | ring-v0          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
+|                     | ring-v1          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
+|                     | ring-v2          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
 | [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
 |                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
 |                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |

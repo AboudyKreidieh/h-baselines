@@ -2,7 +2,6 @@
 import os
 
 from flow.controllers import RLController
-from flow.controllers import I210Router
 from flow.controllers import IDMController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
@@ -81,7 +80,6 @@ def get_flow_params(fixed_boundary,
     vehicles.add(
         "human",
         num_vehicles=0,
-        routing_controller=(I210Router, {}),
         acceleration_controller=(IDMController, {
             'a': 1.3,
             'b': 2.0,
@@ -105,14 +103,14 @@ def get_flow_params(fixed_boundary,
     for lane in [0, 1, 2, 3, 4]:
         inflow.add(
             veh_type="human",
-            edge="119257914",
+            edge="ghost0",
             vehs_per_hour=int(INFLOW_RATE * (1 - PENETRATION_RATE)),
             departLane=lane,
             departSpeed=INFLOW_SPEED
         )
         inflow.add(
             veh_type="rl",
-            edge="119257914",
+            edge="ghost0",
             vehs_per_hour=int(INFLOW_RATE * PENETRATION_RATE),
             departLane=lane,
             departSpeed=INFLOW_SPEED
@@ -164,8 +162,8 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else None,  # FIXME
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10,
-                "control_range": [500, 2300],  # FIXME
+                "num_rl": 50,
+                "control_range": None,  # FIXME
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
