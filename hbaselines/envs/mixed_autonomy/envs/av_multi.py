@@ -153,6 +153,11 @@ class AVMultiAgentEnv(MultiEnv):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
+        # In case no vehicles were available in the current step, pass an empty
+        # reward dict.
+        if rl_actions is None:
+            return {}
+
         return self._compute_reward_util(
             rl_actions,
             self.k.vehicle.get_ids(),
@@ -217,7 +222,8 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    accel = [rl_actions[key][0] for key in rl_actions.keys()]
+                    reward -= sum(np.square(accel))
 
         return {key: reward for key in rl_actions.keys()}
 
@@ -464,7 +470,8 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     """Open network variant of AVMultiAgentEnv.
 
-    This environment is suitable for training policies on a merge or highway
+    In this environment, every vehicle is treated as a separate agent. This
+    environment is suitable for training policies on a merge or highway
     network.
 
     We attempt to train a control policy in this setting that is robust to
