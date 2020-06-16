@@ -50,11 +50,6 @@ OPEN_ENV_PARAMS.update(dict(
     control_range=[500, 2500],
 ))
 
-# Scale the normalized speeds and headways are scaled by. Headways are squashed
-# to very small values, since the length is 1500, so it is multiplied by ten.
-SPEED_SCALE = 1
-HEADWAY_SCALE = 10
-
 
 class AVEnv(Env):
     """Environment for training automated vehicles in a mixed-autonomy setting.
@@ -233,7 +228,7 @@ class AVEnv(Env):
         self.leader = []
         self.follower = []
 
-        # normalizing constants
+        # used to handle missing observations of adjacent vehicles
         max_speed = self.k.network.max_speed()
         max_length = self.k.network.length()
 
@@ -313,9 +308,9 @@ class AVClosedEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
-      "both"}
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
     * num_vehicles: range for the number of vehicles allowed in the network. If
       set to None, the number of vehicles are is modified from its initial
       value.
@@ -515,9 +510,9 @@ class AVOpenEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
-      "both"}
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * rl_penetration: the AV penetration rate, defining the portion of inflow

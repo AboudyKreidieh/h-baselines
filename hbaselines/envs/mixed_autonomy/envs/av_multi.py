@@ -47,11 +47,6 @@ OPEN_ENV_PARAMS.update(dict(
     num_rl=5,
 ))
 
-# Scale the normalized speeds and headways are scaled by. Headways are squashed
-# to very small values, since the length is 1500, so it is multiplied by ten.
-SPEED_SCALE = 1
-HEADWAY_SCALE = 10
-
 
 class AVMultiAgentEnv(MultiEnv):
     """Environment for training automated vehicles in a mixed-autonomy setting.
@@ -67,10 +62,7 @@ class AVMultiAgentEnv(MultiEnv):
     States
         The observation consists of the speeds and bumper-to-bumper headways of
         the vehicles immediately preceding and following autonomous vehicle, as
-        well as the ego speed of the autonomous vehicles. In multi-lane
-        settings, the observations will also include the speeds and
-        bumper-to-bumper headways of preceding and following vehicles across
-        all lanes.
+        well as the ego speed of the autonomous vehicles.
 
     Actions
         The action space consists of a bounded acceleration for each autonomous
@@ -78,9 +70,17 @@ class AVMultiAgentEnv(MultiEnv):
         failsafes provided by the simulator at every time step.
 
     Rewards
-        The reward provided by the system is equal to the average speed of all
-        vehicles in the network minus a scaled penalty for the sum of squares
-        of the accelerations.
+        The reward provided by the environment is equal to the negative vector
+        normal of the distance between the speed of all vehicles in the network
+        and a desired speed, and is offset by largest possible negative term to
+        ensure non-negativity if environments terminate prematurely. This
+        reward may only include two penalties:
+
+        * acceleration_penalty: If set to True in env_params, the negative of
+          the sum of squares of the accelerations by the AVs is added to the
+          reward.
+        * stopping_penalty: If set to True in env_params, a penalty of -5 is
+          added to the reward for every RL vehicle that is not moving.
 
     Termination
         A rollout is terminated if the time horizon is reached or if two
@@ -153,110 +153,117 @@ class AVMultiAgentEnv(MultiEnv):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
+        return self._compute_reward_util(
+            rl_actions,
+            self.k.vehicle.get_ids(),
+            **kwargs
+        )
+
+    def _compute_reward_util(self, rl_actions, veh_ids, **kwargs):
+        """Compute the reward over a specific list of vehicles.
+
+        Parameters
+        ----------
+        rl_actions : array_like
+            the actions performed by the automated vehicles
+        veh_ids : list of str
+            the vehicle IDs to compute the network-level rewards over
+
+        Returns
+        -------
+        float
+            the computed reward
+        """
         if self.env_params.evaluate or rl_actions is None:
-            return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            reward = np.mean(self.k.vehicle.get_speed(veh_ids))
         else:
-            # =============================================================== #
-            # Reward high system-level average speeds.                        #
-            # =============================================================== #
+            params = self.env_params.additional_params
+            stopping_penalty = params["stopping_penalty"]
+            acceleration_penalty = params["acceleration_penalty"]
 
-            num_vehicles = self.k.vehicle.num_vehicles
-            vel = np.array(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
-
+            num_vehicles = len(veh_ids)
+            vel = np.array(self.k.vehicle.get_speed(veh_ids))
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
                 # in case of collisions or an empty network
                 reward = 0
             else:
+                reward = 0
+
+                # =========================================================== #
+                # Reward high system-level average speeds.                    #
+                # =========================================================== #
+
+                reward_scale = 0.1
+
                 # Compute a positive form of the two-norm from a desired target
                 # velocity.
                 target = self.env_params.additional_params['target_velocity']
                 max_cost = np.array([target] * num_vehicles)
                 max_cost = np.linalg.norm(max_cost)
                 cost = np.linalg.norm(vel - target)
-                reward = max(max_cost - cost, 0)
+                reward += reward_scale * max(max_cost - cost, 0)
 
-            # =============================================================== #
-            # Penalize congestion style behaviors.                            #
-            # =============================================================== #
+                # =========================================================== #
+                # Penalize stopped RL vehicles.                               #
+                # =========================================================== #
 
-            penalty_type = self.env_params.additional_params["penalty_type"]
-            penalty_scale = self.env_params.additional_params["penalty"]
+                if stopping_penalty:
+                    for veh_id in self.rl_ids():
+                        speed = self.k.vehicle.get_speed(veh_id)
+                        reward -= 5 * max(1 - speed, 0) ** 2
 
-            # Penalize the sum of squares of the accelerations.
-            if penalty_type in ["acceleration", "both"]:
-                accel = rl_actions.items()
-                reward -= penalty_scale * sum(np.square(accel[:self.num_rl]))
+                # =========================================================== #
+                # Penalize the sum of squares of the AV accelerations.        #
+                # =========================================================== #
 
-            # Penalize small time headways.
-            elif penalty_type in ["time_headway", "both"]:
-                cost2 = 0
-                t_min = 1  # smallest acceptable time headway
-                for rl_id in self.rl_ids():
-                    lead_id = self.k.vehicle.get_leader(rl_id)
-                    if lead_id not in ["", None] \
-                            and self.k.vehicle.get_speed(rl_id) > 0:
-                        t_headway = max(
-                            self.k.vehicle.get_headway(rl_id) /
-                            self.k.vehicle.get_speed(rl_id), 0)
-                        cost2 += min((t_headway - t_min) / t_min, 0)
-                reward += penalty_scale * cost2
+                if acceleration_penalty:
+                    reward -= sum(np.square(rl_actions[:self.num_rl]))
 
-            return {key: reward for key in rl_actions.keys()}
+        return {key: reward for key in rl_actions.keys()}
 
     def get_state(self):
         """See class definition."""
-        # maximum number of lanes in any section
-        max_lanes = max(self.k.network.num_lanes(edge)
-                        for edge in self.k.network.get_edge_list())
+        self.leader = []
+        self.follower = []
 
-        # normalizing constants
+        # used to handle missing observations of adjacent vehicles
         max_speed = self.k.network.max_speed()
         max_length = self.k.network.length()
 
         # Initialize a set on empty observations
         obs = {key: [0 for _ in range(5)] for key in self.rl_ids()}
 
-        for i, veh_id in enumerate(self.rl_ids):
+        for i, veh_id in enumerate(self.rl_ids()):
             # Add the speed of the ego vehicle.
             obs[veh_id][0] = self.k.vehicle.get_speed(veh_id)
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
-            if max_lanes == 1:
-                lead_id = self.k.vehicle.get_leader(veh_id)
-                if lead_id in ["", None]:
-                    # in case leader is not visible
-                    lead_speed = SPEED_SCALE
-                    lead_head = HEADWAY_SCALE
-                else:
-                    lead_speed = self.k.vehicle.get_speed(lead_id) \
-                        / max_speed * SPEED_SCALE
-                    lead_head = self.k.vehicle.get_headway(veh_id) \
-                        / max_length * HEADWAY_SCALE
-                    self.leader.append(lead_id)
-
-                obs[veh_id][1] = lead_speed
-                obs[veh_id][2] = lead_head
+            lead_id = self.k.vehicle.get_leader(veh_id)
+            if lead_id in ["", None]:
+                # in case leader is not visible
+                lead_speed = max_speed
+                lead_head = max_length
             else:
-                pass  # TODO
+                lead_speed = self.k.vehicle.get_speed(lead_id)
+                lead_head = self.k.vehicle.get_headway(veh_id)
+                self.leader.append(lead_id)
+
+            obs[veh_id][1] = lead_speed
+            obs[veh_id][2] = lead_head
 
             # Add the speed and bumper-to-bumper headway of following vehicles.
-            if max_lanes == 1:
-                follow_id = self.k.vehicle.get_follower(veh_id)
-                if follow_id in ["", None]:
-                    # in case follower is not visible
-                    follow_speed = SPEED_SCALE
-                    follow_head = HEADWAY_SCALE
-                else:
-                    follow_speed = self.k.vehicle.get_speed(follow_id) \
-                        / max_speed * SPEED_SCALE
-                    follow_head = self.k.vehicle.get_headway(follow_id) \
-                        / max_length * HEADWAY_SCALE
-                    self.follower.append(follow_id)
-
-                obs[veh_id][3] = follow_speed
-                obs[veh_id][4] = follow_head
+            follow_id = self.k.vehicle.get_follower(veh_id)
+            if follow_id in ["", None]:
+                # in case follower is not visible
+                follow_speed = max_speed
+                follow_head = max_length
             else:
-                pass  # TODO
+                follow_speed = self.k.vehicle.get_speed(follow_id)
+                follow_head = self.k.vehicle.get_headway(follow_id)
+                self.follower.append(follow_id)
+
+            obs[veh_id][3] = follow_speed
+            obs[veh_id][4] = follow_head
 
         return obs
 
@@ -299,9 +306,9 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty_type: the penalty type, one of: {"acceleration", "time_headway",
-      "both"}
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
     * num_vehicles: range for the number of vehicles allowed in the network. If
       set to None, the number of vehicles are is modified from its initial
       value.
@@ -340,7 +347,6 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
                 "InitialConfig.shuffle must be set to False when using even " \
                 "distributions."
 
-    @property
     def rl_ids(self):
         """See parent class."""
         if self.env_params.additional_params["sort_vehicles"]:
@@ -487,7 +493,9 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * penalty: scaling term for the action penalty by the AVs
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
@@ -502,15 +510,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        pass  # TODO
-
-        # queue of rl vehicles waiting to be controlled
-        self._rl_queue = collections.deque()
-
-        # additional attributes
-        self._current_rl_ids = []
-
         super(AVOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -518,14 +517,95 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             simulator=simulator,
         )
 
-    @property
+        # maximum number of controlled vehicles
+        self.num_rl = env_params.additional_params["num_rl"]
+
+        # queue of rl vehicles waiting to be controlled
+        self.rl_queue = collections.deque()
+
+        # names of the rl vehicles controlled at any step
+        self.rl_veh = []
+
+        # names of the rl vehicles past the control range
+        self.removed_veh = []
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
+        self.leader = []
+        self.follower = []
+
+        # control range, updated to be entire network if not specified
+        self._control_range = \
+            self.env_params.additional_params["control_range"] or \
+            [0, self.k.network.length()]
+
     def rl_ids(self):
         """See parent class."""
-        return self._current_rl_ids
+        return self.rl_veh
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition."""
+        # Collect the names of the vehicles within the control range.
+        control_min = self._control_range[0]
+        control_max = self._control_range[1]
+        veh_ids = [
+            veh_id for veh_id in self.k.vehicle.get_ids() if
+            control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
+        ]
+
+        return self._compute_reward_util(rl_actions, veh_ids, **kwargs)
+
+    def additional_command(self):
+        """See parent class.
+
+        This method performs to auxiliary tasks:
+
+        * Define which vehicles are observed for visualization purposes.
+        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
+          vehicles that are represented in the state space does not change
+          until one of the vehicles in the state space leaves the network.
+          Then, the next vehicle in the queue is added to the state space and
+          provided with actions from the policy.
+        """
+        # add rl vehicles that just entered the network into the rl queue
+        for veh_id in self.k.vehicle.get_rl_ids():
+            if veh_id not in \
+                    list(self.rl_queue) + self.rl_veh + self.removed_veh:
+                self.rl_queue.append(veh_id)
+
+        # remove rl vehicles that exited the controllable range of the network
+        for veh_id in self.rl_veh:
+            if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1] \
+                    or veh_id not in self.k.vehicle.get_rl_ids():
+                self.removed_veh.append(veh_id)
+                self.rl_veh.remove(veh_id)
+
+        # fill up rl_veh until they are enough controlled vehicles
+        while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
+            # ignore vehicles that are in the ghost edges
+            if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
+                    self._control_range[0]:
+                break
+
+            rl_id = self.rl_queue.popleft()
+            veh_pos = self.k.vehicle.get_x_by_id(rl_id)
+
+            # add the vehicle if it is within the control range
+            if veh_pos < self._control_range[1]:
+                self.rl_veh.append(rl_id)
+
+        # specify observed vehicles
+        for veh_id in self.leader + self.follower:
+            self.k.vehicle.set_observed(veh_id)
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
             pass  # TODO
 
+        self.leader = []
+        self.follower = []
+        self.rl_veh = []
+        self.removed_veh = []
+        self.rl_queue = collections.deque()
         return super(AVOpenMultiAgentEnv, self).reset()
