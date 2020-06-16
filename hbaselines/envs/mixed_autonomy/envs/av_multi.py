@@ -136,14 +136,10 @@ class AVMultiAgentEnv(MultiEnv):
     @property
     def observation_space(self):
         """See class definition."""
-        # maximum number of lanes in any section
-        max_lanes = max(self.k.network.num_lanes(edge)
-                        for edge in self.k.network.get_edge_list())
-
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(1 + 4 * max_lanes,),
+            shape=(5,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -158,13 +154,18 @@ class AVMultiAgentEnv(MultiEnv):
         if rl_actions is None:
             return {}
 
-        return self._compute_reward_util(
-            rl_actions,
-            self.k.vehicle.get_ids(),
+        # Compute the reward.
+        reward = self._compute_reward_util(
+            rl_actions=rl_actions,
+            veh_ids=self.k.vehicle.get_ids(),
+            rl_ids=self.rl_ids(),
             **kwargs
         )
 
-    def _compute_reward_util(self, rl_actions, veh_ids, **kwargs):
+        # A separate (shared) reward is passed to every agent.
+        return {key: reward for key in rl_actions.keys()}
+
+    def _compute_reward_util(self, rl_actions, veh_ids, rl_ids, **kwargs):
         """Compute the reward over a specific list of vehicles.
 
         Parameters
@@ -173,6 +174,8 @@ class AVMultiAgentEnv(MultiEnv):
             the actions performed by the automated vehicles
         veh_ids : list of str
             the vehicle IDs to compute the network-level rewards over
+        rl_ids : list of str
+            the vehicle IDs to compute the AV-level penalties over
 
         Returns
         -------
@@ -213,7 +216,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if stopping_penalty:
-                    for veh_id in self.rl_ids():
+                    for veh_id in rl_ids:
                         speed = self.k.vehicle.get_speed(veh_id)
                         reward -= 5 * max(1 - speed, 0) ** 2
 
@@ -225,7 +228,7 @@ class AVMultiAgentEnv(MultiEnv):
                     accel = [rl_actions[key][0] for key in rl_actions.keys()]
                     reward -= sum(np.square(accel))
 
-        return {key: reward for key in rl_actions.keys()}
+        return reward
 
     def get_state(self):
         """See class definition."""
@@ -616,3 +619,172 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self.removed_veh = []
         self.rl_queue = collections.deque()
         return super(AVOpenMultiAgentEnv, self).reset()
+
+
+class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
+    """Lane-level network variant of AVOpenMultiAgentEnv.
+
+    Unlike previous environments in this file, this environment treats every
+    lane as a separate agent, with the automated vehicles in any given lane
+    being control by a single centralized policy. This environment is designed
+    specifically for the I-210 subnetwork, but is applicable to any similarly
+    structured network.
+
+    Additional descriptions to this task can be founded in its parent classes.
+
+    Required from env_params:
+
+    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
+    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
+    * inflows: range for the inflows allowed in the network. If set to None,
+      the inflows are not modified from their initial value.
+    * rl_penetration: the AV penetration rate, defining the portion of inflow
+      vehicles that will be automated. If "inflows" is set to None, this is
+      irrelevant.
+    * num_rl: maximum number of controllable vehicles in the network
+    """
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        """See parent class."""
+        for p in OPEN_ENV_PARAMS.keys():
+            if p not in env_params.additional_params:
+                raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        super(LaneOpenMultiAgentEnv, self).__init__(
+            env_params=env_params,
+            sim_params=sim_params,
+            network=network,
+            simulator=simulator,
+        )
+
+        # These edges have an extra edge that RL vehicles do not traverse
+        # (since they do not change lanes). We as a result ignore their first
+        # lane computing per-lane states.
+        self._extra_lane_edges = [
+            ""  # FIXME
+        ]
+
+    @property
+    def action_space(self):
+        """See class definition."""
+        return Box(
+            low=-abs(self.env_params.additional_params['max_decel']),
+            high=self.env_params.additional_params['max_accel'],
+            shape=(self.num_rl,),
+            dtype=np.float32)
+
+    @property
+    def observation_space(self):
+        """See class definition."""
+        return Box(
+            low=-float('inf'),
+            high=float('inf'),
+            shape=(5 * self.num_rl,),
+            dtype=np.float32)
+
+    def get_state(self):
+        """See class definition."""
+        self.leader = []
+        self.follower = []
+
+        # used to handle missing observations of adjacent vehicles
+        max_speed = self.k.network.max_speed()
+        max_length = self.k.network.length()
+
+        # Initialize a set on empty observations
+        obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
+               for i in range(5)}
+
+        for lane in range(5):
+            # Collect the names of all vehicles on the given lane, while
+            # tacking into account edges with an extra lane.
+            veh_ids = [
+                veh for veh in self.k.vehicle.get_ids()
+                if (self.k.vehicle.get_lane(veh) == lane and
+                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
+                or (self.k.vehicle.get_lane(veh) == lane + 1 and
+                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
+            ]
+
+            # Collect the names of the RL vehicles on the lane.
+            rl_ids = [veh_id for veh_id in self.rl_ids() if veh_id in veh_ids]
+
+            key = "lane_{}".format(lane)
+            for i, veh_id in enumerate(rl_ids):
+                # Add the speed of the ego vehicle.
+                obs[key][5 * i] = self.k.vehicle.get_speed(veh_id, error=0)
+
+                # Add the speed and bumper-to-bumper headway of leading
+                # vehicles.
+                leader = self.k.vehicle.get_leader(veh_id)
+                if leader in ["", None]:
+                    # in case leader is not visible
+                    lead_speed = max_speed
+                    lead_head = max_length
+                else:
+                    lead_speed = self.k.vehicle.get_speed(leader, error=0)
+                    lead_head = self.k.vehicle.get_headway(veh_id, error=0)
+                    self.leader.append(leader)
+
+                obs[key][5 * i + 1] = lead_speed
+                obs[key][5 * i + 2] = lead_head
+
+                # Add the speed and bumper-to-bumper headway of following
+                # vehicles.
+                follower = self.k.vehicle.get_follower(veh_id)
+                if follower in ["", None]:
+                    # in case follower is not visible
+                    follow_speed = max_speed
+                    follow_head = max_length
+                else:
+                    follow_speed = self.k.vehicle.get_speed(follower, error=0)
+                    follow_head = self.k.vehicle.get_headway(follower, error=0)
+                    self.follower.append(follower)
+
+                obs[key][5 * i + 3] = follow_speed
+                obs[key][5 * i + 4] = follow_head
+
+        return obs
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition."""
+        reward = {}
+
+        # Collect the names of the vehicles within the control range.
+        control_min = self._control_range[0]
+        control_max = self._control_range[1]
+        veh_ids = [
+            veh_id for veh_id in self.k.vehicle.get_ids() if
+            control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
+        ]
+
+        for lane in range(5):
+            # Collect the names of all vehicles on the given lane, while
+            # tacking into account edges with an extra lane.
+            veh_ids_lane = [
+                veh for veh in veh_ids
+                if (self.k.vehicle.get_lane(veh) == lane and
+                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
+                or (self.k.vehicle.get_lane(veh) == lane + 1 and
+                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
+            ]
+
+            # Collect the names of the RL vehicles on the lane.
+            rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
+
+            # Collect the actions that just correspond to this lane.
+            rl_actions_lane = {key: rl_actions[key]
+                               for key in rl_actions.keys() if key in rl_ids}
+
+            # Compute the reward for a given lane.
+            reward["lane_{}".format(lane)] = self._compute_reward_util(
+                rl_actions=rl_actions_lane,
+                veh_ids=veh_ids_lane,
+                rl_ids=rl_ids,
+                **kwargs
+            )
+
+        return reward

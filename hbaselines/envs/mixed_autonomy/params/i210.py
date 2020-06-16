@@ -14,7 +14,7 @@ from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
 # the inflow rate of vehicles (in veh/hr)
@@ -40,11 +40,11 @@ def get_flow_params(fixed_boundary,
     Parameters
     ----------
     fixed_boundary : bool
-        TODO
+        specifies whether the boundary conditions update in between resets
     stopping_penalty : bool
-        TODO
+        whether to include a stopping penalty
     acceleration_penalty : bool
-        TODO
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -121,7 +121,7 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = None  # FIXME
         else:
-            env_name = AVOpenMultiAgentEnv
+            env_name = LaneOpenMultiAgentEnv
     else:
         if imitation:
             env_name = AVOpenImitationEnv

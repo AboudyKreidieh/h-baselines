@@ -41,11 +41,11 @@ def get_flow_params(fixed_boundary,
     Parameters
     ----------
     fixed_boundary : bool
-        TODO
+        specifies whether the boundary conditions update in between resets
     stopping_penalty : bool
-        TODO
+        whether to include a stopping penalty
     acceleration_penalty : bool
-        TODO
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool

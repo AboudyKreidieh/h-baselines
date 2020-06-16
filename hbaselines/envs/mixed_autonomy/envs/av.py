@@ -139,14 +139,10 @@ class AVEnv(Env):
     @property
     def observation_space(self):
         """See class definition."""
-        # maximum number of lanes in any section
-        max_lanes = max(self.k.network.num_lanes(edge)
-                        for edge in self.k.network.get_edge_list())
-
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(self.num_rl * (1 + 4 * max_lanes),),
+            shape=(5 * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):

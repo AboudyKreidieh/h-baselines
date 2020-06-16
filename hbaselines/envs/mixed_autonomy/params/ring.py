@@ -1,4 +1,6 @@
 """Flow-specific parameters for the multi-lane ring scenario."""
+import numpy as np
+
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
 from flow.controllers import RLController
@@ -28,6 +30,31 @@ NUM_LANES = 1
 INCLUDE_NOISE = True
 
 
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the speeds and bumper-to-bumper headways of
+    all automated vehicles in the network.
+    """
+    obs = []
+    for rl_id in env.k.vehicle.get_rl_ids():
+        lead_id = env.k.vehicle.get_leader(rl_id) or rl_id
+
+        # normalizers
+        max_speed = 15.
+        max_length = env.env_params.additional_params['ring_length'][1]
+
+        obs.extend([
+            env.k.vehicle.get_speed(rl_id) / max_speed,
+            (env.k.vehicle.get_speed(lead_id) -
+             env.k.vehicle.get_speed(rl_id))
+            / max_speed,
+            env.k.vehicle.get_headway(rl_id) / max_length
+        ])
+
+    return np.asarray(obs)
+
+
 def get_flow_params(fixed_density,
                     stopping_penalty,
                     acceleration_penalty,
@@ -48,11 +75,12 @@ def get_flow_params(fixed_density,
     Parameters
     ----------
     fixed_density : bool
-        TODO
+        specifies whether the number of human-driven vehicles updates in
+        between resets
     stopping_penalty : bool
-        TODO
+        whether to include a stopping penalty
     acceleration_penalty : bool
-        TODO
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
