@@ -443,6 +443,54 @@ class TestMisc(unittest.TestCase):
             expected_size=10,
         )
 
+        # test for i210-v0
+        ac_space = get_meta_ac_space(env_name="i210-v0", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v0", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test for i210-v1
+        ac_space = get_meta_ac_space(env_name="i210-v1", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v1", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test for i210-v2
+        ac_space = get_meta_ac_space(env_name="i210-v0", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v2", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
+
         # test for Point2DEnv
         ac_space = get_meta_ac_space(env_name="Point2DEnv", **params)
         test_space(
@@ -566,6 +614,33 @@ class TestMisc(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="highway-imitation", **params),
             [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+        )
+
+        # test for i210-v0
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v0", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
+        )
+
+        # test for i210-v1
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v1", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
+        )
+
+        # test for i210-v2
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v2", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
         )
 
         # test for Point2DEnv
