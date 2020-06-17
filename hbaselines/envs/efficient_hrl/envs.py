@@ -251,7 +251,7 @@ class AntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : list of float or list of (float,) or list of [float]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 

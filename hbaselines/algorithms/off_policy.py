@@ -437,10 +437,8 @@ class OffPolicyRLAlgorithm(object):
         if self.policy_kwargs.get("use_fingerprints", False):
             # Append the fingerprint dimension to the observation dimension.
             fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate(
-                (self.ob_space.low, fingerprint_range[0]))
-            high = np.concatenate(
-                (self.ob_space.high, fingerprint_range[1]))
+            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
+            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
             self.ob_space = Box(low, high, dtype=np.float32)
 
             # Add the fingerprint term to the first observation.
