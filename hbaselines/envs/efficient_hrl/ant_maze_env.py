@@ -49,6 +49,7 @@ class AntMazeEnv(gym.Env):
                  put_spin_near_agent=False,
                  top_down_view=False,
                  manual_collision=False,
+                 ant_fall=False,
                  *args,
                  **kwargs):
         """Instantiate the environment.
@@ -78,6 +79,10 @@ class AntMazeEnv(gym.Env):
         manual_collision : bool, optional
             if set to True, collisions cause the agent to return to its prior
             position
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
         """
         self._maze_id = maze_id
 
@@ -272,7 +277,12 @@ class AntMazeEnv(gym.Env):
         tree.write(file_path)
 
         try:
-            self.wrapped_env = model_cls(*args, file_path=file_path, **kwargs)
+            self.wrapped_env = model_cls(
+                *args,
+                ant_fall=ant_fall,
+                file_path=file_path,
+                **kwargs
+            )
         except AssertionError:
             # for testing purposes
             pass
