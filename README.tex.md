@@ -827,7 +827,9 @@ and
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
-the `env` parameter in the algorithm class.
+the `env` parameter in the algorithm class. The multi-agent variants of these 
+environments can also be trained by adding "multiagent-" to the start of the 
+environment name (e.g. "multiagent-ring-v0").
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
