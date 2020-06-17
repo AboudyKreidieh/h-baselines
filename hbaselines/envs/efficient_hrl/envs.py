@@ -15,11 +15,9 @@ DISTANCE_THRESHOLD = 5
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -29,7 +27,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  random_contexts=False,
                  context_range=None,
                  maze_size_scaling=8,
-                 horizon=500):
+                 horizon=500,
+                 ant_fall=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -54,6 +53,10 @@ class UniversalAntMazeEnv(AntMazeEnv):
                list of possible goals
         horizon : float, optional
             time horizon
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
 
         Raises
         ------
@@ -72,7 +75,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             observe_blocks=False,
             put_spin_near_agent=False,
             top_down_view=False,
-            manual_collision=False
+            manual_collision=False,
+            ant_fall=ant_fall,
         )
 
         self.horizon = horizon
@@ -281,6 +285,7 @@ class AntMaze(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
+            ant_fall=False,
         )
 
 
@@ -340,6 +345,7 @@ class AntPush(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
+            ant_fall=False,
         )
 
 
@@ -401,6 +407,7 @@ class AntFall(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
+            ant_fall=True,
         )
 
 
@@ -454,4 +461,5 @@ class AntFourRooms(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=3,
+            ant_fall=False,
         )
