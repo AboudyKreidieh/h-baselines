@@ -16,21 +16,24 @@ try:
 except (ImportError, ModuleNotFoundError):
     pass
 
-# try:
-from flow.utils.registry import make_create_env
-from hbaselines.envs.mixed_autonomy import FlowEnv
-from hbaselines.envs.mixed_autonomy.params.merge \
-    import get_flow_params as merge
-from hbaselines.envs.mixed_autonomy.params.ring \
-    import get_flow_params as ring
-from hbaselines.envs.mixed_autonomy.params.ring_small \
-    import get_flow_params as ring_small
-from hbaselines.envs.mixed_autonomy.params.highway \
-    import get_flow_params as highway
-from hbaselines.envs.mixed_autonomy.params.i210 \
-    import get_flow_params as i210
-# except (ImportError, ModuleNotFoundError):  # pragma: no cover
-#     pass  # pragma: no cover
+try:
+    from flow.utils.registry import make_create_env
+    from hbaselines.envs.mixed_autonomy import FlowEnv
+    from hbaselines.envs.mixed_autonomy.params.merge \
+        import get_flow_params as merge
+    from hbaselines.envs.mixed_autonomy.params.ring \
+        import get_flow_params as ring
+    from hbaselines.envs.mixed_autonomy.params.ring_small \
+        import get_flow_params as ring_small
+    from hbaselines.envs.mixed_autonomy.params.highway \
+        import get_flow_params as highway
+    from hbaselines.envs.mixed_autonomy.params.i210 \
+        import get_flow_params as i210
+except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
+    # ray seems to have a bug that requires you to install ray[tune] twice
+    if "ray" in str(e):  # pragma: no cover
+        raise e  # pragma: no cover
+    pass  # pragma: no cover
 
 try:
     from hbaselines.envs.point2d import Point2DEnv
