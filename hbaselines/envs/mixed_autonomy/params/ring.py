@@ -17,32 +17,43 @@ from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 
 # Number of vehicles in the network
-NUM_VEHICLES = 50
+NUM_VEHICLES = [50, 75]
+# number of automated (RL) vehicles
+NUM_AUTOMATED = 5
 # Length of the ring (in meters)
 RING_LENGTH = 1500
 # Number of lanes in the ring
 NUM_LANES = 1
+# whether to include noise in the environment
+INCLUDE_NOISE = True
 
 
-def get_flow_params(num_automated=5,
-                    simulator="traci",
+def get_flow_params(fixed_density,
+                    stopping_penalty,
+                    acceleration_penalty,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
     """Return the flow-specific parameters of the ring road network.
 
-    This scenario consists of 50-75 vehicles (50 of which are automated) are
-    placed on a sing-lane circular track of length 1500 m. In the absence of
-    the automated vehicle, the 22 human-driven vehicles exhibit stop-and-go
-    instabilities brought about by the string-unstable characteristic of human
-    car-following dynamics.
+    This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
+    which are automated) are placed on a sing-lane circular track of length
+    1500m. In the absence of the automated vehicle, the human-driven vehicles
+    exhibit stop-and-go instabilities brought about by the string-unstable
+    characteristic of human car-following dynamics. Within this setting, the
+    RL vehicles are tasked with dissipating the formation and propagation of
+    stop-and-go waves via an objective function that rewards maximizing
+    system-level speeds.
 
     Parameters
     ----------
-    num_automated : int
-        number of automated (RL) vehicles
-    simulator : str
-        the simulator used, one of {'traci', 'aimsun'}
+    fixed_density : bool
+        specifies whether the number of human-driven vehicles updates in
+        between resets
+    stopping_penalty : bool
+        whether to include a stopping penalty
+    acceleration_penalty : bool
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -74,22 +85,22 @@ def get_flow_params(num_automated=5,
           (see flow.core.params.TrafficLightParams)
     """
     vehicles = VehicleParams()
-    for i in range(num_automated):
+    for i in range(NUM_AUTOMATED):
         vehicles.add(
             veh_id="human_{}".format(i),
             acceleration_controller=(IDMController, {
-                "a": 0.3,
+                "a": 1.3,
                 "b": 2.0,
-                "noise": 0.5,
+                "noise": 0.3 if INCLUDE_NOISE else 0.0
             }),
             routing_controller=(ContinuousRouter, {}),
             car_following_params=SumoCarFollowingParams(
                 min_gap=0.5,
             ),
             lane_change_params=SumoLaneChangeParams(
-                lane_change_mode="strategic",
+                lane_change_mode=1621,
             ),
-            num_vehicles=NUM_VEHICLES - num_automated if i == 0 else 0)
+            num_vehicles=NUM_VEHICLES[0] - NUM_AUTOMATED if i == 0 else 0)
         vehicles.add(
             veh_id="rl_{}".format(i),
             acceleration_controller=(RLController, {}),
@@ -100,7 +111,7 @@ def get_flow_params(num_automated=5,
             lane_change_params=SumoLaneChangeParams(
                 lane_change_mode=0,  # no lane changes by automated vehicles
             ),
-            num_vehicles=num_automated if i == 0 else 0)
+            num_vehicles=NUM_AUTOMATED if i == 0 else 0)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params["length"] = RING_LENGTH
@@ -128,7 +139,7 @@ def get_flow_params(num_automated=5,
         network=RingNetwork,
 
         # simulator that is used by the experiment
-        simulator=simulator,
+        simulator="traci",
 
         # sumo-related parameters (see flow.core.params.SumoParams)
         sim=SumoParams(
@@ -146,14 +157,14 @@ def get_flow_params(num_automated=5,
             additional_params={
                 "max_accel": 1,
                 "max_decel": 1,
-                "target_velocity": 30,
-                "penalty_type": "acceleration",
-                "penalty": 1,
-                "num_vehicles": [50, 75],
+                "target_velocity": 30,  # FIXME
+                "stopping_penalty": stopping_penalty,
+                "acceleration_penalty": acceleration_penalty,
+                "num_vehicles": None if fixed_density else NUM_VEHICLES,
                 "even_distribution": False,
                 "sort_vehicles": True,
                 "expert_model": (IDMController, {
-                    "a": 0.3,
+                    "a": 1.3,
                     "b": 2.0,
                 }),
             },

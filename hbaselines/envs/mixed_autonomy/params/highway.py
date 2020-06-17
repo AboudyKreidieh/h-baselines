@@ -1,8 +1,4 @@
-"""Multi-agent highway with ramps example.
-
-Trains a non-constant number of agents, all sharing the same policy, on the
-highway with ramps network.
-"""
+"""Single lane highway example."""
 from flow.controllers import IDMController
 from flow.controllers import RLController
 from flow.core.params import EnvParams
@@ -34,11 +30,22 @@ PENETRATION_RATE = 1/12
 INCLUDE_NOISE = True
 
 
-def get_flow_params(evaluate=False, multiagent=False, imitation=False):
+def get_flow_params(fixed_boundary,
+                    stopping_penalty,
+                    acceleration_penalty,
+                    evaluate=False,
+                    multiagent=False,
+                    imitation=False):
     """Return the flow-specific parameters of the single lane highway network.
 
     Parameters
     ----------
+    fixed_boundary : bool
+        specifies whether the boundary conditions update in between resets
+    stopping_penalty : bool
+        whether to include a stopping penalty
+    acceleration_penalty : bool
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -96,9 +103,9 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         "human",
         num_vehicles=0,
         acceleration_controller=(IDMController, {
-            'a': 1.3,
-            'b': 2.0,
-            'noise': 0.3 if INCLUDE_NOISE else 0.0
+            "a": 1.3,
+            "b": 2.0,
+            "noise": 0.3 if INCLUDE_NOISE else 0.0
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5
@@ -150,7 +157,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
 
     return dict(
         # name of the experiment
-        exp_tag='highway-single',
+        exp_tag="highway",
 
         # name of the flow environment the experiment is running on
         env_name=env_name,
@@ -159,7 +166,7 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
         network=HighwayNetwork,
 
         # simulator that is used by the experiment
-        simulator='traci',
+        simulator="traci",
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
@@ -171,15 +178,15 @@ def get_flow_params(evaluate=False, multiagent=False, imitation=False):
                 "max_accel": 0.5,
                 "max_decel": 0.5,
                 "target_velocity": 10,
-                "penalty_type": "acceleration",
-                "penalty": 1,
-                "inflows": None,
+                "stopping_penalty": stopping_penalty,
+                "acceleration_penalty": acceleration_penalty,
+                "inflows": None if fixed_boundary else None,  # FIXME
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
-                    'a': 1.3,
-                    'b': 2.0,
+                    "a": 1.3,
+                    "b": 2.0,
                 }),
             }
         ),
