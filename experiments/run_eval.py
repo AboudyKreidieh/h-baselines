@@ -36,15 +36,18 @@ POLICY_DICT = {
 
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
-    "ring",
-    "ring_small",
-    "figureeight0",
-    "figureeight1",
-    "figureeight2",
-    "merge0",
-    "merge1",
-    "merge2",
-    "highway-single"
+    "ring-v0",
+    "ring-v1",
+    "ring-v2",
+    "merge-v0",
+    "merge-v1",
+    "merge-v2",
+    "highway-v0",
+    "highway-v1",
+    "highway-v2",
+    "i210-v0",
+    "i210-v1",
+    "i210-v2",
 ]
 
 
@@ -57,7 +60,6 @@ def parse_options(args):
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Run evaluation episodes of a given checkpoint.',
         epilog='python run_eval "/path/to/dir_name" ckpt_num')
 
@@ -171,7 +173,7 @@ def main(args):
     env = alg.sampler.env
 
     # Perform the evaluation procedure.
-    episdoe_rewards = []
+    episode_rewards = []
 
     # Add an emission path to Flow environments.
     if env_name in FLOW_ENV_NAMES:
@@ -201,12 +203,12 @@ def main(args):
                 break
 
         # Print total returns from a given episode.
-        episdoe_rewards.append(total_reward)
+        episode_rewards.append(total_reward)
         print("Round {}, return: {}".format(episode_num, total_reward))
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
-        np.mean(episdoe_rewards), np.std(episdoe_rewards)))
+        np.mean(episode_rewards), np.std(episode_rewards)))
 
     if env_name in FLOW_ENV_NAMES:
         # wait a short period of time to ensure the xml file is readable

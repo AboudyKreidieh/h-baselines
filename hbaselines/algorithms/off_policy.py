@@ -188,11 +188,11 @@ class OffPolicyRLAlgorithm(object):
         returned.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    action_space : gym.spaces.*
+    ac_space : gym.spaces.*
         the action space of the training environment
-    observation_space : gym.spaces.*
+    ob_space : gym.spaces.*
         the observation space of the training environment
-    context_space : gym.spaces.*
+    co_space : gym.spaces.*
         the context space of the training environment (i.e. the same of the
         desired environmental goal)
     policy_kwargs : dict
@@ -346,9 +346,9 @@ class OffPolicyRLAlgorithm(object):
         self.obs, self.all_obs = get_obs(self.sampler.get_init_obs())
 
         # Collect the spaces of the environments.
-        self.action_space = self.sampler.action_space()
-        self.observation_space = self.sampler.observation_space()
-        self.context_space = self.sampler.context_space()
+        self.ac_space = self.sampler.action_space()
+        self.ob_space = self.sampler.observation_space()
+        self.co_space = self.sampler.context_space()
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -395,11 +395,9 @@ class OffPolicyRLAlgorithm(object):
         if self.policy_kwargs.get("use_fingerprints", False):
             # Append the fingerprint dimension to the observation dimension.
             fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate(
-                (self.observation_space.low, fingerprint_range[0]))
-            high = np.concatenate(
-                (self.observation_space.high, fingerprint_range[1]))
-            self.observation_space = Box(low, high, dtype=np.float32)
+            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
+            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
+            self.ob_space = Box(low, high, dtype=np.float32)
 
             # Add the fingerprint term to the first observation.
             self.obs = add_fingerprint(self.obs, 0, 1, True)
@@ -418,9 +416,9 @@ class OffPolicyRLAlgorithm(object):
             # Create the policy.
             self.policy_tf = self.policy(
                 self.sess,
-                self.observation_space,
-                self.action_space,
-                self.context_space,
+                self.ob_space,
+                self.ac_space,
+                self.co_space,
                 **self.policy_kwargs
             )
 
@@ -475,13 +473,13 @@ class OffPolicyRLAlgorithm(object):
                 # Shared policies with have one observation space, while
                 # independent policies have a different observation space based
                 # on their agent ID.
-                if isinstance(self.observation_space, dict):
-                    ob_shape = self.observation_space[key].shape
+                if isinstance(self.ob_space, dict):
+                    ob_shape = self.ob_space[key].shape
                 else:
-                    ob_shape = self.observation_space.shape
+                    ob_shape = self.ob_space.shape
                 obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
         else:
-            obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+            obs = np.array(obs).reshape((-1,) + self.ob_space.shape)
 
         action = self.policy_tf.get_action(
             obs, context,

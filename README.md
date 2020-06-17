@@ -5,7 +5,10 @@
 # h-baselines
 
 `h-baselines` is a repository of high-performing and benchmarked 
-hierarchical reinforcement learning models and algorithms.
+hierarchical reinforcement learning models and algorithms. This repository is 
+motivated by, and partially adapted from, the 
+[baselines](https://github.com/openai/baselines) and 
+[stable-baselines](https://github.com/hill-a/stable-baselines) repositories.
 
 The models and algorithms supported within this repository can be found 
 [here](#2-supported-modelsalgorithms), and benchmarking results are 
@@ -32,7 +35,6 @@ available [here]().
     3.2. [Flow Environments](#32-flow-environments)  
 4. [Citing](#4-citing)
 5. [Bibliography](#5-bibliography)
-6. [Useful Links](#6-useful-links)
 
 # 1. Setup Instructions
 
@@ -668,7 +670,7 @@ modifying the relevant worker-specific features as follows:
             ...
             a_{k-1}
         ],
-        "intrinsic rewards": [ <----------------
+        "intrinsic rewards": [ <-------------
             r_w(s_0, \bar{g}_0, s_1),       |
             r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
             ...                             |
@@ -740,8 +742,8 @@ alg = OffPolicyRLAlgorithm(
 # 3. Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
-[Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
-[Flow](https://github.com/flow-project/flow) (mixed-autonomy traffic) 
+[Mujoco](https://github.com/openai/mujoco-py) [7] (robotics) and 
+[Flow](https://github.com/flow-project/flow) [8] (mixed-autonomy traffic) 
 benchmarks. A description of each of the studied environments can be 
 found below.
 
@@ -749,7 +751,7 @@ found below.
 
 <img src="docs/img/mujoco-envs.png"/>
 
-**AntGather**
+#### AntGather
 
 This task was initially provided by [6].
 
@@ -757,7 +759,7 @@ In this task, a quadrupedal (Ant) agent is placed in a 20x20 space with 8
 apples and 8 bombs. The agent receives a reward of +1 or collecting an apple 
 and -1 for collecting a bomb. All other actions yield a reward of 0.
 
-**AntMaze**
+#### AntMaze
 
 This task was initially provided by [3].
 
@@ -767,7 +769,7 @@ U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0),
 position (0,0) and tasked at reaching a specific target position. "Success" in 
 this environment is defined as being within an L2 distance of 5 from the target.
 
-**AntPush**
+#### AntPush
 
 This task was initially provided by [3].
 
@@ -779,7 +781,7 @@ to the left, push the movable block to the right, and then finally navigate to
 the target. "Success" in this environment is defined as being within an L2 
 distance of 5 from the target.
 
-**AntFall**
+#### AntFall
 
 This task was initially provided by [3].
 
@@ -793,156 +795,127 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-## 3.3 Flow Environments
+## 3.2 Flow Environments
 
-<img src="docs/img/flow-envs.png"/>
+We also explore the use of hierarchical policies on a suite of mixed-autonomy
+traffic control tasks, built off the [Flow](https://github.com/flow-project/flow.git) 
+[8] framework for RL in microscopic (vehicle-level) traffic simulators. Within 
+these environments, a subset of vehicles in any given network are replaced with
+"automated" vehicles whose actions are provided on an RL policy. A description 
+of the attributes of the MDP within these tasks is provided in the following 
+sub-sections. Additional information can be found through the 
+[environment classes](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/envs) 
+and 
+[flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-**Ring**
+<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="90%"/></p>
 
-This task was initially provided by [7].
+The below table describes all available tasks within this repository to train 
+on. Any of these environments can be used by passing the environment name to 
+the `env` parameter in the algorithm class. The multi-agent variants of these 
+environments can also be trained by adding "multiagent-" to the start of the 
+environment name (e.g. "multiagent-ring-v0").
 
-In this network, 22 vehicles are placed in a variable length single lane
-ring road. In the absence of autonomous vehicles, perturbations to the 
-accelerations of individuals vehicles along with the string unstable
-behavior of human driving dynamics leads to the formation and 
-propagation of stop-and-go waves in the network.
+| Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
+|---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
+| [ring](#ring)       | ring-v0          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
+|                     | ring-v1          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
+|                     | ring-v2          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
+|                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
+|                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        yes       |
+|                     | highway-v1       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        no        |
+|                     | highway-v2       |      ~10      |      ~150      |     1/12    |         2215         |          no          |        no        |
+| [I-210](#i-210)     | i210-v0          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        yes       |
+|                     | i210-v1          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        no        |
+|                     | i210-v2          |      ~50      |      ~800      |     1/15    |         10250        |          no          |        no        |
 
-In the mixed-autonomy setting, a portion of vehicles are treated as AVs 
-with the objective of regulating the dissipating the prevalence of 
-stop-ang-go waves. The components of the MDP for this benchmark are 
-defined as follows:
+### States
 
-* States: The state consists of the relative speed and bumper-to-bumper 
-  gap of the vehicles immediately preceding the AVs, as well as
-  the speed of the AVs, i.e. 
-  <img src="/tex/7341d329a8a1919bb81a65c79c99b97d.svg?invert_in_darkmode&sanitize=true" align=middle width=162.89273715pt height=27.91243950000002pt/>, where <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> is the 
-  number of AVs.
-* Actions: The actions consist of a list of bounded accelerations for 
-  each CAV, i.e. <img src="/tex/2da368a74e3c93438a7b9a45a0cfd703.svg?invert_in_darkmode&sanitize=true" align=middle width=106.88881004999998pt height=27.91243950000002pt/>, 
-  where <img src="/tex/7de57cd5f7a02a410bbf4ad74bbee46c.svg?invert_in_darkmode&sanitize=true" align=middle width=30.47008964999999pt height=14.15524440000002pt/> and <img src="/tex/274597d9a192abe37c32f87bef1300b6.svg?invert_in_darkmode&sanitize=true" align=middle width=32.947280849999984pt height=14.15524440000002pt/> are the minimum and maximum 
-  accelerations, respectively.
-* Rewards: We choose a reward function that promotes high velocities 
-  while penalizing accelerations which are symptomatic of stop-and-go 
-  behavior. The reward function is accordingly:
-  
-  <p align="center"><img src="/tex/e9c8fa25e85c7f5b9c605efce2fac8cf.svg?invert_in_darkmode&sanitize=true" align=middle width=190.07135234999998pt height=36.6554298pt/></p>
-  
-  where <img src="/tex/99540970492f8b54b28407a609d84199.svg?invert_in_darkmode&sanitize=true" align=middle width=14.714708249999989pt height=14.15524440000002pt/> and <img src="/tex/b669b552ee0e555598229d3096db4479.svg?invert_in_darkmode&sanitize=true" align=middle width=14.714708249999989pt height=14.15524440000002pt/> are weighting terms.
+The state for any of these environments consists of the speeds and 
+bumper-to-bumper gaps of the vehicles immediately preceding and following the 
+AVs, as well as the speed of the AVs, i.e. 
+<img src="/tex/b1237b0ae709dee3ff5dd44ab65fed24.svg?invert_in_darkmode&sanitize=true" align=middle width=299.9944794pt height=24.65753399999998pt/>.
+In single agent settings, these observations are concatenated in a single 
+observation that is passed to a centralized policy.
 
-This benchmark consists of the following variations:
+In order to account for variability in the number of AVs (<img src="/tex/bb1a6273b87d3166c04533f3fb19f5ec.svg?invert_in_darkmode&sanitize=true" align=middle width=28.034803499999988pt height=14.15524440000002pt/>) in the
+single agent seeting, a constant <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is defined. When 
+<img src="/tex/4efa77061e9a739b3ab8d64fa6ca3417.svg?invert_in_darkmode&sanitize=true" align=middle width=78.13562129999998pt height=17.723762100000005pt/>, information from the extra CAVs are not included 
+in the state. Moreover, if <img src="/tex/9d6b99d3ad4c82ddc70cfdc1820a7968.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/> the state is padded 
+with zeros.
 
-* ring_small: 21 humans, 1 CAV (<img src="/tex/7d73b612b8c4898cd29f7a15903a41f9.svg?invert_in_darkmode&sanitize=true" align=middle width=49.70302424999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/351ed9c9a71df22eb3e86de90dd9699a.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
+### Actions
 
-**Figure Eight**
+The actions consist of a list of bounded accelerations for each AV, i.e. 
+<img src="/tex/1368ce716be6f77aa6743627a917f029.svg?invert_in_darkmode&sanitize=true" align=middle width=106.88881004999998pt height=26.76175259999998pt/>, where <img src="/tex/7de57cd5f7a02a410bbf4ad74bbee46c.svg?invert_in_darkmode&sanitize=true" align=middle width=30.47008964999999pt height=14.15524440000002pt/> and 
+<img src="/tex/274597d9a192abe37c32f87bef1300b6.svg?invert_in_darkmode&sanitize=true" align=middle width=32.947280849999984pt height=14.15524440000002pt/> are the minimum and maximum accelerations, respectively. In the 
+single agent setting, all actions are provided as an output from a single 
+policy.
 
-This task was initially provided by [8].
+Once again, an <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is used to handle variable numbers of AVs in
+the single agent setting. If <img src="/tex/4efa77061e9a739b3ab8d64fa6ca3417.svg?invert_in_darkmode&sanitize=true" align=middle width=78.13562129999998pt height=17.723762100000005pt/> the extra AVs are 
+treated as human-driven vehicles and their states are updated using human 
+driver models. Moreover, if <img src="/tex/5625b4db53cd16eaf50ac1874d3c9f15.svg?invert_in_darkmode&sanitize=true" align=middle width=78.13562129999998pt height=17.723762100000005pt/>, the extra actions are
+ignored.
 
-The figure eight network acts as a closed representation of an 
-intersection. In a figure eight network containing a total of 14 
-vehicles, we witness the formation of queues resulting from vehicles 
-arriving simultaneously at the intersection and slowing down to obey 
-right-of-way rules. This behavior significantly reduces the average 
-speed of vehicles in the network.
+### Rewards
 
-In a mixed-autonomy setting, a portion of vehicles are treated as CAVs 
-with the objective of regulating the flow of vehicles through the 
-intersection in order to improve system-level velocities. The components
-of the MDP for this benchmark are defined as follows:
+The reward provided by the environment is equal to the negative vector normal 
+of the distance between the speed of all vehicles in the network and a desired 
+speed, and is offset by largest possible negative term to ensure non-negativity
+if environments terminate prematurely. The exact mathematical formulation of 
+this reward is:
 
-* States: The state consists of a vector of velocities and positions for
-  each vehicle in the network,ordered by the position of each vehicle,
-  <img src="/tex/ab8abcdb8bdffef20d51db3b3c7ae70b.svg?invert_in_darkmode&sanitize=true" align=middle width=168.02794799999998pt height=27.91243950000002pt/>, where <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> is the number
-  of vehicles in the network. Note that the position is defined relative
-  to a pre-specified starting point.
-* Actions: The actions are a list of accelerations for each CAV, 
-  <img src="/tex/8eeec0741677e68e7ae39d051b44d368.svg?invert_in_darkmode&sanitize=true" align=middle width=106.88881004999998pt height=22.648391699999998pt/>, where <img src="/tex/55a049b8f161ae7cfeb0197d75aff967.svg?invert_in_darkmode&sanitize=true" align=middle width=9.86687624999999pt height=14.15524440000002pt/> is the 
-  number of CAVs, and <img src="/tex/7de57cd5f7a02a410bbf4ad74bbee46c.svg?invert_in_darkmode&sanitize=true" align=middle width=30.47008964999999pt height=14.15524440000002pt/> and <img src="/tex/274597d9a192abe37c32f87bef1300b6.svg?invert_in_darkmode&sanitize=true" align=middle width=32.947280849999984pt height=14.15524440000002pt/> are the minimum
-  and maximum accelerations, respectively.
-* Reward: The objective of the learning agent is to achieve high speeds
-  while penalizing collisions. Accordingly, the reward function is 
-  defined as follows:
+<p align="center"><img src="/tex/2bf655f3f70c50002913f79c86690bc6.svg?invert_in_darkmode&sanitize=true" align=middle width=327.91753665pt height=16.438356pt/></p>
 
-  <p align="center"><img src="/tex/35007ca824b6c6072e1a0a5e9c9f143a.svg?invert_in_darkmode&sanitize=true" align=middle width=390.0107805pt height=29.58934275pt/></p>
+where <img src="/tex/6c4adbc36120d62b98deef2a20d5d303.svg?invert_in_darkmode&sanitize=true" align=middle width=8.55786029999999pt height=14.15524440000002pt/> is the speed of the individual vehicles, <img src="/tex/f5f76957f34c6277702156f93f1d35ea.svg?invert_in_darkmode&sanitize=true" align=middle width=26.280957449999992pt height=14.15524440000002pt/> is the 
+desired speed, and <img src="/tex/55a049b8f161ae7cfeb0197d75aff967.svg?invert_in_darkmode&sanitize=true" align=middle width=9.86687624999999pt height=14.15524440000002pt/> is the number of vehicles in the network.
 
-  where <img src="/tex/f5f76957f34c6277702156f93f1d35ea.svg?invert_in_darkmode&sanitize=true" align=middle width=26.280957449999992pt height=14.15524440000002pt/> is an arbitrary large velocity used to encourage 
-  high speeds and <img src="/tex/c0c19f6a7adc8178436834b2f628126b.svg?invert_in_darkmode&sanitize=true" align=middle width=47.78718779999999pt height=27.91243950000002pt/> is the velocities of all vehicles
-  in the network.
+This reward may only include two penalties:
 
-This benchmark consists of the following variations:
+* **acceleration penalty:** If set to True in env_params, the negative of the 
+  sum of squares of the accelerations by the AVs is added to the reward.
+* **stopping penalty:** If set to True in env_params, a penalty of -5 is added 
+  to the reward for every RL vehicle that is not moving.
 
-* figureight0: 13 humans, 1 CAV (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/434545e66c6524a11f9ec00d1e0e46b2.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-* figureight1: 7 humans, 7 CAVs (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/84f23b52d0365525503d171195ca3de0.svg?invert_in_darkmode&sanitize=true" align=middle width=51.64142279999999pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-* figureight2: 0 human, 14 CAVs (<img src="/tex/60263e9a4c9e7f57a11854131ad4f8f2.svg?invert_in_darkmode&sanitize=true" align=middle width=56.25557189999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/d8cfe9b481534f4184b5c38ce909440a.svg?invert_in_darkmode&sanitize=true" align=middle width=58.193968799999986pt height=26.76175259999998pt/>, <img src="/tex/de7bfd22faf41bc00b5e62b4bb780fe7.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
+### Networks
 
-**Merge**
+We investigate the performance of our algorithms on a variety of network 
+configurations demonstrating diverse traffic instabilities and forms of 
+congestion. This networks are detailed below.
 
-This task was initially provided by [8].
+#### ring
 
-The merge network highlights the effect of disturbances on vehicles in a
-single lane highway network. Specifically, perturbations resulting from
-vehicles arriving from the on-merge lead to the formation of backwards 
-propagating stop-and-go waves, thereby reducing the throughput of 
-vehicles in the network. This phenomenon is known as convective 
-instability.
+This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
+which are automated) are placed on a sing-lane circular track of length 1500m.
+In the absence of the automated vehicle, the human-driven vehicles exhibit 
+stop-and-go instabilities brought about by the string-unstable characteristic 
+of human car-following dynamics.
 
-In a mixed-autonomy setting, a percentage of vehicles in the main lane 
-are tasked with the objective of dissipating the formation and 
-propagation of stop-and-go waves from locally observable information. 
-Moreover, given the open nature of the network, the total number of CAVs
-within the network may vary at any given time. Taking these into 
-account, we characterize our MDP as follows:
+#### merge
 
-* States: The state consists of the speeds and bumper-to-bumper gaps of
-  the vehicles immediately preceding and following the CAVs, as well as
-  the speed of the CAVs, i.e. 
-  <img src="/tex/6bf9d3ed511e1792b253719bf64aaa1b.svg?invert_in_darkmode&sanitize=true" align=middle width=290.7680655pt height=24.65753399999998pt/>.
-  In order to account for variability in the number of CAVs 
-  (<img src="/tex/13981f6e1a2673feef5f3a68459cca3a.svg?invert_in_darkmode&sanitize=true" align=middle width=37.41841124999999pt height=14.15524440000002pt/>), a constant <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is defined. When 
-  <img src="/tex/aabbadf324329c04b2a3e525a5350403.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/>, information from the extra CAVs are not
-  included in the state. Moreover, if <img src="/tex/9d6b99d3ad4c82ddc70cfdc1820a7968.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/> the 
-  state is padded with zeros.
-* Actions: The actions consist of a list of bounded accelerations for 
-  each CAV, i.e. 
-  <img src="/tex/dc738c80118bd1b8b00406f85ff60f1b.svg?invert_in_darkmode&sanitize=true" align=middle width=106.88881004999998pt height=24.520488299999993pt/>. Once 
-  again, an <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is used to handle variable numbers of 
-  CAVs. If <img src="/tex/aabbadf324329c04b2a3e525a5350403.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/> the extra CAVs are treated as
-  human-driven vehicles and their states are updated using human driver
-  models. Moreover, if <img src="/tex/9d6b99d3ad4c82ddc70cfdc1820a7968.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/>, the extra actions 
-  are ignored.
-* Reward: The objective in this problem is, once again, improving 
-  mobility, either via the speed of vehicles in the network or by 
-  maximizing the number of vehicles that pass through the network.
-  Accordingly, we use an augmented version of the reward function 
-  presented for the figure eight network.
+This scenarios is adapted from the following article [9]. It consists of a 
+single-lane highway network with an on-ramp used to generate periodic 
+perturbations to sustain congested behavior. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
-  <p align="center"><img src="/tex/0e45b06fe54490d4d826a507cfa176ea.svg?invert_in_darkmode&sanitize=true" align=middle width=622.0680279pt height=39.418965299999996pt/></p>
+#### highway
 
-  The added term penalizes small headways among the CAVs; it is minimal
-  when all CAVs are spaced at <img src="/tex/6bb7dabcee2ab71731aa4af64cc4378f.svg?invert_in_darkmode&sanitize=true" align=middle width=33.72924059999999pt height=22.831056599999986pt/>. This discourages dense
-  states that lead to the formation of stop-and-go traffic.
+This scenario consists of a single lane highway in which downstream traffic 
+instabilities brought about by an edge with a reduced speed limit generate 
+congestion in the form of stop-and-go waves. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
-This benchmark consists of the following variations:
+#### I-210
 
-* merge0: 10% CAV penetration rate (<img src="/tex/24f74001cf2c5eb9e0800be29d569be7.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/217bf6a34638aec8bf0b06e9f8185c5c.svg?invert_in_darkmode&sanitize=true" align=middle width=50.84466254999999pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-* merge1: 25% CAV penetration rate (<img src="/tex/f4908ab83348f95b3c5302ca4eeb67af.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/f46f2e5d9181f0f67c34aecc27a5b7e8.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-* merge2: 33.3% CAV penetration rate (<img src="/tex/24cba9df259d55fd4cc5453ce4582e63.svg?invert_in_darkmode&sanitize=true" align=middle width=56.09579249999999pt height=26.76175259999998pt/>, 
-  <img src="/tex/83729e9b241ad6a225c7dbfe878296c9.svg?invert_in_darkmode&sanitize=true" align=middle width=57.39720854999998pt height=26.76175259999998pt/>, <img src="/tex/4abe19a3ebe156ce6a35d1819d64c7ec.svg?invert_in_darkmode&sanitize=true" align=middle width=66.68377979999998pt height=22.465723500000017pt/>).
-
-**Highway**
-
-This task was initially provided by [9].
-
-TODO
-
-This benchmark consists of the following variations:
-
-* highway0: TODO
+This scenario is a recreation of a subsection of the I-210 network in Los 
+Angeles, CA. For the moment, the on-ramps and off-ramps are disabled within 
+this network, rendering it similar to a multi-lane variant of the highway 
+network.
 
 # 4. Citing
 
@@ -981,19 +954,14 @@ Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 networks for hierarchical reinforcement learning." arXiv preprint 
 arXiv:1704.03012 (2017).
 
-[7] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
+[7] Todorov, Emanuel, Tom Erez, and Yuval Tassa. "Mujoco: A physics engine for 
+model-based control." 2012 IEEE/RSJ International Conference on Intelligent 
+Robots and Systems. IEEE, 2012.
+
+[8] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
 in Traffic." arXiv preprint arXiv:1710.05465 (2017).
 
-[8] Vinitsky, Eugene, et al. "Benchmarks for reinforcement learning in 
-mixed-autonomy traffic." Conference on Robot Learning. 2018.
-
-[9] TODO: highway paper
-
-## 6. Useful Links
-
-The following bullet points contain links developed either by developers of
-this repository or external parties that may be of use to individuals
-interested in further developing their understanding of hierarchical
-reinforcement learning:
-
-* https://thegradient.pub/the-promise-of-hierarchical-reinforcement-learning/
+[9] Kreidieh, Abdul Rahman, Cathy Wu, and Alexandre M. Bayen. "Dissipating 
+stop-and-go waves in closed and open networks via deep reinforcement learning."
+2018 21st International Conference on Intelligent Transportation Systems 
+(ITSC). IEEE, 2018.
