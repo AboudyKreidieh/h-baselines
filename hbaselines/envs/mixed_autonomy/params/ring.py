@@ -102,18 +102,14 @@ def get_flow_params(fixed_density,
             ),
             num_vehicles=NUM_VEHICLES[0] - NUM_AUTOMATED if i == 0 else 0)
         vehicles.add(
-            veh_id="human_{}".format(i),
-            acceleration_controller=(IDMController, {
-                "a": 0.3,
-                "b": 2.0,
-                "noise": 0.5,
-            }),
+            veh_id="rl_{}".format(i),
+            acceleration_controller=(RLController, {}),
             routing_controller=(ContinuousRouter, {}),
             car_following_params=SumoCarFollowingParams(
                 min_gap=0.5,
             ),
             lane_change_params=SumoLaneChangeParams(
-                lane_change_mode="strategic",
+                lane_change_mode=0,  # no lane changes by automated vehicles
             ),
             num_vehicles=NUM_AUTOMATED if i == 0 else 0)
 
@@ -186,5 +182,9 @@ def get_flow_params(fixed_density,
 
         # parameters specifying the positioning of vehicles upon init/reset
         # (see flow.core.params.InitialConfig)
-        initial=InitialConfig(),
+        initial=InitialConfig(
+            spacing="random",
+            min_gap=0.5,
+            shuffle=True,
+        ),
     )
