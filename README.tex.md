@@ -823,7 +823,7 @@ sub-sections. Additional information can be found through the
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="75%"/></p>
+<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="90%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
