@@ -910,7 +910,10 @@ automated vehicle whose actions are sampled from an RL policy.
 
 #### I-210
 
-TODO
+This scenario is a recreation of a subsection of the I-210 network in Los 
+Angeles, CA. For the moment, the on-ramps and off-ramps are disabled within 
+this network, rendering it similar to a multi-lane variant of the highway 
+network.
 
 # 4. Citing
 
