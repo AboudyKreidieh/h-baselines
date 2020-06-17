@@ -739,11 +739,7 @@ def get_state_indices(ob_space,
     return state_indices
 
 
-def create_env(env,
-               render=False,
-               shared=False,
-               maddpg=False,
-               evaluate=False):
+def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
