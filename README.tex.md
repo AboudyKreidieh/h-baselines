@@ -224,12 +224,13 @@ follows:
 
 ### 2.1.1 Synchronous Updates
 
-This repository supports parallelism via synchronous updates to accelerate 
-training for environments that are relatively slow to simulate. A number of 
-environments equal to the requested number of CPUs are instantiated and updated
-in parallel for the number of rollout steps, as seen in the figure below. The 
-number of CPUs in this case must be less than or equal to the number of,
-rollout steps, as specified under `nb_rollout_steps`.
+This repository supports parallelism via synchronous updates to speed up 
+training for environments that are relatively slow to simulate. In order to do 
+so, a specified number of environments are instantiated and updated in parallel
+for a number of rollout steps before calling the next policy update operation, 
+as seen in the figure below. The number of environments in this case must be 
+less than or equal to the number of rollout steps, as specified under 
+`nb_rollout_steps`.
 
 <p align="center"><img src="docs/img/synchronous-updates.png" align="middle" width="50%"/></p>
 

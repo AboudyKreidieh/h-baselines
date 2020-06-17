@@ -50,7 +50,7 @@ before_script:
 
 script:
   - pip install -e .
-  - pip install ray[tune]  # TODO: see if I can remove
+#  - pip install ray[tune]  # TODO: see if I can remove
   - nose2 --with-coverage
 
 after_success:
