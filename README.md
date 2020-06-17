@@ -111,6 +111,51 @@ successful, the following command should not fail:
 python experiments/run_fcnet.py "AntGather"
 ```
 
+When benchmarking this environment, we modified the control range and frame 
+skip to match those used for the other Ant environments. If you would like to 
+recreate these results and replay any pretrained policies, you will need to 
+modify the rllab module such that the `git diff` of the repository returns
+the following:
+
+```
+--- a/rllab/envs/mujoco/mujoco_env.py
++++ b/rllab/envs/mujoco/mujoco_env.py
+@@ -82,6 +82,7 @@ class MujocoEnv(Env):
+             size = self.model.numeric_size.flat[init_qpos_id]
+             init_qpos = self.model.numeric_data.flat[addr:addr + size]
+             self.init_qpos = init_qpos
++        self.frame_skip = 5
+         self.dcom = None
+         self.current_com = None
+         self.reset()
+diff --git a/vendor/mujoco_models/ant.xml b/vendor/mujoco_models/ant.xml
+index 1ee575e..906f350 100644
+--- a/vendor/mujoco_models/ant.xml
++++ b/vendor/mujoco_models/ant.xml
+@@ -68,13 +68,13 @@
+     </body>
+   </worldbody>
+   <actuator>
+-    <motor joint="hip_4" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_4" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_1" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_1" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_2" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_2" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_3" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_3" ctrlrange="-150.0 150.0" ctrllimited="true" />
++    <motor joint="hip_4" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_4" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_1" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_1" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_2" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_2" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
+   </actuator>
+ </mujoco>
+```
+
 # 2. Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
