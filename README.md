@@ -797,7 +797,7 @@ of 5 from the target.
 
 ## 3.2 Flow Environments
 
-<img src="docs/img/flow-envs-2.png"/>
+<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="75%"/></p>
 
 We also explore the use of hierarchical policies on a suite of mixed-autonomy
 traffic control tasks, built off the [Flow](https://github.com/flow-project/flow.git) 
