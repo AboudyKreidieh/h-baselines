@@ -812,7 +812,7 @@ of 5 from the target.
 
 ## 3.2 Flow Environments
 
-<img src="docs/img/flow-envs.png"/>
+<img src="docs/img/flow-envs-2.png"/>
 
 We also explore the use of hierarchical policies on a suite of mixed-autonomy
 traffic control tasks, built off the [Flow](https://github.com/flow-project/flow.git) 
@@ -927,7 +927,10 @@ automated vehicle whose actions are sampled from an RL policy.
 
 #### I-210
 
-TODO
+This scenario is a recreation of a subsection of the I-210 network in Los 
+Angeles, CA. For the moment, the on-ramps and off-ramps are disabled within 
+this network, rendering it similar to a multi-lane variant of the highway 
+network.
 
 # 4. Citing
 
