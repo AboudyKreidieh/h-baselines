@@ -114,7 +114,7 @@ python experiments/run_fcnet.py "AntGather"
 When benchmarking this environment, we modified the control range and frame 
 skip to match those used for the other Ant environments. If you would like to 
 recreate these results and replay any pretrained policies, you will need to 
-modify the rllab environment such that the `git diff` of the repository returns
+modify the rllab module such that the `git diff` of the repository returns
 the following:
 
 ```
