@@ -797,8 +797,6 @@ of 5 from the target.
 
 ## 3.2 Flow Environments
 
-<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="75%"/></p>
-
 We also explore the use of hierarchical policies on a suite of mixed-autonomy
 traffic control tasks, built off the [Flow](https://github.com/flow-project/flow.git) 
 [8] framework for RL in microscopic (vehicle-level) traffic simulators. Within 
@@ -809,6 +807,8 @@ sub-sections. Additional information can be found through the
 [environment classes](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/envs) 
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
+
+<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="75%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
