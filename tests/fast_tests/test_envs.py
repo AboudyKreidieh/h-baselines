@@ -392,20 +392,18 @@ class TestPendulum(unittest.TestCase):
         pass
 
 
-class TestMixedAutonomyParams(unittest.TestCase):
-    """Test the functionality of features in envs/mixed_autonomy/params.
+class TestMixedAutonomyEnvs(unittest.TestCase):
+    """Test the functionality of each of the trainable mixed-autonomy envs.
 
     Each of these environments are tests for the following cases:
 
     1. the observation space matches its expected values
     2. the action space matches its expected values
     3. the reward function returns its expected value
-    4. the change in inflow/number of vehicles in between resets matches its
-       expected values (given a seed)
 
     For the multi-agent environments, we also perform the following tests:
 
-    5. the agent IDs match their expected values
+    4. the agent IDs match their expected values
     """
 
     # ======================================================================= #
@@ -413,6 +411,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_ring_v0(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("ring-v0")
 
@@ -433,15 +434,18 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
+            8.760423525122517
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_ring_v0(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("multiagent-ring-v0")
 
@@ -462,12 +466,19 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([1]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_0_0': 8.484502989441593,
+             'rl_0_1': 8.484502989441593,
+             'rl_0_2': 8.484502989441593,
+             'rl_0_3': 8.484502989441593,
+             'rl_0_4': 8.484502989441593}
+        )
 
         # test case 4
-        pass  # TODO
-
-        # test case 5
         self.assertListEqual(
             sorted(env.agents),
             ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
@@ -481,6 +492,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_ring_v1(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("ring-v1")
 
@@ -501,17 +515,20 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
+            8.760423525122517
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_ring_v1(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
-        env, _ = create_env("multiagent-ring_small")
+        env, _ = create_env("multiagent-ring-v1")
 
         # test case 1
         test_space(
@@ -530,12 +547,19 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([1]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_0_0': 8.484502989441593,
+             'rl_0_1': 8.484502989441593,
+             'rl_0_2': 8.484502989441593,
+             'rl_0_3': 8.484502989441593,
+             'rl_0_4': 8.484502989441593}
+        )
 
         # test case 4
-        pass  # TODO
-
-        # test case 5
         self.assertListEqual(
             sorted(env.agents),
             ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
@@ -549,6 +573,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_ring_v2(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("ring-v2")
 
@@ -569,15 +596,18 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
+            13.760423525122517
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_ring_v2(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("multiagent-ring-v2")
 
@@ -598,12 +628,19 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([1]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_0_0': 13.484502989441593,
+             'rl_0_1': 13.484502989441593,
+             'rl_0_2': 13.484502989441593,
+             'rl_0_3': 13.484502989441593,
+             'rl_0_4': 13.484502989441593}
+        )
 
         # test case 4
-        pass  # TODO
-
-        # test case 5
         self.assertListEqual(
             sorted(env.agents),
             ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
@@ -617,6 +654,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_ring_imitation(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("ring-imitation")
 
@@ -637,10 +677,10 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
+            13.760423525122517
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -650,6 +690,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_merge_v0(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("merge-v0")
 
@@ -670,15 +713,18 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1.5] * 5), fail=False),
+            0
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_merge_v0(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         # env, _ = create_env("multiagent-merge-v0")
 
@@ -702,6 +748,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_merge_v1(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("merge-v1")
 
@@ -722,15 +771,18 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1.5] * 13), fail=False),
+            0
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_merge_v1(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         # env, _ = create_env("multiagent-merge-v1")
 
@@ -754,6 +806,9 @@ class TestMixedAutonomyParams(unittest.TestCase):
     # ======================================================================= #
 
     def test_single_agent_merge_v2(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("merge-v2")
 
@@ -774,15 +829,18 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([1.5] * 17), fail=False),
+            0
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_merge_v2(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         # env, _ = create_env("multiagent-merge-v2")
 
@@ -829,10 +887,10 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
+            -8.019758424524031
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -841,7 +899,60 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # set a random seed
         set_seed(0)
 
-        pass  # TODO
+        # create the environment
+        env, _ = create_env("multiagent-highway-v0", shared=True)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-0.5 for _ in range(1)]),
+            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([0.5]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_highway_inflow_10.18': -1.8597728336172081,
+             'rl_highway_inflow_10.19': -1.8597728336172081,
+             'rl_highway_inflow_10.20': -1.8597728336172081,
+             'rl_highway_inflow_10.21': -1.8597728336172081,
+             'rl_highway_inflow_10.22': -1.8597728336172081,
+             'rl_highway_inflow_10.23': -1.8597728336172081,
+             'rl_highway_inflow_10.24': -1.8597728336172081,
+             'rl_highway_inflow_10.25': -1.8597728336172081,
+             'rl_highway_inflow_10.26': -1.8597728336172081,
+             'rl_highway_inflow_10.27': -1.8597728336172081}
+        )
+
+        # test case 4
+        self.assertListEqual(
+            sorted(env.agents),
+            ['rl_highway_inflow_10.18',
+             'rl_highway_inflow_10.19',
+             'rl_highway_inflow_10.20',
+             'rl_highway_inflow_10.21',
+             'rl_highway_inflow_10.22',
+             'rl_highway_inflow_10.23',
+             'rl_highway_inflow_10.24',
+             'rl_highway_inflow_10.25',
+             'rl_highway_inflow_10.26',
+             'rl_highway_inflow_10.27']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                               highway-v1                                #
@@ -852,7 +963,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
         set_seed(0)
 
         # create the environment
-        env, _ = create_env("highway-v0")
+        env, _ = create_env("highway-v1")
 
         # test case 1
         test_space(
@@ -871,10 +982,10 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
+            1.9802415754759695
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -883,7 +994,60 @@ class TestMixedAutonomyParams(unittest.TestCase):
         # set a random seed
         set_seed(0)
 
-        pass  # TODO
+        # create the environment
+        env, _ = create_env("multiagent-highway-v1", shared=True)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-0.5 for _ in range(1)]),
+            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([0.5]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_highway_inflow_10.18': 1.6210246865645077,
+             'rl_highway_inflow_10.19': 1.6210246865645077,
+             'rl_highway_inflow_10.20': 1.6210246865645077,
+             'rl_highway_inflow_10.21': 1.6210246865645077,
+             'rl_highway_inflow_10.22': 1.6210246865645077,
+             'rl_highway_inflow_10.23': 1.6210246865645077,
+             'rl_highway_inflow_10.24': 1.6210246865645077,
+             'rl_highway_inflow_10.25': 1.6210246865645077,
+             'rl_highway_inflow_10.26': 1.6210246865645077,
+             'rl_highway_inflow_10.27': 1.6210246865645077}
+        )
+
+        # test case 4
+        self.assertListEqual(
+            sorted(env.agents),
+            ['rl_highway_inflow_10.18',
+             'rl_highway_inflow_10.19',
+             'rl_highway_inflow_10.20',
+             'rl_highway_inflow_10.21',
+             'rl_highway_inflow_10.22',
+             'rl_highway_inflow_10.23',
+             'rl_highway_inflow_10.24',
+             'rl_highway_inflow_10.25',
+             'rl_highway_inflow_10.26',
+             'rl_highway_inflow_10.27']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                               highway-v2                                #
@@ -894,7 +1058,7 @@ class TestMixedAutonomyParams(unittest.TestCase):
         set_seed(0)
 
         # create the environment
-        env, _ = create_env("highway-v0")
+        env, _ = create_env("highway-v2")
 
         # test case 1
         test_space(
@@ -913,22 +1077,81 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
+            4.4802415754759695
+        )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     def test_multi_agent_highway_v2(self):
-        pass  # TODO
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-highway-v2", shared=True)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-0.5 for _ in range(1)]),
+            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([0.5]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_highway_inflow_10.18': 4.121024686564508,
+             'rl_highway_inflow_10.19': 4.121024686564508,
+             'rl_highway_inflow_10.20': 4.121024686564508,
+             'rl_highway_inflow_10.21': 4.121024686564508,
+             'rl_highway_inflow_10.22': 4.121024686564508,
+             'rl_highway_inflow_10.23': 4.121024686564508,
+             'rl_highway_inflow_10.24': 4.121024686564508,
+             'rl_highway_inflow_10.25': 4.121024686564508,
+             'rl_highway_inflow_10.26': 4.121024686564508,
+             'rl_highway_inflow_10.27': 4.121024686564508}
+        )
+
+        # test case 4
+        self.assertListEqual(
+            sorted(env.agents),
+            ['rl_highway_inflow_10.18',
+             'rl_highway_inflow_10.19',
+             'rl_highway_inflow_10.20',
+             'rl_highway_inflow_10.21',
+             'rl_highway_inflow_10.22',
+             'rl_highway_inflow_10.23',
+             'rl_highway_inflow_10.24',
+             'rl_highway_inflow_10.25',
+             'rl_highway_inflow_10.26',
+             'rl_highway_inflow_10.27']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                            highway-imitation                            #
     # ======================================================================= #
 
     def test_single_agent_highway_imitation(self):
+        # set a random seed
+        set_seed(0)
+
         # create the environment
         env, _ = create_env("highway-imitation")
 
@@ -949,10 +1172,245 @@ class TestMixedAutonomyParams(unittest.TestCase):
         )
 
         # test case 3
-        pass  # TODO
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
+            4.4802415754759695
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                                 i210-v0                                 #
+    # ======================================================================= #
+
+    def test_single_agent_i210_v0(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("i210-v0")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-0.5 for _ in range(50)]),
+            expected_max=np.array([0.5 for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test case 3
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
+            -2.9597211361808213
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_i210_v0(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-i210-v0")
+
+        # test case 1
+        test_space(
+            env.observation_space["lane_0"],
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space["lane_0"],
+            expected_min=np.array([-0.5 for _ in range(10)]),
+            expected_max=np.array([0.5 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # test case 3
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([0.5] * 10) for key in env.agents},
+                fail=False,
+            ),
+            {'lane_0': 4.986116706600313,
+             'lane_1': 5.065488111440597,
+             'lane_2': 4.646797630457543,
+             'lane_3': 5.0177871084707295,
+             'lane_4': 4.954239592286896}
+        )
 
         # test case 4
-        pass  # TODO
+        self.assertListEqual(
+            sorted(env.agents),
+            ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                                 i210-v1                                 #
+    # ======================================================================= #
+
+    # def test_single_agent_i210_v1(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("i210-v1")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space,
+    #         expected_min=np.array([-float("inf") for _ in range(250)]),
+    #         expected_max=np.array([float("inf") for _ in range(250)]),
+    #         expected_size=250,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space,
+    #         expected_min=np.array([-0.5 for _ in range(50)]),
+    #         expected_max=np.array([0.5 for _ in range(50)]),
+    #         expected_size=50,
+    #     )
+    #
+    #     # test case 3
+    #     self.assertAlmostEqual(
+    #         env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
+    #         6.791321863445345
+    #     )
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+    #
+    # def test_multi_agent_i210_v1(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("multiagent-i210-v1")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space["lane_0"],
+    #         expected_min=np.array([-float("inf") for _ in range(50)]),
+    #         expected_max=np.array([float("inf") for _ in range(50)]),
+    #         expected_size=50,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space["lane_0"],
+    #         expected_min=np.array([-0.5 for _ in range(10)]),
+    #         expected_max=np.array([0.5 for _ in range(10)]),
+    #         expected_size=10,
+    #     )
+    #
+    #     # test case 3
+    #     self.assertDictEqual(
+    #         env.wrapped_env.compute_reward(
+    #             {key: np.array([0.5] * 10) for key in env.agents},
+    #             fail=False,
+    #         ),
+    #         {}
+    #     )
+    #
+    #     # test case 4
+    #     self.assertListEqual(
+    #         sorted(env.agents),
+    #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
+    #     )
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                                 i210-v2                                 #
+    # ======================================================================= #
+
+    # def test_single_agent_i210_v2(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("i210-v2")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space,
+    #         expected_min=np.array([-float("inf") for _ in range(250)]),
+    #         expected_max=np.array([float("inf") for _ in range(250)]),
+    #         expected_size=250,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space,
+    #         expected_min=np.array([-0.5 for _ in range(50)]),
+    #         expected_max=np.array([0.5 for _ in range(50)]),
+    #         expected_size=50,
+    #     )
+    #
+    #     # test case 3
+    #     self.assertAlmostEqual(
+    #         env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
+    #         11.005385206055989
+    #     )
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+    #
+    # def test_multi_agent_i210_v2(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("multiagent-i210-v2")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space["lane_0"],
+    #         expected_min=np.array([-float("inf") for _ in range(50)]),
+    #         expected_max=np.array([float("inf") for _ in range(50)]),
+    #         expected_size=50,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space["lane_0"],
+    #         expected_min=np.array([-0.5 for _ in range(10)]),
+    #         expected_max=np.array([0.5 for _ in range(10)]),
+    #         expected_size=10,
+    #     )
+    #
+    #     # test case 3
+    #     self.assertDictEqual(
+    #         env.wrapped_env.compute_reward(
+    #             {key: np.array([0.5] * 10) for key in env.agents},
+    #             fail=False,
+    #         ),
+    #         {}
+    #     )
+    #
+    #     # test case 4
+    #     self.assertListEqual(
+    #         sorted(env.agents),
+    #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
+    #     )
 
         # kill the environment
         env.wrapped_env.terminate()

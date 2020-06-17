@@ -105,15 +105,15 @@ def get_flow_params(fixed_boundary,
             veh_type="human",
             edge="ghost0",
             vehs_per_hour=int(INFLOW_RATE * (1 - PENETRATION_RATE)),
-            departLane=lane,
-            departSpeed=INFLOW_SPEED
+            depart_lane=lane,
+            depart_speed=INFLOW_SPEED
         )
         inflow.add(
             veh_type="rl",
             edge="ghost0",
             vehs_per_hour=int(INFLOW_RATE * PENETRATION_RATE),
-            departLane=lane,
-            departSpeed=INFLOW_SPEED
+            depart_lane=lane,
+            depart_speed=INFLOW_SPEED
         )
 
     # Choose the appropriate environment.
@@ -145,7 +145,8 @@ def get_flow_params(fixed_boundary,
         sim=SumoParams(
             sim_step=0.4,
             render=False,
-            use_ballistic=True
+            restart_instance=True,
+            use_ballistic=True,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
@@ -162,8 +163,8 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else None,  # FIXME
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 50,
-                "control_range": None,  # FIXME
+                "num_rl": 10 if multiagent else 50,
+                "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
