@@ -507,6 +507,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
             with_additional)
 
+        # Do not use done masks for lower-level policies with negative
+        # intrinsic rewards (these the policies to terminate early).
+        if self._negative_reward_fn():
+            for i in range(self.num_levels - 1):
+                done[i+1] = np.array([False] * done[i+1].shape[0])
+
         # Update the higher-level policies.
         actor_loss = []
         critic_loss = []
@@ -747,6 +753,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ))
 
         return td_map
+
+    def _negative_reward_fn(self):
+        """Return True if the intrinsic reward returns negative values.
+
+        Intrinsic reward functions with negative rewards incentivize early
+        terminations, which we attempt to mitigate in the training operation by
+        preventing early terminations from return an expected return of 0.
+        """
+        return "exp" not in self.intrinsic_reward_type \
+            and "non" not in self.intrinsic_reward_type
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #
