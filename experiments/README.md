@@ -130,118 +130,125 @@ TODO
 
 TODO
 
-**TD3:**
+### 4.1 Rerunning Experiments
 
-* AntGather
-  ```shell script
-  python run_fcnet.py "AntGather" --reward_scale 10 --use_huber
-  ```
-* AntMaze:
-  ```shell script
-  python run_fcnet.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
-      --nb_eval_episodes 50 --total_steps 3000000
-  ```
-* BipedalSoccer:
-  ```shell script
-  python run_fcnet.py "BipedalSoccer" --use_huber --total_steps 3000000
-  ```
-* i210-v1:
-  ```shell script
-  python run_fcnet.py "i210-v1" --use_huber --nb_rollout_steps 10 \
-      --nb_train_steps 10 --total_steps 1500000
-  ```
+TODO
 
-**HRL:**
+* **TD3:**
 
-* AntGather
-  ```shell script
-  python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals
-  ```
-* AntMaze:
-  ```shell script
-  python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
-      --nb_eval_episodes 50 --total_steps 3000000 --relative_goals
-  ```
-* BipedalSoccer:
-  ```shell script
-  python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
-      --relative_goals
-  ```
-* i210-v1:
-  ```shell script
-  python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
-      --nb_train_steps 10 --total_steps 1500000
-  ```
+  * AntGather
+    ```shell script
+    python run_fcnet.py "AntGather" --reward_scale 10 --use_huber
+    ```
+    * AntMaze
+    ```shell script
+    python run_fcnet.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000
+    ```
+    * BipedalSoccer
+    ```shell script
+    python run_fcnet.py "BipedalSoccer" --use_huber --total_steps 3000000
+    ```
+    * i210-v1
+    ```shell script
+    python run_fcnet.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000
+    ```
 
-**HIRO:**
+* **HRL:**
 
-* AntGather
-  ```shell script
-  python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
-      --off_policy_corrections
-  ```
-* AntMaze:
-  ```shell script
-  python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
-      --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
-      --off_policy_corrections
-  ```
-* BipedalSoccer:
-  ```shell script
-  python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
-      --relative_goals --off_policy_corrections
-  ```
-* i210-v1:
-  ```shell script
-  python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
-      --nb_train_steps 10 --total_steps 1500000 --off_policy_corrections
-  ```
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000
+    ```
 
-**HAC:**
+* **HIRO:**
 
-* AntGather
-  ```shell script
-  python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
-      --hindsight
-  ```
-* AntMaze:
-  ```shell script
-  python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
-      --nb_eval_episodes 50 --total_steps 3000000 --relative_goals --hindsight
-  ```
-* BipedalSoccer:
-  ```shell script
-  python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
-      --relative_goals --hindsight
-  ```
-* i210-v1:
-  ```shell script
-  python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
-      --nb_train_steps 10 --total_steps 1500000 --hindsight
-  ```
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --off_policy_corrections
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
+        --off_policy_corrections
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --off_policy_corrections
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --off_policy_corrections
+    ```
 
-**CHER:**
+* **HAC:**
 
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --hindsight
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals --hindsight
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --hindsight
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --hindsight
+    ```
 
-* AntGather
-  ```shell script
-  python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
-      --connected_gradients --cg_weights 0.01
-  ```
-* AntMaze:
-  ```shell script
-  python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
-      --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
-      --connected_gradients --cg_weights 0.005
-  ```
-* BipedalSoccer:
-  ```shell script
-  python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
-      --relative_goals --connected_gradients --cg_weights 0.01
-  ```
-* i210-v1:
-  ```shell script
-  python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
-      --nb_train_steps 10 --total_steps 1500000 --connected_gradients \
-      --cg_weights 0.01
-  ```
+* **CHER:**
+
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --connected_gradients --cg_weights 0.01
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
+        --connected_gradients --cg_weights 0.005
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --connected_gradients --cg_weights 0.01
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --connected_gradients \
+        --cg_weights 0.01
+    ```
+
+### 4.2 Downloading and Replaying Pre-trained Models
+
+TODO
