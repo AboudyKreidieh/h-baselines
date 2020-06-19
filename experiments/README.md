@@ -130,11 +130,17 @@ TODO
 
 ## 4. Performance of the CHER Algorithm
 
-TODO
+We explore the potential benefits of incentivizing cooperation between levels 
+of a hierarchy on improving the training performance of goal-conditioned 
+hierarchies. This is presented in the following [paper](), with the 
+implementation of the resultant algorithm, called CHER, being provided in this 
+repository. In the following subsections, we describe how the results from this
+paper can be recreated, and provide a set of pre-trained models for 
+visualization purposes.
 
 ### 4.1 Rerunning Experiments
 
-TODO
+We tested th
 
 * **TD3:**
 
