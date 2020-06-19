@@ -2243,7 +2243,7 @@ def test_additional_params(env_class,
                 env_params=EnvParams(additional_params=new_add)
             )
             # if no KeyError is raised, the test has failed, so return False
-            return False
+            return False  # pragma: no cover
         except KeyError:
             # if a KeyError is raised, test the next param
             pass
@@ -2255,9 +2255,9 @@ def test_additional_params(env_class,
             network=network,
             env_params=EnvParams(additional_params=additional_params.copy())
         )
-    except KeyError:
+    except KeyError:  # pragma: no cover
         # if a KeyError is raised, the test has failed, so return False
-        return False
+        return False  # pragma: no cover
 
     # if removing all additional params led to KeyErrors, the test has passed,
     # so return True

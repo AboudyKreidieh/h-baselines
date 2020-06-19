@@ -145,7 +145,18 @@ class AVMultiAgentEnv(MultiEnv):
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
         for key in rl_actions.keys():
-            self.k.vehicle.apply_acceleration(key, rl_actions[key])
+            # Get the acceleration for the given agent.
+            acceleration = deepcopy(rl_actions[key])
+
+            # Redefine if below a speed threshold so that all actions result in
+            # non-negative desired speeds.
+            ac_range = self.action_space.high - self.action_space.low
+            speed = self.k.vehicle.get_speed(key)
+            if speed < 0.5 * ac_range * self.sim_step:
+                acceleration += 0.5 * ac_range - speed / self.sim_step
+
+            # Apply the action via the simulator.
+            self.k.vehicle.apply_acceleration(key, acceleration)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
