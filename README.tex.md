@@ -22,6 +22,7 @@ available [here]().
     1.3. [Importing AntGather](#13-importing-antgather)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
     2.3. [Multi-Agent Fully Connected Networks](#23-multi-agent-fully-connected-networks)  
     2.4. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)  
@@ -213,9 +214,40 @@ follows:
 * **reward_scale** (float) : the value the reward should be scaled by
 * **render** (bool) : enable rendering of the training environment
 * **render_eval** (bool) : enable rendering of the evaluation environment
+* **num_envs** (int) : number of environments used to run simulations in 
+  parallel. Each environment is run on a separate CPUS and uses the same policy
+  as the rest. Must be less than or equal to nb_rollout_steps. This term is 
+  covered in the following [section](#211-synchronous-updates).
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
+
+### 2.1.1 Synchronous Updates
+
+This repository supports parallelism via synchronous updates to speed up 
+training for environments that are relatively slow to simulate. In order to do 
+so, a specified number of environments are instantiated and updated in parallel
+for a number of rollout steps before calling the next policy update operation, 
+as seen in the figure below. The number of environments in this case must be 
+less than or equal to the number of rollout steps, as specified under 
+`nb_rollout_steps`.
+
+<p align="center"><img src="docs/img/synchronous-updates.png" align="middle" width="50%"/></p>
+
+To assign multiple CPUs/environments for a given training algorithm, set the
+`num_envs` term as seen below:
+
+```python
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+
+alg = OffPolicyRLAlgorithm(
+    ...,
+    # set num_envs as seen in the above figure
+    num_envs=3,
+    # set nb_rollout step as seen in the above figure
+    nb_rollout_steps=5,
+)
+```
 
 ## 2.2 Fully Connected Neural Networks
 

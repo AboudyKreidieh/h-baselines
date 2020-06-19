@@ -577,7 +577,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def get_action(self, obs, context, apply_noise, random_actions):
+    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
@@ -598,7 +598,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return action
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, is_final_step, evaluate=False):
+                         done, is_final_step, env_num=0, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.

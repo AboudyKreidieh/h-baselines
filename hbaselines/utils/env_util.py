@@ -29,7 +29,10 @@ try:
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
         import get_flow_params as i210
-except (ImportError, ModuleNotFoundError):  # pragma: no cover
+except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
+    # ray seems to have a bug that requires you to install ray[tune] twice
+    if "ray" in str(e):  # pragma: no cover
+        raise e  # pragma: no cover
     pass  # pragma: no cover
 
 try:
@@ -786,7 +789,7 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
             flow_params = benchmark.flow_params
 
             # Get the env name and a creator for the environment.
-            creator, _ = make_create_env(flow_params, version=0, render=render)
+            creator, _ = make_create_env(flow_params, render=render)
 
             # Create the environment.
             env = creator()

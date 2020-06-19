@@ -21,6 +21,7 @@ def get_hyperparameters(args, policy):
         "render": args.render,
         "render_eval": args.render_eval,
         "verbose": args.verbose,
+        "num_envs": args.num_envs,
         "_init_setup_model": True,
     }
 
@@ -173,6 +174,12 @@ def create_algorithm_parser(parser):
     parser.add_argument(
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
+    parser.add_argument(
+        '--num_envs', type=int, default=1,
+        help='number of environments used to run simulations in parallel. '
+             'Each environment is run on a separate CPUS and uses the same '
+             'policy as the rest. Must be less than or equal to '
+             'nb_rollout_steps.')
     parser.add_argument(
         '--verbose', type=int, default=2,
         help='the verbosity level: 0 none, 1 training information, '

@@ -84,6 +84,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
+                env_num=0,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -160,6 +161,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
+                env_num=0,
             )
 
         obs_t = policy.replay_buffer._obs_t[0]
@@ -234,7 +236,8 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 context1=context1,
                 done=done,
                 is_final_step=is_final_step,
-                evaluate=evaluate
+                evaluate=evaluate,
+                env_num=0,
             )
 
         # unchanged sample
@@ -349,6 +352,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
+                env_num=0,
             )
 
         # unchanged sample
@@ -446,36 +450,36 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         policy = TD3GoalConditionedPolicy(**policy_params)
 
         # test case 1
-        policy._observations = []
-        self.assertEqual(policy._update_meta(0), True)
+        policy._observations = [[] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), True)
 
         # test case 2
-        policy._observations = []
-        self.assertEqual(policy._update_meta(1), True)
+        policy._observations = [[] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
 
         # test case 3
-        policy._observations = [0 for _ in range(2)]
-        self.assertEqual(policy._update_meta(0), False)
+        policy._observations = [[0 for _ in range(2)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), False)
 
         # test case 4
-        policy._observations = [0 for _ in range(2)]
-        self.assertEqual(policy._update_meta(1), False)
+        policy._observations = [[0 for _ in range(2)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), False)
 
         # test case 5
-        policy._observations = [0 for _ in range(5)]
-        self.assertEqual(policy._update_meta(0), False)
+        policy._observations = [[0 for _ in range(5)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), False)
 
         # test case 6
-        policy._observations = [0 for _ in range(5)]
-        self.assertEqual(policy._update_meta(1), True)
+        policy._observations = [[0 for _ in range(5)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
 
         # test case 7
-        policy._observations = [0 for _ in range(10)]
-        self.assertEqual(policy._update_meta(0), False)
+        policy._observations = [[0 for _ in range(10)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), False)
 
         # test case 8
-        policy._observations = [0 for _ in range(10)]
-        self.assertEqual(policy._update_meta(1), True)
+        policy._observations = [[0 for _ in range(10)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
 
     def test_intrinsic_rewards(self):
         """Validate the functionality of the intrinsic rewards.

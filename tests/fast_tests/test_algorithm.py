@@ -33,6 +33,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
             'render_eval': False,
             'verbose': 0,
             'policy_kwargs': None,
+            'num_envs': 1,
             '_init_setup_model': True
         }
 
@@ -128,6 +129,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
@@ -292,17 +294,17 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         # `_collect_samples` method.
         alg.learn(1, log_dir='results', log_interval=1,
                   initial_exploration_steps=0)
-        self.assertEqual(len(alg.obs), alg.ob_space.shape[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
         alg.learn(500, log_dir='results', log_interval=500,
                   initial_exploration_steps=0)
-        self.assertEqual(len(alg.obs), alg.ob_space.shape[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:],
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:],
             np.array([4.99, 0.01]))
 
         # Delete generated files.

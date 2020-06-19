@@ -1,4 +1,5 @@
 """Script containing the environment sampler method."""
+import ray
 from gym.spaces import Box
 
 from hbaselines.algorithms.utils import get_obs
@@ -6,6 +7,7 @@ from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.utils.env_util import create_env
 
 
+@ray.remote
 class Sampler(object):
     """Environment sampler object.
 
@@ -15,7 +17,7 @@ class Sampler(object):
         the training / evaluation environment
     """
 
-    def __init__(self, env_name, render, shared, maddpg, evaluate):
+    def __init__(self, env_name, render, shared, maddpg, evaluate, env_num):
         """Instantiate the sampler object.
 
         Parameters
@@ -32,6 +34,9 @@ class Sampler(object):
             MADDPG algorithm
         evaluate : bool
             specifies whether this is a training or evaluation environment
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
         """
         self.env, self._init_obs = create_env(
             env=env_name,
@@ -40,6 +45,7 @@ class Sampler(object):
             maddpg=maddpg,
             evaluate=evaluate,
         )
+        self._env_num = env_num
         self._render = render
 
     def get_init_obs(self):
@@ -122,6 +128,7 @@ class Sampler(object):
             * action : the action performed by the agent(s)
             * reward : the reward from the most recent step
             * done : the done mask
+            * env_num : the environment number
             * all_obs : the most recent full-state observation. This consists
               of a single observation if no reset occured, and a tuple of (last
               observation from the previous rollout, first observation of the
@@ -132,7 +139,7 @@ class Sampler(object):
         obs, all_obs = get_obs(obs)
 
         # Visualize the current step.
-        if self._render:
+        if self._render and self._env_num == 0:
             self.env.render()  # pragma: no cover
 
         # Get the contextual term.
@@ -162,5 +169,6 @@ class Sampler(object):
             "action": action,
             "reward": reward,
             "done": done,
+            "env_num": self._env_num,
             "all_obs": all_obs if not done else (all_obs, reset_all_obs),
         }

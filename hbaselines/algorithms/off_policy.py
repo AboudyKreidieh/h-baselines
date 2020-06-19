@@ -9,12 +9,14 @@ Supported algorithms through this class:
 This algorithm class also contains modifications to support contextual
 environments and hierarchical policies.
 """
+import ray
 import os
 import time
 import csv
 import random
 import numpy as np
 import tensorflow as tf
+import math
 from collections import deque
 from copy import deepcopy
 from gym.spaces import Box
@@ -158,8 +160,9 @@ class OffPolicyRLAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
-    sampler : hbaselines.utils.sampler.Sampler
-        the training environment sampler object
+    sampler : list of hbaselines.utils.sampler.Sampler
+        the training environment sampler object. One environment is provided
+        for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
     nb_train_steps : int
@@ -186,6 +189,10 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+    num_envs : int
+        number of environments used to run simulations in parallel. Each
+        environment is run on a separate CPUS and uses the same policy as the
+        rest. Must be less than or equal to nb_rollout_steps.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     ac_space : gym.spaces.*
@@ -210,15 +217,16 @@ class OffPolicyRLAlgorithm(object):
         the current tensorflow session
     summary : tf.Summary
         tensorboard summary object
-    obs : array_like or dict < str, array_like >
+    obs : list of array_like or list of dict < str, array_like >
         the most recent training observation. If you are using a multi-agent
         environment, this will be a dictionary of observations for each agent,
-        indexed by the agent ID.
-    all_obs : array_like or None
+        indexed by the agent ID. One element for each environment.
+    all_obs : list of array_like or list of None
         additional information, used by MADDPG variants of the multi-agent
-        policy to pass full-state information
-    episode_step : int
-        the number of steps since the most recent rollout began
+        policy to pass full-state information. One element for each environment
+    episode_step : list of int
+        the number of steps since the most recent rollout began. One for each
+        environment.
     episodes : int
         the total number of rollouts performed since training began
     total_steps : int
@@ -235,8 +243,9 @@ class OffPolicyRLAlgorithm(object):
         the total number of training iterations
     episode_rew_history : list of float
         the cumulative return from the last 100 training episodes
-    episode_reward : float
-        the cumulative reward since the most reward began
+    episode_reward : list of float
+        the cumulative reward since the most reward began. One for each
+        environment.
     saver : tf.compat.v1.train.Saver
         tensorflow saver object
     trainable_vars : list of str
@@ -268,6 +277,7 @@ class OffPolicyRLAlgorithm(object):
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
+                 num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
                  _init_setup_model=True):
@@ -305,6 +315,10 @@ class OffPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
+        num_envs : int
+            number of environments used to run simulations in parallel. Each
+            environment is run on a separate CPUS and uses the same policy as
+            the rest. Must be less than or equal to nb_rollout_steps.
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -312,11 +326,23 @@ class OffPolicyRLAlgorithm(object):
             policy-specific hyperparameters
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
+
+        Raises
+        ------
+        AssertionError
+            if num_envs > nb_rollout_steps
         """
         shared = False if policy_kwargs is None else \
             policy_kwargs.get("shared", False)
         maddpg = False if policy_kwargs is None else \
             policy_kwargs.get("maddpg", False)
+
+        # Run assertions.
+        assert num_envs <= nb_rollout_steps, \
+            "num_envs must be less than or equal to nb_rollout_steps"
+
+        # Instantiate the ray instance.
+        ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
 
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
@@ -332,23 +358,30 @@ class OffPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
+        self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
-        # Create the training sampler and collect the initial observations.
-        self.sampler = Sampler(
-            env_name=env,
-            render=render,
-            shared=shared,
-            maddpg=maddpg,
-            evaluate=False,
-        )
-        self.obs, self.all_obs = get_obs(self.sampler.get_init_obs())
+        # Create the environment and collect the initial observations.
+        self.sampler = [
+            Sampler.remote(
+                env_name=env,
+                render=render,
+                shared=shared,
+                maddpg=maddpg,
+                env_num=env_num,
+                evaluate=False,
+            )
+            for env_num in range(num_envs)
+        ]
+        obs = ray.get([s.get_init_obs.remote() for s in self.sampler])
+        self.obs = [get_obs(o)[0] for o in obs]
+        self.all_obs = [get_obs(o)[1] for o in obs]
 
         # Collect the spaces of the environments.
-        self.ac_space = self.sampler.action_space()
-        self.ob_space = self.sampler.observation_space()
-        self.co_space = self.sampler.context_space()
+        self.ac_space = ray.get(self.sampler[0].action_space.remote())
+        self.ob_space = ray.get(self.sampler[0].observation_space.remote())
+        self.co_space = ray.get(self.sampler[0].context_space.remote())
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -356,10 +389,11 @@ class OffPolicyRLAlgorithm(object):
         elif is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
+            self.policy_kwargs['num_envs'] = num_envs
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
-            self.policy_kwargs["all_ob_space"] = \
-                self.sampler.all_observation_space()
+            self.policy_kwargs["all_ob_space"] = ray.get(
+                self.sampler[0].all_observation_space.remote())
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -370,14 +404,14 @@ class OffPolicyRLAlgorithm(object):
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
-        self.horizon = self.sampler.horizon()
+        self.horizon = ray.get(self.sampler[0].horizon.remote())
 
         # init
         self.graph = None
         self.policy_tf = None
         self.sess = None
         self.summary = None
-        self.episode_step = 0
+        self.episode_step = [0 for _ in range(num_envs)]
         self.episodes = 0
         self.total_steps = 0
         self.epoch_episode_steps = []
@@ -385,7 +419,7 @@ class OffPolicyRLAlgorithm(object):
         self.epoch_episodes = 0
         self.epoch = 0
         self.episode_rew_history = deque(maxlen=100)
-        self.episode_reward = 0
+        self.episode_reward = [0 for _ in range(num_envs)]
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -400,7 +434,7 @@ class OffPolicyRLAlgorithm(object):
             self.ob_space = Box(low, high, dtype=np.float32)
 
             # Add the fingerprint term to the first observation.
-            self.obs = add_fingerprint(self.obs, 0, 1, True)
+            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -444,7 +478,12 @@ class OffPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def _policy(self, obs, context, apply_noise=True, random_actions=False):
+    def _policy(self,
+                obs,
+                context,
+                apply_noise=True,
+                random_actions=False,
+                env_num=0):
         """Get the actions and critic output, from a given observation.
 
         Parameters
@@ -460,6 +499,9 @@ class OffPolicyRLAlgorithm(object):
             if set to True, actions are sampled randomly from the action space
             instead of being computed by the policy. This is used for
             exploration purposes.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
 
         Returns
         -------
@@ -485,6 +527,7 @@ class OffPolicyRLAlgorithm(object):
             obs, context,
             apply_noise=apply_noise,
             random_actions=random_actions,
+            env_num=env_num,
         )
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
@@ -504,6 +547,7 @@ class OffPolicyRLAlgorithm(object):
                           context1,
                           terminal1,
                           is_final_step,
+                          env_num=0,
                           evaluate=False,
                           **kwargs):
         """Store a transition in the replay buffer.
@@ -524,6 +568,9 @@ class OffPolicyRLAlgorithm(object):
             whether the time horizon was met in the step corresponding to the
             current sample. This is used by the TD3 algorithm to augment the
             done mask.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
         evaluate : bool
             whether the sample is being provided by the evaluation environment.
             If so, the data is not stored in the replay buffer.
@@ -547,6 +594,7 @@ class OffPolicyRLAlgorithm(object):
             context1=context1,
             done=terminal1,
             is_final_step=is_final_step,
+            env_num=env_num,
             evaluate=evaluate,
             **(kwargs if self.policy_kwargs.get("maddpg", False) else {}),
         )
@@ -719,9 +767,8 @@ class OffPolicyRLAlgorithm(object):
                          random_actions=False):
         """Perform the sample collection operation over multiple steps.
 
-        This method is responsible for executing rollouts for a number of steps
-        before training is executed. The data from the rollouts is stored in
-        the policy's replay buffer(s).
+        This method calls collect_sample for a multiple steps, and attempts to
+        run the operation in parallel if multiple environments are available.
 
         Parameters
         ----------
@@ -736,68 +783,84 @@ class OffPolicyRLAlgorithm(object):
             instead of being computed by the policy. This is used for
             exploration purposes.
         """
-        for _ in range(run_steps or self.nb_rollout_steps):
+        # Loop through the sampling procedure the number of times it would
+        # require to run through each environment in parallel until the number
+        # of required steps have been collected.
+        run_steps = run_steps or self.nb_rollout_steps
+        n_itr = math.ceil(run_steps / self.num_envs)
+        for itr in range(n_itr):
+            n_steps = self.num_envs if itr < n_itr - 1 \
+                else run_steps - (n_itr - 1) * self.num_envs
+
             # Predict next action. Use random actions when initializing the
             # replay buffer.
-            action = self._policy(
-                obs=self.obs,
-                context=self.sampler.get_context(),
+            action = [self._policy(
+                obs=self.obs[env_num],
+                context=ray.get(self.sampler[env_num].get_context.remote()),
                 apply_noise=True,
                 random_actions=random_actions,
-            )
+                env_num=env_num,
+            ) for env_num in range(n_steps)]
 
             # Update the environment.
-            ret = self.sampler.collect_sample(
-                action=action,
-                multiagent=is_multiagent_policy(self.policy),
-                steps=0 if random_actions else self.total_steps,
-                total_steps=total_steps,
-                use_fingerprints=self.policy_kwargs.get(
-                    "use_fingerprints", False),
-            )
+            ret = ray.get([
+                self.sampler[env_num].collect_sample.remote(
+                    action=action[env_num],
+                    multiagent=is_multiagent_policy(self.policy),
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False)
+                )
+                for env_num in range(n_steps)
+            ])
 
-            obs = ret["obs"]
-            context0 = context1 = ret["context"]
-            action = ret["action"]
-            reward = ret["reward"]
-            done = ret["done"]
-            all_obs = ret["all_obs"]
+            for ret_i in ret:
+                num = ret_i["env_num"]
+                context = ret_i["context"]
+                action = ret_i["action"]
+                reward = ret_i["reward"]
+                obs = ret_i["obs"]
+                done = ret_i["done"]
+                all_obs = ret_i["all_obs"]
 
-            # Store a transition in the replay buffer.
-            self._store_transition(
-                obs0=self.obs,
-                context0=context0,
-                action=action,
-                reward=reward,
-                obs1=obs[0] if done else obs,
-                context1=context1,
-                terminal1=done,
-                is_final_step=self.episode_step >= self.horizon - 1,
-                all_obs0=self.all_obs,
-                all_obs1=all_obs[0] if done else all_obs,
-            )
+                # Store a transition in the replay buffer.
+                self._store_transition(
+                    obs0=self.obs[num],
+                    context0=context,
+                    action=action,
+                    reward=reward,
+                    obs1=obs[0] if done else obs,
+                    context1=context,
+                    terminal1=done,
+                    is_final_step=(self.episode_step[num] >= self.horizon - 1),
+                    all_obs0=self.all_obs[num],
+                    all_obs1=all_obs[0] if done else all_obs,
+                    env_num=num,
+                )
 
-            # Book-keeping.
-            self.total_steps += 1
-            self.episode_step += 1
-            if isinstance(reward, dict):
-                self.episode_reward += sum(reward[k] for k in reward.keys())
-            else:
-                self.episode_reward += reward
+                # Book-keeping.
+                self.total_steps += 1
+                self.episode_step[num] += 1
+                if isinstance(reward, dict):
+                    self.episode_reward[num] += sum(
+                        reward[k] for k in reward.keys())
+                else:
+                    self.episode_reward[num] += reward
 
-            # Update the current observation.
-            self.obs = obs[1].copy() if done else obs.copy()
-            self.all_obs = all_obs[1] if done else all_obs
+                # Update the current observation.
+                self.obs[num] = (obs[1] if done else obs).copy()
+                self.all_obs[num] = all_obs[1] if done else all_obs
 
-            if done:
-                # Episode done.
-                self.epoch_episode_rewards.append(self.episode_reward)
-                self.episode_rew_history.append(self.episode_reward)
-                self.epoch_episode_steps.append(self.episode_step)
-                self.episode_reward = 0
-                self.episode_step = 0
-                self.epoch_episodes += 1
-                self.episodes += 1
+                # Handle episode done.
+                if done:
+                    self.epoch_episode_rewards.append(self.episode_reward[num])
+                    self.episode_rew_history.append(self.episode_reward[num])
+                    self.epoch_episode_steps.append(self.episode_step[num])
+                    self.episode_reward[num] = 0
+                    self.episode_step[num] = 0
+                    self.epoch_episodes += 1
+                    self.episodes += 1
 
     def _train(self):
         """Perform the training operation.
@@ -870,7 +933,8 @@ class OffPolicyRLAlgorithm(object):
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
         if is_goal_conditioned_policy(self.policy):
-            self.policy_tf.clear_memory()
+            for env_num in range(self.num_envs):
+                self.policy_tf.clear_memory(env_num)
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
@@ -901,6 +965,7 @@ class OffPolicyRLAlgorithm(object):
                     context=context,
                     apply_noise=not self.eval_deterministic,
                     random_actions=False,
+                    env_num=0,
                 )
 
                 # Update the environment.

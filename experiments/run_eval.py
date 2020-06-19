@@ -136,13 +136,15 @@ def main(args):
 
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
-    hp['render'] = not flags.no_render  # to visualize the policy
+    hp['num_envs'] = 1
+    hp['render_eval'] = not flags.no_render  # to visualize the policy
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
     alg = OffPolicyRLAlgorithm(
         policy=policy,
         env=env_name,
+        eval_env=env_name,
         **hp
     )
 
@@ -170,7 +172,7 @@ def main(args):
 
     # some variables that will be needed when replaying the rollout
     policy = alg.policy_tf
-    env = alg.sampler.env
+    env = alg.eval_env
 
     # Perform the evaluation procedure.
     episode_rewards = []
