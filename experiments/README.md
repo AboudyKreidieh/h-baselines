@@ -17,7 +17,9 @@ If you are attempting to recreate our results from the paper titled
 1. [Running Existing Models and Algorithms](#1-running-existing-models-and-algorithms)
 2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
 3. [Training on Custom Environments]()
-4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)
+4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)  
+   4.1 [Rerunning Experiments](#41-rerunning-experiments)  
+   4.2 [Downloading and Replaying Pre-trained Models](#42-downloading-and-replaying-pre-trained-models)  
 
 ## 1. Running Existing Models and Algorithms
 
@@ -140,16 +142,16 @@ TODO
     ```shell script
     python run_fcnet.py "AntGather" --reward_scale 10 --use_huber
     ```
-    * AntMaze
+  * AntMaze
     ```shell script
     python run_fcnet.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
         --nb_eval_episodes 50 --total_steps 3000000
     ```
-    * BipedalSoccer
+  * BipedalSoccer
     ```shell script
     python run_fcnet.py "BipedalSoccer" --use_huber --total_steps 3000000
     ```
-    * i210-v1
+  * i210-v1
     ```shell script
     python run_fcnet.py "i210-v1" --use_huber --nb_rollout_steps 10 \
         --nb_train_steps 10 --total_steps 1500000
