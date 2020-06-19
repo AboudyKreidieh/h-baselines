@@ -96,7 +96,7 @@ To properly import and run the AntGather environment, you will need to
 first clone and install the `rllab` library. You can do so running the 
 following commands:
 
-```
+```shell script
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
@@ -108,7 +108,7 @@ require MuJoCo-1.3.1. You may also need to install some missing packages
 as well that are required by rllab. If you're installation is 
 successful, the following command should not fail:
 
-```
+```shell script
 python experiments/run_fcnet.py "AntGather"
 ```
 
@@ -155,6 +155,19 @@ index 1ee575e..906f350 100644
 +    <motor joint="ankle_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
    </actuator>
  </mujoco>
+```
+
+## 1.4 Installing Flow
+
+In order to run any of the mixed-autonomy traffic flow tasks describe 
+[here](#32-flow-environments), you fill need to install the 
+[flow](https://github.com/flow-project/flow) library, along with any necessary 
+third-party tools. To do so, following the commands located on this 
+[link](https://flow.readthedocs.io/en/latest/flow_setup.html#local-installation).
+If your installation was successful, should run without failing:
+
+```shell script
+python experiments/run_fcnet.py "ring-v0"
 ```
 
 # 2. Supported Models/Algorithms
