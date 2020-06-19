@@ -197,17 +197,10 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
-<<<<<<< HEAD
-    num_cpus : int
-        number of CPUs used to run simulations in parallel. Each CPU is used to
-        generate a separate environment and run the policy on said environments
-        in parallel. Must be less than or equal to nb_rollout_steps.
-=======
     num_envs : int
         number of environments used to run simulations in parallel. Each
         environment is run on a separate CPUS and uses the same policy as the
         rest. Must be less than or equal to nb_rollout_steps.
->>>>>>> b109e33afd08c5910fab613675a7ab1a955bb217
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     ac_space : gym.spaces.*
