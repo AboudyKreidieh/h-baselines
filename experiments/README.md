@@ -1,13 +1,25 @@
 # Benchmarking HRL Models and Algorithms
 
-TODO
+We provide a sequence of runner and evaluation scripts to validate the 
+performance of the various algorithms provided within this repository. The 
+environments that are currently supported for training can be found 
+[here](https://github.com/AboudyKreidieh/h-baselines#3-environments). If you 
+would like to test these algorithms on custom environments, refer to this 
+[section](#3-training-on-custom-environments) on incorporating custom 
+environments.
+
+If you are attempting to recreate our results from the paper titled 
+"Inter-Level Cooperation in Hierarchical Reinforcement Learning", refer to this
+[section](#4-performance-of-the-cher-algorithm).
 
 ## Contents
 
-* [Running Existing Models and Algorithms](#running-existing-models-and-algorithms)
-* [Visualizing Pre-trained Results](#visualizing-pre-trained-results)
+1. [Running Existing Models and Algorithms](#1-running-existing-models-and-algorithms)
+2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
+3. [Training on Custom Environments]()
+4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)
 
-## Running Existing Models and Algorithms
+## 1. Running Existing Models and Algorithms
 
 These are three existing models, using policies: the feed-forward policy, the goal-conditioned policy, and the multi-agent feed-forward policy.
 
@@ -96,7 +108,7 @@ All optional arguments the same as in regular feed-forward policy, with two extr
 * `--maddpg` (*store_true*): whether to use an algorithm-specific variant of 
   the MADDPG algorithm
 
-### Evaluator Script
+## 2. Visualizing Pre-trained Results
 
 An evaluator script is written to run evaluation episodes of a given checkpoint using pre-trained policies. Run with the following command:
 
@@ -110,6 +122,10 @@ Some optional arguments to be passed in are:
 * `--num_rollouts` (*int*): the number of eval episodes. Defaults to 1.
 * `--no_render` (*store_true*): shuts off rendering.
 
-## Visualizing Pre-trained Results
+## 3. Training on Custom Environments
+
+TODO
+
+## 4. Performance of the CHER Algorithm
 
 TODO
