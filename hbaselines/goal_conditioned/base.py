@@ -288,7 +288,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
-        self.t = 0
 
         self.num_levels = num_levels
         self.meta_period = meta_period
@@ -663,8 +662,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Loop through the policies in the hierarchy.
-        self.t += 4
-        prob_random = max(0, 1 - self.t / 1e6)
         for i in range(self.num_levels - 1):
             if self._update_meta(i, env_num):
                 if self.pretrain_worker:
@@ -674,13 +671,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 else:
                     context_i = context if i == 0 \
                         else self._meta_action[env_num][i - 1]
-                    random_exp = random.uniform(0, 1) < prob_random
 
                     # Update the meta action based on the output from the
                     # policy if the time period requires is.
                     self._meta_action[env_num][i] = self.policy[i].get_action(
-                        obs, context_i, apply_noise,
-                        random_actions=random_actions or random_exp)
+                        obs, context_i, apply_noise, random_actions)
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
