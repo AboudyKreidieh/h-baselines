@@ -147,7 +147,18 @@ class AVEnv(Env):
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
-        self.k.vehicle.apply_acceleration(self.rl_ids(), rl_actions)
+        accelerations = deepcopy(rl_actions)
+
+        # Redefine the accelerations if below a speed threshold so that all
+        # actions result in non-negative desired speeds.
+        for i, veh_id in enumerate(self.rl_ids()):
+            ac_range = self.action_space.high[i] - self.action_space.low[i]
+            speed = self.k.vehicle.get_speed(veh_id)
+            if speed < 0.5 * ac_range * self.sim_step:
+                accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+        # Apply the actions via the simulator.
+        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
