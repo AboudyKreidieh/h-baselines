@@ -926,7 +926,7 @@ environment name (e.g. "multiagent-ring-v0").
 The state for any of these environments consists of the speeds and 
 bumper-to-bumper gaps of the vehicles immediately preceding and following the 
 AVs, as well as the speed of the AVs, i.e. 
-<img src="/tex/b1237b0ae709dee3ff5dd44ab65fed24.svg?invert_in_darkmode&sanitize=true" align=middle width=299.9944794pt height=24.65753399999998pt/>.
+<img src="/tex/b5e79a57244c545109a7bdf53379f6f6.svg?invert_in_darkmode&sanitize=true" align=middle width=306.54702045pt height=24.65753399999998pt/>.
 In single agent settings, these observations are concatenated in a single 
 observation that is passed to a centralized policy.
 
