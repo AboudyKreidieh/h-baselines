@@ -18,8 +18,8 @@ If you are attempting to recreate our results from the paper titled
 2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
 3. [Training on Custom Environments]()
 4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)  
-   4.1 [Rerunning Experiments](#41-rerunning-experiments)  
-   4.2 [Downloading and Replaying Pre-trained Models](#42-downloading-and-replaying-pre-trained-models)  
+   4.1. [Rerunning Experiments](#41-rerunning-experiments)  
+   4.2. [Downloading and Replaying Pre-trained Models](#42-downloading-and-replaying-pre-trained-models)  
 
 ## 1. Running Existing Models and Algorithms
 
