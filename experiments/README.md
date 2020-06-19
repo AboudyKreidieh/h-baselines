@@ -280,22 +280,22 @@ h-baselines/experiments/pretrained
                             |    |-- AntMaze
                             |    └-- i210-v1
                             |
-                            |---- HAC
+                            |-- HAC
                             |    |-- AntGather
                             |    |-- AntMaze
                             |    └-- i210-v1
                             |
-                            |---- HIRO
+                            |-- HIRO
                             |    |-- AntGather
                             |    |-- AntMaze
                             |    └-- i210-v1
                             |
-                            |---- HRL
+                            |-- HRL
                             |    |-- AntGather
                             |    |-- AntMaze
                             |    └-- i210-v1
                             |
-                            └---- TD3
+                            └-- TD3
                                  |-- AntGather
                                  |-- AntMaze
                                  └-- i210-v1
