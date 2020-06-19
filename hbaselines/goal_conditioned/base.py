@@ -156,7 +156,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  pretrain_path,
                  pretrain_ckpt,
                  env_name="",
-                 num_cpus=1,
+                 num_envs=1,
                  meta_policy=None,
                  worker_policy=None,
                  additional_params=None):
@@ -377,32 +377,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # current action by the meta-level policies
         self._meta_action = [[None for _ in range(num_levels - 1)]
-                             for _ in range(num_cpus)]
+                             for _ in range(num_envs)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy. A separate element is
         # used for each environment.
         self._actions = [[[] for _ in range(self.num_levels)]
-                         for _ in range(num_cpus)]
+                         for _ in range(num_envs)]
 
         # a list of the rewards (intrinsic or other) experienced by every level
         # in the hierarchy, ordered from highest to lowest level policy. A
         # separate element is used for each environment.
         self._rewards = [[[0]] + [[] for _ in range(self.num_levels - 1)]
-                         for _ in range(num_cpus)]
+                         for _ in range(num_envs)]
 
         # a list of observations that stretch as long as the dilated horizon
         # chosen for the highest level policy. A separate element is used for
         # each environment.
-        self._observations = [[] for _ in range(num_cpus)]
+        self._observations = [[] for _ in range(num_envs)]
 
         # the first and last contextual term. A separate element is used for
         # each environment.
-        self._contexts = [[] for _ in range(num_cpus)]
+        self._contexts = [[] for _ in range(num_envs)]
 
         # a list of done masks at every time step. A separate element is used
         # for each environment.
-        self._dones = [[] for _ in range(num_cpus)]
+        self._dones = [[] for _ in range(num_envs)]
 
         # Collect the state indices for the intrinsic rewards.
         self.goal_indices = get_state_indices(
@@ -593,6 +593,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Get a batch.
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
             with_additional)
+
+        # Do not use done masks for lower-level policies with negative
+        # intrinsic rewards (these the policies to terminate early).
+        if self._negative_reward_fn():
+            for i in range(self.num_levels - 1):
+                done[i+1] = np.array([False] * done[i+1].shape[0])
 
         # Update the higher-level policies.
         actor_loss = []
@@ -846,6 +852,16 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ))
 
         return td_map
+
+    def _negative_reward_fn(self):
+        """Return True if the intrinsic reward returns negative values.
+
+        Intrinsic reward functions with negative rewards incentivize early
+        terminations, which we attempt to mitigate in the training operation by
+        preventing early terminations from return an expected return of 0.
+        """
+        return "exp" not in self.intrinsic_reward_type \
+            and "non" not in self.intrinsic_reward_type
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #

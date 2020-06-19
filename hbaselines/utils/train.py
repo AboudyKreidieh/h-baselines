@@ -21,7 +21,7 @@ def get_hyperparameters(args, policy):
         "render": args.render,
         "render_eval": args.render_eval,
         "verbose": args.verbose,
-        "num_cpus": args.num_cpus,
+        "num_envs": args.num_envs,
         "_init_setup_model": True,
     }
 
@@ -102,7 +102,6 @@ def parse_options(description, example_usage, args):
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=description, epilog=example_usage)
 
     # required input parameters
@@ -179,10 +178,10 @@ def create_algorithm_parser(parser):
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
     parser.add_argument(
-        '--num_cpus', type=int, default=1,
-        help='number of CPUs used to run simulations in parallel. Each CPU is '
-             'used to generate a separate environment and run the policy on '
-             'said environments in parallel. Must be less than or equal to '
+        '--num_envs', type=int, default=1,
+        help='number of environments used to run simulations in parallel. '
+             'Each environment is run on a separate CPUS and uses the same '
+             'policy as the rest. Must be less than or equal to '
              'nb_rollout_steps.')
     parser.add_argument(
         '--verbose', type=int, default=2,

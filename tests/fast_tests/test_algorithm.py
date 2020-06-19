@@ -33,7 +33,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
             'render_eval': False,
             'verbose': 0,
             'policy_kwargs': None,
-            'num_cpus': 1,
+            'num_envs': 1,
             '_init_setup_model': True
         }
 
@@ -129,7 +129,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
-        policy_kwargs['num_cpus'] = self.init_parameters['num_cpus']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():

@@ -197,10 +197,17 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+<<<<<<< HEAD
     num_cpus : int
         number of CPUs used to run simulations in parallel. Each CPU is used to
         generate a separate environment and run the policy on said environments
         in parallel. Must be less than or equal to nb_rollout_steps.
+=======
+    num_envs : int
+        number of environments used to run simulations in parallel. Each
+        environment is run on a separate CPUS and uses the same policy as the
+        rest. Must be less than or equal to nb_rollout_steps.
+>>>>>>> b109e33afd08c5910fab613675a7ab1a955bb217
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     ac_space : gym.spaces.*
@@ -285,7 +292,7 @@ class OffPolicyRLAlgorithm(object):
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
-                 num_cpus=1,
+                 num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
                  _init_setup_model=True):
@@ -323,11 +330,10 @@ class OffPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
-        num_cpus : int
-            number of CPUs used to run simulations in parallel. Each CPU is
-            used to generate a separate environment and run the policy on said
-            environments in parallel. Must be less than or equal to
-            nb_rollout_steps.
+        num_envs : int
+            number of environments used to run simulations in parallel. Each
+            environment is run on a separate CPUS and uses the same policy as
+            the rest. Must be less than or equal to nb_rollout_steps.
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
@@ -339,7 +345,7 @@ class OffPolicyRLAlgorithm(object):
         Raises
         ------
         AssertionError
-            if num_cpus > nb_rollout_steps
+            if num_envs > nb_rollout_steps
         """
         shared = False if policy_kwargs is None else \
             policy_kwargs.get("shared", False)
@@ -347,11 +353,11 @@ class OffPolicyRLAlgorithm(object):
             policy_kwargs.get("maddpg", False)
 
         # Run assertions.
-        assert num_cpus <= nb_rollout_steps, \
-            "num_cpus must be less than or equal to nb_rollout_steps"
+        assert num_envs <= nb_rollout_steps, \
+            "num_envs must be less than or equal to nb_rollout_steps"
 
         # Instantiate the ray instance.
-        ray.init(num_cpus=num_cpus, ignore_reinit_error=True)
+        ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
 
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
@@ -367,7 +373,7 @@ class OffPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
-        self.num_cpus = num_cpus
+        self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
@@ -381,7 +387,7 @@ class OffPolicyRLAlgorithm(object):
                 env_num=env_num,
                 evaluate=False,
             )
-            for env_num in range(num_cpus)
+            for env_num in range(num_envs)
         ]
         obs = ray.get([s.get_init_obs.remote() for s in self.sampler])
         self.obs = [get_obs(o)[0] for o in obs]
@@ -398,7 +404,7 @@ class OffPolicyRLAlgorithm(object):
         elif is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
-            self.policy_kwargs['num_cpus'] = num_cpus
+            self.policy_kwargs['num_envs'] = num_envs
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = ray.get(
@@ -420,7 +426,7 @@ class OffPolicyRLAlgorithm(object):
         self.policy_tf = None
         self.sess = None
         self.summary = None
-        self.episode_step = [0 for _ in range(num_cpus)]
+        self.episode_step = [0 for _ in range(num_envs)]
         self.episodes = 0
         self.total_steps = 0
         self.epoch_episode_steps = []
@@ -428,7 +434,7 @@ class OffPolicyRLAlgorithm(object):
         self.epoch_episodes = 0
         self.epoch = 0
         self.episode_rew_history = deque(maxlen=100)
-        self.episode_reward = [0 for _ in range(num_cpus)]
+        self.episode_reward = [0 for _ in range(num_envs)]
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -438,10 +444,8 @@ class OffPolicyRLAlgorithm(object):
         if self.policy_kwargs.get("use_fingerprints", False):
             # Append the fingerprint dimension to the observation dimension.
             fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate(
-                (self.ob_space.low, fingerprint_range[0]))
-            high = np.concatenate(
-                (self.ob_space.high, fingerprint_range[1]))
+            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
+            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
             self.ob_space = Box(low, high, dtype=np.float32)
 
             # Add the fingerprint term to the first observation.
@@ -798,10 +802,10 @@ class OffPolicyRLAlgorithm(object):
         # require to run through each environment in parallel until the number
         # of required steps have been collected.
         run_steps = run_steps or self.nb_rollout_steps
-        n_itr = math.ceil(run_steps / self.num_cpus)
+        n_itr = math.ceil(run_steps / self.num_envs)
         for itr in range(n_itr):
-            n_steps = self.num_cpus if itr < n_itr - 1 \
-                else run_steps - (n_itr - 1) * self.num_cpus
+            n_steps = self.num_envs if itr < n_itr - 1 \
+                else run_steps - (n_itr - 1) * self.num_envs
 
             # Predict next action. Use random actions when initializing the
             # replay buffer.
@@ -944,7 +948,7 @@ class OffPolicyRLAlgorithm(object):
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
         if is_goal_conditioned_policy(self.policy):
-            for env_num in range(self.num_cpus):
+            for env_num in range(self.num_envs):
                 self.policy_tf.clear_memory(env_num)
 
         for i in range(self.nb_eval_episodes):

@@ -51,7 +51,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  pretrain_path,
                  pretrain_ckpt,
                  env_name="",
-                 num_cpus=1):
+                 num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -168,7 +168,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
-            num_cpus=num_cpus,
+            num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
             additional_params=dict(
