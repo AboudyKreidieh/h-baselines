@@ -1,13 +1,27 @@
 # Benchmarking HRL Models and Algorithms
 
-TODO
+We provide a sequence of runner and evaluation scripts to validate the 
+performance of the various algorithms provided within this repository. The 
+environments that are currently supported for training can be found 
+[here](https://github.com/AboudyKreidieh/h-baselines#3-environments). If you 
+would like to test these algorithms on custom environments, refer to this 
+[section](#3-training-on-custom-environments) on incorporating custom 
+environments.
+
+If you are attempting to recreate our results from the paper titled 
+"Inter-Level Cooperation in Hierarchical Reinforcement Learning", refer to this
+[section](#4-performance-of-the-cher-algorithm).
 
 ## Contents
 
-* [Running Existing Models and Algorithms](#running-existing-models-and-algorithms)
-* [Visualizing Pre-trained Results](#visualizing-pre-trained-results)
+1. [Running Existing Models and Algorithms](#1-running-existing-models-and-algorithms)
+2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
+3. [Training on Custom Environments]()
+4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)  
+   4.1. [Rerunning Experiments](#41-rerunning-experiments)  
+   4.2. [Downloading and Replaying Pre-trained Models](#42-downloading-and-replaying-pre-trained-models)  
 
-## Running Existing Models and Algorithms
+## 1. Running Existing Models and Algorithms
 
 These are three existing models, using policies: the feed-forward policy, the goal-conditioned policy, and the multi-agent feed-forward policy.
 
@@ -96,7 +110,7 @@ All optional arguments the same as in regular feed-forward policy, with two extr
 * `--maddpg` (*store_true*): whether to use an algorithm-specific variant of 
   the MADDPG algorithm
 
-### Evaluator Script
+## 2. Visualizing Pre-trained Results
 
 An evaluator script is written to run evaluation episodes of a given checkpoint using pre-trained policies. Run with the following command:
 
@@ -110,6 +124,192 @@ Some optional arguments to be passed in are:
 * `--num_rollouts` (*int*): the number of eval episodes. Defaults to 1.
 * `--no_render` (*store_true*): shuts off rendering.
 
-## Visualizing Pre-trained Results
+## 3. Training on Custom Environments
 
 TODO
+
+## 4. Performance of the CHER Algorithm
+
+We explore the potential benefits of incentivizing cooperation between levels 
+of a hierarchy on the training performance of goal-conditioned hierarchies. 
+This is presented in the following [paper](), with the implementation of the 
+resultant algorithm, called CHER, being provided in this repository. In the 
+following subsections, we describe how the results from this paper can be 
+recreated, and provide a set of pre-trained models for visualization purposes.
+
+### 4.1 Rerunning Experiments
+
+To recreate any of the results for the given environment/algorithm pairs from 
+the original paper, run the appropriate command below.
+
+* **TD3:**
+
+  * AntGather
+    ```shell script
+    python run_fcnet.py "AntGather" --reward_scale 10 --use_huber
+    ```
+  * AntMaze
+    ```shell script
+    python run_fcnet.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_fcnet.py "BipedalSoccer" --use_huber --total_steps 3000000
+    ```
+  * i210-v1
+    ```shell script
+    python run_fcnet.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000
+    ```
+
+* **HRL:**
+
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000
+    ```
+
+* **HIRO:**
+
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --off_policy_corrections
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
+        --off_policy_corrections
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --off_policy_corrections
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --off_policy_corrections
+    ```
+
+* **HAC:**
+
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --hindsight
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals --hindsight
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --hindsight
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --hindsight
+    ```
+
+* **CHER:**
+
+  * AntGather
+    ```shell script
+    python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
+        --connected_gradients --cg_weights 0.01
+    ```
+  * AntMaze
+    ```shell script
+    python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
+        --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
+        --connected_gradients --cg_weights 0.005
+    ```
+  * BipedalSoccer
+    ```shell script
+    python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
+        --relative_goals --connected_gradients --cg_weights 0.01
+    ```
+  * i210-v1
+    ```shell script
+    python run_hrl.py "i210-v1" --use_huber --nb_rollout_steps 10 \
+        --nb_train_steps 10 --total_steps 1500000 --connected_gradients \
+        --cg_weights 0.01
+    ```
+
+### 4.2 Downloading and Replaying Pre-trained Models
+
+We provide an example of the final policy generated from each of the above 
+described algorithm/environment pairs. Each of these policies were generated 
+when utilizing a equivalent seed in order to ensure a somewhat fair comparison.
+In order to download all of these policies, run the following command:
+
+```shell script
+scripts/import_cher.sh
+```
+
+One the above command is completed, a new file in the experiments folder will 
+be created titled "pretrained". The file structure for this directory will look
+as follows:
+
+```
+h-baselines/experiments/pretrained
+                            |
+                            |-- CHER
+                            |    |-- AntGather
+                            |    |-- AntMaze
+                            |    └-- i210-v1
+                            |
+                            |-- HAC
+                            |    |-- AntGather
+                            |    |-- AntMaze
+                            |    └-- i210-v1
+                            |
+                            |-- HIRO
+                            |    |-- AntGather
+                            |    |-- AntMaze
+                            |    └-- i210-v1
+                            |
+                            |-- HRL
+                            |    |-- AntGather
+                            |    |-- AntMaze
+                            |    └-- i210-v1
+                            |
+                            └-- TD3
+                                 |-- AntGather
+                                 |-- AntMaze
+                                 └-- i210-v1
+```
+
+Each of these final directories will contain the data generated by any of the 
+runner scripts provided in the folder. The policy provided within these 
+directories can accordingly be replayed via the `run_eval.py` scripts. For 
+example, if you would like to replay the AntGather policy from the CHER 
+algorithm, you can do so by running the following command:
+
+```shell script
+python run_eval.py "pretrained/CHER/AntGather" --random_seed
+```
+
+Note that we add the `--random_seed` attribute so that every replay produces a 
+different behavior.
