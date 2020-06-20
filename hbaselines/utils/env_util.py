@@ -1,7 +1,10 @@
 """Utility methods when instantiating environments."""
 import numpy as np
-from gym.spaces import Box
+import os
+import sys
 import gym
+from copy import deepcopy
+from gym.spaces import Box
 
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.deeploco.envs import BipedalObstacles
@@ -17,6 +20,7 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 try:
+    import flow.config as config
     from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
     from hbaselines.envs.mixed_autonomy.params.merge \
@@ -776,6 +780,9 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, False, shared, maddpg)
+        elif env.startswith("flow:"):
+            # environments in flow/examples
+            env = import_flow_env(env, render, shared, maddpg, evaluate)
         elif env.startswith("multiagent"):
             # multi-agent environments
             env_name = env[11:]
@@ -807,3 +814,72 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         obs = None
 
     return env, obs
+
+
+def import_flow_env(env_name, render, shared, maddpg, evaluate):
+    """Import an environment from the flow/examples folder.
+
+    This method imports the flow_params dict from the exp_configs folders in
+    this directory and generates an appropriate FlowEnv object.
+
+    Parameters
+    ----------
+    env_name : str
+        the environment name. Starts with "flow:" to signify that it should be
+        imported from the flow/experiments folder.
+    render : bool
+        whether to render the environment
+    shared : bool
+        specifies whether agents in an environment are meant to share policies.
+        This is solely used by multi-agent Flow environments.
+    maddpg : bool
+        whether to use an environment variant that is compatible with the
+        MADDPG algorithm
+    evaluate : bool
+        specifies whether this is a training or evaluation environment
+
+    Returns
+    -------
+    hbaselines.envs.mixed_autonomy.FlowEnv
+        the training/evaluation environment
+
+    Raises
+    ------
+    ValueError
+        if the environment is not abailable in flow/examples
+    """
+    # Parse the exp_config name from the environment name
+    exp_config = env_name[5:]
+
+    # Add flow/examples to your path to located the below modules.
+    sys.path.append(os.path.join(config.PROJECT_PATH, "examples"))
+
+    # Import relevant information from the exp_config script.
+    module = __import__("exp_configs.rl.singleagent", fromlist=[exp_config])
+    module_ma = __import__("exp_configs.rl.multiagent", fromlist=[exp_config])
+
+    # Import the sub-module containing the specified exp_config and determine
+    # whether the environment is single agent or multi-agent.
+    if hasattr(module, exp_config):
+        submodule = getattr(module, exp_config)
+        multiagent = False
+    elif hasattr(module_ma, exp_config):
+        submodule = getattr(module_ma, exp_config)
+        multiagent = True
+    else:
+        raise ValueError("Unable to find experiment config.")
+
+    # Collect the flow_params object.
+    flow_params = deepcopy(submodule.flow_params)
+
+    # Update the evaluation flag to match what is requested.
+    flow_params['env'].evaluate = evaluate
+
+    # Return the environment.
+    return FlowEnv(
+        flow_params,
+        multiagent=multiagent,
+        shared=shared,
+        maddpg=maddpg,
+        render=render,
+    )
