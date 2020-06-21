@@ -4,9 +4,12 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces import Box
 
-from hbaselines.utils.train import parse_options, get_hyperparameters
+from hbaselines.utils.train import parse_options
+from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
+from hbaselines.utils.env_util import get_meta_ac_space
+from hbaselines.utils.env_util import get_state_indices
+from hbaselines.utils.env_util import import_flow_env
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
@@ -209,8 +212,8 @@ class TestRewardFns(unittest.TestCase):
         self.assertEqual(c, -8.062257748304752)
 
 
-class TestMisc(unittest.TestCase):
-    """Test the the miscellaneous utility methods."""
+class TestEnvUtil(unittest.TestCase):
+    """Test the environment utility methods."""
 
     def test_meta_ac_space(self):
         # non-relevant parameters for most tests
@@ -657,6 +660,75 @@ class TestMisc(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="Point2DImageEnv", **params),
             [1024, 1025]
+        )
+
+    def test_import_flow_env(self):
+        """Validate the functionality of the import_flow_env() method.
+
+        This is done for the following 3 cases:
+
+        1. "singleagent_ring"
+        2. "multiagent_ring"
+        3. "flow:sdfn" --> returns ValueError
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+        env = import_flow_env(
+            "flow:singleagent_ring", False, False, False, False)
+
+        # check the spaces
+        test_space(
+            gym_space=env.action_space,
+            expected_min=np.array([-1.]),
+            expected_max=np.array([1.]),
+            expected_size=1,
+        )
+        test_space(
+            gym_space=env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(3)]),
+            expected_max=np.array([float("inf") for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # delete the environment
+        del env
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+        # FIXME: add later
+        # env = import_flow_env(
+        #     "flow:multiagent_ring", False, True, False, False)
+        #
+        # # check the spaces
+        # test_space(
+        #     gym_space=env.action_space,
+        #     expected_min=np.array([-1.]),
+        #     expected_max=np.array([1.]),
+        #     expected_size=1,
+        # )
+        # test_space(
+        #     gym_space=env.observation_space,
+        #     expected_min=np.array([-5 for _ in range(3)]),
+        #     expected_max=np.array([5 for _ in range(3)]),
+        #     expected_size=3,
+        # )
+        #
+        # # delete the environment
+        # del env
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+        self.assertRaises(
+            ValueError,
+            import_flow_env,
+            env_name="flow:sdfn",
+            render=False,
+            shared=False,
+            maddpg=False,
+            evaluate=False,
         )
 
 
