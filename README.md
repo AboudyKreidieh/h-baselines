@@ -64,6 +64,7 @@ Finally, install the contents of the repository onto your conda environment (or
 your local python build) by running the following command:
 
 ```shell script
+python setup.py develop
 pip install -e .
 ```
 
