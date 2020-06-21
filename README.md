@@ -20,6 +20,7 @@ available [here]().
     1.1. [Basic Installation](#11-basic-installation)  
     1.2. [Installing MuJoCo](#12-installing-mujoco)  
     1.3. [Importing AntGather](#13-importing-antgather)  
+    1.4. [Installing Flow](#14-installing-flow)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
@@ -44,7 +45,7 @@ available [here]().
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
 
-```bash
+```shell script
 cd path/to/h-baselines
 ```
 
@@ -54,7 +55,7 @@ recommended. If you do not have Anaconda on your device, refer to the provided
 links to install either [Anaconda](https://www.anaconda.com/download) or
 [Miniconda](https://conda.io/miniconda.html).
 
-```bash
+```shell script
 conda env create -f environment.yml
 source activate h-baselines
 ```
@@ -62,14 +63,14 @@ source activate h-baselines
 Finally, install the contents of the repository onto your conda environment (or
 your local python build) by running the following command:
 
-```bash
+```shell script
 pip install -e .
 ```
 
 If you would like to (optionally) validate that the repository was successfully
 installed and is running, you can do so by executing the unit tests as follows:
 
-```bash
+```shell script
 nose2
 ```
 
@@ -96,7 +97,7 @@ To properly import and run the AntGather environment, you will need to
 first clone and install the `rllab` library. You can do so running the 
 following commands:
 
-```
+```shell script
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
@@ -108,7 +109,7 @@ require MuJoCo-1.3.1. You may also need to install some missing packages
 as well that are required by rllab. If you're installation is 
 successful, the following command should not fail:
 
-```
+```shell script
 python experiments/run_fcnet.py "AntGather"
 ```
 
@@ -155,6 +156,29 @@ index 1ee575e..906f350 100644
 +    <motor joint="ankle_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
    </actuator>
  </mujoco>
+```
+
+## 1.4 Installing Flow
+
+In order to run any of the mixed-autonomy traffic flow tasks describe 
+[here](#32-flow-environments), you fill need to install the 
+[flow](https://github.com/flow-project/flow) library, along with any necessary 
+third-party tools. To do so, following the commands located on this 
+[link](https://flow.readthedocs.io/en/latest/flow_setup.html#local-installation).
+If your installation was successful, should run without failing:
+
+```shell script
+python experiments/run_fcnet.py "ring-v0"
+```
+
+Once you've installed Flow, you will also be able to run all training 
+environments located in the flow/examples folder from this repository as well. 
+These can be accessed by appending "flow:" to the environment name when running
+the scripts in h-baselines/experiments. For example, if you would like to run 
+the "singleagent_ring" environment in flow/example/rl/exp_configs, run:
+
+```shell script
+python experiments/run_fcnet.py "flow:singleagent_ring"
 ```
 
 # 2. Supported Models/Algorithms
@@ -913,7 +937,7 @@ environment name (e.g. "multiagent-ring-v0").
 The state for any of these environments consists of the speeds and 
 bumper-to-bumper gaps of the vehicles immediately preceding and following the 
 AVs, as well as the speed of the AVs, i.e. 
-<img src="/tex/b1237b0ae709dee3ff5dd44ab65fed24.svg?invert_in_darkmode&sanitize=true" align=middle width=299.9944794pt height=24.65753399999998pt/>.
+<img src="/tex/b5e79a57244c545109a7bdf53379f6f6.svg?invert_in_darkmode&sanitize=true" align=middle width=306.54702045pt height=24.65753399999998pt/>.
 In single agent settings, these observations are concatenated in a single 
 observation that is passed to a centralized policy.
 
