@@ -57,7 +57,7 @@ links to install either [Anaconda](https://www.anaconda.com/download) or
 
 ```shell script
 conda env create -f environment.yml
-source activate h-baselines
+conda activate h-baselines
 ```
 
 Finally, install the contents of the repository onto your conda environment (or
