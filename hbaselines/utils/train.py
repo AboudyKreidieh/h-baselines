@@ -62,7 +62,7 @@ def get_hyperparameters(args, policy):
             "off_policy_corrections": args.off_policy_corrections,
             "hindsight": args.hindsight,
             "subgoal_testing_rate": args.subgoal_testing_rate,
-            "connected_gradients": args.connected_gradients,
+            "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
             "use_fingerprints": args.use_fingerprints,
             "centralized_value_functions": args.centralized_value_functions,
@@ -338,18 +338,17 @@ def create_goal_conditioned_parser(parser):
         action="store_true",
         help="specifies whether to use centralized value functions")
     parser.add_argument(
-        "--connected_gradients",
+        "--cooperative_gradients",
         action="store_true",
-        help="whether to use the connected gradient update actor update "
-             "procedure to the higher-level policy. See: "
-             "https://arxiv.org/abs/1912.02368v1")
+        help="whether to use the cooperative gradient update procedure for the"
+             " higher-level policy. See: https://arxiv.org/abs/1912.02368v1")
     parser.add_argument(
         "--cg_weights",
         type=float,
         default=GOAL_CONDITIONED_PARAMS["cg_weights"],
         help="weights for the gradients of the loss of the lower-level "
              "policies with respect to the parameters of the higher-level "
-             "policies. Only used if `connected_gradients` is set to True.")
+             "policies. Only used if `cooperative_gradients` is set to True.")
 
     return parser
 

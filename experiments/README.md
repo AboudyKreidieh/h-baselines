@@ -114,12 +114,12 @@ respective policies.
 * `--subgoal_testing_rate` (*float*): the rate at which the original 
   (non-hindsight) sample is stored in the replay buffer as well. Used only if 
   `hindsight` is set to True. Defaults to 0.3.
-* `--connected_gradients` (*store_true*): whether to use the connected gradient
-  update actor update procedure to the higher-level policies. See: 
+* `--cooperative_gradients` (*store_true*): whether to use the cooperative 
+  gradient update procedure for the higher-level policies. See: 
   https://arxiv.org/abs/1912.02368v1
 * `--cg_weights` (*float*): weights for the gradients of the loss of the 
   lower-level policies with respect to the parameters of the higher-level 
-  policies. Only used if `connected_gradients` is set to True. Defaults to 
+  policies. Only used if `cooperative_gradients` is set to True. Defaults to 
   0.0005.
 * `--use_fingerprints` (*store_true*): whether to add a time-dependent 
   fingerprint to the observations. 
@@ -264,23 +264,23 @@ the original paper, run the appropriate command below.
   * AntGather
     ```shell script
     python run_hrl.py "AntGather" --reward_scale 10 --use_huber --relative_goals \
-        --connected_gradients --cg_weights 0.01
+        --cooperative_gradients --cg_weights 0.01
     ```
   * AntMaze
     ```shell script
     python run_hrl.py "AntMaze" --use_huber --evaluate --eval_interval 50000 \
         --nb_eval_episodes 50 --total_steps 3000000 --relative_goals \
-        --connected_gradients --cg_weights 0.005
+        --cooperative_gradients --cg_weights 0.005
     ```
   * BipedalSoccer
     ```shell script
     python run_hrl.py "BipedalSoccer" --use_huber --total_steps 3000000 \
-        --relative_goals --connected_gradients --cg_weights 0.01
+        --relative_goals --cooperative_gradients --cg_weights 0.01
     ```
   * highway-v1
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000 --connected_gradients \
+        --nb_train_steps 10 --total_steps 1500000 --cooperative_gradients \
         --cg_weights 0.01
     ```
 

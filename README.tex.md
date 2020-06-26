@@ -821,7 +821,7 @@ alg = OffPolicyRLAlgorithm(
 
 The CHER algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
-weighted *connected gradient* term to the Manager's gradient update 
+weighted *cooperative gradient* term to the Manager's gradient update 
 procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
@@ -833,8 +833,8 @@ Under this formulation, the Manager's update step is defined as:
     & + \lambda \mathbb{E}_{s\sim p_\pi} \bigg[ \nabla_{\theta_m} g_t \nabla_g \big(r(g,s_t,\pi_w(g_t,s_t)) + \pi_w (g,s_t) \nabla_a Q_w(g_t,s_t,a)|_{a=\pi_w(g_t,s_t)}\vphantom{\int} \big) \bigg\rvert_{g=g_t} \bigg]
 \end{aligned}
 
-To use the connected gradient update procedure, set the 
-`connected_gradients` term in `policy_kwargs` to True. The weighting 
+To use the cooperative gradient update procedure, set the 
+`cooperative_gradients` term in `policy_kwargs` to True. The weighting 
 term ($\lambda$ in the above equation), can be modified via the 
 `cg_weights` term (see the example below).
 
@@ -846,10 +846,10 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
-        # add this line to include the connected gradient actor update 
-        # procedure to the higher-level policies
-        "connected_gradients": True,
-        # specify the connected gradient (lambda) weight
+        # add this line to include the cooperative gradient update procedure
+        # for the higher-level policies
+        "cooperative_gradients": True,
+        # specify the cooperative gradient (lambda) weight
         "cg_weights": 0.01
     }
 )
