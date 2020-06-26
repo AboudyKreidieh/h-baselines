@@ -45,7 +45,7 @@ available [here]().
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
 
-```bash
+```shell script
 cd path/to/h-baselines
 ```
 
@@ -55,7 +55,7 @@ recommended. If you do not have Anaconda on your device, refer to the provided
 links to install either [Anaconda](https://www.anaconda.com/download) or
 [Miniconda](https://conda.io/miniconda.html).
 
-```bash
+```shell script
 conda env create -f environment.yml
 source activate h-baselines
 ```
@@ -63,14 +63,14 @@ source activate h-baselines
 Finally, install the contents of the repository onto your conda environment (or
 your local python build) by running the following command:
 
-```bash
+```shell script
 pip install -e .
 ```
 
 If you would like to (optionally) validate that the repository was successfully
 installed and is running, you can do so by executing the unit tests as follows:
 
-```bash
+```shell script
 nose2
 ```
 
@@ -169,6 +169,16 @@ If your installation was successful, should run without failing:
 
 ```shell script
 python experiments/run_fcnet.py "ring-v0"
+```
+
+Once you've installed Flow, you will also be able to run all training 
+environments located in the flow/examples folder from this repository as well. 
+These can be accessed by appending "flow:" to the environment name when running
+the scripts in h-baselines/experiments. For example, if you would like to run 
+the "singleagent_ring" environment in flow/example/rl/exp_configs, run:
+
+```shell script
+python experiments/run_fcnet.py "flow:singleagent_ring"
 ```
 
 # 2. Supported Models/Algorithms
