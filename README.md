@@ -31,7 +31,7 @@ available [here]().
         &nbsp; &nbsp; &nbsp;&nbsp; 2.4.2. [Intrinsic Rewards](#242-intrinsic-rewards)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.4.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#243-hiro-data-efficient-hierarchical-reinforcement-learning)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.4.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#244-hac-learning-multi-level-hierarchies-with-hindsight)  
-        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.5. [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#245-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.4.5. [CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#245-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
 3. [Environments](#3-environments)  
     3.1. [MuJoCo Environments](#31-mujoco-environments)  
     3.2. [Flow Environments](#32-flow-environments)  
@@ -805,9 +805,9 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### 2.4.5 HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
+### 2.4.5 CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+The CHER algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
 weighted *connected gradient* term to the Manager's gradient update 
 procedure (see the right figure below).

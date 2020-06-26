@@ -282,7 +282,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         return np.array(fitness)
 
     # ======================================================================= #
-    #                      Auxiliary methods for HRL-CG                       #
+    #                       Auxiliary methods for CHER                        #
     # ======================================================================= #
 
     def _setup_connected_gradients(self):
@@ -354,7 +354,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                                     obs1,
                                     terminals1,
                                     update_actor=True):
-        """Perform the gradient update procedure for the HRL-CG algorithm.
+        """Perform the gradient update procedure for the CHER algorithm.
 
         This procedure is similar to update_from_batch, expect it runs the
         self.cg_optimizer operation instead of the policy object's optimizer,
