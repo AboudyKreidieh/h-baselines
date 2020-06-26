@@ -20,6 +20,7 @@ available [here]().
     1.1. [Basic Installation](#11-basic-installation)  
     1.2. [Installing MuJoCo](#12-installing-mujoco)  
     1.3. [Importing AntGather](#13-importing-antgather)  
+    1.4. [Installing Flow](#14-installing-flow)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
