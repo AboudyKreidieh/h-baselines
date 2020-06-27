@@ -218,8 +218,8 @@ class AVEnv(Env):
 
                 if stopping_penalty:
                     for veh_id in self.rl_ids():
-                        speed = self.k.vehicle.get_speed(veh_id)
-                        reward -= 5 * max(1 - speed, 0) ** 2
+                        if self.k.vehicle.get_speed(veh_id) <= 1:
+                            reward -= 5
 
                 # =========================================================== #
                 # Penalize the sum of squares of the AV accelerations.        #

@@ -924,16 +924,16 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': -1.8597728336172081,
-             'rl_highway_inflow_10.19': -1.8597728336172081,
-             'rl_highway_inflow_10.20': -1.8597728336172081,
-             'rl_highway_inflow_10.21': -1.8597728336172081,
-             'rl_highway_inflow_10.22': -1.8597728336172081,
-             'rl_highway_inflow_10.23': -1.8597728336172081,
-             'rl_highway_inflow_10.24': -1.8597728336172081,
-             'rl_highway_inflow_10.25': -1.8597728336172081,
-             'rl_highway_inflow_10.26': -1.8597728336172081,
-             'rl_highway_inflow_10.27': -1.8597728336172081}
+            {'rl_highway_inflow_10.18': -8.378975313435493,
+             'rl_highway_inflow_10.19': -8.378975313435493,
+             'rl_highway_inflow_10.20': -8.378975313435493,
+             'rl_highway_inflow_10.21': -8.378975313435493,
+             'rl_highway_inflow_10.22': -8.378975313435493,
+             'rl_highway_inflow_10.23': -8.378975313435493,
+             'rl_highway_inflow_10.24': -8.378975313435493,
+             'rl_highway_inflow_10.25': -8.378975313435493,
+             'rl_highway_inflow_10.26': -8.378975313435493,
+             'rl_highway_inflow_10.27': -8.378975313435493}
         )
 
         # test case 4
@@ -1210,7 +1210,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-            -2.9597211361808213
+            -21.939782231314958
         )
 
         # kill the environment
