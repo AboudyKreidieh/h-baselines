@@ -933,8 +933,7 @@ class OffPolicyRLAlgorithm(object):
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
         if is_goal_conditioned_policy(self.policy):
-            for env_num in range(self.num_envs):
-                self.policy_tf.clear_memory(env_num)
+            self.policy_tf.clear_memory(0)
 
         for i in range(self.nb_eval_episodes):
             # Reset the environment.
@@ -1063,7 +1062,7 @@ class OffPolicyRLAlgorithm(object):
         # Clear replay buffer-related memory in the policy once again so that
         # it does not affect the training procedure.
         if is_goal_conditioned_policy(self.policy):
-            self.policy_tf.clear_memory()
+            self.policy_tf.clear_memory(0)
 
         return eval_episode_rewards, eval_episode_successes, ret_info
 

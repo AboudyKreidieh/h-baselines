@@ -30,7 +30,7 @@ install:
   - popd
   - popd
 
-  # Install multiworld
+  # Install multi-world
   - pushd $HOME
   - git clone https://github.com/vitchyr/multiworld.git
   - pushd multiworld
