@@ -351,9 +351,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                 )
 
             # Store the new objects in their respective attributes.
-            self.action_ph.append(action_ph)  # TODO: maybe not?
+            self.action_ph.append(action_ph)
             self.obs_ph.append(obs_ph)
-            self.obs1_ph.append(obs1_ph)  # TODO: maybe not?
+            self.obs1_ph.append(obs1_ph)
             if i == 0:
                 self.terminals1 = terminals1
                 self.rew_ph = rew_ph
