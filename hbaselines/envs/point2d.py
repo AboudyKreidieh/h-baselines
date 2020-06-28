@@ -12,11 +12,6 @@ from multiworld.envs.pygame.pygame_viewer import PygameViewer
 class Point2DEnv(MultitaskEnv, Serializable):
     """A little 2D point whose life goal is to reach a target.
 
-    States
-        TODO
-
-    TODO: everything...
-
     Attributes
     ----------
     render_dt_msec : float
@@ -39,8 +34,9 @@ class Point2DEnv(MultitaskEnv, Serializable):
         the distance from the center to the boundary
     ball_radius : float
         the radius of the agent when being rendered
-    walls : TODO
-        TODO
+    walls : list of object
+        a list of wall objects describing the position of the walls and how to
+        handle collisions with said walls
     fixed_goal : [float, float] or None
         the goal to use. If set to None, it is picked randomly.
     randomize_position_on_reset : bool
@@ -53,8 +49,6 @@ class Point2DEnv(MultitaskEnv, Serializable):
         whether to use the image in the observation
     image_size : int
         number of elements in the image. Set to 0 if images are not being used.
-    max_target_distance : float
-        TODO
     action_space : gym.spaces.*
         the action space of the environment
     obs_range : gym.spaces.*
@@ -88,7 +82,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
                  walls=None,
                  fixed_goal=None,
                  randomize_position_on_reset=True,
-                 images_are_rgb=False,  # else black and white
+                 images_are_rgb=True,  # else black and white
                  show_goal=True,
                  images_in_obs=True,
                  **kwargs):
@@ -116,8 +110,9 @@ class Point2DEnv(MultitaskEnv, Serializable):
             the distance from the center to the boundary
         ball_radius : float
             the radius of the agent when being rendered
-        walls : TODO
-            TODO
+        walls : list of object
+            a list of wall objects describing the position of the walls and how
+            to handle collisions with said walls
         fixed_goal : [float, float] or None
             the goal to use. If set to None, it is picked randomly.
         randomize_position_on_reset : bool
@@ -158,8 +153,6 @@ class Point2DEnv(MultitaskEnv, Serializable):
         self.image_size = 1024 * (3 if self.images_are_rgb else 1)
         if not self.images_in_obs:
             self.image_size = 0
-
-        self.max_target_distance = self.boundary_dist - self.target_radius
 
         self._target_position = None
         self._position = np.zeros(2)
