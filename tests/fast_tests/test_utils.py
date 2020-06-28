@@ -701,7 +701,7 @@ class TestEnvUtil(unittest.TestCase):
         # =================================================================== #
         # test case 2                                                         #
         # =================================================================== #
-        # FIXME: add later
+        # TODO: add later
         # env = import_flow_env(
         #     "flow:multiagent_ring", False, True, False, False)
         #

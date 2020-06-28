@@ -119,7 +119,7 @@ def get_flow_params(fixed_density,
 
     if multiagent:
         if imitation:
-            env_name = None  # FIXME
+            env_name = None  # TODO
         else:
             env_name = AVClosedMultiAgentEnv
     else:

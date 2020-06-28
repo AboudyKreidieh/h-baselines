@@ -327,7 +327,7 @@ class HierReplayBuffer(object):
 
                 idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
 
-            # FIXME: only works for two level hierarchies.
+            # TODO: only works for two level hierarchies.
             if with_additional:
                 for j in range(len(candidate_obs)):
                     additional["worker_obses"][k, :, j] = \
