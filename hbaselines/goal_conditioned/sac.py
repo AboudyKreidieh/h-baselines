@@ -7,15 +7,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
-    """SAC-compatible goal-conditioned hierarchical policy.
-
-    TODO: description of off-policy corrections
-
-    TODO: description of connected gradients
-
-    Descriptions of the base goal-conditioned policy can be found in
-    hbaselines/goal_conditioned/base.py.
-    """
+    """SAC-compatible goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,

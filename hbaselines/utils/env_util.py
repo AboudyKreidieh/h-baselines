@@ -650,8 +650,7 @@ ENV_ATTRIBUTES = {
             np.ones(2) * 4,
             dtype=np.float32
         ),
-        # "state_indices": [3072, 3073],  # FIXME: for RGB
-        "state_indices": [1024, 1025],
+        "state_indices": [3072, 3073],
         "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
             images_in_obs=True
         ),

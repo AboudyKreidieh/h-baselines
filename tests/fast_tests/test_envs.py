@@ -721,28 +721,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_merge_v0(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v0")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
-
     # ======================================================================= #
     #                                merge-v1                                 #
     # ======================================================================= #
@@ -779,28 +757,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_merge_v1(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v1")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
-
     # ======================================================================= #
     #                                merge-v2                                 #
     # ======================================================================= #
@@ -836,28 +792,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # kill the environment
         env.wrapped_env.terminate()
-
-    def test_multi_agent_merge_v2(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v2")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                               highway-v0                                #

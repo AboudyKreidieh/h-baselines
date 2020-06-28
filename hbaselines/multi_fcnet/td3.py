@@ -824,7 +824,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         Parameters
         ----------
         all_obs_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the full-state observation
         combined_actors : tf.Variable
             the output from all actors, as a function of the agent's policy
             parameters
