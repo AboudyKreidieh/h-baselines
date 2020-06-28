@@ -358,20 +358,15 @@ class UR5(Environment):
     @property
     def observation_space(self):
         """Return the observation space."""
-        return gym.spaces.Box(
-            low=-1, high=1,  # TODO: bounds?
-            shape=(len(self.sim.data.qpos) + len(self.sim.data.qvel),),
-            dtype=np.float32,
-        )
+        return Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
 
     @property
     def action_space(self):
         """Return the action space."""
-        return gym.spaces.Box(
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
-            dtype=np.float32,
-        )
+            dtype=np.float32)
 
     def get_state(self):
         """See parent class."""
@@ -584,20 +579,16 @@ class Pendulum(Environment):
     def observation_space(self):
         """Return the observation space."""
         # State will include (i) joint angles and (ii) joint velocities
-        return gym.spaces.Box(
-            low=0, high=1,  # TODO: bounds?
-            shape=(2 * len(self.sim.data.qpos) + len(self.sim.data.qvel),),
-            dtype=np.float32,
-        )
+        bound = np.array([np.pi, 15])
+        return Box(low=-bound, high=bound, dtype=np.float32)
 
     @property
     def action_space(self):
         """Return the action space."""
-        return gym.spaces.Box(
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
-            dtype=np.float32,
-        )
+            dtype=np.float32)
 
     def get_state(self):
         """See parent class."""
