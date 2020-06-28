@@ -2191,53 +2191,53 @@ class TestPoint2D(unittest.TestCase):
         self.assertEqual(done, False)
 
     def test_position_inside_wall(self):
-        """Validate the functionality of the position_inside_wall method.
-
-        TODO
-        """
+        """Validate the functionality of the position_inside_wall method."""
         pass  # TODO
 
     def test_get_goal(self):
-        """Validate the functionality of the get_goal method.
+        """Validate the functionality of the get_goal method."""
+        np.random.seed(0)
 
-        TODO
-        """
-        pass  # TODO
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
+
+        # After first reset.
+        env.reset()
+        np.testing.assert_almost_equal(env.get_goal(), [0.390508, 1.7215149])
+
+        # After second reset.
+        env.reset()
+        np.testing.assert_almost_equal(env.get_goal(), [-0.6107616, 1.1671529])
 
     def test_get_image(self):
-        """Validate the functionality of the get_image method.
-
-        TODO
-        """
+        """Validate the functionality of the get_image method."""
         pass  # TODO
 
     def test_draw(self):
-        """Validate the functionality of the draw method.
-
-        TODO
-        """
+        """Validate the functionality of the draw method."""
         pass  # TODO
 
     def test_true_model(self):
-        """Validate the functionality of the true_model method.
+        """Validate the functionality of the true_model method."""
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
 
-        TODO
-        """
-        pass  # TODO
+        # Test the method.
+        s_t = np.array([0, 1, 2, 3])
+        a_t = np.array([0, -10, -1, 5])
+        np.testing.assert_almost_equal(env.true_model(s_t, a_t), [0, 0, 1, 4])
 
     def test_true_states(self):
-        """Validate the functionality of the true_states method.
+        """Validate the functionality of the true_states method."""
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
 
-        TODO
-        """
-        pass  # TODO
-
-    def test_plot_trajectory(self):
-        """Validate the functionality of the plot_trajectory method.
-
-        TODO
-        """
-        pass  # TODO
+        # Test the method.
+        s_t = np.array([0, 1, 2, 3])
+        a_t = [np.array([1, 1, 1, 1]), np.array([0, -10, -1, 5])]
+        np.testing.assert_almost_equal(
+            env.true_states(s_t, a_t),
+            [[0, 1, 2, 3], [1, 2, 3, 4], [1, 1, 2, 4]])
 
 
 ###############################################################################

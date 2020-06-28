@@ -289,14 +289,14 @@ class Point2DEnv(MultitaskEnv, Serializable):
         The rewards are described in the Rewards section of the description of
         the environment.
         """
-        achieved_goals = obs['ob'][:, self.image_size:]
+        achieved_goals = obs["ob"][:, self.image_size:]
         desired_goals = self._target_position[np.newaxis, :]
         d = np.linalg.norm(achieved_goals - desired_goals, axis=-1)
         if self.reward_type == "sparse":
             return -(d > self.target_radius).astype(np.float32)
         elif self.reward_type == "dense":
             return -d
-        elif self.reward_type == 'vectorized_dense':
+        elif self.reward_type == "vectorized_dense":
             return -np.abs(achieved_goals - desired_goals)
         else:
             raise NotImplementedError()
@@ -417,11 +417,10 @@ class Point2DEnv(MultitaskEnv, Serializable):
             self.render_drawer.check_for_exit()
 
     # ======================================================================= #
-    #                  Static visualization/utility methods                   #
+    #                      Visualization/utility methods                      #
     # ======================================================================= #
 
-    @staticmethod
-    def true_model(state, action):
+    def true_model(self, state, action):
         """Return the next position by the agent.
 
         Parameters
@@ -441,12 +440,11 @@ class Point2DEnv(MultitaskEnv, Serializable):
         new_position = position + velocities
         return np.clip(
             new_position,
-            a_min=-Point2DEnv.boundary_dist,
-            a_max=Point2DEnv.boundary_dist,
+            a_min=-self.boundary_dist,
+            a_max=self.boundary_dist,
         )
 
-    @staticmethod
-    def true_states(state, actions):
+    def true_states(self, state, actions):
         """Return the next states given a set of states and actions.
 
         Parameters
@@ -463,7 +461,7 @@ class Point2DEnv(MultitaskEnv, Serializable):
         """
         real_states = [state]
         for action in actions:
-            next_state = Point2DEnv.true_model(state, action)
+            next_state = self.true_model(state, action)
             real_states.append(next_state)
             state = next_state
         return real_states
