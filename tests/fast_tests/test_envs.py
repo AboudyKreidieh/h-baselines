@@ -24,11 +24,16 @@ from hbaselines.envs.mixed_autonomy.params.highway \
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
+from hbaselines.envs.mixed_autonomy.envs.av import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
     import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av \
     import OPEN_ENV_PARAMS as SA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi \
+    import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
@@ -1374,10 +1379,24 @@ class TestAV(unittest.TestCase):
             net_params=flow_params_closed["net"],
         )
         self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.warmup_steps = 0
         self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
-        pass  # TODO
+        flow_params_open = deepcopy(highway(
+            fixed_boundary=True,
+            stopping_penalty=True,
+            acceleration_penalty=True,
+        ))
+
+        self.network_open = flow_params_closed["network"](
+            name="test_open",
+            vehicles=flow_params_closed["veh"],
+            net_params=flow_params_closed["net"],
+        )
+        self.env_params_open = flow_params_open["env"]
+        self.env_params_open.warmup_steps = 0
+        self.env_params_open.additional_params = SA_OPEN_ENV_PARAMS.copy()
 
     def test_base_env(self):
         """Validate the functionality of the AVEnv class.
@@ -1525,7 +1544,24 @@ class TestAV(unittest.TestCase):
            resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVOpenEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "control_range": [500, 2500],
+                },
+            )
+        )
 
         # test case 2
         pass  # TODO
@@ -1545,7 +1581,7 @@ class TestAVMulti(unittest.TestCase):
 
         # for AVClosedEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
+            fixed_density=False,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1557,10 +1593,25 @@ class TestAVMulti(unittest.TestCase):
             net_params=flow_params_closed["net"],
         )
         self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.warmup_steps = 0
         self.env_params_closed.additional_params = MA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
-        pass  # TODO
+        flow_params_open = deepcopy(highway(
+            fixed_boundary=True,
+            stopping_penalty=True,
+            acceleration_penalty=True,
+            multiagent=True,
+        ))
+
+        self.network_open = flow_params_closed["network"](
+            name="test_open",
+            vehicles=flow_params_closed["veh"],
+            net_params=flow_params_closed["net"],
+        )
+        self.env_params_open = flow_params_open["env"]
+        self.env_params_open.warmup_steps = 0
+        self.env_params_open.additional_params = MA_OPEN_ENV_PARAMS.copy()
 
     def test_base_env(self):
         """Validate the functionality of the AVMultiAgentEnv class.
@@ -1658,10 +1709,44 @@ class TestAVMulti(unittest.TestCase):
         2, that the number of vehicles is properly modified in between resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVClosedMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "num_vehicles":  [50, 75],
+                    "even_distribution": False,
+                    "sort_vehicles": True,
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
 
         # test case 2
-        pass  # TODO
+        env = AVClosedMultiAgentEnv(
+            env_params=self.env_params_closed,
+            sim_params=self.sim_params,
+            network=self.network_closed
+        )
+
+        # reset the network several times and check its length
+        self.assertEqual(env.k.vehicle.num_vehicles, 50)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 54)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 58)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenMultiAgentEnv class.
@@ -1674,7 +1759,24 @@ class TestAVMulti(unittest.TestCase):
            resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVOpenMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "control_range": [500, 2500],
+                },
+            )
+        )
 
         # test case 2
         pass  # TODO
