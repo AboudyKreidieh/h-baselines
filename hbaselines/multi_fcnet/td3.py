@@ -1120,8 +1120,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             # Store the new samples in their replay buffer.
             for key in obs0.keys():
                 # Add the contextual observation, if applicable.
-                obs0_agent = self._get_obs(obs0[key], context0[key], axis=0)
-                obs1_agent = self._get_obs(obs1[key], context1[key], axis=0)
+                if context0 is None:
+                    obs0_agent = obs0[key]
+                    obs1_agent = obs1[key]
+                else:
+                    obs0_agent = self._get_obs(obs0[key], context0[key], 0)
+                    obs1_agent = self._get_obs(obs1[key], context1[key], 0)
 
                 self.replay_buffer[key].add(
                     obs_t=obs0_agent,
