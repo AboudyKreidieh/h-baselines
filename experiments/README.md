@@ -102,6 +102,10 @@ respective policies.
 * `--num_levels` (*int*): the number of levels within the hierarchy. Must be
   greater than 1. Defaults to 2.
 * `--meta_period` (*int*): the meta-policy action period. Defaults to 10.
+    parser.add_argument(
+* `--intrinsic_reward_type` (*str*): the reward function to be used by the 
+  lower-level policies. See the base goal-conditioned policy for a description.
+  Defaults to "negative_distance".
 * `--intrinsic_reward_scale` (*int*): the value that the intrinsic reward
   should be scaled by. Defaults to 1.
 * `--relative_goals` (*store_true*): whether the goal issued by the
@@ -150,6 +154,8 @@ Some optional arguments to be passed in are:
   checkpoint is used.
 * `--num_rollouts` (*int*): the number of eval episodes. Defaults to 1.
 * `--no_render` (*store_true*): shuts off rendering.
+* `--random_seed` (*store_true*): whether to run the simulation on a random 
+  seed. If not added, the original seed is used.
 
 ## 3. Training on Custom Environments
 
