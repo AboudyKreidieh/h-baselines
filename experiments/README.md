@@ -23,7 +23,7 @@ If you are attempting to recreate our results from the paper titled
 
 ## 1. Running Existing Models and Algorithms
 
-These are three existing models, using policies: the feed-forward policy, the 
+These are three existing models, using policies: the feed-forward policy, the
 goal-conditioned policy, and the multi-agent feed-forward policy.
 
 To run these models, use command:
@@ -31,10 +31,10 @@ To run these models, use command:
 python MODEL.py ENV_NAME
 ```
 with `run_fcnet.py` for feed-forward policy, `run_hrl.py` for goal-conditioned
-policy, `run_multi_fcnet.py` for multi-agent feed-forward policy in place of 
+policy, `run_multi_fcnet.py` for multi-agent feed-forward policy in place of
 `MODEL.py`.
 
-The following optional command-line arguments may be passed in to adjust the 
+The following optional command-line arguments may be passed in to adjust the
 choice of algorithm:
 
 * `--alg` (*str*): The algorithm to use. Must be one of [TD3, SAC]. Defaults to
@@ -59,7 +59,7 @@ choice of algorithm:
   run before training to initialize the replay buffer with samples. Defaults to
   10000.
 
-The following optional command-line arguments may be passed in to adjust 
+The following optional command-line arguments may be passed in to adjust
 variable hyperparameters of the algorithms:
 
 * `--nb_train_steps` (*int*): the number of training steps. Defaults to 1.
@@ -70,15 +70,15 @@ variable hyperparameters of the algorithms:
   Defaults to 1.
 * `--render`: enable rendering of the environment.
 * `--render_eval`: enable rendering of the evaluation environment.
-* `--verbose` (*int*): the verbosity level: 0 none, 1 training information, 2 
+* `--verbose` (*int*): the verbosity level: 0 none, 1 training information, 2
   tensorflow debug. Defaults to 2.
 * `--actor_update_freq` (*int*): the number of training steps per actor policy
   update step. The critic policy is updated every training step. Only used when 
   the algorithm is set to "TD3". Defaults to 2.
-* `--meta_update_freq` (*int*): the number of training steps per meta policy 
+* `--meta_update_freq` (*int*): the number of training steps per meta policy
   update step. Defaults to 10.
 
-Additionally, each model can take optional arguments specifically for 
+Additionally, each model can take optional arguments specifically for
 respective policies.
 
 ### Fcnet Model with Feed-forward Policy
@@ -99,36 +99,36 @@ respective policies.
 
 ### Hierarchical RL Model with Goal-conditioned Policy
 
-* `--num_levels` (*int*): the number of levels within the hierarchy. Must be 
+* `--num_levels` (*int*): the number of levels within the hierarchy. Must be
   greater than 1. Defaults to 2.
 * `--meta_period` (*int*): the meta-policy action period. Defaults to 10.
-* `--intrinsic_reward_scale` (*int*): the value that the intrinsic reward 
+* `--intrinsic_reward_scale` (*int*): the value that the intrinsic reward
   should be scaled by. Defaults to 1.
-* `--relative_goals` (*store_true*): whether the goal issued by the 
+* `--relative_goals` (*store_true*): whether the goal issued by the
   higher-level policies is meant to be a relative or absolute goal. 
-* `--off_policy_corrections` (*store_true*): whether to use off-policy 
+* `--off_policy_corrections` (*store_true*): whether to use off-policy
   corrections during the update procedure. See: 
   https://arxiv.org/abs/1805.08296.
-* `--hindsight` (*store_true*): whether to include hindsight action and goal 
+* `--hindsight` (*store_true*): whether to include hindsight action and goal
   transitions in the replay buffer. See: https://arxiv.org/abs/1712.00948
-* `--subgoal_testing_rate` (*float*): the rate at which the original 
-  (non-hindsight) sample is stored in the replay buffer as well. Used only if 
+* `--subgoal_testing_rate` (*float*): the rate at which the original
+  (non-hindsight) sample is stored in the replay buffer as well. Used only if
   `hindsight` is set to True. Defaults to 0.3.
-* `--cooperative_gradients` (*store_true*): whether to use the cooperative 
-  gradient update procedure for the higher-level policies. See: 
+* `--cooperative_gradients` (*store_true*): whether to use the cooperative
+  gradient update procedure for the higher-level policies. See:
   https://arxiv.org/abs/1912.02368v1
-* `--cg_weights` (*float*): weights for the gradients of the loss of the 
-  lower-level policies with respect to the parameters of the higher-level 
-  policies. Only used if `cooperative_gradients` is set to True. Defaults to 
+* `--cg_weights` (*float*): weights for the gradients of the loss of the
+  lower-level policies with respect to the parameters of the higher-level
+  policies. Only used if `cooperative_gradients` is set to True. Defaults to
   0.0005.
-* `--use_fingerprints` (*store_true*): whether to add a time-dependent 
+* `--use_fingerprints` (*store_true*): whether to add a time-dependent
   fingerprint to the observations. 
-* `--centralized_value_functions` (*store_true*): whether to use centralized 
+* `--centralized_value_functions` (*store_true*): whether to use centralized
   value functions. 
 
 ### Fcnet Model with Multi-agent Feed-forward Policy
 
-All optional arguments the same as in regular feed-forward policy, with two 
+All optional arguments the same as in regular feed-forward policy, with two
 extra optional arguments:
 
 * `--shared` (*store_true*): whether to use a shared policy for all agents

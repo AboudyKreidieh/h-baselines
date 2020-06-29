@@ -309,6 +309,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['policy'] = FeedForwardPolicy
         policy_params['eval_env'] = 'MountainCarContinuous-v0'
         policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
         policy_params['_init_setup_model'] = True
         alg = OffPolicyRLAlgorithm(**policy_params)
 
@@ -332,6 +333,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['eval_env'] = 'MountainCarContinuous-v0'
         policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
         policy_params['_init_setup_model'] = True
         alg = OffPolicyRLAlgorithm(**policy_params)
 
