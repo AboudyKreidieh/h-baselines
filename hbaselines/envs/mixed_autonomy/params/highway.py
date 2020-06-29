@@ -30,6 +30,9 @@ HORIZON = 1500
 PENETRATION_RATE = 1/12
 # whether to include noise in the environment
 INCLUDE_NOISE = True
+# range for the inflows allowed in the network. If set to None, the inflows are
+# not modified from their initial value.
+INFLOWS = [1000, 2000]
 
 
 def get_flow_params(fixed_boundary,
@@ -132,27 +135,26 @@ def get_flow_params(fixed_boundary,
     )
 
     # automated vehicles
-    if PENETRATION_RATE > 0.0:
-        vehicles.add(
-            "rl",
-            num_vehicles=0,
-            acceleration_controller=(RLController, {}),
-        )
+    vehicles.add(
+        "rl",
+        num_vehicles=0,
+        acceleration_controller=(RLController, {}),
+    )
 
-        inflows.add(
-            veh_type="rl",
-            edge="highway_0",
-            vehs_per_hour=int(TRAFFIC_FLOW * PENETRATION_RATE),
-            depart_lane="free",
-            depart_speed=TRAFFIC_SPEED,
-            name="rl_highway_inflow"
-        )
+    inflows.add(
+        veh_type="rl",
+        edge="highway_0",
+        vehs_per_hour=int(TRAFFIC_FLOW * PENETRATION_RATE),
+        depart_lane="free",
+        depart_speed=TRAFFIC_SPEED,
+        name="rl_highway_inflow"
+    )
 
     # SET UP THE FLOW PARAMETERS
 
     if multiagent:
         if imitation:
-            env_name = None  # TODO
+            env_name = None  # to be added later
         else:
             env_name = AVOpenMultiAgentEnv
     else:
@@ -186,7 +188,7 @@ def get_flow_params(fixed_boundary,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
-                "inflows": None if fixed_boundary else None,  # TODO
+                "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10,
                 "control_range": [500, 2300],
