@@ -1336,15 +1336,15 @@ class TestAV(unittest.TestCase):
 
         # for AVOpenEnv
         flow_params_open = deepcopy(highway(
-            fixed_boundary=True,
+            fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
         ))
 
-        self.network_open = flow_params_closed["network"](
+        self.network_open = flow_params_open["network"](
             name="test_open",
-            vehicles=flow_params_closed["veh"],
-            net_params=flow_params_closed["net"],
+            vehicles=flow_params_open["veh"],
+            net_params=flow_params_open["net"],
         )
         self.env_params_open = flow_params_open["env"]
         self.env_params_open.warmup_steps = 0
@@ -1424,7 +1424,7 @@ class TestAV(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the number of vehicles is properly modified in between resets
+        2. that the number of vehicles is properly modified in between resets
         """
         # test case 1
         self.assertTrue(
@@ -1456,7 +1456,7 @@ class TestAV(unittest.TestCase):
             network=self.network_closed
         )
 
-        # reset the network several times and check its length
+        # reset the network several times and check its number of vehicle
         self.assertEqual(env.k.vehicle.num_vehicles, 50)
         self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
         env.reset()
@@ -1473,7 +1473,7 @@ class TestAV(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the inflow rate of vehicles is properly modified in between
+        2. that the inflow rate of vehicles is properly modified in between
            resets
         """
         # test case 1
@@ -1496,8 +1496,37 @@ class TestAV(unittest.TestCase):
             )
         )
 
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
+
         # test case 2
-        pass
+        env = AVOpenEnv(
+            env_params=self.env_params_open,
+            sim_params=self.sim_params,
+            network=self.network_open
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 2030 if veh_type == "human" else 184
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
 
 class TestAVMulti(unittest.TestCase):
@@ -1531,16 +1560,16 @@ class TestAVMulti(unittest.TestCase):
 
         # for AVOpenEnv
         flow_params_open = deepcopy(highway(
-            fixed_boundary=True,
+            fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
         ))
 
-        self.network_open = flow_params_closed["network"](
+        self.network_open = flow_params_open["network"](
             name="test_open",
-            vehicles=flow_params_closed["veh"],
-            net_params=flow_params_closed["net"],
+            vehicles=flow_params_open["veh"],
+            net_params=flow_params_open["net"],
         )
         self.env_params_open = flow_params_open["env"]
         self.env_params_open.warmup_steps = 0
@@ -1620,7 +1649,7 @@ class TestAVMulti(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the number of vehicles is properly modified in between resets
+        2. that the number of vehicles is properly modified in between resets
         """
         # test case 1
         self.assertTrue(
@@ -1652,7 +1681,7 @@ class TestAVMulti(unittest.TestCase):
             network=self.network_closed
         )
 
-        # reset the network several times and check its length
+        # reset the network several times and check its number of vehicles
         self.assertEqual(env.k.vehicle.num_vehicles, 50)
         self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
         env.reset()
@@ -1669,7 +1698,7 @@ class TestAVMulti(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the inflow rate of vehicles is properly modified in between
+        2. that the inflow rate of vehicles is properly modified in between
            resets
         """
         # test case 1
@@ -1692,8 +1721,37 @@ class TestAVMulti(unittest.TestCase):
             )
         )
 
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
+
         # test case 2
-        pass
+        env = AVOpenMultiAgentEnv(
+            env_params=self.env_params_open,
+            sim_params=self.sim_params,
+            network=self.network_open
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 2030 if veh_type == "human" else 184
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
 
 class TestAVImitation(unittest.TestCase):
@@ -1887,7 +1945,7 @@ class TestAVImitation(unittest.TestCase):
             network=self.network_closed
         )
 
-        # reset the network several times and check its length
+        # reset the network several times and check its number of vehicles
         self.assertEqual(env.k.vehicle.num_vehicles, 50)
         self.assertEqual(env.num_rl, 5)
         env.reset()

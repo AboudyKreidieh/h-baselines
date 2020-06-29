@@ -25,6 +25,9 @@ INFLOW_SPEED = 25.5
 PENETRATION_RATE = 1/15
 # horizon over which to run the env
 HORIZON = 1500
+# range for the inflows allowed in the network. If set to None, the inflows are
+# not modified from their initial value.
+INFLOWS = [1000, 2000]
 
 
 def get_flow_params(fixed_boundary,
@@ -163,7 +166,7 @@ def get_flow_params(fixed_boundary,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
-                "inflows": None if fixed_boundary else None,
+                "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10 if multiagent else 50,
                 "control_range": [500, 2300],
