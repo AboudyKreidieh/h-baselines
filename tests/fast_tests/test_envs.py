@@ -1967,7 +1967,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [0.0713674, 0.0110304, 0.0893561, 0., 0.]
+            [0.0713793, 0.0034285, 0.087263, 0., 0.]
         )
 
 
