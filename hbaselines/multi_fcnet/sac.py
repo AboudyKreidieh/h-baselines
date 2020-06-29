@@ -351,9 +351,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                 )
 
             # Store the new objects in their respective attributes.
-            self.action_ph.append(action_ph)  # TODO: maybe not?
+            self.action_ph.append(action_ph)
             self.obs_ph.append(obs_ph)
-            self.obs1_ph.append(obs1_ph)  # TODO: maybe not?
+            self.obs1_ph.append(obs1_ph)
             if i == 0:
                 self.terminals1 = terminals1
                 self.rew_ph = rew_ph
@@ -1391,7 +1391,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         """See store_transition."""
         if self.shared:
             # Collect the observations and actions in order as listed by their
-            # agent IDs. FIXME: this could cause problems in the merge.
+            # agent IDs.
             list_obs0, list_obs1, list_action = [], [], []
             for key in sorted(list(obs0.keys())):
                 list_obs0.append(self._get_obs(
@@ -1413,7 +1413,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
         else:
             # Collect the actions in order as listed by their agent IDs.
-            # FIXME: this could cause problems in the merge.
             combines_actions = np.array(
                 [action[key] for key in sorted(list(action.keys()))])
 
@@ -1447,7 +1446,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Combine all actions under one variable. This is done by order of
             # agent IDs in alphabetical order.
-            # FIXME: this could cause problems in the merge.
             all_actions = np.concatenate(actions, axis=1)
 
             td_map = {

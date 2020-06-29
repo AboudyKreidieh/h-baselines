@@ -12,4 +12,4 @@ exclude_lines =
     pragma: no cover
     if __name__ == .__main__.:
     raise NotImplementedError
-    def create_env*
+    def plot_trajectory*

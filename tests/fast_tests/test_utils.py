@@ -2,6 +2,7 @@
 import unittest
 import tensorflow as tf
 import numpy as np
+import random
 from gym.spaces import Box
 
 from hbaselines.utils.train import parse_options
@@ -10,6 +11,9 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space
 from hbaselines.utils.env_util import get_state_indices
 from hbaselines.utils.env_util import import_flow_env
+from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import apply_squashing_func
+from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
@@ -659,7 +663,7 @@ class TestEnvUtil(unittest.TestCase):
         # test for Point2DImageEnv
         self.assertListEqual(
             get_state_indices(env_name="Point2DImageEnv", **params),
-            [1024, 1025]
+            [3072, 3073]
         )
 
     def test_import_flow_env(self):
@@ -697,26 +701,25 @@ class TestEnvUtil(unittest.TestCase):
         # =================================================================== #
         # test case 2                                                         #
         # =================================================================== #
-        # FIXME: add later
-        # env = import_flow_env(
-        #     "flow:multiagent_ring", False, True, False, False)
-        #
-        # # check the spaces
-        # test_space(
-        #     gym_space=env.action_space,
-        #     expected_min=np.array([-1.]),
-        #     expected_max=np.array([1.]),
-        #     expected_size=1,
-        # )
-        # test_space(
-        #     gym_space=env.observation_space,
-        #     expected_min=np.array([-5 for _ in range(3)]),
-        #     expected_max=np.array([5 for _ in range(3)]),
-        #     expected_size=3,
-        # )
-        #
-        # # delete the environment
-        # del env
+        env = import_flow_env(
+            "flow:multiagent_ring", False, True, False, False)
+
+        # check the spaces
+        test_space(
+            gym_space=env.action_space,
+            expected_min=np.array([-1.]),
+            expected_max=np.array([1.]),
+            expected_size=1,
+        )
+        test_space(
+            gym_space=env.observation_space,
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # delete the environment
+        del env
 
         # =================================================================== #
         # test case 3                                                         #
@@ -748,24 +751,102 @@ class TestTFUtil(unittest.TestCase):
         1. the number of outputs from the layer equals num_outputs
         2. the name is properly used
         3. the proper activation function applied if requested
-        4. weights match what the kernel_initializer requests (tested on a
-           constant initializer)
-        5. layer_norm is applied if requested
+        4. layer_norm is applied if requested
         """
-        # test case 1
-        pass  # TODO
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
 
-        # test case 2
-        pass  # TODO
+        # Choose a random number of outputs.
+        num_outputs = random.randint(1, 10)
 
-        # test case 3
-        pass  # TODO
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test1',
+            ),
+            num_outputs=num_outputs,
+            name="test1",
+        )
 
-        # test case 4
-        pass  # TODO
+        # Test the number of outputs.
+        self.assertEqual(out_val.shape[-1], num_outputs)
 
-        # test case 5
-        pass  # TODO
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test2',
+            ),
+            num_outputs=num_outputs,
+            name="test2",
+        )
+
+        # Test the name matches what is expected.
+        self.assertEqual(out_val.name, "test2/BiasAdd:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test3',
+            ),
+            act_fun=tf.nn.relu,
+            num_outputs=num_outputs,
+            name="test3",
+        )
+
+        # Test that the name matches the activation function that was added.
+        self.assertEqual(out_val.name, "Relu:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        _ = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test5',
+            ),
+            layer_norm=True,
+            num_outputs=num_outputs,
+            name="test5",
+        )
+
+        # Test that the LayerNorm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['LayerNorm/beta:0',
+             'LayerNorm/gamma:0',
+             'test5/bias:0',
+             'test5/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
 
     def test_gaussian_likelihood(self):
         """Check the functionality of the gaussian_likelihood() method."""
@@ -779,7 +860,24 @@ class TestTFUtil(unittest.TestCase):
 
     def test_apply_squashing(self):
         """Check the functionality of the apply_squashing() method."""
-        pass  # TODO
+        # Some inputs
+        mu_ = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+        pi_ = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+        logp_pi = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+
+        # Run the function.
+        det_policy, policy, logp_pi = apply_squashing_func(mu_, pi_, logp_pi)
+
+        # Initialize everything.
+        sess = tf.compat.v1.Session()
+        sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Test the output from the deterministic squashed output.
+        np.testing.assert_almost_equal(
+            sess.run(det_policy), [[0., 0.4621172, 0.7615942, 0.9640276]])
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

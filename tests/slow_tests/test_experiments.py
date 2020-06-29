@@ -9,6 +9,8 @@ from experiments.run_fcnet import main as run_fcnet
 from experiments.run_hrl import main as run_hrl
 from experiments.run_multi_fcnet import main as run_multi_fcnet
 
+os.environ["TEST_FLAG"] = "True"
+
 
 class TestExperimentRunnerScripts(unittest.TestCase):
     """Tests the runner scripts in the experiments folder."""

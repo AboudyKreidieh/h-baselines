@@ -255,7 +255,7 @@ class AntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float,) or list of [float]
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -315,7 +315,7 @@ class AntPush(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -377,7 +377,7 @@ class AntFall(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -414,7 +414,25 @@ class AntFall(UniversalAntMazeEnv):
 class AntFourRooms(UniversalAntMazeEnv):
     """Ant Four Rooms Environment.
 
-    Need to add description. TODO
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
     """
 
     def __init__(self,
@@ -431,7 +449,7 @@ class AntFourRooms(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
