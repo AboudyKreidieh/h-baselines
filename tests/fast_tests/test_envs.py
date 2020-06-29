@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 import random
+import os
 from copy import deepcopy
 
 from flow.core.params import EnvParams
@@ -41,6 +42,8 @@ from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 from hbaselines.envs.point2d import Point2DEnv
 from hbaselines.utils.env_util import create_env
+
+os.environ["TEST_FLAG"] = "True"
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -411,6 +414,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     4. the agent IDs match their expected values
     """
 
+    def setUp(self):
+        self.maxDiff = None
+
     # ======================================================================= #
     #                                 ring-v0                                 #
     # ======================================================================= #
@@ -441,7 +447,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.760423525122517
+            8.910458790391056
         )
 
         # kill the environment
@@ -476,11 +482,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 8.484502989441593,
-             'rl_0_1': 8.484502989441593,
-             'rl_0_2': 8.484502989441593,
-             'rl_0_3': 8.484502989441593,
-             'rl_0_4': 8.484502989441593}
+            {'rl_0_0': 8.716569383965638,
+             'rl_0_1': 8.716569383965638,
+             'rl_0_2': 8.716569383965638,
+             'rl_0_3': 8.716569383965638,
+             'rl_0_4': 8.716569383965638}
         )
 
         # test case 4
@@ -522,7 +528,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.760423525122517
+            8.910458790391056
         )
 
         # kill the environment
@@ -557,11 +563,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 8.484502989441593,
-             'rl_0_1': 8.484502989441593,
-             'rl_0_2': 8.484502989441593,
-             'rl_0_3': 8.484502989441593,
-             'rl_0_4': 8.484502989441593}
+            {'rl_0_0': 8.716569383965638,
+             'rl_0_1': 8.716569383965638,
+             'rl_0_2': 8.716569383965638,
+             'rl_0_3': 8.716569383965638,
+             'rl_0_4': 8.716569383965638}
         )
 
         # test case 4
@@ -603,7 +609,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.760423525122517
+            13.910458790391056
         )
 
         # kill the environment
@@ -638,11 +644,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 13.484502989441593,
-             'rl_0_1': 13.484502989441593,
-             'rl_0_2': 13.484502989441593,
-             'rl_0_3': 13.484502989441593,
-             'rl_0_4': 13.484502989441593}
+            {'rl_0_0': 13.716569383965638,
+             'rl_0_1': 13.716569383965638,
+             'rl_0_2': 13.716569383965638,
+             'rl_0_3': 13.716569383965638,
+             'rl_0_4': 13.716569383965638}
         )
 
         # test case 4
@@ -684,7 +690,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.760423525122517
+            13.910458790391056
         )
 
         # kill the environment
@@ -828,7 +834,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            -8.019758424524031
+            -2.5
         )
 
         # kill the environment
@@ -863,31 +869,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': -8.378975313435493,
-             'rl_highway_inflow_10.19': -8.378975313435493,
-             'rl_highway_inflow_10.20': -8.378975313435493,
-             'rl_highway_inflow_10.21': -8.378975313435493,
-             'rl_highway_inflow_10.22': -8.378975313435493,
-             'rl_highway_inflow_10.23': -8.378975313435493,
-             'rl_highway_inflow_10.24': -8.378975313435493,
-             'rl_highway_inflow_10.25': -8.378975313435493,
-             'rl_highway_inflow_10.26': -8.378975313435493,
-             'rl_highway_inflow_10.27': -8.378975313435493}
+            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -923,7 +911,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            1.9802415754759695
+            -2.5
         )
 
         # kill the environment
@@ -958,31 +946,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': 1.6210246865645077,
-             'rl_highway_inflow_10.19': 1.6210246865645077,
-             'rl_highway_inflow_10.20': 1.6210246865645077,
-             'rl_highway_inflow_10.21': 1.6210246865645077,
-             'rl_highway_inflow_10.22': 1.6210246865645077,
-             'rl_highway_inflow_10.23': 1.6210246865645077,
-             'rl_highway_inflow_10.24': 1.6210246865645077,
-             'rl_highway_inflow_10.25': 1.6210246865645077,
-             'rl_highway_inflow_10.26': 1.6210246865645077,
-             'rl_highway_inflow_10.27': 1.6210246865645077}
+            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -1018,7 +988,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            4.4802415754759695
+            0.0
         )
 
         # kill the environment
@@ -1053,31 +1023,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': 4.121024686564508,
-             'rl_highway_inflow_10.19': 4.121024686564508,
-             'rl_highway_inflow_10.20': 4.121024686564508,
-             'rl_highway_inflow_10.21': 4.121024686564508,
-             'rl_highway_inflow_10.22': 4.121024686564508,
-             'rl_highway_inflow_10.23': 4.121024686564508,
-             'rl_highway_inflow_10.24': 4.121024686564508,
-             'rl_highway_inflow_10.25': 4.121024686564508,
-             'rl_highway_inflow_10.26': 4.121024686564508,
-             'rl_highway_inflow_10.27': 4.121024686564508}
+            {'rl_highway_inflow_10.0': 0.0, 'rl_highway_inflow_10.1': 0.0}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -1113,7 +1065,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            4.4802415754759695
+            0.0
         )
 
         # kill the environment
@@ -1149,7 +1101,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-            -21.939782231314958
+            -12.5
         )
 
         # kill the environment
@@ -1184,11 +1136,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5] * 10) for key in env.agents},
                 fail=False,
             ),
-            {'lane_0': 4.986116706600313,
-             'lane_1': 5.065488111440597,
-             'lane_2': 4.646797630457543,
-             'lane_3': 5.0177871084707295,
-             'lane_4': 4.954239592286896}
+            {'lane_0': 0.0,
+             'lane_1': 0.0,
+             'lane_2': 0.0,
+             'lane_3': 0.0,
+             'lane_4': 0.0}
         )
 
         # test case 4
@@ -1350,9 +1302,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #         sorted(env.agents),
     #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
     #     )
-
-        # kill the environment
-        env.wrapped_env.terminate()
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
 
 
 class TestAV(unittest.TestCase):
@@ -1882,7 +1834,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [-0.0041661, -0.0080797, 0.0279598, 0.0662519, 0.1447145]
+            [-0.0359733, -0.0419105, -0.0042745, 0.0236156, -0.0198828]
         )
 
     def test_closed_env(self):
@@ -1955,7 +1907,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [-0.0021488, -0.0365337, -0.0196091, -0.0057063, 0.0409672]
+            [-0.0266911, -0.0908724, -0.0835323, -0.0679369, -0.0327296]
         )
 
     def test_open_env(self):
@@ -2015,7 +1967,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [0.0604367, 0.1412521, 0.1402381, 0.1775216, 0.0628473]
+            [0.0713674, 0.0110304, 0.0893561, 0., 0.]
         )
 
 

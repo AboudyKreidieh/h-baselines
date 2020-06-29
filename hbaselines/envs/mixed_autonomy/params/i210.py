@@ -25,8 +25,6 @@ INFLOW_SPEED = 25.5
 PENETRATION_RATE = 1/15
 # horizon over which to run the env
 HORIZON = 1500
-# steps to run before follower-stopper is allowed to take control
-WARMUP_STEPS = 500
 
 
 def get_flow_params(fixed_boundary,
@@ -75,6 +73,10 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
+    # steps to run before the agent is allowed to take control (set to lower
+    # value during testing)
+    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+
     # Create the base vehicle types that will be used for inflows.
     vehicles = VehicleParams()
     vehicles.add(
@@ -153,7 +155,7 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=WARMUP_STEPS,
+            warmup_steps=warmup_steps,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,

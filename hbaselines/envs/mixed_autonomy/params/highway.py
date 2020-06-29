@@ -1,4 +1,6 @@
 """Single lane highway example."""
+import os
+
 from flow.controllers import IDMController
 from flow.controllers import RLController
 from flow.core.params import EnvParams
@@ -76,6 +78,10 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
+    # steps to run before the agent is allowed to take control (set to lower
+    # value during testing)
+    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params.update({
         # length of the highway
@@ -172,7 +178,7 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=500,
+            warmup_steps=warmup_steps,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,

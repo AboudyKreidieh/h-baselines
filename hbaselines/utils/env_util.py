@@ -778,11 +778,12 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     elif isinstance(env, str):
         if env in ENV_ATTRIBUTES.keys() or env.startswith("multiagent"):
             # Handle multi-agent environments.
-            if env.startswith("multiagent"):
+            multiagent = env.startswith("multiagent")
+            if multiagent:
                 env = env[11:]
 
             env = ENV_ATTRIBUTES[env]["env"](
-                evaluate, render, False, shared, maddpg)
+                evaluate, render, multiagent, shared, maddpg)
 
         elif env.startswith("flow:"):
             # environments in flow/examples
