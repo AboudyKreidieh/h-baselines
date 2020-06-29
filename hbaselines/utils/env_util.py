@@ -21,7 +21,6 @@ except (ImportError, ModuleNotFoundError):
 
 try:
     import flow.config as config
-    from flow.utils.registry import make_create_env
     from hbaselines.envs.mixed_autonomy import FlowEnv
     from hbaselines.envs.mixed_autonomy.params.merge \
         import get_flow_params as merge
