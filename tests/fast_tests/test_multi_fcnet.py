@@ -461,43 +461,6 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
                       [3., 3., 3., 3., 3., 3., 3., 3., 3., 3.]])
         )
 
-    def test_get_td_map_1(self):
-        """Check the functionality of the get_td_map() method.
-
-        This test checks for the following cases:
-
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy
-
-    def test_get_td_map_2(self):
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy
-
-    def test_get_td_map_3(self):
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy
-
-    def test_get_td_map_4(self):
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy
-
 
 class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
     """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/td3.py."""
