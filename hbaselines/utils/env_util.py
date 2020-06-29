@@ -775,42 +775,29 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
     if env is None:
         # No environment (for evaluation environments).
         return None, None
+
     elif isinstance(env, str):
-        if env in ENV_ATTRIBUTES.keys():
+        if env in ENV_ATTRIBUTES.keys() or env.startswith("multiagent"):
+            # Handle multi-agent environments.
+            if env.startswith("multiagent"):
+                env = env[11:]
+
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, False, shared, maddpg)
+
         elif env.startswith("flow:"):
             # environments in flow/examples
             env = import_flow_env(env, render, shared, maddpg, evaluate)
-        elif env.startswith("multiagent"):
-            # multi-agent environments
-            env_name = env[11:]
-            env = ENV_ATTRIBUTES[env_name]["env"](
-                evaluate, render, True, shared, maddpg)
-        elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
-                     "grid1"]:
-            # Import the benchmark and fetch its flow_params
-            benchmark = __import__("flow.benchmarks.{}".format(env),
-                                   fromlist=["flow_params"])
-            flow_params = benchmark.flow_params
 
-            # Get the env name and a creator for the environment.
-            creator, _ = make_create_env(flow_params, render=render)
-
-            # Create the environment.
-            env = creator()
         else:
             # This is assuming the environment is registered with OpenAI gym.
             env = gym.make(env)
 
     # Reset the environment.
-    if env is not None:
-        if isinstance(env, list):
-            obs = [next_env.reset() for next_env in env]
-        else:
-            obs = env.reset()
+    if isinstance(env, list):
+        obs = [next_env.reset() for next_env in env]
     else:
-        obs = None
+        obs = env.reset()
 
     return env, obs
 
