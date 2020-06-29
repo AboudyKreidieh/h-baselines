@@ -9,15 +9,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
-    """TD3-compatible goal-conditioned hierarchical policy.
-
-    TODO: description of off-policy corrections
-
-    TODO: description of connected gradients
-
-    Descriptions of the base goal-conditioned policy can be found in
-    hbaselines/goal_conditioned/base.py.
-    """
+    """TD3-compatible goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,
@@ -182,7 +174,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
-    # FIXME
+    # TODO: add support for multi-level hierarchies
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 

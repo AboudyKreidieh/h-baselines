@@ -170,10 +170,6 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
                 target_val = policy.sess.run(target)
             np.testing.assert_almost_equal(model_val, target_val)
 
-    def test_store_transition(self):
-        """Test the `store_transition` method."""
-        pass  # TODO
-
 
 class TestSACFeedForwardPolicy(unittest.TestCase):
     """Test FeedForwardPolicy in hbaselines/fcnet/sac.py."""
@@ -325,10 +321,6 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
                 target_val = policy.sess.run(target)
             np.testing.assert_almost_equal(model_val, target_val)
 
-    def test_store_transition(self):
-        """Check the functionality of the store_transition() method."""
-        pass  # TODO
-
 
 class TestImitationFeedForwardPolicy(unittest.TestCase):
     """Test FeedForwardPolicy in hbaselines/fcnet/imitation.py."""
@@ -363,7 +355,7 @@ class TestImitationFeedForwardPolicy(unittest.TestCase):
         # test case 1
         policy_params = self.policy_params.copy()
         policy_params["stochastic"] = True
-        policy = ImitationFeedForwardPolicy(**policy_params)
+        _ = ImitationFeedForwardPolicy(**policy_params)
 
         # test the graph
         self.assertListEqual(
@@ -378,16 +370,13 @@ class TestImitationFeedForwardPolicy(unittest.TestCase):
              'model/pi/mean/kernel:0']
         )
 
-        # test the loss function
-        del policy  # TODO
-
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
         # test case 2
         policy_params = self.policy_params.copy()
         policy_params["stochastic"] = False
-        policy = ImitationFeedForwardPolicy(**policy_params)
+        _ = ImitationFeedForwardPolicy(**policy_params)
 
         # test the graph
         self.assertListEqual(
@@ -399,13 +388,6 @@ class TestImitationFeedForwardPolicy(unittest.TestCase):
              'model/pi/output/bias:0',
              'model/pi/output/kernel:0']
         )
-
-        # test the loss function
-        del policy  # TODO
-
-    def test_store_transition(self):
-        """Check the functionality of the store_transition() method."""
-        pass  # TODO
 
 
 if __name__ == '__main__':

@@ -359,7 +359,8 @@ class UR5(Environment):
     def observation_space(self):
         """Return the observation space."""
         return gym.spaces.Box(
-            low=-1, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )
@@ -367,7 +368,7 @@ class UR5(Environment):
     @property
     def action_space(self):
         """Return the action space."""
-        return gym.spaces.Box(
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
             dtype=np.float32,
@@ -585,7 +586,8 @@ class Pendulum(Environment):
         """Return the observation space."""
         # State will include (i) joint angles and (ii) joint velocities
         return gym.spaces.Box(
-            low=0, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(2 * len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )
@@ -593,7 +595,7 @@ class Pendulum(Environment):
     @property
     def action_space(self):
         """Return the action space."""
-        return gym.spaces.Box(
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
             dtype=np.float32,

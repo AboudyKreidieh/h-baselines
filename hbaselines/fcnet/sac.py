@@ -594,7 +594,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
             step_ops, feed_dict)
 
-        return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
+        return [q1_loss, q2_loss], actor_loss
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""

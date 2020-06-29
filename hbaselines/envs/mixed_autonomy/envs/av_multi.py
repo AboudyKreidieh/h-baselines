@@ -463,6 +463,15 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
                 lane_change_params=params["rl_0"]["lane_change_params"],
                 num_vehicles=n_rl)
 
+        # Update the network.
+        self.network = self._network_cls(
+            self._network_name,
+            net_params=self._network_net_params,
+            vehicles=new_vehicles,
+            initial_config=self._network_initial_config,
+            traffic_lights=self._network_traffic_lights,
+        )
+
         # Perform the reset operation.
         _ = super(AVClosedMultiAgentEnv, self).reset()
 

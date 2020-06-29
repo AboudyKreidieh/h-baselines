@@ -119,7 +119,7 @@ def get_flow_params(fixed_density,
 
     if multiagent:
         if imitation:
-            env_name = None  # FIXME
+            env_name = None  # TODO
         else:
             env_name = AVClosedMultiAgentEnv
     else:
@@ -157,7 +157,7 @@ def get_flow_params(fixed_density,
             additional_params={
                 "max_accel": 1,
                 "max_decel": 1,
-                "target_velocity": 30,  # FIXME
+                "target_velocity": 30,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "num_vehicles": None if fixed_density else NUM_VEHICLES,

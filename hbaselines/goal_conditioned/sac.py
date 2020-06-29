@@ -7,15 +7,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
-    """SAC-compatible goal-conditioned hierarchical policy.
-
-    TODO: description of off-policy corrections
-
-    TODO: description of connected gradients
-
-    Descriptions of the base goal-conditioned policy can be found in
-    hbaselines/goal_conditioned/base.py.
-    """
+    """SAC-compatible goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,
@@ -170,7 +162,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
-    # FIXME
+    # TODO
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 
