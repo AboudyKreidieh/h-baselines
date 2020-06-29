@@ -1406,15 +1406,9 @@ class TestAV(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the observation space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         3. that the action space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         4. that the observed vehicle IDs after a reset matches its expected
            values
-           a. for the single lane case
-           b. for the multi-lane case
         """
         # test case 1
         self.assertTrue(
@@ -1443,11 +1437,7 @@ class TestAV(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=5 * env_single.initial_vehicles.num_rl_vehicles,
@@ -1455,10 +1445,7 @@ class TestAV(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=env_single.initial_vehicles.num_rl_vehicles,
@@ -1466,10 +1453,7 @@ class TestAV(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVEnv,
@@ -1480,9 +1464,6 @@ class TestAV(unittest.TestCase):
                                    'human_0_0', 'human_0_44', 'rl_0_0']
             )
         )
-
-        # test case 4.b
-        pass  # TODO
 
     def test_closed_env(self):
         """Validate the functionality of the AVClosedEnv class.
@@ -1621,15 +1602,9 @@ class TestAVMulti(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the observation space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         3. that the action space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         4. that the observed vehicle IDs after a reset matches its expected
            values
-           a. for the single lane case
-           b. for the multi-lane case
         """
         # test case 1
         self.assertTrue(
@@ -1658,11 +1633,7 @@ class TestAVMulti(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=env_single.initial_vehicles.num_rl_vehicles,
@@ -1670,10 +1641,7 @@ class TestAVMulti(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=1,
@@ -1681,10 +1649,7 @@ class TestAVMulti(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVMultiAgentEnv,
@@ -1695,9 +1660,6 @@ class TestAVMulti(unittest.TestCase):
                                    'human_0_0', 'human_0_44', 'rl_0_0']
             )
         )
-
-        # test case 4.b
-        pass  # TODO
 
     def test_closed_env(self):
         """Validate the functionality of the AVClosedMultiAgentEnv class.
@@ -1882,11 +1844,7 @@ class TestAVImitation(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=25,
@@ -1894,10 +1852,7 @@ class TestAVImitation(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=5,
@@ -1905,10 +1860,7 @@ class TestAVImitation(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVImitationEnv,
@@ -1919,9 +1871,6 @@ class TestAVImitation(unittest.TestCase):
                                    'human_0_0', 'human_0_44', 'rl_0_0']
             )
         )
-
-        # test case 4.b
-        pass  # TODO
 
         # test case 5
         env = AVImitationEnv(
@@ -2211,10 +2160,6 @@ class TestPoint2D(unittest.TestCase):
 
     def test_get_image(self):
         """Validate the functionality of the get_image method."""
-        pass  # TODO
-
-    def test_draw(self):
-        """Validate the functionality of the draw method."""
         pass  # TODO
 
     def test_true_model(self):
