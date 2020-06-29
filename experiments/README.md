@@ -159,7 +159,80 @@ Some optional arguments to be passed in are:
 
 ## 3. Training on Custom Environments
 
-TODO
+In addition to typical environments registered within `gym` or provided by the
+Flow examples folder, any gym-compatible environment can be made to run via 
+the above commands. In order to include support for custom environments, you 
+will need to add said environment to the `ENV_ATTRIBUTES` dictionary object 
+located in 
+[hbaselines/utils/env_util.py](https://github.com/AboudyKreidieh/h-baselines/blob/master/hbaselines/utils/env_util.py).
+Via this dict, new environments can be specified as individual elements whose
+keys represents the name of the environment when being run. For example, if you
+would like to incorporate a new environment called "myEnv", the environment 
+would be included to this dict as follows:
+
+```python
+ENV_ATTRIBUTES = {
+    # do not delete existing environments
+    # ...
+
+    # create a new environment named "myEnv"
+    "myEnv": {
+        "meta_ac_space": None,
+        "state_indices": None,
+        "env": None,
+    },
+}
+```
+
+The components of any key within the dictionary are used to specify the method
+for instantiating and returning the environment, as well as the indices within
+the observation that are assigned goals by meta-policies and the bounds of 
+these goals. This is broken down into three subcategories, defined as follows:
+
+* **meta_ac_space:** a lambda function that takes an input whether the higher 
+  level policies are assigning relative goals and returns the action space of 
+  the higher level policies
+* **state_indices:** a list that assigns the indices that correspond to goals 
+  in the Worker's state space
+* **env:** a lambda term that takes an input (evaluate, render, multiagent, 
+  shared, maddpg) and return an environment or list of environments
+
+For example, taking the AntGather environment located within the original 
+dictionary as an example, and described within the main directory's README, the
+inclusion of said environment via the "myEnv" key can be performed as follows:
+
+```python
+import numpy as np
+from gym.spaces import Box
+from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+
+ENV_ATTRIBUTES = {
+    # do not delete existing environments
+    # ...
+
+    # create a new environment named "myEnv"
+    "myEnv": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(15)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        AntGatherEnv(),
+    },
+}
+```
+
+Finally, the environment can now be run by any of the commands provided within
+this file. For example, if you would like to train "myEnv" with a fcnet TD3 
+policy, run the following command:
+
+```shell script
+python run_fcnet.py "myEnv"
+```
 
 ## 4. Performance of the CHER Algorithm
 
