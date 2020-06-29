@@ -4,7 +4,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Create a directory to store the pre-trained models in.
-mkdir "$DIR/../pretrained" && cd "$DIR/../pretrained"
+mkdir "$DIR/../pretrained" && pushd "$DIR/../pretrained"
 
 # TD3
 mkdir TD3 && pushd TD3
@@ -39,4 +39,7 @@ mkdir CHER && pushd CHER
 wget https://cher-results.s3.us-east-2.amazonaws.com/CHER/AntGather.zip && unzip AntGather.zip && rm AntGather.zip
 wget https://cher-results.s3.us-east-2.amazonaws.com/CHER/AntMaze.zip && unzip AntMaze.zip && rm AntMaze.zip
 wget https://cher-results.s3.us-east-2.amazonaws.com/CHER/highway-v1.zip && unzip highway-v1.zip && rm highway-v1.zip
+popd
+
+# Exit the pre-trained directory.
 popd
