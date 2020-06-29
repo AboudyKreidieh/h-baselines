@@ -174,7 +174,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
-    # TODO: add support for multi-level hierarchies
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 

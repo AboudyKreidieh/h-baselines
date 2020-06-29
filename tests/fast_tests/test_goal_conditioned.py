@@ -629,7 +629,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
     def test_sample_best_meta_action(self):
         """Check the functionality of the _sample_best_meta_action() method."""
-        pass  # TODO
+        pass
 
     def test_sample(self):
         """Check the functionality of the _sample() method.
@@ -1046,7 +1046,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
 
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""
-        pass  # TODO
+        pass
 
     def test_connected_gradients(self):
         """Check the functionality of the connected-gradients feature."""
@@ -1348,7 +1348,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
 
     def test_log_probs(self):
         """Check the functionality of the log_probs() method."""
-        pass  # TODO
+        pass
 
     def test_connected_gradients(self):
         """Check the functionality of the connected-gradients feature."""
