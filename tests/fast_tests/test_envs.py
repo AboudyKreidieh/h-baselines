@@ -2091,10 +2091,6 @@ class TestPoint2D(unittest.TestCase):
         self.assertAlmostEqual(reward, -3.850633885880888)
         self.assertEqual(done, False)
 
-    def test_position_inside_wall(self):
-        """Validate the functionality of the position_inside_wall method."""
-        pass  # TODO
-
     def test_get_goal(self):
         """Validate the functionality of the get_goal method."""
         np.random.seed(0)
@@ -2109,10 +2105,6 @@ class TestPoint2D(unittest.TestCase):
         # After second reset.
         env.reset()
         np.testing.assert_almost_equal(env.get_goal(), [-0.6107616, 1.1671529])
-
-    def test_get_image(self):
-        """Validate the functionality of the get_image method."""
-        pass  # TODO
 
     def test_true_model(self):
         """Validate the functionality of the true_model method."""

@@ -121,7 +121,7 @@ def get_flow_params(fixed_boundary,
     # Choose the appropriate environment.
     if multiagent:
         if imitation:
-            env_name = None  # TODO
+            env_name = None  # to be added later
         else:
             env_name = LaneOpenMultiAgentEnv
     else:

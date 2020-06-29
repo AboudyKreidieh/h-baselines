@@ -152,7 +152,7 @@ def get_flow_params(fixed_boundary,
 
     if multiagent:
         if imitation:
-            env_name = None  # TODO
+            env_name = None  # to be added later
         else:
             env_name = AVOpenMultiAgentEnv
     else:
