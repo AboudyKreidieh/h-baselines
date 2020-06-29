@@ -645,7 +645,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
-            pass  # TODO
+            pass
 
         self.leader = []
         self.follower = []
@@ -903,7 +903,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
-            pass  # TODO
+            pass
 
         self.leader = []
         self.follower = []

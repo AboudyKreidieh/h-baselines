@@ -627,7 +627,7 @@ class AVOpenEnv(AVEnv):
     def reset(self):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
-            pass  # TODO
+            pass
 
         self.leader = []
         self.follower = []

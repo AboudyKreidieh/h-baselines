@@ -1497,7 +1497,7 @@ class TestAV(unittest.TestCase):
         )
 
         # test case 2
-        pass  # TODO
+        pass
 
 
 class TestAVMulti(unittest.TestCase):
@@ -1693,7 +1693,7 @@ class TestAVMulti(unittest.TestCase):
         )
 
         # test case 2
-        pass  # TODO
+        pass
 
 
 class TestAVImitation(unittest.TestCase):
@@ -1955,7 +1955,7 @@ class TestAVImitation(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        pass  # TODO
+        pass
 
         # test case 3
         env = AVOpenImitationEnv(
