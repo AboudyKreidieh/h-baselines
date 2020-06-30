@@ -436,14 +436,16 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        env : TODO
-            TODO
+        env : str
+            the name of the environment
         render : bool
-            TODO
+            whether to render the environment
         shared : bool
-            TODO
+            specifies whether agents in an environment are meant to share
+            policies. This is solely used by multi-agent Flow environments.
         maddpg : bool
-            TODO
+            whether to use an environment variant that is compatible with the
+            MADDPG algorithm
 
         Returns
         -------
@@ -494,13 +496,14 @@ class OffPolicyRLAlgorithm(object):
         Returns
         -------
         gym.spaces.*
-            TODO
+            the action space of the training environment
         gym.spaces.*
-            TODO
+            the observation space of the training environment
         gym.spaces.* or None
-            TODO
+            the context space of the training environment (i.e. the same of the
+            desired environmental goal)
         gym.spaces.* or None
-            TODO
+            the full-state observation space of the training environment
         """
         sampler = self.sampler[0]
 
