@@ -23,6 +23,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "--total_steps", "500",
             "--log_interval", "500",
             "--num_envs", "2",  # to test RaySampler
+            "--nb_rollout_steps", "2",
         ])
         run_fcnet(args, 'data/fcnet')
 
