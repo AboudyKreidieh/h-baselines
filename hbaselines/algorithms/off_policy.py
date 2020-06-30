@@ -474,14 +474,16 @@ class OffPolicyRLAlgorithm(object):
             ]
             ob = ray.get([s.get_init_obs.remote() for s in sampler])
         else:
-            sampler = [Sampler(
-                env_name=env,
-                render=render,
-                shared=shared,
-                maddpg=maddpg,
-                env_num=0,
-                evaluate=False,
-            )]
+            sampler = [
+                Sampler(
+                    env_name=env,
+                    render=render,
+                    shared=shared,
+                    maddpg=maddpg,
+                    env_num=0,
+                    evaluate=False,
+                )
+            ]
             ob = [s.get_init_obs() for s in sampler]
 
         # Separate the observation and full-state observation.
