@@ -27,8 +27,6 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
-from hbaselines.utils.sampler import Sampler
-from hbaselines.utils.sampler import RaySampler
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -461,6 +459,7 @@ class OffPolicyRLAlgorithm(object):
             environment
         """
         if self.num_envs > 1:
+            from hbaselines.utils.sampler import RaySampler
             sampler = [
                 RaySampler.remote(
                     env_name=env,
@@ -474,6 +473,7 @@ class OffPolicyRLAlgorithm(object):
             ]
             ob = ray.get([s.get_init_obs.remote() for s in sampler])
         else:
+            from hbaselines.utils.sampler import Sampler
             sampler = [
                 Sampler(
                     env_name=env,
