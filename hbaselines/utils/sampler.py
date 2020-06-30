@@ -7,7 +7,6 @@ from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.utils.env_util import create_env
 
 
-@ray.remote
 class Sampler(object):
     """Environment sampler object.
 
@@ -172,3 +171,13 @@ class Sampler(object):
             "env_num": self._env_num,
             "all_obs": all_obs if not done else (all_obs, reset_all_obs),
         }
+
+
+@ray.remote
+class RaySampler(Sampler):
+    """Ray-compatible variant of the environment sampler object.
+
+    Used to collect samples in parallel.
+    """
+
+    pass

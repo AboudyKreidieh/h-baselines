@@ -27,7 +27,6 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
-from hbaselines.utils.sampler import Sampler
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
@@ -342,7 +341,8 @@ class OffPolicyRLAlgorithm(object):
             "num_envs must be less than or equal to nb_rollout_steps"
 
         # Instantiate the ray instance.
-        ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
+        if num_envs > 1:
+            ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
 
         self.policy = policy
         self.env_name = deepcopy(env) if isinstance(env, str) \
@@ -363,25 +363,12 @@ class OffPolicyRLAlgorithm(object):
         self.policy_kwargs = {'verbose': verbose}
 
         # Create the environment and collect the initial observations.
-        self.sampler = [
-            Sampler.remote(
-                env_name=env,
-                render=render,
-                shared=shared,
-                maddpg=maddpg,
-                env_num=env_num,
-                evaluate=False,
-            )
-            for env_num in range(num_envs)
-        ]
-        obs = ray.get([s.get_init_obs.remote() for s in self.sampler])
-        self.obs = [get_obs(o)[0] for o in obs]
-        self.all_obs = [get_obs(o)[1] for o in obs]
+        self.sampler, self.obs, self.all_obs = self.setup_sampler(
+            env, render, shared, maddpg)
 
         # Collect the spaces of the environments.
-        self.ac_space = ray.get(self.sampler[0].action_space.remote())
-        self.ob_space = ray.get(self.sampler[0].observation_space.remote())
-        self.co_space = ray.get(self.sampler[0].context_space.remote())
+        self.ac_space, self.ob_space, self.co_space, all_ob_space = \
+            self.get_spaces()
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -392,8 +379,7 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs['num_envs'] = num_envs
         elif is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
-            self.policy_kwargs["all_ob_space"] = ray.get(
-                self.sampler[0].all_observation_space.remote())
+            self.policy_kwargs["all_ob_space"] = all_ob_space
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -404,7 +390,10 @@ class OffPolicyRLAlgorithm(object):
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
-        self.horizon = ray.get(self.sampler[0].horizon.remote())
+        if self.num_envs > 1:
+            self.horizon = ray.get(self.sampler[0].horizon.remote())
+        else:
+            self.horizon = self.sampler[0].horizon()
 
         # init
         self.graph = None
@@ -439,6 +428,99 @@ class OffPolicyRLAlgorithm(object):
         # Create the model variables and operations.
         if _init_setup_model:
             self.trainable_vars = self.setup_model()
+
+    def setup_sampler(self, env, render, shared, maddpg):
+        """Create the environment and collect the initial observations.
+
+        Parameters
+        ----------
+        env : str
+            the name of the environment
+        render : bool
+            whether to render the environment
+        shared : bool
+            specifies whether agents in an environment are meant to share
+            policies. This is solely used by multi-agent Flow environments.
+        maddpg : bool
+            whether to use an environment variant that is compatible with the
+            MADDPG algorithm
+
+        Returns
+        -------
+        list of Sampler or list of RaySampler
+            the sampler objects
+        list of array_like or list of dict < str, array_like >
+            the initila observation. If the environment is multi-agent, this
+            will be a dictionary of observations for each agent, indexed by the
+            agent ID. One element for each environment.
+        list of array_like or list of None
+            additional information, used by MADDPG variants of the multi-agent
+            policy to pass full-state information. One element for each
+            environment
+        """
+        if self.num_envs > 1:
+            from hbaselines.utils.sampler import RaySampler
+            sampler = [
+                RaySampler.remote(
+                    env_name=env,
+                    render=render,
+                    shared=shared,
+                    maddpg=maddpg,
+                    env_num=env_num,
+                    evaluate=False,
+                )
+                for env_num in range(self.num_envs)
+            ]
+            ob = ray.get([s.get_init_obs.remote() for s in sampler])
+        else:
+            from hbaselines.utils.sampler import Sampler
+            sampler = [
+                Sampler(
+                    env_name=env,
+                    render=render,
+                    shared=shared,
+                    maddpg=maddpg,
+                    env_num=0,
+                    evaluate=False,
+                )
+            ]
+            ob = [s.get_init_obs() for s in sampler]
+
+        # Separate the observation and full-state observation.
+        obs = [get_obs(o)[0] for o in ob]
+        all_obs = [get_obs(o)[1] for o in ob]
+
+        return sampler, obs, all_obs
+
+    def get_spaces(self):
+        """Collect the spaces of the environments.
+
+        Returns
+        -------
+        gym.spaces.*
+            the action space of the training environment
+        gym.spaces.*
+            the observation space of the training environment
+        gym.spaces.* or None
+            the context space of the training environment (i.e. the same of the
+            desired environmental goal)
+        gym.spaces.* or None
+            the full-state observation space of the training environment
+        """
+        sampler = self.sampler[0]
+
+        if self.num_envs > 1:
+            ac_space = ray.get(sampler.action_space.remote())
+            ob_space = ray.get(sampler.observation_space.remote())
+            co_space = ray.get(sampler.context_space.remote())
+            all_ob_space = ray.get(sampler.all_observation_space.remote())
+        else:
+            ac_space = sampler.action_space()
+            ob_space = sampler.observation_space()
+            co_space = sampler.context_space()
+            all_ob_space = sampler.all_observation_space()
+
+        return ac_space, ob_space, co_space, all_ob_space
 
     def setup_model(self):
         """Create the graph, session, policy, and summary objects."""
@@ -792,28 +874,47 @@ class OffPolicyRLAlgorithm(object):
             n_steps = self.num_envs if itr < n_itr - 1 \
                 else run_steps - (n_itr - 1) * self.num_envs
 
+            # Collect the most recent contextual term from every environment.
+            if self.num_envs > 1:
+                context = [ray.get(self.sampler[env_num].get_context.remote())
+                           for env_num in range(self.num_envs)]
+            else:
+                context = [self.sampler[0].get_context()]
+
             # Predict next action. Use random actions when initializing the
             # replay buffer.
             action = [self._policy(
                 obs=self.obs[env_num],
-                context=ray.get(self.sampler[env_num].get_context.remote()),
+                context=context[env_num],
                 apply_noise=True,
                 random_actions=random_actions,
                 env_num=env_num,
             ) for env_num in range(n_steps)]
 
             # Update the environment.
-            ret = ray.get([
-                self.sampler[env_num].collect_sample.remote(
-                    action=action[env_num],
-                    multiagent=is_multiagent_policy(self.policy),
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False)
-                )
-                for env_num in range(n_steps)
-            ])
+            if self.num_envs > 1:
+                ret = ray.get([
+                    self.sampler[env_num].collect_sample.remote(
+                        action=action[env_num],
+                        multiagent=is_multiagent_policy(self.policy),
+                        steps=self.total_steps,
+                        total_steps=total_steps,
+                        use_fingerprints=self.policy_kwargs.get(
+                            "use_fingerprints", False)
+                    )
+                    for env_num in range(n_steps)
+                ])
+            else:
+                ret = [
+                    self.sampler[0].collect_sample(
+                        action=action[0],
+                        multiagent=is_multiagent_policy(self.policy),
+                        steps=self.total_steps,
+                        total_steps=total_steps,
+                        use_fingerprints=self.policy_kwargs.get(
+                            "use_fingerprints", False)
+                    )
+                ]
 
             for ret_i in ret:
                 num = ret_i["env_num"]
