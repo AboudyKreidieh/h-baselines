@@ -5,7 +5,7 @@ from hbaselines.base_policies import ActorCriticPolicy
 
 
 class MultiActorCriticPolicy(ActorCriticPolicy):
-    """Multi-agent fully connected neural network policy.
+    """Multi-agent fully base actor critic policy.
 
     This policy supports training off-policy variants of three popular
     multi-agent algorithms:
