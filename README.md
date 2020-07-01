@@ -385,10 +385,10 @@ policies are import via the following commands:
 
 ```python
 # for TD3
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 
 # for SAC
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy
 ```
 
 These policy supports training off-policy variants of three popular multi-agent
@@ -406,7 +406,7 @@ algorithms:
 
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -427,7 +427,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -446,7 +446,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,

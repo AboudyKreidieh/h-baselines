@@ -7,9 +7,9 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditioned
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForward
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
 
 

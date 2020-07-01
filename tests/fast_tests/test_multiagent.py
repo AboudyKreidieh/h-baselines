@@ -5,16 +5,16 @@ import tensorflow as tf
 from gym.spaces import Box
 
 from hbaselines.utils.tf_util import get_trainable_vars
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
 from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
 from hbaselines.algorithms.off_policy import MULTI_FEEDFORWARD_PARAMS
 
 
-class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
-    """Test MultiFeedForwardPolicy in hbaselines/multi_fcnet/base.py."""
+class TestMultiActorCriticPolicy(unittest.TestCase):
+    """Test MultiActorCriticPolicy in hbaselines/multi_fcnet/base.py."""
 
     def setUp(self):
         self.sess = tf.compat.v1.Session()

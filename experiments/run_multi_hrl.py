@@ -89,9 +89,9 @@ def main(args, base_dir):
 
         # Get the policy class.
         if args.alg == "TD3":
-            from hbaselines.multi_fcnet.h_td3 import MultiGoalConditionedPolicy
+            from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy
         elif args.alg == "SAC":
-            from hbaselines.multi_fcnet.h_sac import MultiGoalConditionedPolicy
+            from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 

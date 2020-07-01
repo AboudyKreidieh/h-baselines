@@ -1,10 +1,10 @@
-"""SAC-compatible multi-agent goal-conditioned hierarchical policy."""
-from hbaselines.multi_fcnet.base import MultiActorCriticPolicy as BasePolicy
-from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
+"""TD3-compatible multi-agent goal-conditioned hierarchical policy."""
+from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 
 class MultiGoalConditionedPolicy(BasePolicy):
-    """SAC-compatible multi-agent goal-conditioned hierarchical policy."""
+    """TD3-compatible multi-agent goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,
@@ -22,7 +22,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  layers,
                  act_fun,
                  use_huber,
-                 target_entropy,
+                 noise,
+                 target_policy_noise,
+                 target_noise_clip,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -82,9 +84,15 @@ class MultiGoalConditionedPolicy(BasePolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
-        target_entropy : float
-            target entropy used when learning the entropy coefficient. If set
-            to None, a heuristic value is used.
+        noise : float
+            scaling term to the range of the action space, that is subsequently
+            used as the standard deviation of Gaussian noise added to the
+            action if `apply_noise` is set to True in `get_action`
+        target_policy_noise : float
+            standard deviation term to the noise from the output of the target
+            actor policy. See TD3 paper for more.
+        target_noise_clip : float
+            clipping term for the noise injected in the target actor policy
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -179,7 +187,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
             zero_fingerprint=zero_fingerprint,
             fingerprint_dim=fingerprint_dim,
             additional_params=dict(
-                target_entropy=target_entropy,
+                noise=noise,
+                target_policy_noise=target_policy_noise,
+                target_noise_clip=target_noise_clip,
                 num_levels=num_levels,
                 meta_period=meta_period,
                 intrinsic_reward_type=intrinsic_reward_type,

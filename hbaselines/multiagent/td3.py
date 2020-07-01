@@ -4,9 +4,9 @@ import numpy as np
 from functools import reduce
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.multi_fcnet.base import MultiActorCriticPolicy as BasePolicy
-from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
-from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
+from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
 from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
