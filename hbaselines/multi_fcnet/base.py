@@ -4,7 +4,7 @@ import tensorflow as tf
 from hbaselines.base_policies import ActorCriticPolicy
 
 
-class MultiFeedForwardPolicy(ActorCriticPolicy):
+class MultiActorCriticPolicy(ActorCriticPolicy):
     """Multi-agent fully connected neural network policy.
 
     This policy supports training off-policy variants of three popular
@@ -23,7 +23,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={}
       >>> )
@@ -41,7 +41,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
@@ -57,7 +57,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "maddpg": True,
@@ -196,7 +196,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         if co_space is None and not shared:
             co_space = {key: None for key in ob_space.keys()}
 
-        super(MultiFeedForwardPolicy, self).__init__(
+        super(MultiActorCriticPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
