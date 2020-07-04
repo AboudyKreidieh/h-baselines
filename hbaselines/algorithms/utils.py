@@ -39,7 +39,12 @@ def is_sac_policy(policy):
 
 def is_feedforward_policy(policy):
     """Check whether a policy is a feedforward policy."""
-    return policy in [TD3FeedForwardPolicy, SACFeedForwardPolicy]
+    return policy in [
+        TD3FeedForwardPolicy,
+        SACFeedForwardPolicy,
+        TD3MultiFeedForwardPolicy,
+        SACMultiFeedForwardPolicy,
+    ]
 
 
 def is_goal_conditioned_policy(policy):
@@ -53,7 +58,7 @@ def is_goal_conditioned_policy(policy):
 
 
 def is_multiagent_policy(policy):
-    """Check whether a policy is a multi-agent feedforward policy."""
+    """Check whether a policy is a multi-agent policy."""
     return policy in [
         TD3MultiFeedForwardPolicy,
         SACMultiFeedForwardPolicy,
