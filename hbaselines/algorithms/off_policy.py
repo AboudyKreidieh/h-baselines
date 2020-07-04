@@ -93,7 +93,8 @@ FEEDFORWARD_PARAMS = dict(
 #     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-GOAL_CONDITIONED_PARAMS = dict(
+GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
+GOAL_CONDITIONED_PARAMS.update(dict(
     # number of levels within the hierarchy. Must be greater than 1. Two levels
     # correspond to a Manager/Worker paradigm.
     num_levels=2,
@@ -130,19 +131,20 @@ GOAL_CONDITIONED_PARAMS = dict(
     fingerprint_range=([0, 0], [5, 5]),
     # specifies whether to use centralized value functions
     centralized_value_functions=False,
-)
+))
 
 
 # =========================================================================== #
 #    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-MULTIAGENT_PARAMS = dict(
+MULTIAGENT_PARAMS = FEEDFORWARD_PARAMS.copy()
+MULTIAGENT_PARAMS.update(dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
     maddpg=False,
-)
+))
 
 
 class OffPolicyRLAlgorithm(object):
