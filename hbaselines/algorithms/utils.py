@@ -1,43 +1,60 @@
 """Utility method for the algorithm classes."""
 import numpy as np
 
-from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForward
+from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
-    TD3GoalConditioned
+    TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
-    SACGoalConditioned
-from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForward
+    SACGoalConditionedPolicy
 from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
+    TD3MultiGoalConditionedPolicy
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
+    SACMultiGoalConditionedPolicy
 
 
 def is_td3_policy(policy):
     """Check whether a policy is for designed to support TD3."""
     return policy in [
-        TD3FeedForward, TD3GoalConditioned, TD3MultiFeedForwardPolicy]
+        TD3FeedForwardPolicy,
+        TD3GoalConditionedPolicy,
+        TD3MultiFeedForwardPolicy,
+        TD3MultiGoalConditionedPolicy,
+    ]
 
 
 def is_sac_policy(policy):
     """Check whether a policy is for designed to support SAC."""
     return policy in [
-        SACFeedForward, SACGoalConditioned, SACMultiFeedForwardPolicy]
+        SACFeedForwardPolicy,
+        SACGoalConditionedPolicy,
+        SACMultiFeedForwardPolicy,
+        SACMultiGoalConditionedPolicy,
+    ]
 
 
 def is_feedforward_policy(policy):
     """Check whether a policy is a feedforward policy."""
-    return policy in [TD3FeedForward, SACFeedForward]
+    return policy in [TD3FeedForwardPolicy, SACFeedForwardPolicy]
 
 
 def is_goal_conditioned_policy(policy):
     """Check whether a policy is a goal-conditioned policy."""
-    return policy in [TD3GoalConditioned, SACGoalConditioned]
+    return policy in [TD3GoalConditionedPolicy, SACGoalConditionedPolicy]
 
 
 def is_multiagent_policy(policy):
     """Check whether a policy is a multi-agent feedforward policy."""
-    return policy in [TD3MultiFeedForwardPolicy, SACMultiFeedForwardPolicy]
+    return policy in [
+        TD3MultiFeedForwardPolicy,
+        SACMultiFeedForwardPolicy,
+        TD3MultiGoalConditionedPolicy,
+        SACMultiGoalConditionedPolicy,
+    ]
 
 
 def add_fingerprint(obs, steps, total_steps, use_fingerprints):

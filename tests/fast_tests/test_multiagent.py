@@ -1,4 +1,4 @@
-"""Tests for the policies in the hbaselines/multi_fcnet subdirectory."""
+"""Tests for the policies in the hbaselines/multiagent subdirectory."""
 import unittest
 import numpy as np
 import tensorflow as tf
@@ -9,8 +9,9 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
-from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
-from hbaselines.algorithms.off_policy import MULTI_FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import MULTIAGENT_PARAMS
 
 
 class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
@@ -30,7 +31,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
-        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
         # Independent policy parameters
@@ -53,7 +54,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
-        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
     def tearDown(self):
@@ -1142,7 +1143,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
-        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
         # Independent policy parameters
@@ -1165,7 +1166,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
-        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
     def tearDown(self):
@@ -2092,7 +2093,7 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
-        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
         # Independent policy parameters
@@ -2115,7 +2116,7 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
-        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
     def tearDown(self):
@@ -2215,7 +2216,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
-        self.policy_params_shared.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
         # Independent policy parameters
@@ -2238,7 +2239,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
-        self.policy_params_independent.update(MULTI_FEEDFORWARD_PARAMS.copy())
+        self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
     def tearDown(self):

@@ -135,11 +135,11 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 
 
 # =========================================================================== #
-#    Policy parameters for MultiFeedForwardPolicy (shared by TD3 and SAC)     #
+#    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-MULTI_FEEDFORWARD_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTI_FEEDFORWARD_PARAMS.update(dict(
+MULTIAGENT_PARAMS = FEEDFORWARD_PARAMS.copy()
+MULTIAGENT_PARAMS.update(dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
@@ -373,12 +373,14 @@ class OffPolicyRLAlgorithm(object):
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
             self.policy_kwargs.update(FEEDFORWARD_PARAMS.copy())
-        elif is_goal_conditioned_policy(policy):
+
+        if is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
             self.policy_kwargs['num_envs'] = num_envs
-        elif is_multiagent_policy(policy):
-            self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
+
+        if is_multiagent_policy(policy):
+            self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
 
         if is_td3_policy(policy):
