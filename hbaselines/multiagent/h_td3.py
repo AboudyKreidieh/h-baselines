@@ -215,7 +215,12 @@ class MultiGoalConditionedPolicy(BasePolicy):
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         raise NotADirectoryError(
             "This policy does not support MADDPG-variants of the training "
@@ -232,6 +237,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         raise NotADirectoryError(

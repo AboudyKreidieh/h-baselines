@@ -1028,7 +1028,12 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         actions = {}
 
@@ -1076,6 +1081,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         if self.shared:

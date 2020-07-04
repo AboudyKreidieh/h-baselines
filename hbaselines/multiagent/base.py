@@ -274,10 +274,20 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """
         if self.maddpg:
             return self._get_action_maddpg(
-                obs, context, apply_noise, random_actions)
+                obs=obs,
+                context=context,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
         else:
             return self._get_action_basic(
-                obs, context, apply_noise, random_actions)
+                obs=obs,
+                context=context,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
 
     def store_transition(self,
                          obs0,
@@ -329,12 +339,32 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """
         if self.maddpg:
             self._store_transition_maddpg(
-                obs0, context0, action, reward, obs1, context1, done,
-                is_final_step, all_obs0, all_obs1, evaluate)
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                all_obs0=all_obs0,
+                all_obs1=all_obs1,
+                env_num=env_num,
+                evaluate=evaluate,
+            )
         else:
             self._store_transition_basic(
-                obs0, context0, action, reward, obs1, context1, done,
-                is_final_step, evaluate)
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                env_num=env_num,
+                evaluate=evaluate,
+            )
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
@@ -417,7 +447,12 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_basic(self, obs, context, apply_noise, random_actions):
+    def _get_action_basic(self,
+                          obs,
+                          context,
+                          apply_noise,
+                          random_actions,
+                          env_num):
         """See get_action."""
         actions = {}
 
@@ -432,7 +467,12 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs[key], context_i, apply_noise, random_actions)
+                obs=obs[key],
+                context=context_i,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
 
         return actions
 
@@ -445,6 +485,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                                 context1,
                                 done,
                                 is_final_step,
+                                env_num,
                                 evaluate):
         """See store_transition."""
         for key in obs0.keys():
@@ -472,6 +513,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
+                env_num=env_num,
             )
 
     def _get_td_map_basic(self):
@@ -504,7 +546,12 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """See update."""
         raise NotImplementedError
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         raise NotImplementedError
 
@@ -519,6 +566,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         raise NotImplementedError
