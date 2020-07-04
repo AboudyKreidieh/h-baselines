@@ -44,7 +44,12 @@ def is_feedforward_policy(policy):
 
 def is_goal_conditioned_policy(policy):
     """Check whether a policy is a goal-conditioned policy."""
-    return policy in [TD3GoalConditionedPolicy, SACGoalConditionedPolicy]
+    return policy in [
+        TD3GoalConditionedPolicy,
+        SACGoalConditionedPolicy,
+        TD3MultiGoalConditionedPolicy,
+        SACMultiGoalConditionedPolicy,
+    ]
 
 
 def is_multiagent_policy(policy):

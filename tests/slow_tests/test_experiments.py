@@ -8,6 +8,7 @@ from hbaselines.utils.train import parse_options
 from experiments.run_fcnet import main as run_fcnet
 from experiments.run_hrl import main as run_hrl
 from experiments.run_multi_fcnet import main as run_multi_fcnet
+from experiments.run_multi_hrl import main as run_multi_hrl
 
 os.environ["TEST_FLAG"] = "True"
 
@@ -51,7 +52,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             os.path.join(os.getcwd(), "data/fcnet/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_fcent_failure(self):
@@ -88,7 +88,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/goal-conditioned/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_hrl_sac(self):
@@ -111,7 +110,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/goal-conditioned/MountainCarContinuous-v0")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_hrl_failure(self):
@@ -130,7 +128,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/goal-conditioned')
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_independent(self):
@@ -150,7 +147,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_independent(self):
@@ -171,7 +167,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_independent(self):
@@ -188,7 +183,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_shared(self):
@@ -209,7 +203,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_shared(self):
@@ -231,7 +224,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_shared(self):
@@ -249,7 +241,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_maddpg_independent(self):
@@ -270,7 +261,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_maddpg_independent(self):
@@ -292,7 +282,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_maddpg_independent(self):
@@ -310,7 +299,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_td3_maddpg_shared(self):
@@ -332,7 +320,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_sac_maddpg_shared(self):
@@ -355,7 +342,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                 "data/multi-fcnet/multiagent-ring_small")))
 
         # Clear anything that was generated.
-        ray.shutdown()
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
     def test_run_multi_fcnet_failure_maddpg_shared(self):
@@ -374,7 +360,119 @@ class TestExperimentRunnerScripts(unittest.TestCase):
                           args=args, base_dir='data/multi-fcnet')
 
         # Clear anything that was generated.
-        ray.shutdown()
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_td3_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring_small",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+        ])
+        run_multi_hrl(args, 'data/multi-goal-conditioned')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-goal-conditioned/multiagent-ring_small")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_sac_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring_small",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+            "--alg", "SAC"
+        ])
+        run_multi_hrl(args, 'data/multi-goal-conditioned')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-goal-conditioned/multiagent-ring_small")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_failure_independent(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring_small",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+            "--alg", "woops"
+        ])
+
+        self.assertRaises(ValueError, run_multi_hrl,
+                          args=args, base_dir='data/multi-goal-conditioned')
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_td3_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring_small",
+            "--shared",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+        ])
+        run_multi_hrl(args, 'data/multi-goal-conditioned')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-goal-conditioned/multiagent-ring_small")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_sac_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "multiagent-ring_small",
+            "--shared",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+            "--alg", "SAC"
+        ])
+        run_multi_hrl(args, 'data/multi-goal-conditioned')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/multi-goal-conditioned/multiagent-ring_small")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
+    def test_run_multi_hrl_failure_shared(self):
+        # Run the script; verify it executes without failure.
+        args = parse_options('', '', args=[
+            "MountainCarContinuous-v0",
+            "--shared",
+            "--initial_exploration_steps", "1",
+            "--total_steps", "500",
+            "--log_interval", "500",
+            "--alg", "woops"
+        ])
+
+        self.assertRaises(ValueError, run_multi_hrl,
+                          args=args, base_dir='data/multi-goal-conditioned')
+
+        # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
 
