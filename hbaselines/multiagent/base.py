@@ -328,7 +328,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         context1 : array_like or None
             the current contextual term for each agent. Set to None if no
             context is provided by the environment.
-        done : dict of float
+        done : float or dict of float
             is the episode done for each agent
         is_final_step : bool
             whether the time horizon was met in the step corresponding to the
