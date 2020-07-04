@@ -199,19 +199,19 @@ class MultiGoalConditionedPolicy(BasePolicy):
 
     def _setup_maddpg(self, scope):
         """See setup."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
     def _initialize_maddpg(self):
         """See initialize."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
     def _update_maddpg(self, update_actor=True, **kwargs):
         """See update."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
@@ -222,7 +222,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                            random_actions,
                            env_num):
         """See get_action."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
@@ -240,12 +240,12 @@ class MultiGoalConditionedPolicy(BasePolicy):
                                  env_num,
                                  evaluate):
         """See store_transition."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "This policy does not support MADDPG-variants of the training "
             "operation.")
