@@ -71,13 +71,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    zero_fingerprint : bool
-        whether to zero the last two elements of the observations for the actor
-        and critic computations. Used for the worker policy when fingerprints
-        are being implemented.
-    fingerprint_dim : int
-        the number of fingerprint elements in the observation. Used when trying
-        to zero the fingerprint elements.
     shared : bool
         whether to use a shared policy for all agents
     maddpg : bool
@@ -122,9 +115,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  all_ob_space=None,
                  n_agents=1,
                  additional_params=None,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate the base multi-agent feed-forward policy.
 
         Parameters
@@ -183,13 +174,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : int
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         # In case no context space was passed and not using shared policies,
         # create a dictionary of no contexts.
@@ -214,8 +198,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=use_huber
         )
 
-        self.zero_fingerprint = zero_fingerprint
-        self.fingerprint_dim = fingerprint_dim
         self.shared = shared
         self.maddpg = maddpg
         self.all_ob_space = all_ob_space
@@ -388,8 +370,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             layers=self.layers,
             act_fun=self.act_fun,
             use_huber=self.use_huber,
-            zero_fingerprint=self.zero_fingerprint,
-            fingerprint_dim=self.fingerprint_dim,
             **self.additional_params
         )
 

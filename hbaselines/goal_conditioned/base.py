@@ -141,6 +141,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
+                 scope=None,
                  env_name="",
                  num_envs=1,
                  meta_policy=None,
@@ -310,6 +311,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # The policies are ordered from the highest level to lowest level
             # policies in the hierarchy.
             with tf.compat.v1.variable_scope("level_{}".format(i)):
+                # Compute the scope name based on any outer scope term.
+                scope_i = "level_{}".format(i)
+                if scope is not None:
+                    scope_i = "{}/{}".format(scope, scope_i)
+
+                # Create the next policy.
                 self.policy.append(policy_fn(
                     sess=sess,
                     ob_space=ob_space_i,
@@ -326,7 +333,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     layers=layers,
                     act_fun=act_fun,
                     use_huber=use_huber,
-                    scope="level_{}".format(i),
+                    scope=scope_i,
                     zero_fingerprint=zero_fingerprint_i,
                     fingerprint_dim=self.fingerprint_dim[0],
                     **(additional_params or {}),
@@ -453,7 +460,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             batch_dims=1, axis=1)
 
         if self.connected_gradients:
-            self._setup_connected_gradients()
+            with tf.compat.v1.variable_scope(scope):
+                self._setup_connected_gradients()
 
     def initialize(self):
         """See parent class.

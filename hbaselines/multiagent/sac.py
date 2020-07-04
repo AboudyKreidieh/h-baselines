@@ -115,9 +115,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                  maddpg,
                  all_ob_space=None,
                  n_agents=1,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
         Parameters
@@ -172,13 +170,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             action space. Otherwise, it is not used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : bool
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         # Instantiate a few terms (needed if MADDPG is used).
         if target_entropy is None:
@@ -256,8 +247,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
-            zero_fingerprint=zero_fingerprint,
-            fingerprint_dim=fingerprint_dim,
             additional_params=dict(
                 target_entropy=target_entropy,
             ),

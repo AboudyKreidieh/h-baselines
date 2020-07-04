@@ -9,9 +9,14 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
+    TD3MultiGoalConditionedPolicy
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
+    SACMultiGoalConditionedPolicy
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import MULTIAGENT_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
@@ -2092,7 +2097,8 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'layers': [256, 256],
             'verbose': 0,
         }
-        self.policy_params_shared.update(SAC_PARAMS.copy())
+        self.policy_params_shared.update(TD3_PARAMS.copy())
+        self.policy_params_shared.update(GOAL_CONDITIONED_PARAMS.copy())
         self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
@@ -2115,7 +2121,8 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'layers': [256, 256],
             'verbose': 0,
         }
-        self.policy_params_independent.update(SAC_PARAMS.copy())
+        self.policy_params_independent.update(TD3_PARAMS.copy())
+        self.policy_params_independent.update(GOAL_CONDITIONED_PARAMS.copy())
         self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
@@ -2139,19 +2146,327 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
-        pass  # TODO
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiGoalConditionedPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/level_0/model/pi/fc0/bias:0',
+             'a/level_0/model/pi/fc0/kernel:0',
+             'a/level_0/model/pi/fc1/bias:0',
+             'a/level_0/model/pi/fc1/kernel:0',
+             'a/level_0/model/pi/output/bias:0',
+             'a/level_0/model/pi/output/kernel:0',
+             'a/level_0/model/qf_0/fc0/bias:0',
+             'a/level_0/model/qf_0/fc0/kernel:0',
+             'a/level_0/model/qf_0/fc1/bias:0',
+             'a/level_0/model/qf_0/fc1/kernel:0',
+             'a/level_0/model/qf_0/qf_output/bias:0',
+             'a/level_0/model/qf_0/qf_output/kernel:0',
+             'a/level_0/model/qf_1/fc0/bias:0',
+             'a/level_0/model/qf_1/fc0/kernel:0',
+             'a/level_0/model/qf_1/fc1/bias:0',
+             'a/level_0/model/qf_1/fc1/kernel:0',
+             'a/level_0/model/qf_1/qf_output/bias:0',
+             'a/level_0/model/qf_1/qf_output/kernel:0',
+             'a/level_0/target/pi/fc0/bias:0',
+             'a/level_0/target/pi/fc0/kernel:0',
+             'a/level_0/target/pi/fc1/bias:0',
+             'a/level_0/target/pi/fc1/kernel:0',
+             'a/level_0/target/pi/output/bias:0',
+             'a/level_0/target/pi/output/kernel:0',
+             'a/level_0/target/qf_0/fc0/bias:0',
+             'a/level_0/target/qf_0/fc0/kernel:0',
+             'a/level_0/target/qf_0/fc1/bias:0',
+             'a/level_0/target/qf_0/fc1/kernel:0',
+             'a/level_0/target/qf_0/qf_output/bias:0',
+             'a/level_0/target/qf_0/qf_output/kernel:0',
+             'a/level_0/target/qf_1/fc0/bias:0',
+             'a/level_0/target/qf_1/fc0/kernel:0',
+             'a/level_0/target/qf_1/fc1/bias:0',
+             'a/level_0/target/qf_1/fc1/kernel:0',
+             'a/level_0/target/qf_1/qf_output/bias:0',
+             'a/level_0/target/qf_1/qf_output/kernel:0',
+             'a/level_1/model/pi/fc0/bias:0',
+             'a/level_1/model/pi/fc0/kernel:0',
+             'a/level_1/model/pi/fc1/bias:0',
+             'a/level_1/model/pi/fc1/kernel:0',
+             'a/level_1/model/pi/output/bias:0',
+             'a/level_1/model/pi/output/kernel:0',
+             'a/level_1/model/qf_0/fc0/bias:0',
+             'a/level_1/model/qf_0/fc0/kernel:0',
+             'a/level_1/model/qf_0/fc1/bias:0',
+             'a/level_1/model/qf_0/fc1/kernel:0',
+             'a/level_1/model/qf_0/qf_output/bias:0',
+             'a/level_1/model/qf_0/qf_output/kernel:0',
+             'a/level_1/model/qf_1/fc0/bias:0',
+             'a/level_1/model/qf_1/fc0/kernel:0',
+             'a/level_1/model/qf_1/fc1/bias:0',
+             'a/level_1/model/qf_1/fc1/kernel:0',
+             'a/level_1/model/qf_1/qf_output/bias:0',
+             'a/level_1/model/qf_1/qf_output/kernel:0',
+             'a/level_1/target/pi/fc0/bias:0',
+             'a/level_1/target/pi/fc0/kernel:0',
+             'a/level_1/target/pi/fc1/bias:0',
+             'a/level_1/target/pi/fc1/kernel:0',
+             'a/level_1/target/pi/output/bias:0',
+             'a/level_1/target/pi/output/kernel:0',
+             'a/level_1/target/qf_0/fc0/bias:0',
+             'a/level_1/target/qf_0/fc0/kernel:0',
+             'a/level_1/target/qf_0/fc1/bias:0',
+             'a/level_1/target/qf_0/fc1/kernel:0',
+             'a/level_1/target/qf_0/qf_output/bias:0',
+             'a/level_1/target/qf_0/qf_output/kernel:0',
+             'a/level_1/target/qf_1/fc0/bias:0',
+             'a/level_1/target/qf_1/fc0/kernel:0',
+             'a/level_1/target/qf_1/fc1/bias:0',
+             'a/level_1/target/qf_1/fc1/kernel:0',
+             'a/level_1/target/qf_1/qf_output/bias:0',
+             'a/level_1/target/qf_1/qf_output/kernel:0',
+             'b/level_0/model/pi/fc0/bias:0',
+             'b/level_0/model/pi/fc0/kernel:0',
+             'b/level_0/model/pi/fc1/bias:0',
+             'b/level_0/model/pi/fc1/kernel:0',
+             'b/level_0/model/pi/output/bias:0',
+             'b/level_0/model/pi/output/kernel:0',
+             'b/level_0/model/qf_0/fc0/bias:0',
+             'b/level_0/model/qf_0/fc0/kernel:0',
+             'b/level_0/model/qf_0/fc1/bias:0',
+             'b/level_0/model/qf_0/fc1/kernel:0',
+             'b/level_0/model/qf_0/qf_output/bias:0',
+             'b/level_0/model/qf_0/qf_output/kernel:0',
+             'b/level_0/model/qf_1/fc0/bias:0',
+             'b/level_0/model/qf_1/fc0/kernel:0',
+             'b/level_0/model/qf_1/fc1/bias:0',
+             'b/level_0/model/qf_1/fc1/kernel:0',
+             'b/level_0/model/qf_1/qf_output/bias:0',
+             'b/level_0/model/qf_1/qf_output/kernel:0',
+             'b/level_0/target/pi/fc0/bias:0',
+             'b/level_0/target/pi/fc0/kernel:0',
+             'b/level_0/target/pi/fc1/bias:0',
+             'b/level_0/target/pi/fc1/kernel:0',
+             'b/level_0/target/pi/output/bias:0',
+             'b/level_0/target/pi/output/kernel:0',
+             'b/level_0/target/qf_0/fc0/bias:0',
+             'b/level_0/target/qf_0/fc0/kernel:0',
+             'b/level_0/target/qf_0/fc1/bias:0',
+             'b/level_0/target/qf_0/fc1/kernel:0',
+             'b/level_0/target/qf_0/qf_output/bias:0',
+             'b/level_0/target/qf_0/qf_output/kernel:0',
+             'b/level_0/target/qf_1/fc0/bias:0',
+             'b/level_0/target/qf_1/fc0/kernel:0',
+             'b/level_0/target/qf_1/fc1/bias:0',
+             'b/level_0/target/qf_1/fc1/kernel:0',
+             'b/level_0/target/qf_1/qf_output/bias:0',
+             'b/level_0/target/qf_1/qf_output/kernel:0',
+             'b/level_1/model/pi/fc0/bias:0',
+             'b/level_1/model/pi/fc0/kernel:0',
+             'b/level_1/model/pi/fc1/bias:0',
+             'b/level_1/model/pi/fc1/kernel:0',
+             'b/level_1/model/pi/output/bias:0',
+             'b/level_1/model/pi/output/kernel:0',
+             'b/level_1/model/qf_0/fc0/bias:0',
+             'b/level_1/model/qf_0/fc0/kernel:0',
+             'b/level_1/model/qf_0/fc1/bias:0',
+             'b/level_1/model/qf_0/fc1/kernel:0',
+             'b/level_1/model/qf_0/qf_output/bias:0',
+             'b/level_1/model/qf_0/qf_output/kernel:0',
+             'b/level_1/model/qf_1/fc0/bias:0',
+             'b/level_1/model/qf_1/fc0/kernel:0',
+             'b/level_1/model/qf_1/fc1/bias:0',
+             'b/level_1/model/qf_1/fc1/kernel:0',
+             'b/level_1/model/qf_1/qf_output/bias:0',
+             'b/level_1/model/qf_1/qf_output/kernel:0',
+             'b/level_1/target/pi/fc0/bias:0',
+             'b/level_1/target/pi/fc0/kernel:0',
+             'b/level_1/target/pi/fc1/bias:0',
+             'b/level_1/target/pi/fc1/kernel:0',
+             'b/level_1/target/pi/output/bias:0',
+             'b/level_1/target/pi/output/kernel:0',
+             'b/level_1/target/qf_0/fc0/bias:0',
+             'b/level_1/target/qf_0/fc0/kernel:0',
+             'b/level_1/target/qf_0/fc1/bias:0',
+             'b/level_1/target/qf_0/fc1/kernel:0',
+             'b/level_1/target/qf_0/qf_output/bias:0',
+             'b/level_1/target/qf_0/qf_output/kernel:0',
+             'b/level_1/target/qf_1/fc0/bias:0',
+             'b/level_1/target/qf_1/fc0/kernel:0',
+             'b/level_1/target/qf_1/fc1/bias:0',
+             'b/level_1/target/qf_1/fc1/kernel:0',
+             'b/level_1/target/qf_1/qf_output/bias:0',
+             'b/level_1/target/qf_1/qf_output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(
+            policy.agents['a'].policy[0].ac_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[0].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[0].co_space.shape[0],
+            self.policy_params_independent['co_space']['a'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['a'].policy[1].ac_space.shape[0],
+            self.policy_params_independent['ac_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[1].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[1].co_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['b'].policy[0].ac_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[0].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[0].co_space.shape[0],
+            self.policy_params_independent['co_space']['b'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['b'].policy[1].ac_space.shape[0],
+            self.policy_params_independent['ac_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[1].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[1].co_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(not policy.maddpg)
 
     def test_init_2(self):
-        pass  # TODO
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiGoalConditionedPolicy(**policy_params)
 
-    def test_init_3(self):
-        pass  # TODO: NotImplementedError
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/output/bias:0',
+             'level_0/model/pi/output/kernel:0',
+             'level_0/model/qf_0/fc0/bias:0',
+             'level_0/model/qf_0/fc0/kernel:0',
+             'level_0/model/qf_0/fc1/bias:0',
+             'level_0/model/qf_0/fc1/kernel:0',
+             'level_0/model/qf_0/qf_output/bias:0',
+             'level_0/model/qf_0/qf_output/kernel:0',
+             'level_0/model/qf_1/fc0/bias:0',
+             'level_0/model/qf_1/fc0/kernel:0',
+             'level_0/model/qf_1/fc1/bias:0',
+             'level_0/model/qf_1/fc1/kernel:0',
+             'level_0/model/qf_1/qf_output/bias:0',
+             'level_0/model/qf_1/qf_output/kernel:0',
+             'level_0/target/pi/fc0/bias:0',
+             'level_0/target/pi/fc0/kernel:0',
+             'level_0/target/pi/fc1/bias:0',
+             'level_0/target/pi/fc1/kernel:0',
+             'level_0/target/pi/output/bias:0',
+             'level_0/target/pi/output/kernel:0',
+             'level_0/target/qf_0/fc0/bias:0',
+             'level_0/target/qf_0/fc0/kernel:0',
+             'level_0/target/qf_0/fc1/bias:0',
+             'level_0/target/qf_0/fc1/kernel:0',
+             'level_0/target/qf_0/qf_output/bias:0',
+             'level_0/target/qf_0/qf_output/kernel:0',
+             'level_0/target/qf_1/fc0/bias:0',
+             'level_0/target/qf_1/fc0/kernel:0',
+             'level_0/target/qf_1/fc1/bias:0',
+             'level_0/target/qf_1/fc1/kernel:0',
+             'level_0/target/qf_1/qf_output/bias:0',
+             'level_0/target/qf_1/qf_output/kernel:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/output/bias:0',
+             'level_1/model/pi/output/kernel:0',
+             'level_1/model/qf_0/fc0/bias:0',
+             'level_1/model/qf_0/fc0/kernel:0',
+             'level_1/model/qf_0/fc1/bias:0',
+             'level_1/model/qf_0/fc1/kernel:0',
+             'level_1/model/qf_0/qf_output/bias:0',
+             'level_1/model/qf_0/qf_output/kernel:0',
+             'level_1/model/qf_1/fc0/bias:0',
+             'level_1/model/qf_1/fc0/kernel:0',
+             'level_1/model/qf_1/fc1/bias:0',
+             'level_1/model/qf_1/fc1/kernel:0',
+             'level_1/model/qf_1/qf_output/bias:0',
+             'level_1/model/qf_1/qf_output/kernel:0',
+             'level_1/target/pi/fc0/bias:0',
+             'level_1/target/pi/fc0/kernel:0',
+             'level_1/target/pi/fc1/bias:0',
+             'level_1/target/pi/fc1/kernel:0',
+             'level_1/target/pi/output/bias:0',
+             'level_1/target/pi/output/kernel:0',
+             'level_1/target/qf_0/fc0/bias:0',
+             'level_1/target/qf_0/fc0/kernel:0',
+             'level_1/target/qf_0/fc1/bias:0',
+             'level_1/target/qf_0/fc1/kernel:0',
+             'level_1/target/qf_0/qf_output/bias:0',
+             'level_1/target/qf_0/qf_output/kernel:0',
+             'level_1/target/qf_1/fc0/bias:0',
+             'level_1/target/qf_1/fc0/kernel:0',
+             'level_1/target/qf_1/fc1/bias:0',
+             'level_1/target/qf_1/fc1/kernel:0',
+             'level_1/target/qf_1/qf_output/bias:0',
+             'level_1/target/qf_1/qf_output/kernel:0']
+        )
 
-    def test_init_4(self):
-        pass  # TODO: NotImplementedError
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(
+            policy.agents['policy'].policy[0].ac_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[0].ob_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[0].co_space.shape[0],
+            self.policy_params_shared['co_space'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['policy'].policy[1].ac_space.shape[0],
+            self.policy_params_shared['ac_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[1].ob_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[1].co_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(policy.shared)
+        self.assertTrue(not policy.maddpg)
 
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
@@ -2163,19 +2478,277 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
-        pass  # TODO
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiGoalConditionedPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'a/level_0/model/pi/fc0/bias:0',
+            'a/level_0/model/pi/fc0/kernel:0',
+            'a/level_0/model/pi/fc1/bias:0',
+            'a/level_0/model/pi/fc1/kernel:0',
+            'a/level_0/model/pi/output/bias:0',
+            'a/level_0/model/pi/output/kernel:0',
+            'a/level_0/model/qf_0/fc0/bias:0',
+            'a/level_0/model/qf_0/fc0/kernel:0',
+            'a/level_0/model/qf_0/fc1/bias:0',
+            'a/level_0/model/qf_0/fc1/kernel:0',
+            'a/level_0/model/qf_0/qf_output/bias:0',
+            'a/level_0/model/qf_0/qf_output/kernel:0',
+            'a/level_0/model/qf_1/fc0/bias:0',
+            'a/level_0/model/qf_1/fc0/kernel:0',
+            'a/level_0/model/qf_1/fc1/bias:0',
+            'a/level_0/model/qf_1/fc1/kernel:0',
+            'a/level_0/model/qf_1/qf_output/bias:0',
+            'a/level_0/model/qf_1/qf_output/kernel:0',
+
+            'a/level_1/model/pi/fc0/bias:0',
+            'a/level_1/model/pi/fc0/kernel:0',
+            'a/level_1/model/pi/fc1/bias:0',
+            'a/level_1/model/pi/fc1/kernel:0',
+            'a/level_1/model/pi/output/bias:0',
+            'a/level_1/model/pi/output/kernel:0',
+            'a/level_1/model/qf_0/fc0/bias:0',
+            'a/level_1/model/qf_0/fc0/kernel:0',
+            'a/level_1/model/qf_0/fc1/bias:0',
+            'a/level_1/model/qf_0/fc1/kernel:0',
+            'a/level_1/model/qf_0/qf_output/bias:0',
+            'a/level_1/model/qf_0/qf_output/kernel:0',
+            'a/level_1/model/qf_1/fc0/bias:0',
+            'a/level_1/model/qf_1/fc0/kernel:0',
+            'a/level_1/model/qf_1/fc1/bias:0',
+            'a/level_1/model/qf_1/fc1/kernel:0',
+            'a/level_1/model/qf_1/qf_output/bias:0',
+            'a/level_1/model/qf_1/qf_output/kernel:0',
+
+            'b/level_0/model/pi/fc0/bias:0',
+            'b/level_0/model/pi/fc0/kernel:0',
+            'b/level_0/model/pi/fc1/bias:0',
+            'b/level_0/model/pi/fc1/kernel:0',
+            'b/level_0/model/pi/output/bias:0',
+            'b/level_0/model/pi/output/kernel:0',
+            'b/level_0/model/qf_0/fc0/bias:0',
+            'b/level_0/model/qf_0/fc0/kernel:0',
+            'b/level_0/model/qf_0/fc1/bias:0',
+            'b/level_0/model/qf_0/fc1/kernel:0',
+            'b/level_0/model/qf_0/qf_output/bias:0',
+            'b/level_0/model/qf_0/qf_output/kernel:0',
+            'b/level_0/model/qf_1/fc0/bias:0',
+            'b/level_0/model/qf_1/fc0/kernel:0',
+            'b/level_0/model/qf_1/fc1/bias:0',
+            'b/level_0/model/qf_1/fc1/kernel:0',
+            'b/level_0/model/qf_1/qf_output/bias:0',
+            'b/level_0/model/qf_1/qf_output/kernel:0',
+
+            'b/level_1/model/pi/fc0/bias:0',
+            'b/level_1/model/pi/fc0/kernel:0',
+            'b/level_1/model/pi/fc1/bias:0',
+            'b/level_1/model/pi/fc1/kernel:0',
+            'b/level_1/model/pi/output/bias:0',
+            'b/level_1/model/pi/output/kernel:0',
+            'b/level_1/model/qf_0/fc0/bias:0',
+            'b/level_1/model/qf_0/fc0/kernel:0',
+            'b/level_1/model/qf_0/fc1/bias:0',
+            'b/level_1/model/qf_0/fc1/kernel:0',
+            'b/level_1/model/qf_0/qf_output/bias:0',
+            'b/level_1/model/qf_0/qf_output/kernel:0',
+            'b/level_1/model/qf_1/fc0/bias:0',
+            'b/level_1/model/qf_1/fc0/kernel:0',
+            'b/level_1/model/qf_1/fc1/bias:0',
+            'b/level_1/model/qf_1/fc1/kernel:0',
+            'b/level_1/model/qf_1/qf_output/bias:0',
+            'b/level_1/model/qf_1/qf_output/kernel:0',
+        ]
+
+        target_var_list = [
+            'a/level_0/target/pi/fc0/bias:0',
+            'a/level_0/target/pi/fc0/kernel:0',
+            'a/level_0/target/pi/fc1/bias:0',
+            'a/level_0/target/pi/fc1/kernel:0',
+            'a/level_0/target/pi/output/bias:0',
+            'a/level_0/target/pi/output/kernel:0',
+            'a/level_0/target/qf_0/fc0/bias:0',
+            'a/level_0/target/qf_0/fc0/kernel:0',
+            'a/level_0/target/qf_0/fc1/bias:0',
+            'a/level_0/target/qf_0/fc1/kernel:0',
+            'a/level_0/target/qf_0/qf_output/bias:0',
+            'a/level_0/target/qf_0/qf_output/kernel:0',
+            'a/level_0/target/qf_1/fc0/bias:0',
+            'a/level_0/target/qf_1/fc0/kernel:0',
+            'a/level_0/target/qf_1/fc1/bias:0',
+            'a/level_0/target/qf_1/fc1/kernel:0',
+            'a/level_0/target/qf_1/qf_output/bias:0',
+            'a/level_0/target/qf_1/qf_output/kernel:0',
+
+            'a/level_1/target/pi/fc0/bias:0',
+            'a/level_1/target/pi/fc0/kernel:0',
+            'a/level_1/target/pi/fc1/bias:0',
+            'a/level_1/target/pi/fc1/kernel:0',
+            'a/level_1/target/pi/output/bias:0',
+            'a/level_1/target/pi/output/kernel:0',
+            'a/level_1/target/qf_0/fc0/bias:0',
+            'a/level_1/target/qf_0/fc0/kernel:0',
+            'a/level_1/target/qf_0/fc1/bias:0',
+            'a/level_1/target/qf_0/fc1/kernel:0',
+            'a/level_1/target/qf_0/qf_output/bias:0',
+            'a/level_1/target/qf_0/qf_output/kernel:0',
+            'a/level_1/target/qf_1/fc0/bias:0',
+            'a/level_1/target/qf_1/fc0/kernel:0',
+            'a/level_1/target/qf_1/fc1/bias:0',
+            'a/level_1/target/qf_1/fc1/kernel:0',
+            'a/level_1/target/qf_1/qf_output/bias:0',
+            'a/level_1/target/qf_1/qf_output/kernel:0',
+
+            'b/level_0/target/pi/fc0/bias:0',
+            'b/level_0/target/pi/fc0/kernel:0',
+            'b/level_0/target/pi/fc1/bias:0',
+            'b/level_0/target/pi/fc1/kernel:0',
+            'b/level_0/target/pi/output/bias:0',
+            'b/level_0/target/pi/output/kernel:0',
+            'b/level_0/target/qf_0/fc0/bias:0',
+            'b/level_0/target/qf_0/fc0/kernel:0',
+            'b/level_0/target/qf_0/fc1/bias:0',
+            'b/level_0/target/qf_0/fc1/kernel:0',
+            'b/level_0/target/qf_0/qf_output/bias:0',
+            'b/level_0/target/qf_0/qf_output/kernel:0',
+            'b/level_0/target/qf_1/fc0/bias:0',
+            'b/level_0/target/qf_1/fc0/kernel:0',
+            'b/level_0/target/qf_1/fc1/bias:0',
+            'b/level_0/target/qf_1/fc1/kernel:0',
+            'b/level_0/target/qf_1/qf_output/bias:0',
+            'b/level_0/target/qf_1/qf_output/kernel:0',
+
+            'b/level_1/target/pi/fc0/bias:0',
+            'b/level_1/target/pi/fc0/kernel:0',
+            'b/level_1/target/pi/fc1/bias:0',
+            'b/level_1/target/pi/fc1/kernel:0',
+            'b/level_1/target/pi/output/bias:0',
+            'b/level_1/target/pi/output/kernel:0',
+            'b/level_1/target/qf_0/fc0/bias:0',
+            'b/level_1/target/qf_0/fc0/kernel:0',
+            'b/level_1/target/qf_0/fc1/bias:0',
+            'b/level_1/target/qf_0/fc1/kernel:0',
+            'b/level_1/target/qf_0/qf_output/bias:0',
+            'b/level_1/target/qf_0/qf_output/kernel:0',
+            'b/level_1/target/qf_1/fc0/bias:0',
+            'b/level_1/target/qf_1/fc0/kernel:0',
+            'b/level_1/target/qf_1/fc1/bias:0',
+            'b/level_1/target/qf_1/fc1/kernel:0',
+            'b/level_1/target/qf_1/qf_output/bias:0',
+            'b/level_1/target/qf_1/qf_output/kernel:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_initialize_2(self):
-        pass  # TODO
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = TD3MultiGoalConditionedPolicy(**policy_params)
 
-    def test_initialize_3(self):
-        pass  # TODO: NotImplementedError
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-    def test_initialize_4(self):
-        pass  # TODO: NotImplementedError
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'level_0/model/pi/fc0/bias:0',
+            'level_0/model/pi/fc0/kernel:0',
+            'level_0/model/pi/fc1/bias:0',
+            'level_0/model/pi/fc1/kernel:0',
+            'level_0/model/pi/output/bias:0',
+            'level_0/model/pi/output/kernel:0',
+            'level_0/model/qf_0/fc0/bias:0',
+            'level_0/model/qf_0/fc0/kernel:0',
+            'level_0/model/qf_0/fc1/bias:0',
+            'level_0/model/qf_0/fc1/kernel:0',
+            'level_0/model/qf_0/qf_output/bias:0',
+            'level_0/model/qf_0/qf_output/kernel:0',
+            'level_0/model/qf_1/fc0/bias:0',
+            'level_0/model/qf_1/fc0/kernel:0',
+            'level_0/model/qf_1/fc1/bias:0',
+            'level_0/model/qf_1/fc1/kernel:0',
+            'level_0/model/qf_1/qf_output/bias:0',
+            'level_0/model/qf_1/qf_output/kernel:0',
+
+            'level_1/model/pi/fc0/bias:0',
+            'level_1/model/pi/fc0/kernel:0',
+            'level_1/model/pi/fc1/bias:0',
+            'level_1/model/pi/fc1/kernel:0',
+            'level_1/model/pi/output/bias:0',
+            'level_1/model/pi/output/kernel:0',
+            'level_1/model/qf_0/fc0/bias:0',
+            'level_1/model/qf_0/fc0/kernel:0',
+            'level_1/model/qf_0/fc1/bias:0',
+            'level_1/model/qf_0/fc1/kernel:0',
+            'level_1/model/qf_0/qf_output/bias:0',
+            'level_1/model/qf_0/qf_output/kernel:0',
+            'level_1/model/qf_1/fc0/bias:0',
+            'level_1/model/qf_1/fc0/kernel:0',
+            'level_1/model/qf_1/fc1/bias:0',
+            'level_1/model/qf_1/fc1/kernel:0',
+            'level_1/model/qf_1/qf_output/bias:0',
+            'level_1/model/qf_1/qf_output/kernel:0',
+        ]
+
+        target_var_list = [
+            'level_0/target/pi/fc0/bias:0',
+            'level_0/target/pi/fc0/kernel:0',
+            'level_0/target/pi/fc1/bias:0',
+            'level_0/target/pi/fc1/kernel:0',
+            'level_0/target/pi/output/bias:0',
+            'level_0/target/pi/output/kernel:0',
+            'level_0/target/qf_0/fc0/bias:0',
+            'level_0/target/qf_0/fc0/kernel:0',
+            'level_0/target/qf_0/fc1/bias:0',
+            'level_0/target/qf_0/fc1/kernel:0',
+            'level_0/target/qf_0/qf_output/bias:0',
+            'level_0/target/qf_0/qf_output/kernel:0',
+            'level_0/target/qf_1/fc0/bias:0',
+            'level_0/target/qf_1/fc0/kernel:0',
+            'level_0/target/qf_1/fc1/bias:0',
+            'level_0/target/qf_1/fc1/kernel:0',
+            'level_0/target/qf_1/qf_output/bias:0',
+            'level_0/target/qf_1/qf_output/kernel:0',
+
+            'level_1/target/pi/fc0/bias:0',
+            'level_1/target/pi/fc0/kernel:0',
+            'level_1/target/pi/fc1/bias:0',
+            'level_1/target/pi/fc1/kernel:0',
+            'level_1/target/pi/output/bias:0',
+            'level_1/target/pi/output/kernel:0',
+            'level_1/target/qf_0/fc0/bias:0',
+            'level_1/target/qf_0/fc0/kernel:0',
+            'level_1/target/qf_0/fc1/bias:0',
+            'level_1/target/qf_0/fc1/kernel:0',
+            'level_1/target/qf_0/qf_output/bias:0',
+            'level_1/target/qf_0/qf_output/kernel:0',
+            'level_1/target/qf_1/fc0/bias:0',
+            'level_1/target/qf_1/fc0/kernel:0',
+            'level_1/target/qf_1/fc1/bias:0',
+            'level_1/target/qf_1/fc1/kernel:0',
+            'level_1/target/qf_1/qf_output/bias:0',
+            'level_1/target/qf_1/qf_output/kernel:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_store_transition_1(self):
         """Check the functionality of the store_transition() method.
@@ -2184,19 +2757,11 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
         pass  # TODO
 
     def test_store_transition_2(self):
         pass  # TODO
-
-    def test_store_transition_3(self):
-        pass  # TODO: NotImplementedError
-
-    def test_store_transition_4(self):
-        pass  # TODO: NotImplementedError
 
 
 class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
@@ -2216,6 +2781,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
+        self.policy_params_shared.update(GOAL_CONDITIONED_PARAMS.copy())
         self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
 
@@ -2239,6 +2805,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
+        self.policy_params_independent.update(GOAL_CONDITIONED_PARAMS.copy())
         self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
 
@@ -2262,19 +2829,309 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
-        pass  # TODO
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = SACMultiGoalConditionedPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/level_0/model/log_alpha:0',
+             'a/level_0/model/pi/fc0/bias:0',
+             'a/level_0/model/pi/fc0/kernel:0',
+             'a/level_0/model/pi/fc1/bias:0',
+             'a/level_0/model/pi/fc1/kernel:0',
+             'a/level_0/model/pi/log_std/bias:0',
+             'a/level_0/model/pi/log_std/kernel:0',
+             'a/level_0/model/pi/mean/bias:0',
+             'a/level_0/model/pi/mean/kernel:0',
+             'a/level_0/model/value_fns/qf1/fc0/bias:0',
+             'a/level_0/model/value_fns/qf1/fc0/kernel:0',
+             'a/level_0/model/value_fns/qf1/fc1/bias:0',
+             'a/level_0/model/value_fns/qf1/fc1/kernel:0',
+             'a/level_0/model/value_fns/qf1/qf_output/bias:0',
+             'a/level_0/model/value_fns/qf1/qf_output/kernel:0',
+             'a/level_0/model/value_fns/qf2/fc0/bias:0',
+             'a/level_0/model/value_fns/qf2/fc0/kernel:0',
+             'a/level_0/model/value_fns/qf2/fc1/bias:0',
+             'a/level_0/model/value_fns/qf2/fc1/kernel:0',
+             'a/level_0/model/value_fns/qf2/qf_output/bias:0',
+             'a/level_0/model/value_fns/qf2/qf_output/kernel:0',
+             'a/level_0/model/value_fns/vf/fc0/bias:0',
+             'a/level_0/model/value_fns/vf/fc0/kernel:0',
+             'a/level_0/model/value_fns/vf/fc1/bias:0',
+             'a/level_0/model/value_fns/vf/fc1/kernel:0',
+             'a/level_0/model/value_fns/vf/vf_output/bias:0',
+             'a/level_0/model/value_fns/vf/vf_output/kernel:0',
+             'a/level_0/target/value_fns/vf/fc0/bias:0',
+             'a/level_0/target/value_fns/vf/fc0/kernel:0',
+             'a/level_0/target/value_fns/vf/fc1/bias:0',
+             'a/level_0/target/value_fns/vf/fc1/kernel:0',
+             'a/level_0/target/value_fns/vf/vf_output/bias:0',
+             'a/level_0/target/value_fns/vf/vf_output/kernel:0',
+             'a/level_1/model/log_alpha:0',
+             'a/level_1/model/pi/fc0/bias:0',
+             'a/level_1/model/pi/fc0/kernel:0',
+             'a/level_1/model/pi/fc1/bias:0',
+             'a/level_1/model/pi/fc1/kernel:0',
+             'a/level_1/model/pi/log_std/bias:0',
+             'a/level_1/model/pi/log_std/kernel:0',
+             'a/level_1/model/pi/mean/bias:0',
+             'a/level_1/model/pi/mean/kernel:0',
+             'a/level_1/model/value_fns/qf1/fc0/bias:0',
+             'a/level_1/model/value_fns/qf1/fc0/kernel:0',
+             'a/level_1/model/value_fns/qf1/fc1/bias:0',
+             'a/level_1/model/value_fns/qf1/fc1/kernel:0',
+             'a/level_1/model/value_fns/qf1/qf_output/bias:0',
+             'a/level_1/model/value_fns/qf1/qf_output/kernel:0',
+             'a/level_1/model/value_fns/qf2/fc0/bias:0',
+             'a/level_1/model/value_fns/qf2/fc0/kernel:0',
+             'a/level_1/model/value_fns/qf2/fc1/bias:0',
+             'a/level_1/model/value_fns/qf2/fc1/kernel:0',
+             'a/level_1/model/value_fns/qf2/qf_output/bias:0',
+             'a/level_1/model/value_fns/qf2/qf_output/kernel:0',
+             'a/level_1/model/value_fns/vf/fc0/bias:0',
+             'a/level_1/model/value_fns/vf/fc0/kernel:0',
+             'a/level_1/model/value_fns/vf/fc1/bias:0',
+             'a/level_1/model/value_fns/vf/fc1/kernel:0',
+             'a/level_1/model/value_fns/vf/vf_output/bias:0',
+             'a/level_1/model/value_fns/vf/vf_output/kernel:0',
+             'a/level_1/target/value_fns/vf/fc0/bias:0',
+             'a/level_1/target/value_fns/vf/fc0/kernel:0',
+             'a/level_1/target/value_fns/vf/fc1/bias:0',
+             'a/level_1/target/value_fns/vf/fc1/kernel:0',
+             'a/level_1/target/value_fns/vf/vf_output/bias:0',
+             'a/level_1/target/value_fns/vf/vf_output/kernel:0',
+             'b/level_0/model/log_alpha:0',
+             'b/level_0/model/pi/fc0/bias:0',
+             'b/level_0/model/pi/fc0/kernel:0',
+             'b/level_0/model/pi/fc1/bias:0',
+             'b/level_0/model/pi/fc1/kernel:0',
+             'b/level_0/model/pi/log_std/bias:0',
+             'b/level_0/model/pi/log_std/kernel:0',
+             'b/level_0/model/pi/mean/bias:0',
+             'b/level_0/model/pi/mean/kernel:0',
+             'b/level_0/model/value_fns/qf1/fc0/bias:0',
+             'b/level_0/model/value_fns/qf1/fc0/kernel:0',
+             'b/level_0/model/value_fns/qf1/fc1/bias:0',
+             'b/level_0/model/value_fns/qf1/fc1/kernel:0',
+             'b/level_0/model/value_fns/qf1/qf_output/bias:0',
+             'b/level_0/model/value_fns/qf1/qf_output/kernel:0',
+             'b/level_0/model/value_fns/qf2/fc0/bias:0',
+             'b/level_0/model/value_fns/qf2/fc0/kernel:0',
+             'b/level_0/model/value_fns/qf2/fc1/bias:0',
+             'b/level_0/model/value_fns/qf2/fc1/kernel:0',
+             'b/level_0/model/value_fns/qf2/qf_output/bias:0',
+             'b/level_0/model/value_fns/qf2/qf_output/kernel:0',
+             'b/level_0/model/value_fns/vf/fc0/bias:0',
+             'b/level_0/model/value_fns/vf/fc0/kernel:0',
+             'b/level_0/model/value_fns/vf/fc1/bias:0',
+             'b/level_0/model/value_fns/vf/fc1/kernel:0',
+             'b/level_0/model/value_fns/vf/vf_output/bias:0',
+             'b/level_0/model/value_fns/vf/vf_output/kernel:0',
+             'b/level_0/target/value_fns/vf/fc0/bias:0',
+             'b/level_0/target/value_fns/vf/fc0/kernel:0',
+             'b/level_0/target/value_fns/vf/fc1/bias:0',
+             'b/level_0/target/value_fns/vf/fc1/kernel:0',
+             'b/level_0/target/value_fns/vf/vf_output/bias:0',
+             'b/level_0/target/value_fns/vf/vf_output/kernel:0',
+             'b/level_1/model/log_alpha:0',
+             'b/level_1/model/pi/fc0/bias:0',
+             'b/level_1/model/pi/fc0/kernel:0',
+             'b/level_1/model/pi/fc1/bias:0',
+             'b/level_1/model/pi/fc1/kernel:0',
+             'b/level_1/model/pi/log_std/bias:0',
+             'b/level_1/model/pi/log_std/kernel:0',
+             'b/level_1/model/pi/mean/bias:0',
+             'b/level_1/model/pi/mean/kernel:0',
+             'b/level_1/model/value_fns/qf1/fc0/bias:0',
+             'b/level_1/model/value_fns/qf1/fc0/kernel:0',
+             'b/level_1/model/value_fns/qf1/fc1/bias:0',
+             'b/level_1/model/value_fns/qf1/fc1/kernel:0',
+             'b/level_1/model/value_fns/qf1/qf_output/bias:0',
+             'b/level_1/model/value_fns/qf1/qf_output/kernel:0',
+             'b/level_1/model/value_fns/qf2/fc0/bias:0',
+             'b/level_1/model/value_fns/qf2/fc0/kernel:0',
+             'b/level_1/model/value_fns/qf2/fc1/bias:0',
+             'b/level_1/model/value_fns/qf2/fc1/kernel:0',
+             'b/level_1/model/value_fns/qf2/qf_output/bias:0',
+             'b/level_1/model/value_fns/qf2/qf_output/kernel:0',
+             'b/level_1/model/value_fns/vf/fc0/bias:0',
+             'b/level_1/model/value_fns/vf/fc0/kernel:0',
+             'b/level_1/model/value_fns/vf/fc1/bias:0',
+             'b/level_1/model/value_fns/vf/fc1/kernel:0',
+             'b/level_1/model/value_fns/vf/vf_output/bias:0',
+             'b/level_1/model/value_fns/vf/vf_output/kernel:0',
+             'b/level_1/target/value_fns/vf/fc0/bias:0',
+             'b/level_1/target/value_fns/vf/fc0/kernel:0',
+             'b/level_1/target/value_fns/vf/fc1/bias:0',
+             'b/level_1/target/value_fns/vf/fc1/kernel:0',
+             'b/level_1/target/value_fns/vf/vf_output/bias:0',
+             'b/level_1/target/value_fns/vf/vf_output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(
+            policy.agents['a'].policy[0].ac_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[0].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[0].co_space.shape[0],
+            self.policy_params_independent['co_space']['a'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['a'].policy[1].ac_space.shape[0],
+            self.policy_params_independent['ac_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[1].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['a'].policy[1].co_space.shape[0],
+            self.policy_params_independent['ob_space']['a'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['b'].policy[0].ac_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[0].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[0].co_space.shape[0],
+            self.policy_params_independent['co_space']['b'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['b'].policy[1].ac_space.shape[0],
+            self.policy_params_independent['ac_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[1].ob_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['b'].policy[1].co_space.shape[0],
+            self.policy_params_independent['ob_space']['b'].shape[0]
+        )
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(not policy.maddpg)
 
     def test_init_2(self):
-        pass  # TODO
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = SACMultiGoalConditionedPolicy(**policy_params)
 
-    def test_init_3(self):
-        pass  # TODO: NotImplementedError
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['level_0/model/log_alpha:0',
+             'level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/log_std/bias:0',
+             'level_0/model/pi/log_std/kernel:0',
+             'level_0/model/pi/mean/bias:0',
+             'level_0/model/pi/mean/kernel:0',
+             'level_0/model/value_fns/qf1/fc0/bias:0',
+             'level_0/model/value_fns/qf1/fc0/kernel:0',
+             'level_0/model/value_fns/qf1/fc1/bias:0',
+             'level_0/model/value_fns/qf1/fc1/kernel:0',
+             'level_0/model/value_fns/qf1/qf_output/bias:0',
+             'level_0/model/value_fns/qf1/qf_output/kernel:0',
+             'level_0/model/value_fns/qf2/fc0/bias:0',
+             'level_0/model/value_fns/qf2/fc0/kernel:0',
+             'level_0/model/value_fns/qf2/fc1/bias:0',
+             'level_0/model/value_fns/qf2/fc1/kernel:0',
+             'level_0/model/value_fns/qf2/qf_output/bias:0',
+             'level_0/model/value_fns/qf2/qf_output/kernel:0',
+             'level_0/model/value_fns/vf/fc0/bias:0',
+             'level_0/model/value_fns/vf/fc0/kernel:0',
+             'level_0/model/value_fns/vf/fc1/bias:0',
+             'level_0/model/value_fns/vf/fc1/kernel:0',
+             'level_0/model/value_fns/vf/vf_output/bias:0',
+             'level_0/model/value_fns/vf/vf_output/kernel:0',
+             'level_0/target/value_fns/vf/fc0/bias:0',
+             'level_0/target/value_fns/vf/fc0/kernel:0',
+             'level_0/target/value_fns/vf/fc1/bias:0',
+             'level_0/target/value_fns/vf/fc1/kernel:0',
+             'level_0/target/value_fns/vf/vf_output/bias:0',
+             'level_0/target/value_fns/vf/vf_output/kernel:0',
+             'level_1/model/log_alpha:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/log_std/bias:0',
+             'level_1/model/pi/log_std/kernel:0',
+             'level_1/model/pi/mean/bias:0',
+             'level_1/model/pi/mean/kernel:0',
+             'level_1/model/value_fns/qf1/fc0/bias:0',
+             'level_1/model/value_fns/qf1/fc0/kernel:0',
+             'level_1/model/value_fns/qf1/fc1/bias:0',
+             'level_1/model/value_fns/qf1/fc1/kernel:0',
+             'level_1/model/value_fns/qf1/qf_output/bias:0',
+             'level_1/model/value_fns/qf1/qf_output/kernel:0',
+             'level_1/model/value_fns/qf2/fc0/bias:0',
+             'level_1/model/value_fns/qf2/fc0/kernel:0',
+             'level_1/model/value_fns/qf2/fc1/bias:0',
+             'level_1/model/value_fns/qf2/fc1/kernel:0',
+             'level_1/model/value_fns/qf2/qf_output/bias:0',
+             'level_1/model/value_fns/qf2/qf_output/kernel:0',
+             'level_1/model/value_fns/vf/fc0/bias:0',
+             'level_1/model/value_fns/vf/fc0/kernel:0',
+             'level_1/model/value_fns/vf/fc1/bias:0',
+             'level_1/model/value_fns/vf/fc1/kernel:0',
+             'level_1/model/value_fns/vf/vf_output/bias:0',
+             'level_1/model/value_fns/vf/vf_output/kernel:0',
+             'level_1/target/value_fns/vf/fc0/bias:0',
+             'level_1/target/value_fns/vf/fc0/kernel:0',
+             'level_1/target/value_fns/vf/fc1/bias:0',
+             'level_1/target/value_fns/vf/fc1/kernel:0',
+             'level_1/target/value_fns/vf/vf_output/bias:0',
+             'level_1/target/value_fns/vf/vf_output/kernel:0']
+        )
 
-    def test_init_4(self):
-        pass  # TODO: NotImplementedError
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(
+            policy.agents['policy'].policy[0].ac_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[0].ob_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[0].co_space.shape[0],
+            self.policy_params_shared['co_space'].shape[0]
+        )
+
+        self.assertEqual(
+            policy.agents['policy'].policy[1].ac_space.shape[0],
+            self.policy_params_shared['ac_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[1].ob_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+        self.assertEqual(
+            policy.agents['policy'].policy[1].co_space.shape[0],
+            self.policy_params_shared['ob_space'].shape[0]
+        )
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(policy.shared)
+        self.assertTrue(not policy.maddpg)
 
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
@@ -2286,19 +3143,133 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
-        pass  # TODO
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = SACMultiGoalConditionedPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'a/level_0/model/value_fns/vf/fc0/kernel:0',
+            'a/level_0/model/value_fns/vf/fc0/bias:0',
+            'a/level_0/model/value_fns/vf/fc1/kernel:0',
+            'a/level_0/model/value_fns/vf/fc1/bias:0',
+            'a/level_0/model/value_fns/vf/vf_output/kernel:0',
+            'a/level_0/model/value_fns/vf/vf_output/bias:0',
+
+            'a/level_1/model/value_fns/vf/fc0/kernel:0',
+            'a/level_1/model/value_fns/vf/fc0/bias:0',
+            'a/level_1/model/value_fns/vf/fc1/kernel:0',
+            'a/level_1/model/value_fns/vf/fc1/bias:0',
+            'a/level_1/model/value_fns/vf/vf_output/kernel:0',
+            'a/level_1/model/value_fns/vf/vf_output/bias:0',
+
+            'b/level_0/model/value_fns/vf/fc0/kernel:0',
+            'b/level_0/model/value_fns/vf/fc0/bias:0',
+            'b/level_0/model/value_fns/vf/fc1/kernel:0',
+            'b/level_0/model/value_fns/vf/fc1/bias:0',
+            'b/level_0/model/value_fns/vf/vf_output/kernel:0',
+            'b/level_0/model/value_fns/vf/vf_output/bias:0',
+
+            'b/level_1/model/value_fns/vf/fc0/kernel:0',
+            'b/level_1/model/value_fns/vf/fc0/bias:0',
+            'b/level_1/model/value_fns/vf/fc1/kernel:0',
+            'b/level_1/model/value_fns/vf/fc1/bias:0',
+            'b/level_1/model/value_fns/vf/vf_output/kernel:0',
+            'b/level_1/model/value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'a/level_0/target/value_fns/vf/fc0/kernel:0',
+            'a/level_0/target/value_fns/vf/fc0/bias:0',
+            'a/level_0/target/value_fns/vf/fc1/kernel:0',
+            'a/level_0/target/value_fns/vf/fc1/bias:0',
+            'a/level_0/target/value_fns/vf/vf_output/kernel:0',
+            'a/level_0/target/value_fns/vf/vf_output/bias:0',
+
+            'a/level_1/target/value_fns/vf/fc0/kernel:0',
+            'a/level_1/target/value_fns/vf/fc0/bias:0',
+            'a/level_1/target/value_fns/vf/fc1/kernel:0',
+            'a/level_1/target/value_fns/vf/fc1/bias:0',
+            'a/level_1/target/value_fns/vf/vf_output/kernel:0',
+            'a/level_1/target/value_fns/vf/vf_output/bias:0',
+
+            'b/level_0/target/value_fns/vf/fc0/kernel:0',
+            'b/level_0/target/value_fns/vf/fc0/bias:0',
+            'b/level_0/target/value_fns/vf/fc1/kernel:0',
+            'b/level_0/target/value_fns/vf/fc1/bias:0',
+            'b/level_0/target/value_fns/vf/vf_output/kernel:0',
+            'b/level_0/target/value_fns/vf/vf_output/bias:0',
+
+            'b/level_1/target/value_fns/vf/fc0/kernel:0',
+            'b/level_1/target/value_fns/vf/fc0/bias:0',
+            'b/level_1/target/value_fns/vf/fc1/kernel:0',
+            'b/level_1/target/value_fns/vf/fc1/bias:0',
+            'b/level_1/target/value_fns/vf/vf_output/kernel:0',
+            'b/level_1/target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_initialize_2(self):
-        pass  # TODO
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = SACMultiGoalConditionedPolicy(**policy_params)
 
-    def test_initialize_3(self):
-        pass  # TODO: NotImplementedError
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-    def test_initialize_4(self):
-        pass  # TODO: NotImplementedError
+        # Run the initialize method.
+        policy.initialize()
+
+        model_var_list = [
+            'level_0/model/value_fns/vf/fc0/kernel:0',
+            'level_0/model/value_fns/vf/fc0/bias:0',
+            'level_0/model/value_fns/vf/fc1/kernel:0',
+            'level_0/model/value_fns/vf/fc1/bias:0',
+            'level_0/model/value_fns/vf/vf_output/kernel:0',
+            'level_0/model/value_fns/vf/vf_output/bias:0',
+
+            'level_1/model/value_fns/vf/fc0/kernel:0',
+            'level_1/model/value_fns/vf/fc0/bias:0',
+            'level_1/model/value_fns/vf/fc1/kernel:0',
+            'level_1/model/value_fns/vf/fc1/bias:0',
+            'level_1/model/value_fns/vf/vf_output/kernel:0',
+            'level_1/model/value_fns/vf/vf_output/bias:0',
+        ]
+
+        target_var_list = [
+            'level_0/target/value_fns/vf/fc0/kernel:0',
+            'level_0/target/value_fns/vf/fc0/bias:0',
+            'level_0/target/value_fns/vf/fc1/kernel:0',
+            'level_0/target/value_fns/vf/fc1/bias:0',
+            'level_0/target/value_fns/vf/vf_output/kernel:0',
+            'level_0/target/value_fns/vf/vf_output/bias:0',
+
+            'level_1/target/value_fns/vf/fc0/kernel:0',
+            'level_1/target/value_fns/vf/fc0/bias:0',
+            'level_1/target/value_fns/vf/fc1/kernel:0',
+            'level_1/target/value_fns/vf/fc1/bias:0',
+            'level_1/target/value_fns/vf/vf_output/kernel:0',
+            'level_1/target/value_fns/vf/vf_output/bias:0',
+        ]
+
+        for model, target in zip(model_var_list, target_var_list):
+            with tf.compat.v1.variable_scope(
+                    tf.compat.v1.get_variable_scope(), reuse=True):
+                model_val = policy.sess.run(model)
+                target_val = policy.sess.run(target)
+            np.testing.assert_almost_equal(model_val, target_val)
 
     def test_store_transition_1(self):
         """Check the functionality of the store_transition() method.
@@ -2307,19 +3278,11 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
 
         1. maddpg = False, shared = False
         2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
         """
         pass  # TODO
 
     def test_store_transition_2(self):
         pass  # TODO
-
-    def test_store_transition_3(self):
-        pass  # TODO: NotImplementedError
-
-    def test_store_transition_4(self):
-        pass  # TODO: NotImplementedError
 
 
 if __name__ == '__main__':
