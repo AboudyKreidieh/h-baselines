@@ -266,7 +266,7 @@ the original paper, run the appropriate command below.
   * highway-v1
     ```shell script
     python run_fcnet.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000
+        --nb_train_steps 10  --log_interval 15000 --total_steps 1500000
     ```
 
 * **HRL:**
@@ -288,7 +288,7 @@ the original paper, run the appropriate command below.
   * highway-v1
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000
+        --nb_train_steps 10  --log_interval 15000 --total_steps 1500000
     ```
 
 * **HIRO:**
@@ -312,7 +312,8 @@ the original paper, run the appropriate command below.
   * highway-v1
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000 --off_policy_corrections
+        --nb_train_steps 10  --log_interval 15000 --total_steps 1500000 \
+        --off_policy_corrections
     ```
 
 * **HAC:**
@@ -335,7 +336,8 @@ the original paper, run the appropriate command below.
   * highway-v1
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000 --hindsight
+        --nb_train_steps 10  --log_interval 15000 --total_steps 1500000 \
+        --hindsight
     ```
 
 * **CHER:**
@@ -359,8 +361,8 @@ the original paper, run the appropriate command below.
   * highway-v1
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
-        --nb_train_steps 10 --total_steps 1500000 --cooperative_gradients \
-        --cg_weights 0.01
+        --nb_train_steps 10  --log_interval 15000 --total_steps 1500000 \
+        --cooperative_gradients --cg_weights 0.01
     ```
 
 ### 4.2 Downloading and Replaying Pre-trained Models
