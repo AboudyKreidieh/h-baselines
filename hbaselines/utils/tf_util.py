@@ -27,8 +27,10 @@ def make_session(num_cpu, graph=None):
         allow_soft_placement=True,
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
-    # Prevent tensorflow from taking all the gpu memory
+
+    # Prevent tensorflow from taking all the gpu memory.
     tf_config.gpu_options.allow_growth = True
+
     return tf.compat.v1.Session(config=tf_config, graph=graph)
 
 

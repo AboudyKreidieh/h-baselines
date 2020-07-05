@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 import random
+import os
 from copy import deepcopy
 
 from flow.core.params import EnvParams
@@ -21,14 +22,22 @@ from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.params.highway \
     import get_flow_params as highway
+from hbaselines.envs.mixed_autonomy.params.i210 \
+    import get_flow_params as i210
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
+from hbaselines.envs.mixed_autonomy.envs.av import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
     import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av \
     import OPEN_ENV_PARAMS as SA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import LaneOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi \
+    import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
@@ -36,6 +45,8 @@ from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 from hbaselines.envs.point2d import Point2DEnv
 from hbaselines.utils.env_util import create_env
+
+os.environ["TEST_FLAG"] = "True"
 
 
 class TestEfficientHRLEnvironments(unittest.TestCase):
@@ -406,6 +417,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     4. the agent IDs match their expected values
     """
 
+    def setUp(self):
+        self.maxDiff = None
+
     # ======================================================================= #
     #                                 ring-v0                                 #
     # ======================================================================= #
@@ -721,28 +735,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_merge_v0(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v0")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
-
     # ======================================================================= #
     #                                merge-v1                                 #
     # ======================================================================= #
@@ -778,28 +770,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # kill the environment
         env.wrapped_env.terminate()
-
-    def test_multi_agent_merge_v1(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v1")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                                merge-v2                                 #
@@ -837,28 +807,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_merge_v2(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        # env, _ = create_env("multiagent-merge-v2")
-
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
-
-        # test case 4
-        pass  # TODO
-
-        # kill the environment
-        # env.wrapped_env.terminate()
-
     # ======================================================================= #
     #                               highway-v0                                #
     # ======================================================================= #
@@ -889,7 +837,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            -8.019758424524031
+            -2.5
         )
 
         # kill the environment
@@ -924,31 +872,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': -1.8597728336172081,
-             'rl_highway_inflow_10.19': -1.8597728336172081,
-             'rl_highway_inflow_10.20': -1.8597728336172081,
-             'rl_highway_inflow_10.21': -1.8597728336172081,
-             'rl_highway_inflow_10.22': -1.8597728336172081,
-             'rl_highway_inflow_10.23': -1.8597728336172081,
-             'rl_highway_inflow_10.24': -1.8597728336172081,
-             'rl_highway_inflow_10.25': -1.8597728336172081,
-             'rl_highway_inflow_10.26': -1.8597728336172081,
-             'rl_highway_inflow_10.27': -1.8597728336172081}
+            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -984,7 +914,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            1.9802415754759695
+            -2.5
         )
 
         # kill the environment
@@ -1019,31 +949,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': 1.6210246865645077,
-             'rl_highway_inflow_10.19': 1.6210246865645077,
-             'rl_highway_inflow_10.20': 1.6210246865645077,
-             'rl_highway_inflow_10.21': 1.6210246865645077,
-             'rl_highway_inflow_10.22': 1.6210246865645077,
-             'rl_highway_inflow_10.23': 1.6210246865645077,
-             'rl_highway_inflow_10.24': 1.6210246865645077,
-             'rl_highway_inflow_10.25': 1.6210246865645077,
-             'rl_highway_inflow_10.26': 1.6210246865645077,
-             'rl_highway_inflow_10.27': 1.6210246865645077}
+            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -1079,7 +991,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            4.4802415754759695
+            0.0
         )
 
         # kill the environment
@@ -1114,31 +1026,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_highway_inflow_10.18': 4.121024686564508,
-             'rl_highway_inflow_10.19': 4.121024686564508,
-             'rl_highway_inflow_10.20': 4.121024686564508,
-             'rl_highway_inflow_10.21': 4.121024686564508,
-             'rl_highway_inflow_10.22': 4.121024686564508,
-             'rl_highway_inflow_10.23': 4.121024686564508,
-             'rl_highway_inflow_10.24': 4.121024686564508,
-             'rl_highway_inflow_10.25': 4.121024686564508,
-             'rl_highway_inflow_10.26': 4.121024686564508,
-             'rl_highway_inflow_10.27': 4.121024686564508}
+            {'rl_highway_inflow_10.0': 0.0, 'rl_highway_inflow_10.1': 0.0}
         )
 
         # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.18',
-             'rl_highway_inflow_10.19',
-             'rl_highway_inflow_10.20',
-             'rl_highway_inflow_10.21',
-             'rl_highway_inflow_10.22',
-             'rl_highway_inflow_10.23',
-             'rl_highway_inflow_10.24',
-             'rl_highway_inflow_10.25',
-             'rl_highway_inflow_10.26',
-             'rl_highway_inflow_10.27']
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
         )
 
         # kill the environment
@@ -1174,7 +1068,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            4.4802415754759695
+            0.0
         )
 
         # kill the environment
@@ -1210,7 +1104,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-            -2.9597211361808213
+            -12.5
         )
 
         # kill the environment
@@ -1245,11 +1139,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([0.5] * 10) for key in env.agents},
                 fail=False,
             ),
-            {'lane_0': 4.986116706600313,
-             'lane_1': 5.065488111440597,
-             'lane_2': 4.646797630457543,
-             'lane_3': 5.0177871084707295,
-             'lane_4': 4.954239592286896}
+            {'lane_0': 0.0,
+             'lane_1': 0.0,
+             'lane_2': 0.0,
+             'lane_3': 0.0,
+             'lane_4': 0.0}
         )
 
         # test case 4
@@ -1411,9 +1305,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #         sorted(env.agents),
     #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
     #     )
-
-        # kill the environment
-        env.wrapped_env.terminate()
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
 
 
 class TestAV(unittest.TestCase):
@@ -1440,10 +1334,24 @@ class TestAV(unittest.TestCase):
             net_params=flow_params_closed["net"],
         )
         self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.warmup_steps = 0
         self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
         # for AVOpenEnv
-        pass  # TODO
+        flow_params_open = deepcopy(highway(
+            fixed_boundary=False,
+            stopping_penalty=True,
+            acceleration_penalty=True,
+        ))
+
+        self.network_open = flow_params_open["network"](
+            name="test_open",
+            vehicles=flow_params_open["veh"],
+            net_params=flow_params_open["net"],
+        )
+        self.env_params_open = flow_params_open["env"]
+        self.env_params_open.warmup_steps = 0
+        self.env_params_open.additional_params = SA_OPEN_ENV_PARAMS.copy()
 
     def test_base_env(self):
         """Validate the functionality of the AVEnv class.
@@ -1453,15 +1361,9 @@ class TestAV(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the observation space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         3. that the action space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         4. that the observed vehicle IDs after a reset matches its expected
            values
-           a. for the single lane case
-           b. for the multi-lane case
         """
         # test case 1
         self.assertTrue(
@@ -1490,11 +1392,7 @@ class TestAV(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=5 * env_single.initial_vehicles.num_rl_vehicles,
@@ -1502,10 +1400,7 @@ class TestAV(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=env_single.initial_vehicles.num_rl_vehicles,
@@ -1513,10 +1408,7 @@ class TestAV(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVEnv,
@@ -1528,9 +1420,6 @@ class TestAV(unittest.TestCase):
             )
         )
 
-        # test case 4.b
-        pass  # TODO
-
     def test_closed_env(self):
         """Validate the functionality of the AVClosedEnv class.
 
@@ -1538,7 +1427,7 @@ class TestAV(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the number of vehicles is properly modified in between resets
+        2. that the number of vehicles is properly modified in between resets
         """
         # test case 1
         self.assertTrue(
@@ -1570,7 +1459,7 @@ class TestAV(unittest.TestCase):
             network=self.network_closed
         )
 
-        # reset the network several times and check its length
+        # reset the network several times and check its number of vehicle
         self.assertEqual(env.k.vehicle.num_vehicles, 50)
         self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
         env.reset()
@@ -1587,14 +1476,60 @@ class TestAV(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the inflow rate of vehicles is properly modified in between
+        2. that the inflow rate of vehicles is properly modified in between
            resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVOpenEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "control_range": [500, 2500],
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
 
         # test case 2
-        pass  # TODO
+        env = AVOpenEnv(
+            env_params=self.env_params_open,
+            sim_params=self.sim_params,
+            network=self.network_open
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 2030 if veh_type == "human" else 184
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
 
 class TestAVMulti(unittest.TestCase):
@@ -1609,9 +1544,9 @@ class TestAVMulti(unittest.TestCase):
         ))["sim"]
         self.sim_params.render = False
 
-        # for AVClosedEnv
+        # for AVClosedMultiAgentEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
+            fixed_density=False,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1623,10 +1558,42 @@ class TestAVMulti(unittest.TestCase):
             net_params=flow_params_closed["net"],
         )
         self.env_params_closed = flow_params_closed["env"]
+        self.env_params_closed.warmup_steps = 0
         self.env_params_closed.additional_params = MA_CLOSED_ENV_PARAMS.copy()
 
-        # for AVOpenEnv
-        pass  # TODO
+        # for AVOpenMultiAgentEnv
+        flow_params_open = deepcopy(highway(
+            fixed_boundary=False,
+            stopping_penalty=True,
+            acceleration_penalty=True,
+            multiagent=True,
+        ))
+
+        self.network_open = flow_params_open["network"](
+            name="test_open",
+            vehicles=flow_params_open["veh"],
+            net_params=flow_params_open["net"],
+        )
+        self.env_params_open = flow_params_open["env"]
+        self.env_params_open.warmup_steps = 0
+        self.env_params_open.additional_params = MA_OPEN_ENV_PARAMS.copy()
+
+        # for LaneOpenMultiAgentEnv
+        flow_params_lane = deepcopy(i210(
+            fixed_boundary=False,
+            stopping_penalty=True,
+            acceleration_penalty=True,
+            multiagent=True,
+        ))
+
+        self.network_lane = flow_params_lane["network"](
+            name="test_open",
+            vehicles=flow_params_lane["veh"],
+            net_params=flow_params_lane["net"],
+        )
+        self.env_params_lane = flow_params_lane["env"]
+        self.env_params_lane.warmup_steps = 0
+        self.env_params_lane.additional_params = MA_OPEN_ENV_PARAMS.copy()
 
     def test_base_env(self):
         """Validate the functionality of the AVMultiAgentEnv class.
@@ -1636,15 +1603,9 @@ class TestAVMulti(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the observation space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         3. that the action space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
         4. that the observed vehicle IDs after a reset matches its expected
            values
-           a. for the single lane case
-           b. for the multi-lane case
         """
         # test case 1
         self.assertTrue(
@@ -1673,11 +1634,7 @@ class TestAVMulti(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=env_single.initial_vehicles.num_rl_vehicles,
@@ -1685,10 +1642,7 @@ class TestAVMulti(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=1,
@@ -1696,10 +1650,7 @@ class TestAVMulti(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVMultiAgentEnv,
@@ -1711,9 +1662,6 @@ class TestAVMulti(unittest.TestCase):
             )
         )
 
-        # test case 4.b
-        pass  # TODO
-
     def test_closed_env(self):
         """Validate the functionality of the AVClosedMultiAgentEnv class.
 
@@ -1721,13 +1669,47 @@ class TestAVMulti(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the number of vehicles is properly modified in between resets
+        2. that the number of vehicles is properly modified in between resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVClosedMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "num_vehicles":  [50, 75],
+                    "even_distribution": False,
+                    "sort_vehicles": True,
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
 
         # test case 2
-        pass  # TODO
+        env = AVClosedMultiAgentEnv(
+            env_params=self.env_params_closed,
+            sim_params=self.sim_params,
+            network=self.network_closed
+        )
+
+        # reset the network several times and check its number of vehicles
+        self.assertEqual(env.k.vehicle.num_vehicles, 50)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 54)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        env.reset()
+        self.assertEqual(env.k.vehicle.num_vehicles, 58)
+        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenMultiAgentEnv class.
@@ -1736,14 +1718,122 @@ class TestAVMulti(unittest.TestCase):
 
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
-        2, that the inflow rate of vehicles is properly modified in between
+        2. that the inflow rate of vehicles is properly modified in between
            resets
         """
         # test case 1
-        pass  # TODO
+        self.assertTrue(
+            test_additional_params(
+                env_class=AVOpenMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_open,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "control_range": [500, 2500],
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
 
         # test case 2
-        pass  # TODO
+        env = AVOpenMultiAgentEnv(
+            env_params=self.env_params_open,
+            sim_params=self.sim_params,
+            network=self.network_open
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 2030 if veh_type == "human" else 184
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+    def test_lane_open_env(self):
+        """Validate the functionality of the LaneOpenMultiAgentEnv class.
+
+        This tests checks for the following cases:
+
+        1. that additional_env_params cause an Exception to be raised if not
+           properly passed
+        2. that the inflow rate of vehicles is properly modified in between
+           resets
+        """
+        # test case 1
+        self.assertTrue(
+            test_additional_params(
+                env_class=LaneOpenMultiAgentEnv,
+                sim_params=self.sim_params,
+                network=self.network_lane,
+                additional_params={
+                    "max_accel": 3,
+                    "max_decel": 3,
+                    "target_velocity": 30,
+                    "stopping_penalty": True,
+                    "acceleration_penalty": True,
+                    "inflows": [1000, 2000],
+                    "rl_penetration": 0.1,
+                    "num_rl": 5,
+                    "control_range": [500, 2500],
+                },
+            )
+        )
+
+        # set a random seed to ensure the network lengths are always the same
+        # during testing
+        random.seed(1)
+
+        # test case 2
+        env = LaneOpenMultiAgentEnv(
+            env_params=self.env_params_lane,
+            sim_params=self.sim_params,
+            network=self.network_lane
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1913 if veh_type == "human" else 136
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
 
 class TestAVImitation(unittest.TestCase):
@@ -1846,11 +1936,7 @@ class TestAVImitation(unittest.TestCase):
             network=self.network_closed
         )
 
-        # Create a multi-lane environment.
-        env_multi = None  # TODO
-        del env_multi
-
-        # test case 2.a
+        # test case 2
         test_space(
             gym_space=env_single.observation_space,
             expected_size=25,
@@ -1858,10 +1944,7 @@ class TestAVImitation(unittest.TestCase):
             expected_max=float("inf"),
         )
 
-        # test case 2.b
-        pass  # TODO
-
-        # test case 3.a
+        # test case 3
         test_space(
             gym_space=env_single.action_space,
             expected_size=5,
@@ -1869,10 +1952,7 @@ class TestAVImitation(unittest.TestCase):
             expected_max=1,
         )
 
-        # test case 3.b
-        pass  # TODO
-
-        # test case 4.a
+        # test case 4
         self.assertTrue(
             test_observed(
                 env_class=AVImitationEnv,
@@ -1883,9 +1963,6 @@ class TestAVImitation(unittest.TestCase):
                                    'human_0_0', 'human_0_44', 'rl_0_0']
             )
         )
-
-        # test case 4.b
-        pass  # TODO
 
         # test case 5
         env = AVImitationEnv(
@@ -1950,7 +2027,7 @@ class TestAVImitation(unittest.TestCase):
             network=self.network_closed
         )
 
-        # reset the network several times and check its length
+        # reset the network several times and check its number of vehicles
         self.assertEqual(env.k.vehicle.num_vehicles, 50)
         self.assertEqual(env.num_rl, 5)
         env.reset()
@@ -2018,7 +2095,32 @@ class TestAVImitation(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        pass  # TODO
+        env = AVOpenEnv(
+            env_params=self.env_params_open,
+            sim_params=self.sim_params,
+            network=self.network_open
+        )
+
+        # reset the network several times and check its inflow rate
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 2030 if veh_type == "human" else 184
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1023.3 if veh_type == "human" else 113.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
+
+        env.reset()
+        inflows = env.net_params.inflows.get()
+        for inflow_i in inflows:
+            veh_type = inflow_i["vtype"]
+            expected_rate = 1680.3 if veh_type == "human" else 186.7
+            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         # test case 3
         env = AVOpenImitationEnv(
@@ -2028,10 +2130,8 @@ class TestAVImitation(unittest.TestCase):
         )
         env.reset()
 
-        np.testing.assert_almost_equal(
-            env.query_expert(None),
-            [0.0604367, 0.1412521, 0.1402381, 0.1775216, 0.0628473]
-        )
+        # Just make sure it runs without failing.
+        env.query_expert(None)
 
 
 class TestPoint2D(unittest.TestCase):
@@ -2154,54 +2254,42 @@ class TestPoint2D(unittest.TestCase):
         self.assertAlmostEqual(reward, -3.850633885880888)
         self.assertEqual(done, False)
 
-    def test_position_inside_wall(self):
-        """Validate the functionality of the position_inside_wall method.
-
-        TODO
-        """
-        pass  # TODO
-
     def test_get_goal(self):
-        """Validate the functionality of the get_goal method.
+        """Validate the functionality of the get_goal method."""
+        np.random.seed(0)
 
-        TODO
-        """
-        pass  # TODO
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
 
-    def test_get_image(self):
-        """Validate the functionality of the get_image method.
+        # After first reset.
+        env.reset()
+        np.testing.assert_almost_equal(env.get_goal(), [0.390508, 1.7215149])
 
-        TODO
-        """
-        pass  # TODO
-
-    def test_draw(self):
-        """Validate the functionality of the draw method.
-
-        TODO
-        """
-        pass  # TODO
+        # After second reset.
+        env.reset()
+        np.testing.assert_almost_equal(env.get_goal(), [-0.6107616, 1.1671529])
 
     def test_true_model(self):
-        """Validate the functionality of the true_model method.
+        """Validate the functionality of the true_model method."""
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
 
-        TODO
-        """
-        pass  # TODO
+        # Test the method.
+        s_t = np.array([0, 1, 2, 3])
+        a_t = np.array([0, -10, -1, 5])
+        np.testing.assert_almost_equal(env.true_model(s_t, a_t), [0, 0, 1, 4])
 
     def test_true_states(self):
-        """Validate the functionality of the true_states method.
+        """Validate the functionality of the true_states method."""
+        # Initialize the environment.
+        env = self.env_cls(**deepcopy(self.env_params))
 
-        TODO
-        """
-        pass  # TODO
-
-    def test_plot_trajectory(self):
-        """Validate the functionality of the plot_trajectory method.
-
-        TODO
-        """
-        pass  # TODO
+        # Test the method.
+        s_t = np.array([0, 1, 2, 3])
+        a_t = [np.array([1, 1, 1, 1]), np.array([0, -10, -1, 5])]
+        np.testing.assert_almost_equal(
+            env.true_states(s_t, a_t),
+            [[0, 1, 2, 3], [1, 2, 3, 4], [1, 1, 2, 4]])
 
 
 ###############################################################################
@@ -2243,7 +2331,7 @@ def test_additional_params(env_class,
                 env_params=EnvParams(additional_params=new_add)
             )
             # if no KeyError is raised, the test has failed, so return False
-            return False
+            return False  # pragma: no cover
         except KeyError:
             # if a KeyError is raised, test the next param
             pass
@@ -2255,9 +2343,9 @@ def test_additional_params(env_class,
             network=network,
             env_params=EnvParams(additional_params=additional_params.copy())
         )
-    except KeyError:
+    except KeyError:  # pragma: no cover
         # if a KeyError is raised, the test has failed, so return False
-        return False
+        return False  # pragma: no cover
 
     # if removing all additional params led to KeyErrors, the test has passed,
     # so return True

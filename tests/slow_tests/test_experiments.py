@@ -9,6 +9,8 @@ from experiments.run_fcnet import main as run_fcnet
 from experiments.run_hrl import main as run_hrl
 from experiments.run_multi_fcnet import main as run_multi_fcnet
 
+os.environ["TEST_FLAG"] = "True"
+
 
 class TestExperimentRunnerScripts(unittest.TestCase):
     """Tests the runner scripts in the experiments folder."""
@@ -20,6 +22,8 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             "--initial_exploration_steps", "1",
             "--total_steps", "500",
             "--log_interval", "500",
+            "--num_envs", "2",  # to test RaySampler
+            "--nb_rollout_steps", "2",
         ])
         run_fcnet(args, 'data/fcnet')
 

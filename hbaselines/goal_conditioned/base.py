@@ -13,7 +13,7 @@ from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 class GoalConditionedPolicy(ActorCriticPolicy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
 
-    FIXME
+    TODO
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
     This network consists of a high-level, or Manager, pi_{\theta_H} that

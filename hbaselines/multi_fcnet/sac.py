@@ -351,9 +351,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                 )
 
             # Store the new objects in their respective attributes.
-            self.action_ph.append(action_ph)  # TODO: maybe not?
+            self.action_ph.append(action_ph)
             self.obs_ph.append(obs_ph)
-            self.obs1_ph.append(obs1_ph)  # TODO: maybe not?
+            self.obs1_ph.append(obs1_ph)
             if i == 0:
                 self.terminals1 = terminals1
                 self.rew_ph = rew_ph
@@ -1390,8 +1390,10 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  evaluate):
         """See store_transition."""
         if self.shared:
+            reward_agent = reward[list(reward.keys())[0]]
+
             # Collect the observations and actions in order as listed by their
-            # agent IDs. FIXME: this could cause problems in the merge.
+            # agent IDs.
             list_obs0, list_obs1, list_action = [], [], []
             for key in sorted(list(obs0.keys())):
                 list_obs0.append(self._get_obs(
@@ -1399,13 +1401,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                 list_obs1.append(self._get_obs(
                     obs1[key], None if context1 is None else context0[key]))
                 list_action.append(action[key])
-                reward = reward[key]
 
             # Store the new sample.
             self.replay_buffer.add(
                 obs_t=list_obs0,
                 action=list_action,
-                reward=reward,
+                reward=reward_agent,
                 obs_tp1=list_obs1,
                 done=float(done),
                 all_obs_t=all_obs0,
@@ -1413,17 +1414,24 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
         else:
             # Collect the actions in order as listed by their agent IDs.
-            # FIXME: this could cause problems in the merge.
-            combines_actions = np.array(
+            combines_actions = np.concatenate(
                 [action[key] for key in sorted(list(action.keys()))])
 
             # Store the new samples in their replay buffer.
             for key in obs0.keys():
+                # Add the contextual observation, if applicable.
+                if context0 is None:
+                    obs0_agent = obs0[key]
+                    obs1_agent = obs1[key]
+                else:
+                    obs0_agent = self._get_obs(obs0[key], context0[key], 0)
+                    obs1_agent = self._get_obs(obs1[key], context1[key], 0)
+
                 self.replay_buffer[key].add(
-                    obs_t=obs0[key],
+                    obs_t=obs0_agent,
                     action=action[key],
                     reward=reward[key],
-                    obs_tp1=obs1[key],
+                    obs_tp1=obs1_agent,
                     done=float(done),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
@@ -1447,7 +1455,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Combine all actions under one variable. This is done by order of
             # agent IDs in alphabetical order.
-            # FIXME: this could cause problems in the merge.
             all_actions = np.concatenate(actions, axis=1)
 
             td_map = {

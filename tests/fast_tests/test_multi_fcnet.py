@@ -78,65 +78,388 @@ class TestBaseMultiFeedForwardPolicy(unittest.TestCase):
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        for i in range(4):
+            action_0 = np.array([i for _ in range(1)])
+            action_1 = np.array([i for _ in range(2)])
+            context0_0 = np.array([i for _ in range(3)])
+            context0_1 = np.array([i for _ in range(4)])
+            obs0_0 = np.array([i for _ in range(5)])
+            obs0_1 = np.array([i for _ in range(6)])
+            reward = i
+            obs1_0 = np.array([i+1 for _ in range(5)])
+            obs1_1 = np.array([i+1 for _ in range(6)])
+            context1_0 = np.array([i for _ in range(3)])
+            context1_1 = np.array([i for _ in range(4)])
+            done = False
+            is_final_step = False
+            evaluate = False
+
+            policy.store_transition(
+                obs0={"a": obs0_0, "b": obs0_1},
+                context0={"a": context0_0, "b": context0_1},
+                action={"a": action_0, "b": action_1},
+                reward={"a": reward, "b": reward},
+                obs1={"a": obs1_0, "b": obs1_1},
+                context1={"a": context1_0, "b": context1_1},
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate,
+                env_num=0,
+            )
+
+        # =================================================================== #
+        # test for agent a                                                    #
+        # =================================================================== #
+
+        obs_t = policy.agents["a"].replay_buffer.obs_t
+        action_t = policy.agents["a"].replay_buffer.action_t
+        reward = policy.agents["a"].replay_buffer.reward
+        done = policy.agents["a"].replay_buffer.done
+
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            action_t[:4, :],
+            np.array([[0.], [1.], [2.], [3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            reward[:4],
+            np.array([0., 1., 2., 3.])
+        )
+
+        np.testing.assert_almost_equal(
+            done[:4],
+            [0., 0., 0., 0.]
+        )
+
+        # =================================================================== #
+        # test for agent b                                                    #
+        # =================================================================== #
+
+        obs_t = policy.agents["b"].replay_buffer.obs_t
+        action_t = policy.agents["b"].replay_buffer.action_t
+        reward = policy.agents["b"].replay_buffer.reward
+        done = policy.agents["b"].replay_buffer.done
+
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3., 3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            action_t[:4, :],
+            np.array([[0., 0.], [1., 1.], [2., 2.], [3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            reward[:4],
+            np.array([0., 1., 2., 3.])
+        )
+
+        np.testing.assert_almost_equal(
+            done[:4],
+            [0., 0., 0., 0.]
+        )
 
     def test_store_transition_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            is_final_step = False
+            evaluate = False
+
+            policy.store_transition(
+                obs0={"a": obs0, "b": obs0 + 1},
+                context0={"a": context0, "b": context0 + 1},
+                action={"a": action, "b": action + 1},
+                reward={"a": reward, "b": reward + 1},
+                obs1={"a": obs1, "b": obs1 + 1},
+                context1={"a": context1, "b": context1 + 1},
+                done=0.,
+                is_final_step=is_final_step,
+                evaluate=evaluate,
+                env_num=0,
+            )
+
+        # extract the attributes
+        obs_t = policy.agents["policy"].replay_buffer.obs_t
+        action_t = policy.agents["policy"].replay_buffer.action_t
+        reward = policy.agents["policy"].replay_buffer.reward
+        done = policy.agents["policy"].replay_buffer.done
+
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[:8, :],
+            np.array([[0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1.],
+                      [1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2.],
+                      [2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3.],
+                      [3., 3., 3., 3., 3.],
+                      [4., 4., 4., 4., 4.]])
+        )
+
+        np.testing.assert_almost_equal(
+            action_t[:8, :],
+            np.array([[0.], [1.], [1.], [2.], [2.], [3.], [3.], [4.]])
+        )
+
+        np.testing.assert_almost_equal(
+            reward[:8],
+            np.array([0., 1., 1., 2., 2., 3., 3., 4.])
+        )
+
+        np.testing.assert_almost_equal(
+            done[:8],
+            [0., 0., 0., 0., 0., 0., 0., 0.]
+        )
 
     def test_store_transition_3(self):
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = True
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        for i in range(4):
+            action_0 = np.array([i for _ in range(1)])
+            action_1 = np.array([i for _ in range(2)])
+            context0_0 = np.array([i for _ in range(3)])
+            context0_1 = np.array([i for _ in range(4)])
+            obs0_0 = np.array([i for _ in range(5)])
+            obs0_1 = np.array([i for _ in range(6)])
+            reward = i
+            obs1_0 = np.array([i+1 for _ in range(5)])
+            obs1_1 = np.array([i+1 for _ in range(6)])
+            context1_0 = np.array([i for _ in range(3)])
+            context1_1 = np.array([i for _ in range(4)])
+            done = False
+            is_final_step = False
+            evaluate = False
+            all_obs0 = np.array([i for _ in range(18)])
+            all_obs1 = np.array([i+1 for _ in range(18)])
+
+            policy.store_transition(
+                obs0={"a": obs0_0, "b": obs0_1},
+                context0={"a": context0_0, "b": context0_1},
+                action={"a": action_0, "b": action_1},
+                reward={"a": reward, "b": reward},
+                obs1={"a": obs1_0, "b": obs1_1},
+                context1={"a": context1_0, "b": context1_1},
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate,
+                env_num=0,
+                all_obs0=all_obs0,
+                all_obs1=all_obs1,
+            )
+
+        # =================================================================== #
+        # test for agent a                                                    #
+        # =================================================================== #
+
+        obs_t = policy.replay_buffer["a"].obs_t
+        action_t = policy.replay_buffer["a"].action_t
+        reward = policy.replay_buffer["a"].reward
+        done = policy.replay_buffer["a"].done
+        all_obs_t = policy.replay_buffer["a"].all_obs_t
+
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            action_t[:4, :],
+            np.array([[0.], [1.], [2.], [3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            reward[:4],
+            np.array([0., 1., 2., 3.])
+        )
+
+        np.testing.assert_almost_equal(
+            done[:4],
+            [0., 0., 0., 0.]
+        )
+
+        np.testing.assert_almost_equal(
+            all_obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                       0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                       1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2.,
+                       2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3.,
+                       3., 3., 3., 3.]])
+        )
+
+        # =================================================================== #
+        # test for agent b                                                    #
+        # =================================================================== #
+
+        obs_t = policy.replay_buffer["b"].obs_t
+        action_t = policy.replay_buffer["b"].action_t
+        reward = policy.replay_buffer["b"].reward
+        done = policy.replay_buffer["b"].done
+        all_obs_t = policy.replay_buffer["b"].all_obs_t
+
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3., 3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            action_t[:4, :],
+            np.array([[0., 0.], [1., 1.], [2., 2.], [3., 3.]])
+        )
+
+        np.testing.assert_almost_equal(
+            reward[:4],
+            np.array([0., 1., 2., 3.])
+        )
+
+        np.testing.assert_almost_equal(
+            done[:4],
+            [0., 0., 0., 0.]
+        )
+
+        np.testing.assert_almost_equal(
+            all_obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                       0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                       1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2., 2.,
+                       2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3., 3.,
+                       3., 3., 3., 3.]])
+        )
 
     def test_store_transition_4(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = True
+        policy_params["n_agents"] = 2
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
-        del policy  # TODO
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
 
-    def test_get_td_map_1(self):
-        """Check the functionality of the get_td_map() method.
+        # Run the initialize method.
+        policy.initialize()
 
-        This test checks for the following cases:
+        for i in range(4):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            is_final_step = False
+            evaluate = False
+            all_obs0 = np.array([i for _ in range(10)])
+            all_obs1 = np.array([i+1 for _ in range(10)])
 
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
-        """
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+            policy.store_transition(
+                obs0={"a": obs0, "b": obs0 + 1},
+                context0={"a": context0, "b": context0 + 1},
+                action={"a": action, "b": action + 1},
+                reward={"a": reward, "b": reward + 1},
+                obs1={"a": obs1, "b": obs1 + 1},
+                context1={"a": context1, "b": context1 + 1},
+                done=0.,
+                is_final_step=is_final_step,
+                evaluate=evaluate,
+                env_num=0,
+                all_obs0=all_obs0,
+                all_obs1=all_obs1,
+            )
 
-        del policy  # TODO
+        # extract the attributes
+        obs_t = policy.replay_buffer.obs_t
+        action_t = policy.replay_buffer.action
+        reward = policy.replay_buffer.reward
+        done = policy.replay_buffer.done
+        all_obs_t = policy.replay_buffer.all_obs_t
 
-    def test_get_td_map_2(self):
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = False
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        # check the various attributes
+        np.testing.assert_almost_equal(
+            obs_t[0][:4, :],
+            np.array([[0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3.]])
+        )
 
-        del policy  # TODO
+        np.testing.assert_almost_equal(
+            action_t[0][:4, :],
+            np.array([[0.], [1.], [2.], [3.]])
+        )
 
-    def test_get_td_map_3(self):
-        policy_params = self.policy_params_independent.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
+        np.testing.assert_almost_equal(
+            reward[:4],
+            np.array([0., 1., 2., 3.])
+        )
 
-        del policy  # TODO
+        np.testing.assert_almost_equal(
+            done[:4],
+            [0., 0., 0., 0.]
+        )
 
-    def test_get_td_map_4(self):
-        policy_params = self.policy_params_shared.copy()
-        policy_params["maddpg"] = True
-        policy = TD3MultiFeedForwardPolicy(**policy_params)
-
-        del policy  # TODO
+        np.testing.assert_almost_equal(
+            all_obs_t[:4, :],
+            np.array([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                      [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],
+                      [2., 2., 2., 2., 2., 2., 2., 2., 2., 2.],
+                      [3., 3., 3., 3., 3., 3., 3., 3., 3., 3.]])
+        )
 
 
 class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
