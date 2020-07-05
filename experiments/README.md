@@ -362,7 +362,7 @@ the original paper, run the appropriate command below.
     ```shell script
     python run_hrl.py "highway-v1" --use_huber --nb_rollout_steps 10 \
         --nb_train_steps 10  --log_interval 15000 --total_steps 1500000 \
-        --cooperative_gradients --cg_weights 0.01
+        --cooperative_gradients --cg_weights 0.02
     ```
 
 ### 4.2 Downloading and Replaying Pre-trained Models
