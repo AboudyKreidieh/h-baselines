@@ -43,6 +43,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_fingerprints,
                  fingerprint_range,
                  centralized_value_functions,
+                 scope=None,
                  env_name="",
                  num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
@@ -159,6 +160,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
+            scope=scope,
             env_name=env_name,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
