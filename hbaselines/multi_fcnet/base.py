@@ -1,11 +1,11 @@
-"""Base multi-agent feed-forward policy."""
+"""Multi-agent base actor critic policy."""
 import tensorflow as tf
 
 from hbaselines.base_policies import ActorCriticPolicy
 
 
-class MultiFeedForwardPolicy(ActorCriticPolicy):
-    """Multi-agent fully connected neural network policy.
+class MultiActorCriticPolicy(ActorCriticPolicy):
+    """Multi-agent base actor critic policy.
 
     This policy supports training off-policy variants of three popular
     multi-agent algorithms:
@@ -23,7 +23,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={}
       >>> )
@@ -41,7 +41,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
@@ -57,7 +57,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
       >>>
       >>> alg = OffPolicyRLAlgorithm(
-      >>>     policy=MultiFeedForwardPolicy,
+      >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "maddpg": True,
@@ -71,13 +71,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    zero_fingerprint : bool
-        whether to zero the last two elements of the observations for the actor
-        and critic computations. Used for the worker policy when fingerprints
-        are being implemented.
-    fingerprint_dim : int
-        the number of fingerprint elements in the observation. Used when trying
-        to zero the fingerprint elements.
     shared : bool
         whether to use a shared policy for all agents
     maddpg : bool
@@ -122,10 +115,8 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                  all_ob_space=None,
                  n_agents=1,
                  additional_params=None,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
-        """Instantiate the base multi-agent feed-forward policy.
+                 scope=None):
+        """Instantiate the base multi-agent actor critic policy.
 
         Parameters
         ----------
@@ -183,20 +174,13 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : int
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         # In case no context space was passed and not using shared policies,
         # create a dictionary of no contexts.
         if co_space is None and not shared:
             co_space = {key: None for key in ob_space.keys()}
 
-        super(MultiFeedForwardPolicy, self).__init__(
+        super(MultiActorCriticPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
@@ -214,8 +198,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             use_huber=use_huber
         )
 
-        self.zero_fingerprint = zero_fingerprint
-        self.fingerprint_dim = fingerprint_dim
         self.shared = shared
         self.maddpg = maddpg
         self.all_ob_space = all_ob_space
@@ -292,10 +274,20 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """
         if self.maddpg:
             return self._get_action_maddpg(
-                obs, context, apply_noise, random_actions)
+                obs=obs,
+                context=context,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
         else:
             return self._get_action_basic(
-                obs, context, apply_noise, random_actions)
+                obs=obs,
+                context=context,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
 
     def store_transition(self,
                          obs0,
@@ -328,7 +320,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         context1 : array_like or None
             the current contextual term for each agent. Set to None if no
             context is provided by the environment.
-        done : dict of float
+        done : float or dict of float
             is the episode done for each agent
         is_final_step : bool
             whether the time horizon was met in the step corresponding to the
@@ -347,12 +339,32 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """
         if self.maddpg:
             self._store_transition_maddpg(
-                obs0, context0, action, reward, obs1, context1, done,
-                is_final_step, all_obs0, all_obs1, evaluate)
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                all_obs0=all_obs0,
+                all_obs1=all_obs1,
+                env_num=env_num,
+                evaluate=evaluate,
+            )
         else:
             self._store_transition_basic(
-                obs0, context0, action, reward, obs1, context1, done,
-                is_final_step, evaluate)
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                env_num=env_num,
+                evaluate=evaluate,
+            )
 
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
@@ -388,8 +400,6 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
             layers=self.layers,
             act_fun=self.act_fun,
             use_huber=self.use_huber,
-            zero_fingerprint=self.zero_fingerprint,
-            fingerprint_dim=self.fingerprint_dim,
             **self.additional_params
         )
 
@@ -437,7 +447,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_basic(self, obs, context, apply_noise, random_actions):
+    def _get_action_basic(self,
+                          obs,
+                          context,
+                          apply_noise,
+                          random_actions,
+                          env_num):
         """See get_action."""
         actions = {}
 
@@ -452,7 +467,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
 
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs[key], context_i, apply_noise, random_actions)
+                obs=obs[key],
+                context=context_i,
+                apply_noise=apply_noise,
+                random_actions=random_actions,
+                env_num=env_num,
+            )
 
         return actions
 
@@ -465,6 +485,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                                 context1,
                                 done,
                                 is_final_step,
+                                env_num,
                                 evaluate):
         """See store_transition."""
         for key in obs0.keys():
@@ -492,6 +513,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
+                env_num=env_num,
             )
 
     def _get_td_map_basic(self):
@@ -524,7 +546,12 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
         """See update."""
         raise NotImplementedError
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         raise NotImplementedError
 
@@ -539,6 +566,7 @@ class MultiFeedForwardPolicy(ActorCriticPolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         raise NotImplementedError

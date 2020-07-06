@@ -4,7 +4,7 @@ import numpy as np
 from functools import reduce
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
+from hbaselines.multi_fcnet.base import MultiActorCriticPolicy as BasePolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
 from hbaselines.utils.tf_util import layer
@@ -96,9 +96,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                  maddpg,
                  all_ob_space=None,
                  n_agents=1,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
         Parameters
@@ -159,13 +157,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             action space. Otherwise, it is not used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : bool
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         # Instantiate a few terms (needed if MADDPG is used).
         if shared:
@@ -231,8 +222,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
-            zero_fingerprint=zero_fingerprint,
-            fingerprint_dim=fingerprint_dim,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,
@@ -1039,7 +1028,12 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         actions = {}
 
@@ -1087,6 +1081,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         if self.shared:

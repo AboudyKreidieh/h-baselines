@@ -68,7 +68,7 @@ def get_hyperparameters(args, policy):
             "centralized_value_functions": args.centralized_value_functions,
         })
 
-    # add MultiFeedForwardPolicy parameters
+    # add MultiActorCriticPolicy parameters
     if is_multiagent_policy(policy):
         policy_kwargs.update({
             "shared": args.shared,
