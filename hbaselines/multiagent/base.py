@@ -1,11 +1,11 @@
-"""Base multi-agent feed-forward policy."""
+"""Multi-agent base actor critic policy."""
 import tensorflow as tf
 
 from hbaselines.base_policies import ActorCriticPolicy
 
 
 class MultiActorCriticPolicy(ActorCriticPolicy):
-    """Multi-agent fully base actor critic policy.
+    """Multi-agent base actor critic policy.
 
     This policy supports training off-policy variants of three popular
     multi-agent algorithms:
@@ -116,7 +116,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  n_agents=1,
                  additional_params=None,
                  scope=None):
-        """Instantiate the base multi-agent feed-forward policy.
+        """Instantiate the base multi-agent actor critic policy.
 
         Parameters
         ----------
