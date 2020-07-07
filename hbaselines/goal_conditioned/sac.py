@@ -7,15 +7,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
-    """SAC-compatible goal-conditioned hierarchical policy.
-
-    TODO: description of off-policy corrections
-
-    TODO: description of connected gradients
-
-    Descriptions of the base goal-conditioned policy can be found in
-    hbaselines/goal_conditioned/base.py.
-    """
+    """SAC-compatible goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,
@@ -45,7 +37,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  pre_exp_reward_scale,
                  pre_exp_reward_shift,
                  target_entropy,
+                 num_levels,
                  meta_period,
+                 intrinsic_reward_type,
                  intrinsic_reward_scale,
                  relative_goals,
                  off_policy_corrections,
@@ -56,7 +50,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  fingerprint_range,
                  centralized_value_functions,
                  cg_weights,
-                 env_name=""):
+                 scope=None,
+                 env_name="",
+                 num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -113,8 +109,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
+        num_levels : int
+            number of levels within the hierarchy. Must be greater than 1. Two
+            levels correspond to a Manager/Worker paradigm.
         meta_period : int
-            manger action period
+            meta-policy action period
+        intrinsic_reward_type : str
+            the reward function to be used by the lower-level policies. See the
+            base goal-conditioned policy for a description.
         intrinsic_reward_scale : float
             the value that the intrinsic reward should be scaled by
         relative_goals : bool
@@ -173,7 +175,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             strides=strides,
             pre_exp_reward_scale=pre_exp_reward_scale,
             pre_exp_reward_shift=pre_exp_reward_shift,
+            num_levels=num_levels,
             meta_period=meta_period,
+            intrinsic_reward_type=intrinsic_reward_type,
             intrinsic_reward_scale=intrinsic_reward_scale,
             relative_goals=relative_goals,
             off_policy_corrections=off_policy_corrections,
@@ -184,7 +188,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_fingerprints=use_fingerprints,
             fingerprint_range=fingerprint_range,
             centralized_value_functions=centralized_value_functions,
+            scope=scope,
             env_name=env_name,
+            num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
             additional_params=dict(
@@ -196,6 +202,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
+    # TODO
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 
@@ -303,9 +310,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                                     rewards,
                                     obs1,
                                     terminals1,
-                                    worker_obs0,
-                                    worker_obs1,
-                                    worker_actions,
                                     update_actor=True):
         """Perform the gradient update procedure for the HRL-CG algorithm.
 
@@ -315,23 +319,19 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         Parameters
         ----------
-        obs0 : array_like
-            batch of manager observations
-        actions : array_like
-            batch of manager actions executed given obs_batch
-        rewards : array_like
-            manager rewards received as results of executing act_batch
-        obs1 : array_like
-            set of next manager observations seen after executing act_batch
-        terminals1 : numpy bool
-            done_mask[i] = 1 if executing act_batch[i] resulted in the end of
-            an episode and 0 otherwise.
-        worker_obs0 : array_like
-            batch of worker observations
-        worker_obs1 : array_like
-            batch of next worker observations
-        worker_actions : array_like
-            batch of worker actions
+        obs0 : list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        actions : list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        obs1 : list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        rewards : list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        terminals1 : list of numpy bool
+            (batch_size,) vector of done masks for every level in the hierarchy
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.

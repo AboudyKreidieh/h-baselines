@@ -6,18 +6,50 @@ import random
 import numpy as np
 import tensorflow as tf
 import json
+import time
+from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
+from flow.core.util import emission_to_csv
+
 from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy \
+    as TD3FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy \
+    as SACFeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
+    as TD3GoalConditionedPolicy
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
+    as SACGoalConditionedPolicy
 
 
 # dictionary that maps policy names to policy objects
 POLICY_DICT = {
-    "FeedForwardPolicy": FeedForwardPolicy,
-    "GoalConditionedPolicy": GoalConditionedPolicy,
+    "FeedForwardPolicy": {
+        "TD3": TD3FeedForwardPolicy,
+        "SAC": SACFeedForwardPolicy,
+    },
+    "GoalConditionedPolicy": {
+        "TD3": TD3GoalConditionedPolicy,
+        "SAC": SACGoalConditionedPolicy,
+    },
 }
+
+# name of Flow environments. These are rendered differently
+FLOW_ENV_NAMES = [
+    "ring-v0",
+    "ring-v1",
+    "ring-v2",
+    "merge-v0",
+    "merge-v1",
+    "merge-v2",
+    "highway-v0",
+    "highway-v1",
+    "highway-v2",
+    "i210-v0",
+    "i210-v1",
+    "i210-v2",
+]
 
 
 def parse_options(args):
@@ -29,7 +61,6 @@ def parse_options(args):
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Run evaluation episodes of a given checkpoint.',
         epilog='python run_eval "/path/to/dir_name" ckpt_num')
 
@@ -43,12 +74,18 @@ def parse_options(args):
         help='the checkpoint number. If not specified, the last checkpoint is '
              'used.')
     parser.add_argument(
-        '--num_rollouts', type=int, default=1, help='number of eval episodes')
-    parser.add_argument(
-        '--no_render', action='store_true', help='shuts off rendering')
+        '--num_rollouts', type=int, default=1,
+        help='number of eval episodes')
     parser.add_argument(
         '--video', type=str, default='output.mp4',
         help='path to the video to render')
+    parser.add_argument(
+        '--no_render', action='store_true',
+        help='shuts off rendering')
+    parser.add_argument(
+        '--random_seed', action='store_true',
+        help='whether to run the simulation on a random seed. If not added, '
+             'the original seed is used.')
 
     flags, _ = parser.parse_known_args(args)
 
@@ -80,7 +117,8 @@ def get_hyperparameters_from_dir(ckpt_path):
 
     # collect the policy object
     policy_name = hp['policy_name']
-    policy = POLICY_DICT[policy_name]
+    alg_name = hp['algorithm']
+    policy = POLICY_DICT[policy_name][alg_name]
 
     # collect the environment name
     env_name = hp['env_name']
@@ -91,6 +129,7 @@ def get_hyperparameters_from_dir(ckpt_path):
     # remove unnecessary features from hp dict
     hp = hp.copy()
     del hp['policy_name'], hp['env_name'], hp['seed']
+    del hp['algorithm'], hp['date/time']
 
     return env_name, policy, hp, seed
 
@@ -101,7 +140,8 @@ def main(args):
 
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
-    hp['render'] = not flags.no_render  # to visualize the policy
+    hp['num_envs'] = 1
+    hp['render_eval'] = not flags.no_render  # to visualize the policy
 
     print(hp.keys())
     del hp['algorithm']
@@ -117,9 +157,10 @@ def main(args):
     )
 
     # setup the seed value
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.compat.v1.set_random_seed(seed)
+    if not flags.random_seed:
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
     # get the checkpoint number
     if flags.ckpt_num is None:
@@ -143,7 +184,15 @@ def main(args):
 
     # Perform the evaluation procedure.
     episode_rewards = []
-    if not flags.no_render:
+
+    # Add an emission path to Flow environments.
+    if env_name in FLOW_ENV_NAMES:
+        sim_params = deepcopy(env.wrapped_env.sim_params)
+        sim_params.emission_path = "./flow_results"
+        env.wrapped_env.restart_simulation(
+            sim_params, render=not flags.no_render)
+
+    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
         out = FFmpegWriter(flags.video)
 
     if not isinstance(env, list):
@@ -189,12 +238,28 @@ def main(args):
             episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
 
-    if not flags.no_render:
+    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
         out.close()
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
         np.mean(episode_rewards), np.std(episode_rewards)))
+
+    if env_name in FLOW_ENV_NAMES:
+        # wait a short period of time to ensure the xml file is readable
+        time.sleep(0.1)
+
+        # collect the location of the emission file
+        dir_path = env.wrapped_env.sim_params.emission_path
+        emission_filename = "{0}-emission.xml".format(
+            env.wrapped_env.network.name)
+        emission_path = os.path.join(dir_path, emission_filename)
+
+        # convert the emission file into a csv
+        emission_to_csv(emission_path)
+
+        # Delete the .xml version of the emission file.
+        os.remove(emission_path)
 
 
 if __name__ == '__main__':

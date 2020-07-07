@@ -41,6 +41,9 @@ class BipedalSoccer(gym.Env):
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Soccer-v1")
 
+        # Add the time horizon.
+        self.horizon = 512
+
     @property
     def observation_space(self):
         """See parent class."""
@@ -63,12 +66,12 @@ class BipedalSoccer(gym.Env):
     def render(self, mode='human'):
         """See parent class."""
         pass
-    
-    
+
+
 class BipedalObstacles(gym.Env):
     """Bipedal Obstacles environment.
 
-    In this environment, a bipedal agent is placed in an open field with 
+    In this environment, a bipedal agent is placed in an open field with
     obstacles scattered throughout the world. The goal of the agent is to
     walk around the world and reach a goal position.
 
@@ -86,17 +89,15 @@ class BipedalObstacles(gym.Env):
         render : bool
             whether to render the environment
         """
-            
-        # TODO: is it possible to set the horizon outside the environment
-        self.horizon = 2000
         self.t = 0
-        
+
         if render:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-render-v2")
         else:
             self.wrapped_env = gym.make("PD-Biped3D-HLC-Obstacles-v2")
 
-        print(self.wrapped_env.observation_space.low)
+        # Add the time horizon.
+        self.horizon = 2000
 
     @property
     def observation_space(self):
@@ -138,7 +139,6 @@ class BipedalObstacles(gym.Env):
 
     def render(self, mode='human'):
         """See parent class."""
-
         image = self.wrapped_env.env.render(
             headless_step=True)
 
@@ -150,4 +150,3 @@ class BipedalObstacles(gym.Env):
 
         elif mode == 'rgb_array':
             return image
-

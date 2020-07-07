@@ -1,7 +1,10 @@
 """Utility methods when instantiating environments."""
 import numpy as np
-from gym.spaces import Box
+import os
+import sys
 import gym
+from copy import deepcopy
+from gym.spaces import Box
 
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.deeploco.envs import BipedalObstacles
@@ -20,21 +23,29 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 try:
-    from flow.utils.registry import make_create_env
+    import flow.config as config
     from hbaselines.envs.mixed_autonomy import FlowEnv
-    from hbaselines.envs.mixed_autonomy.merge \
+    from hbaselines.envs.mixed_autonomy.params.merge \
         import get_flow_params as merge
-    from hbaselines.envs.mixed_autonomy.ring \
+    from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.figure_eight \
-        import get_flow_params as figure_eight
-except (ImportError, ModuleNotFoundError):  # pragma: no cover
+    from hbaselines.envs.mixed_autonomy.params.ring_small \
+        import get_flow_params as ring_small
+    from hbaselines.envs.mixed_autonomy.params.highway \
+        import get_flow_params as highway
+    from hbaselines.envs.mixed_autonomy.params.i210 \
+        import get_flow_params as i210
+except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
+    # ray seems to have a bug that requires you to install ray[tune] twice
+    if "ray" in str(e):  # pragma: no cover
+        raise e  # pragma: no cover
     pass  # pragma: no cover
 
 try:
     from hbaselines.envs.point2d import Point2DEnv
 except (ImportError, ModuleNotFoundError):
     pass
+
 
 # This dictionary element contains all relevant information when instantiating
 # a single-agent, multi-agent, or hierarchical environment.
@@ -50,9 +61,11 @@ except (ImportError, ModuleNotFoundError):
 # - env: a lambda term that takes an input (evaluate, render, multiagent,
 #   shared, maddpg) and return an environment or list of environments
 ENV_ATTRIBUTES = {
+
     # ======================================================================= #
     # Variants of the AntMaze environment.                                    #
     # ======================================================================= #
+
     "AntMaze": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
@@ -276,6 +289,7 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
     # UR5 and Pendulum environments.                                          #
     # ======================================================================= #
+
     "UR5": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
@@ -317,6 +331,414 @@ ENV_ATTRIBUTES = {
         ),
     },
 
+    # ======================================================================= #
+    # Mixed autonomy traffic flow environments.                               #
+    # ======================================================================= #
+
+    "ring_small": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-.5 if relative_goals else 0,
+            high=.5 if relative_goals else 1,
+            shape=(1,),
+            dtype=np.float32
+        ),
+        "state_indices": [0],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[230, 230],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            ),
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[260, 260],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            ),
+            FlowEnv(
+                flow_params=ring_small(
+                    ring_length=[290, 290],
+                    evaluate=True,
+                    multiagent=multiagent,
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            )
+        ] if evaluate else FlowEnv(
+            flow_params=ring_small(
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "ring-v0": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                fixed_density=False,
+                stopping_penalty=True,
+                acceleration_penalty=True,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "ring-v1": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                fixed_density=False,
+                stopping_penalty=False,
+                acceleration_penalty=True,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "ring-v2": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                fixed_density=False,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "merge-v0": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-.5 if relative_goals else 0,
+            high=.5 if relative_goals else 1,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=merge(
+                exp_num=0,
+                horizon=6000,
+                simulator="traci",
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "merge-v1": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-.5 if relative_goals else 0,
+            high=.5 if relative_goals else 1,
+            shape=(13,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(13)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=merge(
+                exp_num=1,
+                horizon=6000,
+                simulator="traci",
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "merge-v2": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-.5 if relative_goals else 0,
+            high=.5 if relative_goals else 1,
+            shape=(17,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(17)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=merge(
+                exp_num=2,
+                horizon=6000,
+                simulator="traci",
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-v0": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway(
+                fixed_boundary=True,
+                stopping_penalty=True,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-v1": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-v2": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v0": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=True,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v1": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=True,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "i210-v2": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 20,
+            shape=(50,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(50)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    # ======================================================================= #
+    # Mixed autonomy traffic imitation environments.                          #
+    # ======================================================================= #
+
+    "ring-imitation": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-1 if relative_goals else 0,
+            high=1,
+            shape=(5,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                fixed_density=False,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+                imitation=True,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    "highway-imitation": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=-1 if relative_goals else 0,
+            high=1,
+            shape=(10,),
+            dtype=np.float32
+        ),
+        "state_indices": [5 * i for i in range(10)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=highway(
+                fixed_boundary=False,
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+                imitation=True,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ),
+    },
+
+    # ======================================================================= #
+    # Bipedal environments.                                                   #
+    # ======================================================================= #
+
+    "BipedalSoccer": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-0.5, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
+                          -2]),
+            high=np.array([0.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
+            dtype=np.float32
+        ),
+        "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        BipedalSoccer(render=render),
+    },
+
+    "BipedalObstacles": {
+        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2]),
+            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]),
+            dtype=np.float32),
+        "state_indices": [i + 1024 for i in [
+            0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        BipedalObstacles(render=render),
+    },
+
+    # ======================================================================= #
+    # Point navigation environments.                                          #
+    # ======================================================================= #
+
     "Point2DEnv": {
         "meta_ac_space": lambda relative_goals: Box(
             np.ones(2) * -4,
@@ -339,221 +761,6 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
             images_in_obs=True
         ),
-    },
-
-    # ======================================================================= #
-    # Mixed autonomy traffic flow environments.                               #
-    # ======================================================================= #
-    "ring0": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(1,),
-            dtype=np.float32
-        ),
-        "state_indices": [0],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
-            FlowEnv(
-                flow_params=ring(
-                    ring_length=[230, 230],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            ),
-            FlowEnv(
-                flow_params=ring(
-                    ring_length=[260, 260],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            ),
-            FlowEnv(
-                flow_params=ring(
-                    ring_length=[290, 290],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            )
-        ] if evaluate else FlowEnv(
-            flow_params=ring(
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "figureeight0": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(1,),
-            dtype=np.float32
-        ),
-        "state_indices": [13],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=figure_eight(
-                num_automated=1,
-                horizon=1500,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "figureeight1": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(7,),
-            dtype=np.float32
-        ),
-        "state_indices": [i for i in range(1, 14, 2)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=figure_eight(
-                num_automated=7,
-                horizon=1500,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "figureeight2": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(14,),
-            dtype=np.float32
-        ),
-        "state_indices": [i for i in range(14)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=figure_eight(
-                num_automated=14,
-                horizon=1500,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "merge0": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(5,),
-            dtype=np.float32
-        ),
-        "state_indices": [5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=merge(
-                exp_num=0,
-                horizon=6000,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "merge1": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(13,),
-            dtype=np.float32
-        ),
-        "state_indices": [5 * i for i in range(13)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=merge(
-                exp_num=1,
-                horizon=6000,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "merge2": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(17,),
-            dtype=np.float32
-        ),
-        "state_indices": [5 * i for i in range(17)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=merge(
-                exp_num=2,
-                horizon=6000,
-                simulator="traci",
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    # ======================================================================= #
-    # Bipedal environments.                                                   #
-    # ======================================================================= #
-    "BipedalSoccer": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
-                          -2]),
-            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
-            dtype=np.float32
-        ),
-        "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
-        BipedalSoccer(render=render),
-    },
-
-    "BipedalObstacles": {
-        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
-            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2]),
-            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]),
-            dtype=np.float32),
-        "state_indices": [i + 1024 for i in [
-            0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
-        BipedalObstacles(render=render),
     },
 }
 
@@ -665,42 +872,108 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
 
     Returns
     -------
-    gym.Env or list of gym.Env
-        gym-compatible environment(s)
+    gym.Env or list of gym.Env or None
+        gym-compatible environment(s). Set to None if no environment is being
+        returned.
+    array_like or list of array_like or None
+        the observation(s) from the environment(s) upon reset. Set to None if
+        no environment is being returned.
     """
     if env is None:
         # No environment (for evaluation environments).
-        return None
-    elif env in ENV_ATTRIBUTES.keys():
-        env = ENV_ATTRIBUTES[env]["env"](
-            evaluate, render, False, shared, maddpg)
-    elif env.startswith("multiagent"):
-        # multi-agent environments
-        env_name = env[11:]
-        env = ENV_ATTRIBUTES[env_name]["env"](
-            evaluate, render, True, shared, maddpg)
-    elif env in ["bottleneck0", "bottleneck1", "bottleneck2", "grid0",
-                 "grid1"]:
-        # Import the benchmark and fetch its flow_params
-        benchmark = __import__("flow.benchmarks.{}".format(env),
-                               fromlist=["flow_params"])
-        flow_params = benchmark.flow_params
+        return None, None
 
-        # Get the env name and a creator for the environment.
-        create_env, _ = make_create_env(flow_params, version=0, render=render)
-
-        # Create the environment.
-        env = create_env()
     elif isinstance(env, str):
-        # This is assuming the environment is registered with OpenAI gym.
-        env = gym.make(env)
+        if env in ENV_ATTRIBUTES.keys() or env.startswith("multiagent"):
+            # Handle multi-agent environments.
+            multiagent = env.startswith("multiagent")
+            if multiagent:
+                env = env[11:]
+
+            env = ENV_ATTRIBUTES[env]["env"](
+                evaluate, render, multiagent, shared, maddpg)
+
+        elif env.startswith("flow:"):
+            # environments in flow/examples
+            env = import_flow_env(env, render, shared, maddpg, evaluate)
+
+        else:
+            # This is assuming the environment is registered with OpenAI gym.
+            env = gym.make(env)
 
     # Reset the environment.
-    if env is not None:
-        if isinstance(env, list):
-            for next_env in env:
-                next_env.reset()
-        else:
-            env.reset()
+    if isinstance(env, list):
+        obs = [next_env.reset() for next_env in env]
+    else:
+        obs = env.reset()
 
-    return env
+    return env, obs
+
+
+def import_flow_env(env_name, render, shared, maddpg, evaluate):
+    """Import an environment from the flow/examples folder.
+
+    This method imports the flow_params dict from the exp_configs folders in
+    this directory and generates an appropriate FlowEnv object.
+
+    Parameters
+    ----------
+    env_name : str
+        the environment name. Starts with "flow:" to signify that it should be
+        imported from the flow/experiments folder.
+    render : bool
+        whether to render the environment
+    shared : bool
+        specifies whether agents in an environment are meant to share policies.
+        This is solely used by multi-agent Flow environments.
+    maddpg : bool
+        whether to use an environment variant that is compatible with the
+        MADDPG algorithm
+    evaluate : bool
+        specifies whether this is a training or evaluation environment
+
+    Returns
+    -------
+    hbaselines.envs.mixed_autonomy.FlowEnv
+        the training/evaluation environment
+
+    Raises
+    ------
+    ValueError
+        if the environment is not abailable in flow/examples
+    """
+    # Parse the exp_config name from the environment name
+    exp_config = env_name[5:]
+
+    # Add flow/examples to your path to located the below modules.
+    sys.path.append(os.path.join(config.PROJECT_PATH, "examples"))
+
+    # Import relevant information from the exp_config script.
+    module = __import__("exp_configs.rl.singleagent", fromlist=[exp_config])
+    module_ma = __import__("exp_configs.rl.multiagent", fromlist=[exp_config])
+
+    # Import the sub-module containing the specified exp_config and determine
+    # whether the environment is single agent or multi-agent.
+    if hasattr(module, exp_config):
+        submodule = getattr(module, exp_config)
+        multiagent = False
+    elif hasattr(module_ma, exp_config):
+        submodule = getattr(module_ma, exp_config)
+        multiagent = True
+    else:
+        raise ValueError("Unable to find experiment config.")
+
+    # Collect the flow_params object.
+    flow_params = deepcopy(submodule.flow_params)
+
+    # Update the evaluation flag to match what is requested.
+    flow_params['env'].evaluate = evaluate
+
+    # Return the environment.
+    return FlowEnv(
+        flow_params,
+        multiagent=multiagent,
+        shared=shared,
+        maddpg=maddpg,
+        render=render,
+    )

@@ -21,6 +21,7 @@ def get_hyperparameters(args, policy):
         "render": args.render,
         "render_eval": args.render_eval,
         "verbose": args.verbose,
+        "num_envs": args.num_envs,
         "_init_setup_model": True,
     }
 
@@ -70,7 +71,9 @@ def get_hyperparameters(args, policy):
     # add GoalConditionedPolicy parameters
     if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
+            "num_levels": args.num_levels,
             "meta_period": args.meta_period,
+            "intrinsic_reward_type": args.intrinsic_reward_type,
             "intrinsic_reward_scale": args.intrinsic_reward_scale,
             "pre_exp_reward_scale": args.pre_exp_reward_scale,
             "pre_exp_reward_shift": args.pre_exp_reward_shift,
@@ -84,7 +87,7 @@ def get_hyperparameters(args, policy):
             "centralized_value_functions": args.centralized_value_functions,
         })
 
-    # add MultiFeedForwardPolicy parameters
+    # add MultiActorCriticPolicy parameters
     if is_multiagent_policy(policy):
         policy_kwargs.update({
             "shared": args.shared,
@@ -100,13 +103,21 @@ def get_hyperparameters(args, policy):
 def parse_options(description, example_usage, args):
     """Parse training options user can specify in command line.
 
+    Parameters
+    ----------
+    description : str
+        the description of the script using this parser
+    example_usage : str
+        an example of the runner script being used
+    args : list of str
+        command-line arguments
+
     Returns
     -------
     argparse.Namespace
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=description, epilog=example_usage)
 
     # required input parameters
@@ -186,6 +197,12 @@ def create_algorithm_parser(parser):
     parser.add_argument(
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
+    parser.add_argument(
+        '--num_envs', type=int, default=1,
+        help='number of environments used to run simulations in parallel. '
+             'Each environment is run on a separate CPUS and uses the same '
+             'policy as the rest. Must be less than or equal to '
+             'nb_rollout_steps.')
     parser.add_argument(
         '--verbose', type=int, default=2,
         help='the verbosity level: 0 none, 1 training information, '
@@ -336,10 +353,22 @@ def create_feedforward_parser(parser):
 def create_goal_conditioned_parser(parser):
     """Add the goal-conditioned policy hyperparameters to the parser."""
     parser.add_argument(
+        "--num_levels",
+        type=int,
+        default=GOAL_CONDITIONED_PARAMS["num_levels"],
+        help="number of levels within the hierarchy. Must be greater than 1. "
+             "Two levels  correspond to a Manager/Worker paradigm.")
+    parser.add_argument(
         "--meta_period",
         type=int,
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
-        help="manger action period")
+        help="meta-policy action period")
+    parser.add_argument(
+        "--intrinsic_reward_type",
+        type=str,
+        default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_type"],
+        help="the reward function to be used by the lower-level policies. See "
+             "the base goal-conditioned policy for a description.")
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,

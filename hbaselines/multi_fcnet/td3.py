@@ -4,9 +4,10 @@ import numpy as np
 from functools import reduce
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy
-from hbaselines.multi_fcnet.base import MultiFeedForwardPolicy as BasePolicy
+from hbaselines.multi_fcnet.base import MultiActorCriticPolicy as BasePolicy
 from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
 from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
@@ -95,9 +96,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                  maddpg,
                  all_ob_space=None,
                  n_agents=1,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
         Parameters
@@ -158,13 +157,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             action space. Otherwise, it is not used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : bool
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         # Instantiate a few terms (needed if MADDPG is used).
         if shared:
@@ -230,8 +222,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
-            zero_fingerprint=zero_fingerprint,
-            fingerprint_dim=fingerprint_dim,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,
@@ -586,9 +576,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         noisy_actor_target : tf.Variable
             the output from the shared noisy actor target
         all_obs_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the current step full state observations
         all_obs1_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the next step full state observations
         rew_ph : tf.compat.v1.placeholder
             placeholder for the rewards of the agent
         terminals1 : tf.compat.v1.placeholder
@@ -671,14 +661,14 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = self._layer(
+                pi_h = layer(
                     pi_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            policy = self._layer(
+            policy = layer(
                 pi_h, ac_space.shape[0], 'output',
                 act_fun=tf.nn.tanh,
                 kernel_initializer=tf.random_uniform_initializer(
@@ -718,14 +708,14 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                qf_h = self._layer(
+                qf_h = layer(
                     qf_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output layer
-            qvalue_fn = self._layer(
+            qvalue_fn = layer(
                 qf_h, 1, 'qf_output',
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)
@@ -747,7 +737,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         critic : tf.Variable
             the output from the centralized critic of the agent
         all_obs1_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the full-state observation
         actor_target : tf.Variable
             the output from the combined target actors of all agents
         rew_ph : tf.compat.v1.placeholder
@@ -823,7 +813,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         Parameters
         ----------
         all_obs_ph : tf.compat.v1.placeholder
-            TODO
+            the placeholder for the full-state observation
         combined_actors : tf.Variable
             the output from all actors, as a function of the agent's policy
             parameters
@@ -1038,7 +1028,12 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         return critic_loss, actor_loss
 
-    def _get_action_maddpg(self, obs, context, apply_noise, random_actions):
+    def _get_action_maddpg(self,
+                           obs,
+                           context,
+                           apply_noise,
+                           random_actions,
+                           env_num):
         """See get_action."""
         actions = {}
 
@@ -1086,11 +1081,14 @@ class MultiFeedForwardPolicy(BasePolicy):
                                  is_final_step,
                                  all_obs0,
                                  all_obs1,
+                                 env_num,
                                  evaluate):
         """See store_transition."""
         if self.shared:
+            reward_agent = reward[list(reward.keys())[0]]
+
             # Collect the observations and actions in order as listed by their
-            # agent IDs. FIXME: this could cause problems in the merge.
+            # agent IDs.
             list_obs0, list_obs1, list_action = [], [], []
             for key in sorted(list(obs0.keys())):
                 list_obs0.append(self._get_obs(
@@ -1098,13 +1096,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                 list_obs1.append(self._get_obs(
                     obs1[key], None if context1 is None else context0[key]))
                 list_action.append(action[key])
-                reward = reward[key]
 
             # Store the new sample.
             self.replay_buffer.add(
                 obs_t=list_obs0,
                 action=list_action,
-                reward=reward,
+                reward=reward_agent,
                 obs_tp1=list_obs1,
                 done=float(done and not is_final_step),
                 all_obs_t=all_obs0,
@@ -1112,17 +1109,24 @@ class MultiFeedForwardPolicy(BasePolicy):
             )
         else:
             # Collect the actions in order as listed by their agent IDs.
-            # FIXME: this could cause problems in the merge.
-            combines_actions = np.array(
+            combines_actions = np.concatenate(
                 [action[key] for key in sorted(list(action.keys()))])
 
             # Store the new samples in their replay buffer.
             for key in obs0.keys():
+                # Add the contextual observation, if applicable.
+                if context0 is None:
+                    obs0_agent = obs0[key]
+                    obs1_agent = obs1[key]
+                else:
+                    obs0_agent = self._get_obs(obs0[key], context0[key], 0)
+                    obs1_agent = self._get_obs(obs1[key], context1[key], 0)
+
                 self.replay_buffer[key].add(
-                    obs_t=obs0[key],
+                    obs_t=obs0_agent,
                     action=action[key],
                     reward=reward[key],
-                    obs_tp1=obs1[key],
+                    obs_tp1=obs1_agent,
                     done=float(done and not is_final_step),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
@@ -1146,7 +1150,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Combine all actions under one variable. This is done by order of
             # agent IDs in alphabetical order.
-            # FIXME: this could cause problems in the merge.
             all_actions = np.concatenate(actions, axis=1)
 
             td_map = {

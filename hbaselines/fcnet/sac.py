@@ -2,8 +2,9 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.fcnet.base import ActorCriticPolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
+from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
@@ -464,14 +465,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
-                pi_h = self._layer(
+                pi_h = layer(
                     pi_h,  layer_size, 'fc{}'.format(i),
                     act_fun=self.act_fun,
                     layer_norm=self.layer_norm
                 )
 
             # create the output mean
-            policy_mean = self._layer(
+            policy_mean = layer(
                 pi_h, self.ac_space.shape[0], 'mean',
                 act_fun=None,
                 kernel_initializer=tf.random_uniform_initializer(
@@ -479,7 +480,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             )
 
             # create the output log_std
-            log_std = self._layer(
+            log_std = layer(
                 pi_h, self.ac_space.shape[0], 'log_std',
                 act_fun=None,
             )
@@ -610,14 +611,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                     # create the hidden layers
                     for i, layer_size in enumerate(self.layers):
-                        vf_h = self._layer(
+                        vf_h = layer(
                             vf_h, layer_size, 'fc{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
 
                     # create the output layer
-                    value_fn = self._layer(
+                    value_fn = layer(
                         vf_h, 1, 'vf_output',
                         kernel_initializer=tf.random_uniform_initializer(
                             minval=-3e-3, maxval=3e-3)
@@ -688,14 +689,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                     # create the hidden layers
                     for i, layer_size in enumerate(self.layers):
-                        qf1_h = self._layer(
+                        qf1_h = layer(
                             qf1_h, layer_size, 'fc{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
 
                     # create the output layer
-                    qf1 = self._layer(
+                    qf1 = layer(
                         qf1_h, 1, 'qf_output',
                         kernel_initializer=tf.random_uniform_initializer(
                             minval=-3e-3, maxval=3e-3)
@@ -762,14 +763,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
                     # create the hidden layers
                     for i, layer_size in enumerate(self.layers):
-                        qf2_h = self._layer(
+                        qf2_h = layer(
                             qf2_h, layer_size, 'fc{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
 
                     # create the output layer
-                    qf2 = self._layer(
+                    qf2 = layer(
                         qf2_h, 1, 'qf_output',
                         kernel_initializer=tf.random_uniform_initializer(
                             minval=-3e-3, maxval=3e-3)
@@ -860,9 +861,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
             step_ops, feed_dict)
 
-        return [q1_loss, q2_loss], actor_loss  # FIXME: add vf_loss
+        return [q1_loss, q2_loss], actor_loss
 
-    def get_action(self, obs, context, apply_noise, random_actions):
+    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
@@ -1024,7 +1025,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.sess.run(self.target_init_updates)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
-                         done, is_final_step, evaluate=False):
+                         done, is_final_step, env_num=0, evaluate=False):
         """See parent class."""
         if not evaluate:
             # Add the contextual observation, if applicable.

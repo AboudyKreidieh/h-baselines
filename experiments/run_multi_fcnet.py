@@ -9,7 +9,7 @@ from hbaselines.utils.train import parse_options, get_hyperparameters
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 
 EXAMPLE_USAGE = \
-    'python run_multi_fcnet.py "multiagent-ring0" --total_steps 1e6'
+    'python run_multi_fcnet.py "multiagent-ring-v0" --total_steps 1e6'
 
 
 def run_exp(env,
@@ -29,7 +29,7 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
-    policy : type [ hbaselines.fcnet.base.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
@@ -64,7 +64,7 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_timesteps=steps,
+        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
@@ -126,13 +126,12 @@ def main(args, base_dir):
 
 
 if __name__ == '__main__':
-    # collect arguments
-    args = parse_options(
-        description='Test the performance of multi-agent fully connected '
-                    'network models on various environments.',
-        example_usage=EXAMPLE_USAGE,
-        args=sys.argv[1:]
+    main(
+        parse_options(
+            description='Test the performance of multi-agent fully connected '
+                        'network models on various environments.',
+            example_usage=EXAMPLE_USAGE,
+            args=sys.argv[1:]
+        ),
+        'data/multi-fcnet'
     )
-
-    # execute the training procedure
-    main(args, 'data/multi-fcnet')

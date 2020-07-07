@@ -5,6 +5,7 @@ import random
 import shutil
 import os
 import csv
+import tensorflow as tf
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.utils.tf_util import get_trainable_vars
@@ -31,8 +32,9 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
             'reward_scale': 1.,
             'render': False,
             'render_eval': False,
-            'verbose': 2,
+            'verbose': 0,
             'policy_kwargs': None,
+            'num_envs': 1,
             '_init_setup_model': True
         }
 
@@ -128,6 +130,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
@@ -219,7 +222,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['_init_setup_model'] = True
         alg = OffPolicyRLAlgorithm(**policy_params)
 
-        # Run the learn operation for zero timesteps.
+        # Run the learn operation for zero steps.
         alg.learn(0, log_dir='results', initial_exploration_steps=0)
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
@@ -237,16 +240,113 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         shutil.rmtree('results')
 
     def test_learn_initial_exploration_steps(self):
-        """TODO"""
-        pass
+        """Test the initial_exploration_steps parameter in the learn method.
 
-    def test_collect_samples(self):
-        """Validate the functionality of the _collect_samples method."""
-        pass
+        This is done for the following cases:
+
+        1. initial_exploration_steps= = 0
+        2. initial_exploration_steps= = 100
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=0)
+
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 1)
+
+        # Clear memory.
+        del alg
+        shutil.rmtree('results')
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=100)
+
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 100)
+
+        # Clear memory.
+        del alg
+        shutil.rmtree('results')
 
     def test_evaluate(self):
-        """Validate the functionality of the _evaluate method."""
-        pass
+        """Validate the functionality of the _evaluate method.
+
+        This is done for the following cases:
+
+        1. policy = FeedForwardPolicy
+        2. policy = GoalConditionedPolicy
+        """
+        # Set the random seeds.
+        random.seed(0)
+        np.random.seed(0)
+        tf.compat.v1.set_random_seed(0)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalConditionedPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
 
     def test_fingerprints(self):
         """Validate the functionality of the fingerprints.
@@ -292,23 +392,17 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         # `_collect_samples` method.
         alg.learn(1, log_dir='results', log_interval=1,
                   initial_exploration_steps=0)
-        self.assertEqual(
-            len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
         alg.learn(500, log_dir='results', log_interval=500,
                   initial_exploration_steps=0)
-        self.assertEqual(
-            len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:],
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:],
             np.array([4.99, 0.01]))
 
         # Delete generated files.

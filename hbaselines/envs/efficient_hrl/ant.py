@@ -50,8 +50,12 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     FILE = "ant.xml"
     ORI_IND = 3
 
-    def __init__(self, file_path=None, expose_all_qpos=True,
-                 expose_body_coms=None, expose_body_comvels=None):
+    def __init__(self,
+                 file_path=None,
+                 expose_all_qpos=True,
+                 expose_body_coms=None,
+                 expose_body_comvels=None,
+                 ant_fall=False):
         """Instantiate the Ant environment.
 
         Parameters
@@ -64,12 +68,17 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             whether to provide all body_coms values via the observation
         expose_body_comvels : list of str
             whether to provide all body_comvels values via the observation
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
         """
         self._expose_all_qpos = expose_all_qpos
         self._expose_body_coms = expose_body_coms
         self._expose_body_comvels = expose_body_comvels
         self._body_com_indices = {}
         self._body_comvel_indices = {}
+        self._ant_fall = ant_fall
 
         try:
             mujoco_env.MujocoEnv.__init__(self, file_path, 5)
@@ -104,7 +113,10 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         survive_reward = 1.0
         reward = forward_reward - ctrl_cost + survive_reward
         state = self.state_vector()
-        notdone = np.isfinite(state).all() and 0.2 <= state[2] <= 1.0
+        if self._ant_fall:
+            notdone = np.isfinite(state).all() and 4.2 <= state[2] <= 5.0
+        else:
+            notdone = np.isfinite(state).all() and 0.2 <= state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
         return ob, reward, done, dict(

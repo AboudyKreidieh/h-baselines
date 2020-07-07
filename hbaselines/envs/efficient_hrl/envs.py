@@ -16,11 +16,9 @@ DISTANCE_THRESHOLD = 5
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -32,7 +30,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  maze_size_scaling=8,
                  top_down_view=False,
                  image_size=32,
-                 horizon=500):
+                 horizon=500,
+                 ant_fall=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -62,6 +61,10 @@ class UniversalAntMazeEnv(AntMazeEnv):
             determines the width and height of the rendered image
         horizon : float, optional
             time horizon
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
 
         Raises
         ------
@@ -81,7 +84,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
-            manual_collision=False
+            manual_collision=False,
+            ant_fall=ant_fall,
         )
 
         self.horizon = horizon
@@ -602,7 +606,7 @@ class ImageAntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -697,6 +701,7 @@ class ImageHumanoidMaze(UniversalAntMazeEnv):
             maze_size_scaling=8,
             top_down_view=True,
             image_size=image_size,
+            ant_fall=False,
         )
 
 
@@ -726,7 +731,7 @@ class AntPush(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -756,6 +761,7 @@ class AntPush(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
+            ant_fall=False,
         )
 
 
@@ -846,7 +852,7 @@ class AntFall(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -876,6 +882,7 @@ class AntFall(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
+            ant_fall=True,
         )
 
 
@@ -943,7 +950,25 @@ class HumanoidFall(UniversalHumanoidMazeEnv):
 class AntFourRooms(UniversalAntMazeEnv):
     """Ant Four Rooms Environment.
 
-    Need to add description. TODO
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
     """
 
     def __init__(self,
@@ -960,7 +985,7 @@ class AntFourRooms(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -990,6 +1015,7 @@ class AntFourRooms(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=3,
+            ant_fall=False,
         )
 
 
