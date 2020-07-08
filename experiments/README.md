@@ -1,13 +1,20 @@
 # Benchmarking HRL Models and Algorithms
 
-TODO
+We provide a sequence of runner and evaluation scripts to validate the 
+performance of the various algorithms provided within this repository. The 
+environments that are currently supported for training can be found 
+[here](https://github.com/AboudyKreidieh/h-baselines#3-environments). If you 
+would like to test these algorithms on custom environments, refer to this 
+[section](#3-training-on-custom-environments) on incorporating custom 
+environments.
 
 ## Contents
 
-* [Running Existing Models and Algorithms](#running-existing-models-and-algorithms)
-* [Visualizing Pre-trained Results](#visualizing-pre-trained-results)
+1. [Running Existing Models and Algorithms](#1-running-existing-models-and-algorithms)
+2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
+3. [Training on Custom Environments](#3-training-on-custom-environments)
 
-## Running Existing Models and Algorithms
+## 1. Running Existing Models and Algorithms
 
 These are three existing models, using policies: the feed-forward policy, the
 goal-conditioned policy, and the multi-agent feed-forward policy.
@@ -88,6 +95,9 @@ respective policies.
 * `--num_levels` (*int*): the number of levels within the hierarchy. Must be
   greater than 1. Defaults to 2.
 * `--meta_period` (*int*): the meta-policy action period. Defaults to 10.
+* `--intrinsic_reward_type` (*str*): the reward function to be used by the 
+  lower-level policies. See the base goal-conditioned policy for a description.
+  Defaults to "negative_distance".
 * `--intrinsic_reward_scale` (*int*): the value that the intrinsic reward
   should be scaled by. Defaults to 1.
 * `--relative_goals` (*store_true*): whether the goal issued by the
@@ -121,7 +131,7 @@ extra optional arguments:
 * `--maddpg` (*store_true*): whether to use an algorithm-specific variant of 
   the MADDPG algorithm
 
-### Evaluator Script
+## 2. Visualizing Pre-trained Results
 
 An evaluator script is written to run evaluation episodes of a given checkpoint
 using pre-trained policies. Run with the following command:
@@ -136,7 +146,79 @@ Some optional arguments to be passed in are:
   checkpoint is used.
 * `--num_rollouts` (*int*): the number of eval episodes. Defaults to 1.
 * `--no_render` (*store_true*): shuts off rendering.
+* `--random_seed` (*store_true*): whether to run the simulation on a random 
+  seed. If not added, the original seed is used.
 
-## Visualizing Pre-trained Results
+## 3. Training on Custom Environments
 
-TODO
+In addition to typical environments registered within `gym` or provided by the
+Flow examples folder, any gym-compatible environment can be made to run via 
+the above commands. In order to include support for custom environments, you 
+will need to add said environment to the `ENV_ATTRIBUTES` dictionary object 
+located in 
+[hbaselines/utils/env_util.py](https://github.com/AboudyKreidieh/h-baselines/blob/master/hbaselines/utils/env_util.py).
+Via this dict, new environments can be specified as individual elements whose
+keys represents the name of the environment when being run. For example, if you
+would like to incorporate a new environment called "myEnv", the environment 
+would be included to this dict as follows:
+
+```python
+ENV_ATTRIBUTES = {
+    # do not delete existing environments
+    # ...
+    # create a new environment named "myEnv"
+    "myEnv": {
+        "meta_ac_space": None,
+        "state_indices": None,
+        "env": None,
+    },
+}
+```
+
+The components of any key within the dictionary are used to specify the method
+for instantiating and returning the environment, as well as the indices within
+the observation that are assigned goals by meta-policies and the bounds of 
+these goals. This is broken down into three subcategories, defined as follows:
+
+* **meta_ac_space:** a lambda function that takes an input whether the higher 
+  level policies are assigning relative goals and returns the action space of 
+  the higher level policies
+* **state_indices:** a list that assigns the indices that correspond to goals 
+  in the Worker's state space
+* **env:** a lambda term that takes an input (evaluate, render, multiagent, 
+  shared, maddpg) and return an environment or list of environments
+
+For example, taking the AntGather environment located within the original 
+dictionary as an example, and described within the main directory's README, the
+inclusion of said environment via the "myEnv" key can be performed as follows:
+
+```python
+import numpy as np
+from gym.spaces import Box
+from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+ENV_ATTRIBUTES = {
+    # do not delete existing environments
+    # ...
+    # create a new environment named "myEnv"
+    "myEnv": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(15)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        AntGatherEnv(),
+    },
+}
+```
+
+Finally, the environment can now be run by any of the commands provided within
+this file. For example, if you would like to train "myEnv" with a fcnet TD3 
+policy, run the following command:
+
+```shell script
+python run_fcnet.py "myEnv"
+```
