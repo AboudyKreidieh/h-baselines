@@ -33,7 +33,7 @@ class ReplayBuffer(object):
         self.done = np.zeros(buffer_size, dtype=np.float32)
 
     def save(self, save_path):
-        """Save parameters for the replay buffer"""
+        """Save parameters for the replay buffer."""
         np.save(save_path + '.obs_t.npy', self.obs_t)
         np.save(save_path + '.action_t.npy', self.action_t)
         np.save(save_path + '.reward.npy', self.reward)
@@ -47,7 +47,7 @@ class ReplayBuffer(object):
             self._batch_size]))
 
     def load(self, save_path):
-        """Load parameters for the replay buffer"""
+        """Load parameters for the replay buffer."""
         self.obs_t = np.load(save_path + '.obs_t.npy')
         self.action_t = np.load(save_path + '.action_t.npy')
         self.reward = np.load(save_path + '.reward.npy')

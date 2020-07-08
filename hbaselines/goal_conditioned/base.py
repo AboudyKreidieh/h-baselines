@@ -369,9 +369,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     layers=layers,
                     act_fun=act_fun,
                     use_huber=use_huber,
-                    ignore_flat_channels=ignore_flat_channels if i < (2 - 1) else [],
+                    ignore_flat_channels=ignore_flat_channels if i < 1 else [],
                     includes_image=includes_image,
-                    ignore_image=ignore_image if i < (2 - 1) else True,
+                    ignore_image=ignore_image if i < 1 else True,
                     image_height=image_height,
                     image_width=image_width,
                     image_channels=image_channels,
@@ -436,9 +436,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             use_fingerprints=use_fingerprints,
             fingerprint_dim=self.fingerprint_dim
         )
-
-        max_distance = np.linalg.norm(
-            meta_ac_space.high - meta_ac_space.low)
 
         # Define the intrinsic reward function.
         if intrinsic_reward_type in ["negative_distance",

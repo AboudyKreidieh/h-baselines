@@ -1,13 +1,6 @@
-import gym
-import gym.spaces
-import math
+"""Base humanoid environment."""
 import numpy as np
-import mujoco_py
-import random
 import os
-import tempfile
-import xml.etree.ElementTree as ET
-import cv2
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
@@ -17,12 +10,14 @@ MODEL_DIR = os.path.join(SCRIPT_PATH, 'assets')
 
 
 def mass_center(model, sim):
+    """Compute the position of the agent's center of mass."""
     mass = np.expand_dims(model.body_mass, 1)
     xpos = sim.data.xipos
     return (np.sum(mass * xpos, 0) / np.sum(mass))[0]
 
 
 class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+    """Humanoid mujoco environment."""
 
     FILE = 'humanoid.xml'
 
@@ -38,6 +33,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def reset(self):
+        """Reset the environment."""
         self.t = 0
         return mujoco_env.MujocoEnv.reset(self)
 
@@ -51,6 +47,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                                data.cfrc_ext.flat])
 
     def step(self, a):
+        """Advance the simulation by one step."""
         pos_before = mass_center(self.model, self.sim)
         self.do_simulation(a, self.frame_skip)
         pos_after = mass_center(self.model, self.sim)
@@ -71,6 +68,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             reward_impact=-quad_impact_cost)
 
     def reset_model(self):
+        """Reset the position of the agent."""
         c = 0.01
         rand_qpos = self.np_random.uniform(low=-c, high=c, size=self.model.nq)
         rand_qvel = self.np_random.uniform(low=-c, high=c, size=self.model.nv)
@@ -80,6 +78,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
+        """Create the viewer."""
         self.viewer.cam.trackbodyid = 1
         self.viewer.cam.distance = self.model.stat.extent * 1.0
         self.viewer.cam.lookat[2] = 2.0

@@ -94,7 +94,7 @@ class HierReplayBuffer(object):
         return len(self) >= self.batch_size
 
     def save(self, save_path):
-        """Save parameters for the replay buffer"""
+        """Save parameters for the replay buffer."""
         np.save(save_path + '.obs_t.npy', self._obs_t)
         np.save(save_path + '.context_t.npy', self._context_t)
         np.save(save_path + '.action_t.npy', self._action_t)
@@ -112,7 +112,7 @@ class HierReplayBuffer(object):
         ]))
 
     def load(self, save_path):
-        """Load parameters for the replay buffer"""
+        """Load parameters for the replay buffer."""
         self._obs_t = np.load(save_path + '.obs_t.npy')
         self._context_t = np.load(save_path + '.context_t.npy')
         self._action_t = np.load(save_path + '.action_t.npy')

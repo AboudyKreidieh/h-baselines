@@ -21,7 +21,6 @@ from collections import deque
 from copy import deepcopy
 from gym.spaces import Box
 
-
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
@@ -87,7 +86,7 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
-    
+
     # Image Specific Parameters for training convolutional policies
     # used mainly for TerrainRL-based environments
     # convention is the image is in the last obs dimensions

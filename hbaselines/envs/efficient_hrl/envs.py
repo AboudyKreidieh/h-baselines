@@ -404,7 +404,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             extra information dictionary
         """
         # Run environment update.
-        obs, rew, done, info = super(UniversalHumanoidMazeEnv, self).step(action)
+        obs, rew, done, info = super(UniversalHumanoidMazeEnv, self).step(
+            action)
 
         if self.use_contexts:
             # Add success to the info dict
@@ -492,7 +493,7 @@ class AntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 

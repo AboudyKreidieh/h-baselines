@@ -260,9 +260,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             kernel_sizes=kernel_sizes,
             strides=strides,
         )
-        
-        print(use_huber, includes_image, ignore_image, image_height)
-        exit()
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
@@ -413,46 +410,49 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     self.fingerprint_dim,
                     self.co_space.shape[0]
                 )
-                
+
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-                
+
                 batch_size = tf.shape(pi_h)[0]
-                image_size = (self.image_height * 
-                              self.image_width * 
+                image_size = (self.image_height *
+                              self.image_width *
                               self.image_channels)
-                
+
                 original_pi_h = pi_h
                 pi_h = original_pi_h[:, image_size:]
 
-                pi_h = tf.gather(pi_h, [i for i in range(
-                    pi_h.shape[1]) if i not in self.ignore_flat_channels], axis=1)
-                    
+                pi_h = tf.gather(
+                    pi_h,
+                    [i for i in range(pi_h.shape[1])
+                     if i not in self.ignore_flat_channels],
+                    axis=1)
+
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-                    
+
                     pi_h_image = tf.reshape(
                         original_pi_h[:, :image_size],
                         [batch_size, self.image_height, self.image_width,
                          self.image_channels]
                     )
-                
+
                     # create the hidden convolutional layers
-                    for i, (filters, 
-                            kernel_size, 
-                            strides) in enumerate(zip(self.filters, 
-                                                      self.kernel_sizes, 
+                    for i, (filters,
+                            kernel_size,
+                            strides) in enumerate(zip(self.filters,
+                                                      self.kernel_sizes,
                                                       self.strides)):
-                    
+
                         pi_h_image = self._conv_layer(
-                            pi_h_image, filters, kernel_size, strides, 
+                            pi_h_image, filters, kernel_size, strides,
                             'conv{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
-                        
+
                     h = pi_h_image.shape[1]
                     w = pi_h_image.shape[2]
                     c = pi_h_image.shape[3]
@@ -553,14 +553,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
             if create_vf:
                 with tf.compat.v1.variable_scope("vf", reuse=reuse):
                     vf_h = obs
-                
+
                     # if an image is present in the observation
                     # extra processing steps are needed
                     if self.includes_image:
 
                         batch_size = tf.shape(vf_h)[0]
-                        image_size = (self.image_height * 
-                                      self.image_width * 
+                        image_size = (self.image_height *
+                                      self.image_width *
                                       self.image_channels)
 
                         original_vf_h = vf_h
@@ -582,8 +582,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             )
 
                             # create the hidden convolutional layers
-                            for i, (filters, 
-                                    kernel_size, 
+                            for i, (filters,
+                                    kernel_size,
                                     strides) in enumerate(zip(
                                         self.filters,
                                         self.kernel_sizes,
@@ -598,7 +598,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
-                                
+
                             h = vf_h_image.shape[1]
                             w = vf_h_image.shape[2]
                             c = vf_h_image.shape[3]
@@ -631,14 +631,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 with tf.compat.v1.variable_scope('qf1', reuse=reuse):
                     # concatenate the observations and actions
                     qf1_h = tf.concat([obs, action], axis=-1)
-                
+
                     # if an image is present in the observation
                     # extra processing steps are needed
                     if self.includes_image:
 
                         batch_size = tf.shape(qf1_h)[0]
-                        image_size = (self.image_height * 
-                                      self.image_width * 
+                        image_size = (self.image_height *
+                                      self.image_width *
                                       self.image_channels)
 
                         original_qf1_h = qf1_h
@@ -660,8 +660,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             )
 
                             # create the hidden convolutional layers
-                            for i, (filters, 
-                                    kernel_size, 
+                            for i, (filters,
+                                    kernel_size,
                                     strides) in enumerate(zip(
                                         self.filters,
                                         self.kernel_sizes,
@@ -676,7 +676,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
-                        
+
                             h = qf1_h_image.shape[1]
                             w = qf1_h_image.shape[2]
                             c = qf1_h_image.shape[3]
@@ -705,14 +705,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 with tf.compat.v1.variable_scope('qf2', reuse=reuse):
                     # concatenate the observations and actions
                     qf2_h = tf.concat([obs, action], axis=-1)
-                
+
                     # if an image is present in the observation
                     # extra processing steps are needed
                     if self.includes_image:
 
                         batch_size = tf.shape(qf2_h)[0]
-                        image_size = (self.image_height * 
-                                      self.image_width * 
+                        image_size = (self.image_height *
+                                      self.image_width *
                                       self.image_channels)
 
                         original_qf2_h = qf2_h
@@ -734,8 +734,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             )
 
                             # create the hidden convolutional layers
-                            for i, (filters, 
-                                    kernel_size, 
+                            for i, (filters,
+                                    kernel_size,
                                     strides) in enumerate(zip(
                                         self.filters,
                                         self.kernel_sizes,
@@ -750,7 +750,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                                     act_fun=self.act_fun,
                                     layer_norm=self.layer_norm
                                 )
-                        
+
                             h = qf2_h_image.shape[1]
                             w = qf2_h_image.shape[2]
                             c = qf2_h_image.shape[3]
