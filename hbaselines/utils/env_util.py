@@ -18,7 +18,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 try:
     from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
 except gym.error.DependencyNotInstalled:
-    pass
+    HumanoidMaze = object
 
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
