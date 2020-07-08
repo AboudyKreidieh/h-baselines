@@ -17,7 +17,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 try:
     from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
-except gym.error.DependencyNotInstalled:
+except (ImportError, ModuleNotFoundError):
     HumanoidMaze = object
 
 try:
