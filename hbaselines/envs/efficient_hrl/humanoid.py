@@ -2,7 +2,15 @@
 import math
 import numpy as np
 from gym import utils
-from gym.envs.mujoco import mujoco_env
+try:
+    from gym.envs.mujoco import mujoco_env
+except ModuleNotFoundError:
+    import gym
+
+    def mujoco_env():
+        """Create a dummy environment for testing purposes."""
+        return None
+    setattr(mujoco_env, "MujocoEnv", gym.Env)
 
 
 def mass_center(model, sim):
