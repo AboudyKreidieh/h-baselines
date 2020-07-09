@@ -111,6 +111,15 @@ class MultiFeedForwardPolicy(BasePolicy):
                  act_fun,
                  use_huber,
                  target_entropy,
+                 ignore_flat_channels,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 filters,
+                 kernel_sizes,
+                 strides,
                  shared,
                  maddpg,
                  all_ob_space=None,
@@ -156,6 +165,22 @@ class MultiFeedForwardPolicy(BasePolicy):
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
+        filters: list of int
+            the channels of the neural network conv layers for the policy
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -241,6 +266,15 @@ class MultiFeedForwardPolicy(BasePolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            ignore_flat_channels=ignore_flat_channels,
+            includes_image=includes_image,
+            ignore_image=ignore_image,
+            image_height=image_height,
+            image_width=image_width,
+            image_channels=image_channels,
+            filters=filters,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,

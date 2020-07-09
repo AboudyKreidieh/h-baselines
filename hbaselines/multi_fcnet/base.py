@@ -109,6 +109,15 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ignore_flat_channels,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 filters,
+                 kernel_sizes,
+                 strides,
                  shared,
                  maddpg,
                  base_policy,
@@ -156,6 +165,22 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
+        filters: list of int
+            the channels of the neural network conv layers for the policy
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -195,7 +220,16 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             layer_norm=layer_norm,
             layers=layers,
             act_fun=act_fun,
-            use_huber=use_huber
+            use_huber=use_huber,
+            ignore_flat_channels=ignore_flat_channels,
+            includes_image=includes_image,
+            ignore_image=ignore_image,
+            image_height=image_height,
+            image_width=image_width,
+            image_channels=image_channels,
+            filters=filters,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
         )
 
         self.shared = shared
