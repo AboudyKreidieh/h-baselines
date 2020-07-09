@@ -80,6 +80,20 @@ class TestTrain(unittest.TestCase):
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
             'shared': False,
             'maddpg': False,
+            'strides': None,
+            'pre_exp_reward_scale':
+                GOAL_CONDITIONED_PARAMS['pre_exp_reward_scale'],
+            'pre_exp_reward_shift':
+                GOAL_CONDITIONED_PARAMS['pre_exp_reward_shift'],
+            'kernel_sizes': None,
+            'dir_name': '',
+            'filters': None,
+            'ignore_flat_channels': None,
+            'ignore_image': False,
+            'image_channels': FEEDFORWARD_PARAMS['image_channels'],
+            'image_height': FEEDFORWARD_PARAMS['image_height'],
+            'image_width': FEEDFORWARD_PARAMS['image_width'],
+            'includes_image': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -166,6 +180,17 @@ class TestTrain(unittest.TestCase):
                 'centralized_value_functions': True,
                 'connected_gradients': True,
                 'cg_weights': 28.0,
+                'filters': [16, 16, 16],
+                'ignore_flat_channels': [],
+                'ignore_image': False,
+                'image_channels': 3,
+                'image_height': 32,
+                'image_width': 32,
+                'includes_image': False,
+                'kernel_sizes': [5, 5, 5],
+                'pre_exp_reward_scale': 2.0,
+                'pre_exp_reward_shift': 0.0,
+                'strides': [2, 2, 2],
             }
         }
         self.assertDictEqual(hp, expected_hp)
@@ -199,6 +224,15 @@ class TestTrain(unittest.TestCase):
                 'target_noise_clip': 23.0,
                 'shared': True,
                 'maddpg': True,
+                'filters': [16, 16, 16],
+                'ignore_flat_channels': [],
+                'ignore_image': False,
+                'image_channels': 3,
+                'image_height': 32,
+                'image_width': 32,
+                'includes_image': False,
+                'kernel_sizes': [5, 5, 5],
+                'strides': [2, 2, 2],
             }
         }
         self.assertDictEqual(hp, expected_hp)
