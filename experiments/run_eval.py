@@ -143,10 +143,6 @@ def main(args):
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
 
-    print(hp.keys())
-    del hp['algorithm']
-    del hp['date/time']
-
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
     alg = OffPolicyRLAlgorithm(
