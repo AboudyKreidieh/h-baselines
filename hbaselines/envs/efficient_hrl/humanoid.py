@@ -1,11 +1,11 @@
 """Script containing the Humanoid environment."""
 import math
 import numpy as np
+import gym
 from gym import utils
 try:
     from gym.envs.mujoco import mujoco_env
-except ModuleNotFoundError:
-    import gym
+except (ModuleNotFoundError, gym.error.DependencyNotInstalled):
 
     def mujoco_env():
         """Create a dummy environment for testing purposes."""
