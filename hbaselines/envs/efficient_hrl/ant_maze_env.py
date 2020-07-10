@@ -181,8 +181,9 @@ class AntMazeEnv(gym.Env):
                         material="",
                         contype="1",
                         conaffinity="1",
-                        rgba="{} {} 0.4 1".format(i / len(structure),
-                                                  j / len(structure[0])),
+                        rgba="{} {} 0.4 1".format(
+                            i / len(structure), j / len(structure[0])
+                        ) if top_down_view else "0.4 0.4 0.4 1",
                     )
                 elif maze_env_utils.can_move(struct):  # Movable block.
                     # The "falling" blocks are shrunk slightly and increased in
@@ -285,6 +286,7 @@ class AntMazeEnv(gym.Env):
             self.wrapped_env = model_cls(
                 *args,
                 ant_fall=ant_fall,
+                top_down_view=top_down_view,
                 file_path=file_path,
                 **kwargs
             )
@@ -612,7 +614,8 @@ class AntMazeEnv(gym.Env):
         dict
             extra information dictionary
         """
-        self.wrapped_env.update_cam()
+        if self._top_down_view:
+            self.wrapped_env.update_cam()
         self.t += 1
         if self._manual_collision:
             old_pos = self.wrapped_env.get_xy()

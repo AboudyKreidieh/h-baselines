@@ -57,7 +57,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
         top_down_view : bool
             specifies whether the observation should have an image prepended
             useful for training convolutional policies
-        image_size: int
+        image_size : int
             determines the width and height of the rendered image
         horizon : float, optional
             time horizon
@@ -610,6 +610,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        image_size : int
+            determines the width and height of the rendered image
 
         Raises
         ------
@@ -763,6 +765,7 @@ class AntPush(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=8,
             ant_fall=False,
+            top_down_view=False,
         )
 
 
@@ -884,6 +887,7 @@ class AntFall(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=8,
             ant_fall=True,
+            top_down_view=False,
         )
 
 
@@ -1017,6 +1021,7 @@ class AntFourRooms(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=3,
             ant_fall=False,
+            top_down_view=False,
         )
 
 
