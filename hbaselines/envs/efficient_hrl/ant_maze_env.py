@@ -22,7 +22,6 @@ import xml.etree.ElementTree as ET
 import math
 import numpy as np
 import gym
-import cv2
 
 from hbaselines.envs.efficient_hrl import maze_env_utils
 from hbaselines.envs.efficient_hrl.ant import AntEnv

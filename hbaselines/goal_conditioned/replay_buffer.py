@@ -68,7 +68,7 @@ class HierReplayBuffer(ReplayBuffer):
             batch_size, dtype=np.float32)
 
     def save(self, save_path):
-        """Save parameters for the replay buffer"""
+        """Save parameters for the replay buffer."""
         with open(save_path + ".storage.pkl", "wb") as f:
             pkl.dump(self._storage, f)
         np.save(save_path + '.meta_obs0.npy', self.meta_obs0)
@@ -92,7 +92,7 @@ class HierReplayBuffer(ReplayBuffer):
             self._worker_ac_dim]))
 
     def load(self, save_path):
-        """Load parameters for the replay buffer"""
+        """Load parameters for the replay buffer."""
         with open(save_path + ".storage.pkl", "rb") as f:
             self._storage = pkl.load(f)
         self.meta_obs0 = np.load(save_path + '.meta_obs0.npy')

@@ -1,25 +1,24 @@
-import gym
-import gym.spaces
+"""Script containing the Humanoid environment."""
 import math
 import numpy as np
-import mujoco_py
-import random
-import os
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 
 def mass_center(model, sim):
+    """Compute the position of the agent's center of mass."""
     mass = np.expand_dims(model.body_mass, 1)
     xpos = sim.data.xipos
     return (np.sum(mass * xpos, 0) / np.sum(mass))[0]
 
 
 def q_inv(a):
+    """Return the inverse of a quaternion."""
     return [a[0], -a[1], -a[2], -a[3]]
 
 
 def q_mult(a, b):
+    """Multiply two quaternion."""
     w = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
     i = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
     j = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]
@@ -28,6 +27,7 @@ def q_mult(a, b):
 
 
 class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+    """Humanoid mujoco environment."""
 
     FILE = 'double_humanoid.xml'
 
@@ -70,7 +70,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             reward_impact=-quad_impact_cost)
 
     def reset_model(self):
-        """Reset the humanoid to a starting location"""
+        """Reset the humanoid to a starting location."""
         c = 0.01
         qpos = self.np_random.uniform(low=-c, high=c, size=self.model.nq)
         qvel = self.np_random.uniform(low=-c, high=c, size=self.model.nv)

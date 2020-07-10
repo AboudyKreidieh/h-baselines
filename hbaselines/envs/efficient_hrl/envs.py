@@ -16,11 +16,9 @@ DISTANCE_THRESHOLD = 5
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -58,7 +56,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
         top_down_view : bool
             specifies whether the observation should have an image prepended
             useful for training convolutional policies
-        image_size: int
+        image_size : int
             determines the width and height of the rendered image
         horizon : float, optional
             time horizon
@@ -400,7 +398,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             extra information dictionary
         """
         # Run environment update.
-        obs, rew, done, info = super(UniversalHumanoidMazeEnv, self).step(action)
+        obs, rew, done, info = super(UniversalHumanoidMazeEnv, self).step(
+            action)
 
         if self.use_contexts:
             # Add success to the info dict
@@ -488,7 +487,7 @@ class AntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -544,7 +543,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -602,7 +601,7 @@ class ImageAntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -664,7 +663,7 @@ class ImageHumanoidMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -726,7 +725,7 @@ class AntPush(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -785,7 +784,7 @@ class HumanoidPush(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -846,7 +845,7 @@ class AntFall(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -907,7 +906,7 @@ class HumanoidFall(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -943,7 +942,24 @@ class HumanoidFall(UniversalHumanoidMazeEnv):
 class AntFourRooms(UniversalAntMazeEnv):
     """Ant Four Rooms Environment.
 
-    Need to add description. TODO
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
     """
 
     def __init__(self,
@@ -960,7 +976,7 @@ class AntFourRooms(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -1013,7 +1029,7 @@ class HumanoidFourRooms(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 

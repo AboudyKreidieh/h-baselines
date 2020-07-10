@@ -386,14 +386,13 @@ class ActorCriticPolicy(object):
         tf.Variable
             the output from the layer
         """
-        
         val = tf.layers.conv2d(
-            val, 
-            filters, 
-            kernel_size, 
-            strides=strides, 
-            padding='same', 
-            name=name, 
+            val,
+            filters,
+            kernel_size,
+            strides=strides,
+            padding='same',
+            name=name,
             kernel_initializer=kernel_initializer)
 
         if layer_norm:

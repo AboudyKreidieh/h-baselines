@@ -83,7 +83,7 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
-    
+
     # Image Specific Parameters for training convolutional policies
     # used mainly for TerrainRL-based environments
     # convention is the image is in the last obs dimensions
@@ -503,7 +503,7 @@ class OffPolicyRLAlgorithm(object):
                 obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
         else:
             obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
-            
+
         action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,

@@ -460,16 +460,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     self.fingerprint_dim,
                     self.co_space.shape[0]
                 )
-                
+
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-                
                 batch_size = tf.shape(pi_h)[0]
-                image_size = (self.image_height * 
-                              self.image_width * 
+                image_size = (self.image_height *
+                              self.image_width *
                               self.image_channels)
-                
+
                 original_pi_h = pi_h
                 pi_h = original_pi_h[:, image_size:]
 
@@ -477,31 +476,29 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     pi_h, [i for i in range(pi_h.shape[1])
                            if i not in self.ignore_flat_channels],
                     axis=1)
-                    
+
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-                    
                     pi_h_image = tf.reshape(
                         original_pi_h[:, :image_size],
-                        [batch_size, self.image_height, self.image_width, 
+                        [batch_size, self.image_height, self.image_width,
                          self.image_channels]
                     )
-                
+
                     # create the hidden convolutional layers
-                    for i, (filters, 
-                            kernel_size, 
-                            strides) in enumerate(zip(self.filters, 
-                                                      self.kernel_sizes, 
+                    for i, (filters,
+                            kernel_size,
+                            strides) in enumerate(zip(self.filters,
+                                                      self.kernel_sizes,
                                                       self.strides)):
-                    
                         pi_h_image = self._conv_layer(
-                            pi_h_image, filters, kernel_size, strides, 
+                            pi_h_image, filters, kernel_size, strides,
                             'conv{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm
                         )
-                        
+
                     h = pi_h_image.shape[1]
                     w = pi_h_image.shape[2]
                     c = pi_h_image.shape[3]
@@ -567,16 +564,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     self.fingerprint_dim,
                     self.co_space.shape[0] + self.ac_space.shape[0]
                 )
-                
+
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-
                 batch_size = tf.shape(qf_h)[0]
-                image_size = (self.image_height * 
-                              self.image_width * 
+                image_size = (self.image_height *
+                              self.image_width *
                               self.image_channels)
-                
+
                 original_qf_h = qf_h
                 qf_h = original_qf_h[:, image_size:]
 
@@ -584,26 +580,25 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     qf_h, [i for i in range(qf_h.shape[1])
                            if i not in self.ignore_flat_channels],
                     axis=1)
-                    
+
                 # ignoring the image is useful for the lower level critic
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-                    
                     qf_h_image = tf.reshape(
                         original_qf_h[:, :image_size],
                         [batch_size, self.image_height, self.image_width,
                          self.image_channels]
                     )
-                
+
                     # create the hidden convolutional layers
-                    for i, (filters, 
-                            kernel_size, 
-                            strides) in enumerate(zip(self.filters, 
-                                                      self.kernel_sizes, 
+                    for i, (filters,
+                            kernel_size,
+                            strides) in enumerate(zip(self.filters,
+                                                      self.kernel_sizes,
                                                       self.strides)):
-                    
+
                         qf_h_image = self._conv_layer(
-                            qf_h_image, filters, kernel_size, strides, 
+                            qf_h_image, filters, kernel_size, strides,
                             'conv{}'.format(i),
                             act_fun=self.act_fun,
                             layer_norm=self.layer_norm

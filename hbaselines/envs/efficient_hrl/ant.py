@@ -162,6 +162,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.update_cam()
 
     def update_cam(self):
+        """Update the position of the camera."""
         if self.viewer is not None:
             x, y = self.get_xy()
             self.viewer.cam.azimuth = 0

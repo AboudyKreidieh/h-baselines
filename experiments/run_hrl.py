@@ -83,8 +83,9 @@ def main(args, base_dir):
         now = strftime("%Y-%m-%d-%H:%M:%S")
 
         # Create a save directory folder (if it doesn't exist).
-        if args.dir_name is '':
-            dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
+        if args.dir_name == '':
+            dir_name = os.path.join(
+                base_dir, '{}/{}'.format(args.env_name, now))
         else:
             dir_name = args.dir_name
         ensure_dir(dir_name)

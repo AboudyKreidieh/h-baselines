@@ -144,7 +144,8 @@ def main(args):
         ckpt_num = ckpt_num_one
 
         # location to the checkpoint
-        ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
+        ckpt = os.path.join(
+            flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
 
         # restore the previous checkpoint
         alg.load(ckpt)
@@ -161,7 +162,8 @@ def main(args):
         ckpt_num = ckpt_num_two
 
         # location to the checkpoint
-        ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
+        ckpt = os.path.join(
+            flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
 
         # restore the previous checkpoint
         alg.load(ckpt)

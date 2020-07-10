@@ -168,7 +168,8 @@ def main(args):
                         and policy._meta_action is not None \
                         and hasattr(env, "set_goal"):
                     goal = policy._meta_action[0][0] + (
-                        obs[policy.goal_indices] if policy.relative_goals else 0)
+                        obs[policy.goal_indices]
+                        if policy.relative_goals else 0)
                     env.set_goal(goal)
 
                 new_obs, reward, done, _ = env.step(action[0])

@@ -1,11 +1,13 @@
+"""Utility method for plotting training performance."""
 from collections import defaultdict
 import tensorflow as tf
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import os
-import seaborn as sns; sns.set()
+import seaborn as sns
+
+sns.set()
 
 
 if __name__ == "__main__":
@@ -36,7 +38,7 @@ if __name__ == "__main__":
         df = pd.concat(all_results[key])
         stop = df.groupby("name")["total_step"].max().min()
         df = df[df['total_step'] < stop]
-        #df[args.x] = (df[args.x] / 10000).astype(int) * 10000
+        # df[args.x] = (df[args.x] / 10000).astype(int) * 10000
         plt.clf()
         ax = sns.lineplot(x=args.x, y=args.y, hue="name",
                           data=df)
