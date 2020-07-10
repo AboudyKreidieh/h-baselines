@@ -7,7 +7,7 @@ Supported algorithms through this class:
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 
 This algorithm class also contains modifications to support contextual
-environments and hierarchical policies.
+environments as well as multi-agent and hierarchical policies.
 """
 import ray
 import os

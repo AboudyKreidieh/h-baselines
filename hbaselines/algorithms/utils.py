@@ -33,6 +33,13 @@ def is_sac_policy(policy):
     ]
 
 
+def is_ppo_policy(policy):
+    """Check whether a policy is for designed to support PPO."""
+    return policy in [
+
+    ]
+
+
 def is_feedforward_policy(policy):
     """Check whether a policy is a feedforward policy."""
     return policy in [
