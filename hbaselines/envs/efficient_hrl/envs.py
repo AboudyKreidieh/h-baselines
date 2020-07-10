@@ -293,6 +293,7 @@ class AntMaze(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            top_down_view=False,
             maze_size_scaling=8)
 
 
@@ -417,6 +418,7 @@ class AntPush(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=8,
             ant_fall=False,
+            top_down_view=False,
         )
 
 
@@ -479,6 +481,7 @@ class AntFall(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=8,
             ant_fall=True,
+            top_down_view=False,
         )
 
 
@@ -551,4 +554,5 @@ class AntFourRooms(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=3,
             ant_fall=False,
+            top_down_view=False
         )
