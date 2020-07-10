@@ -554,5 +554,5 @@ class AntFourRooms(UniversalAntMazeEnv):
             context_range=context_range,
             maze_size_scaling=3,
             ant_fall=False,
-            top_down_view=False
+            top_down_view=False,
         )

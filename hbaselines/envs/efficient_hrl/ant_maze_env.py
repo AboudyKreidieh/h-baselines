@@ -286,6 +286,7 @@ class AntMazeEnv(gym.Env):
             self.wrapped_env = model_cls(
                 *args,
                 ant_fall=ant_fall,
+                top_down_view=top_down_view,
                 file_path=file_path,
                 **kwargs
             )
@@ -613,7 +614,8 @@ class AntMazeEnv(gym.Env):
         dict
             extra information dictionary
         """
-        self.wrapped_env.update_cam()
+        if self._top_down_view:
+            self.wrapped_env.update_cam()
         self.t += 1
         if self._manual_collision:
             old_pos = self.wrapped_env.get_xy()
