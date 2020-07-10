@@ -154,6 +154,8 @@ class Point2DEnv(MultitaskEnv, Serializable):
         if not self.images_in_obs:
             self.image_size = 0
 
+        self.max_target_distance = self.boundary_dist - self.target_radius
+
         self._target_position = None
         self._position = np.zeros(2)
 
@@ -289,14 +291,14 @@ class Point2DEnv(MultitaskEnv, Serializable):
         The rewards are described in the Rewards section of the description of
         the environment.
         """
-        achieved_goals = obs["ob"][:, self.image_size:]
+        achieved_goals = obs['ob'][:, self.image_size:]
         desired_goals = self._target_position[np.newaxis, :]
         d = np.linalg.norm(achieved_goals - desired_goals, axis=-1)
         if self.reward_type == "sparse":
             return -(d > self.target_radius).astype(np.float32)
         elif self.reward_type == "dense":
             return -d
-        elif self.reward_type == "vectorized_dense":
+        elif self.reward_type == 'vectorized_dense':
             return -np.abs(achieved_goals - desired_goals)
         else:
             raise NotImplementedError()
