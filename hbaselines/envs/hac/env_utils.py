@@ -1,3 +1,4 @@
+"""Utility methods for HAC environments."""
 
 
 def check_validity(model_name,

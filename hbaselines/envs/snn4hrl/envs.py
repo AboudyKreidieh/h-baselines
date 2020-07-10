@@ -99,4 +99,5 @@ class AntGatherEnv(GatherEnv):
 
     @property
     def horizon(self):
+        """Return the environment time horizon."""
         return HORIZON

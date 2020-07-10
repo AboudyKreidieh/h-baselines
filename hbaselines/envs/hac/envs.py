@@ -1,3 +1,4 @@
+"""Script containing the UR5 and Pendulum environments."""
 import numpy as np
 import gym
 from gym.spaces import Box
@@ -15,16 +16,20 @@ except ImportError:
 class Environment(gym.Env):
     """Base environment class.
 
-    TODO
+    Supports the UR5 and Pendulum environments from:
+
+    Levy, Andrew, et al. "Learning Multi-Level Hierarchies with Hindsight."
+    (2018).
 
     Attributes
     ----------
     name : str
         name of the environment; adopted from the name of the model
-    model : TODO
+    model : object
         the imported MuJoCo model
     sim : mujoco_py.MjSim
-        TODO
+        the MuJoCo simulator object, used to interact with and advance the
+        simulation
     end_goal_thresholds : array_like
         goal achievement thresholds. If the agent is within the threshold for
         each dimension, the end goal has been achieved and the reward of 0 is
@@ -177,21 +182,21 @@ class Environment(gym.Env):
 
         obs = self.get_state()
 
-        # FIXME: this is hacky
-        # The reward is not covered here (computed by the algorithm instead).
-        reward = 0
+        # check whether the goal is reached.
+        is_success = all(
+            np.absolute(self.project_state_to_end_goal(self.sim, obs)
+                        - self.current_context)
+            < self.end_goal_thresholds)
+
+        # Reward of 0 when the goal is reached, and -1 otherwise.
+        reward = self.contextual_reward(obs, self.current_context, obs)
 
         # If the time horizon is met, set done to True.
-        done = self.num_steps >= self.max_actions
+        done = self.num_steps >= self.max_actions or is_success
 
         # Success is defined as getting within a distance threshold from the
         # target.
-        info_dict = {
-            'is_success':
-                all(np.absolute(self.project_state_to_end_goal(self.sim, obs)
-                                - self.current_context)
-                    < self.end_goal_thresholds)
-        }
+        info_dict = {'is_success': is_success}
 
         return obs, reward, done, info_dict
 
@@ -219,7 +224,13 @@ class Environment(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='human'):
+        """Render the environment."""
         self.viewer.render()  # pragma: no cover
+
+    @property
+    def horizon(self):
+        """Return the environment horizon."""
+        return self.max_actions
 
     @property
     def context_space(self):
@@ -249,12 +260,10 @@ class Environment(gym.Env):
 
 
 class UR5(Environment):
-    """TODO
+    """UR5 environment class.
 
-        # In the UR5 reacher environment, the end goal will be the desired
-        # joint positions for the 3 main joints.
-
-    TODO
+    In this environment, a UR5 reacher object is tasked with reaching an end
+    goal consisting of the desired joint positions for the 3 main joints.
     """
 
     def __init__(self,
@@ -348,15 +357,18 @@ class UR5(Environment):
 
     @property
     def observation_space(self):
+        """Return the observation space."""
         return gym.spaces.Box(
-            low=-1, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )
 
     @property
     def action_space(self):
-        return gym.spaces.Box(
+        """Return the action space."""
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
             dtype=np.float32,
@@ -478,12 +490,11 @@ class UR5(Environment):
 
 
 class Pendulum(Environment):
-    """TODO
+    """Pendulum environment class.
 
-        # In the inverted pendulum environment, the end goal will be the
-        # desired joint angle and joint velocity for the pendulum.
-
-    TODO
+    In this environment, an inverted pendulum object is tasked with reaching an
+    end goal consisting of the desired joint angle and joint velocity for the
+    pendulum.
     """
 
     def __init__(self,
@@ -572,16 +583,19 @@ class Pendulum(Environment):
 
     @property
     def observation_space(self):
+        """Return the observation space."""
         # State will include (i) joint angles and (ii) joint velocities
         return gym.spaces.Box(
-            low=0, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(2 * len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )
 
     @property
     def action_space(self):
-        return gym.spaces.Box(
+        """Return the action space."""
+        return Box(
             low=-self.sim.model.actuator_ctrlrange[:, 1],
             high=self.sim.model.actuator_ctrlrange[:, 1],
             dtype=np.float32,

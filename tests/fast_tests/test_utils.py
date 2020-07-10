@@ -1,22 +1,38 @@
 """Contains tests for the model abstractions and different models."""
 import unittest
+import tensorflow as tf
 import numpy as np
-from hbaselines.utils.train import parse_options, get_hyperparameters
+import random
+from gym.spaces import Box
+
+from hbaselines.utils.train import parse_options
+from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
-from hbaselines.utils.misc import get_manager_ac_space, get_state_indices
-from hbaselines.goal_conditioned.algorithm import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.utils.env_util import get_meta_ac_space
+from hbaselines.utils.env_util import get_state_indices
+from hbaselines.utils.env_util import import_flow_env
+from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import apply_squashing_func
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import gaussian_likelihood
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
 class TestTrain(unittest.TestCase):
     """A simple test to get Travis running."""
 
     def test_parse_options(self):
+        self.maxDiff = None
         # Test the default case.
         args = parse_options("", "", args=["AntMaze"])
         expected_args = {
             'env_name': 'AntMaze',
+            'alg': 'TD3',
             'evaluate': False,
             'n_training': 1,
             'total_steps': 1000000,
@@ -24,7 +40,7 @@ class TestTrain(unittest.TestCase):
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
-            'num_cpus': 1,
+            'initial_exploration_steps': 10000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -34,26 +50,36 @@ class TestTrain(unittest.TestCase):
             'verbose': 2,
             'actor_update_freq': 2,
             'meta_update_freq': 10,
+            'noise': TD3_PARAMS['noise'],
+            'num_envs': 1,
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'target_entropy': SAC_PARAMS['target_entropy'],
             'buffer_size': FEEDFORWARD_PARAMS['buffer_size'],
             'batch_size': FEEDFORWARD_PARAMS['batch_size'],
             'actor_lr': FEEDFORWARD_PARAMS['actor_lr'],
             'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
             'tau': FEEDFORWARD_PARAMS['tau'],
             'gamma': FEEDFORWARD_PARAMS['gamma'],
-            'noise': FEEDFORWARD_PARAMS['noise'],
-            'target_policy_noise': FEEDFORWARD_PARAMS['target_policy_noise'],
-            'target_noise_clip': FEEDFORWARD_PARAMS['target_noise_clip'],
             'layer_norm': False,
             'use_huber': False,
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'worker_reward_scale':
-                GOAL_CONDITIONED_PARAMS['worker_reward_scale'],
+            'intrinsic_reward_scale':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
+            'intrinsic_reward_type':
+                GOAL_CONDITIONED_PARAMS['intrinsic_reward_type'],
             'relative_goals': False,
             'off_policy_corrections': False,
+            'hindsight': False,
+            'subgoal_testing_rate':
+                GOAL_CONDITIONED_PARAMS['subgoal_testing_rate'],
             'use_fingerprints': False,
             'centralized_value_functions': False,
             'connected_gradients': False,
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'shared': False,
+            'maddpg': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -67,69 +93,112 @@ class TestTrain(unittest.TestCase):
             '--log_interval', '4',
             '--eval_interval', '5',
             '--save_interval', '6',
-            '--num_cpus', '7',
-            '--nb_train_steps', '8',
-            '--nb_rollout_steps', '9',
-            '--nb_eval_episodes', '10',
-            '--reward_scale', '11',
+            '--nb_train_steps', '7',
+            '--nb_rollout_steps', '8',
+            '--nb_eval_episodes', '9',
+            '--reward_scale', '10',
             '--render',
             '--render_eval',
-            '--verbose', '12',
-            '--actor_update_freq', '13',
-            '--meta_update_freq', '14',
-            '--buffer_size', '15',
-            '--batch_size', '16',
-            '--actor_lr', '17',
-            '--critic_lr', '18',
-            '--tau', '19',
-            '--gamma', '20',
-            '--noise', '21',
+            '--verbose', '11',
+            '--actor_update_freq', '12',
+            '--meta_update_freq', '13',
+            '--buffer_size', '14',
+            '--batch_size', '15',
+            '--actor_lr', '16',
+            '--critic_lr', '17',
+            '--tau', '18',
+            '--gamma', '19',
+            '--noise', '20',
+            '--num_envs', '21',
             '--target_policy_noise', '22',
             '--target_noise_clip', '23',
             '--layer_norm',
             '--use_huber',
-            '--meta_period', '24',
-            '--worker_reward_scale', '25',
+            '--num_levels', '24',
+            '--meta_period', '25',
+            '--intrinsic_reward_scale', '26',
+            '--intrinsic_reward_type', 'woop',
             '--relative_goals',
             '--off_policy_corrections',
+            '--hindsight',
+            '--subgoal_testing_rate', '27',
             '--use_fingerprints',
             '--centralized_value_functions',
             '--connected_gradients',
-            '--cg_weights', '26',
+            '--cg_weights', '28',
+            '--shared',
+            '--maddpg',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
-            'num_cpus': 7,
-            'nb_train_steps': 8,
-            'nb_rollout_steps': 9,
-            'nb_eval_episodes': 10,
-            'reward_scale': 11.0,
+            'nb_train_steps': 7,
+            'nb_rollout_steps': 8,
+            'nb_eval_episodes': 9,
+            'reward_scale': 10.0,
             'render': True,
             'render_eval': True,
-            'verbose': 12,
-            'actor_update_freq': 13,
-            'meta_update_freq': 14,
+            'verbose': 11,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'num_envs': 21,
             '_init_setup_model': True,
             'policy_kwargs': {
-                'buffer_size': 15,
-                'batch_size': 16,
-                'actor_lr': 17.0,
-                'critic_lr': 18.0,
-                'tau': 19.0,
-                'gamma': 20.0,
-                'noise': 21.0,
+                'buffer_size': 14,
+                'batch_size': 15,
+                'actor_lr': 16.0,
+                'critic_lr': 17.0,
+                'tau': 18.0,
+                'gamma': 19.0,
+                'noise': 20.0,
                 'target_policy_noise': 22.0,
                 'target_noise_clip': 23.0,
                 'layer_norm': True,
                 'use_huber': True,
-                'meta_period': 24,
-                'worker_reward_scale': 25.0,
+                'num_levels': 24,
+                'meta_period': 25,
+                'intrinsic_reward_scale': 26.0,
+                'intrinsic_reward_type': 'woop',
                 'relative_goals': True,
                 'off_policy_corrections': True,
+                'hindsight': True,
+                'subgoal_testing_rate': 27.0,
                 'use_fingerprints': True,
                 'centralized_value_functions': True,
                 'connected_gradients': True,
-                'cg_weights': 26,
+                'cg_weights': 28.0,
+            }
+        }
+        self.assertDictEqual(hp, expected_hp)
+        self.assertEqual(args.log_interval, 4)
+        self.assertEqual(args.eval_interval, 5)
+
+        hp = get_hyperparameters(args, MultiFeedForwardPolicy)
+        expected_hp = {
+            'nb_train_steps': 7,
+            'nb_rollout_steps': 8,
+            'nb_eval_episodes': 9,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'reward_scale': 10.0,
+            'render': True,
+            'render_eval': True,
+            'verbose': 11,
+            'num_envs': 21,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': 14,
+                'batch_size': 15,
+                'actor_lr': 16.0,
+                'critic_lr': 17.0,
+                'tau': 18.0,
+                'gamma': 19.0,
+                'layer_norm': True,
+                'use_huber': True,
+                'noise': 20.0,
+                'target_policy_noise': 22.0,
+                'target_noise_clip': 23.0,
+                'shared': True,
+                'maddpg': True,
             }
         }
         self.assertDictEqual(hp, expected_hp)
@@ -147,10 +216,10 @@ class TestRewardFns(unittest.TestCase):
         self.assertEqual(c, -8.062257748304752)
 
 
-class TestMisc(unittest.TestCase):
-    """Test the the miscellaneous utility methods."""
+class TestEnvUtil(unittest.TestCase):
+    """Test the environment utility methods."""
 
-    def test_manager_ac_space(self):
+    def test_meta_ac_space(self):
         # non-relevant parameters for most tests
         params = dict(
             ob_space=None,
@@ -162,7 +231,7 @@ class TestMisc(unittest.TestCase):
         rel_params.update({"relative_goals": True})
 
         # test for AntMaze
-        ac_space = get_manager_ac_space(env_name="AntMaze", **params)
+        ac_space = get_meta_ac_space(env_name="AntMaze", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -173,7 +242,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntGather
-        ac_space = get_manager_ac_space(env_name="AntGather", **params)
+        ac_space = get_meta_ac_space(env_name="AntGather", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -184,7 +253,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntPush
-        ac_space = get_manager_ac_space(env_name="AntPush", **params)
+        ac_space = get_meta_ac_space(env_name="AntPush", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -195,7 +264,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for AntFall
-        ac_space = get_manager_ac_space(env_name="AntFall", **params)
+        ac_space = get_meta_ac_space(env_name="AntFall", **params)
         test_space(
             ac_space,
             expected_min=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3,
@@ -206,7 +275,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for UR5
-        ac_space = get_manager_ac_space(env_name="UR5", **params)
+        ac_space = get_meta_ac_space(env_name="UR5", **params)
         test_space(
             ac_space,
             expected_min=np.array([-2*np.pi, -2*np.pi, -2*np.pi, -4, -4, -4]),
@@ -215,7 +284,7 @@ class TestMisc(unittest.TestCase):
         )
 
         # test for Pendulum
-        ac_space = get_manager_ac_space(env_name="Pendulum", **params)
+        ac_space = get_meta_ac_space(env_name="Pendulum", **params)
         test_space(
             ac_space,
             expected_min=np.array([-np.pi, -15]),
@@ -223,42 +292,56 @@ class TestMisc(unittest.TestCase):
             expected_size=2,
         )
 
-        # test for ring0
-        ac_space = get_manager_ac_space(env_name="ring0", **params)
+        # test for ring-v0
+        ac_space = get_meta_ac_space(env_name="ring-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
-
-        ac_space = get_manager_ac_space(env_name="ring0", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
-        # test for ring1
-        ac_space = get_manager_ac_space(env_name="ring1", **params)
+        # test for ring-v1
+        ac_space = get_meta_ac_space(env_name="ring-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
-
-        ac_space = get_manager_ac_space(env_name="ring1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
-        # test for merge0
-        ac_space = get_manager_ac_space(env_name="merge0", **params)
+        # test for ring-v2
+        ac_space = get_meta_ac_space(env_name="ring-v2", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v2", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test for ring-imitation
+        ac_space = get_meta_ac_space(env_name="ring-imitation", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
@@ -266,7 +349,15 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
-        ac_space = get_manager_ac_space(env_name="merge0", **rel_params)
+        # test for merge-v0
+        ac_space = get_meta_ac_space(env_name="merge-v0", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([1 for _ in range(5)]),
+            expected_size=5,
+        )
+        ac_space = get_meta_ac_space(env_name="merge-v0", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(5)]),
@@ -274,16 +365,15 @@ class TestMisc(unittest.TestCase):
             expected_size=5,
         )
 
-        # test for merge1
-        ac_space = get_manager_ac_space(env_name="merge1", **params)
+        # test for merge-v1
+        ac_space = get_meta_ac_space(env_name="merge-v1", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(13)]),
             expected_max=np.array([1 for _ in range(13)]),
             expected_size=13,
         )
-
-        ac_space = get_manager_ac_space(env_name="merge1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="merge-v1", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(13)]),
@@ -291,16 +381,15 @@ class TestMisc(unittest.TestCase):
             expected_size=13,
         )
 
-        # test for merge2
-        ac_space = get_manager_ac_space(env_name="merge2", **params)
+        # test for merge-v2
+        ac_space = get_meta_ac_space(env_name="merge-v2", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(17)]),
             expected_max=np.array([1 for _ in range(17)]),
             expected_size=17,
         )
-
-        ac_space = get_manager_ac_space(env_name="merge2", **rel_params)
+        ac_space = get_meta_ac_space(env_name="merge-v2", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-0.5 for _ in range(17)]),
@@ -308,81 +397,133 @@ class TestMisc(unittest.TestCase):
             expected_size=17,
         )
 
-        # test for figureeight0
-        ac_space = get_manager_ac_space(env_name="figureeight0", **params)
+        # test for highway-v0
+        ac_space = get_meta_ac_space(env_name="highway-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(1)]),
-            expected_max=np.array([1 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([20 for _ in range(10)]),
+            expected_size=10,
         )
-
-        ac_space = get_manager_ac_space(env_name="figureeight0", **rel_params)
+        ac_space = get_meta_ac_space(env_name="highway-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
-            expected_size=1,
+            expected_min=np.array([-5 for _ in range(10)]),
+            expected_max=np.array([5 for _ in range(10)]),
+            expected_size=10,
         )
 
-        # test for figureeight1
-        ac_space = get_manager_ac_space(env_name="figureeight1", **params)
+        # test for highway-v1
+        ac_space = get_meta_ac_space(env_name="highway-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(7)]),
-            expected_max=np.array([1 for _ in range(7)]),
-            expected_size=7,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([20 for _ in range(10)]),
+            expected_size=10,
         )
-
-        ac_space = get_manager_ac_space(env_name="figureeight1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="highway-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-0.5 for _ in range(7)]),
-            expected_max=np.array([0.5 for _ in range(7)]),
-            expected_size=7,
+            expected_min=np.array([-5 for _ in range(10)]),
+            expected_max=np.array([5 for _ in range(10)]),
+            expected_size=10,
         )
 
-        # test for figureeight2
-        ac_space = get_manager_ac_space(env_name="figureeight2", **params)
+        # test for highway-v2
+        ac_space = get_meta_ac_space(env_name="highway-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(14)]),
-            expected_max=np.array([1 for _ in range(14)]),
-            expected_size=14,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([20 for _ in range(10)]),
+            expected_size=10,
         )
-
-        ac_space = get_manager_ac_space(env_name="figureeight2", **rel_params)
+        ac_space = get_meta_ac_space(env_name="highway-v2", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-0.5 for _ in range(14)]),
-            expected_max=np.array([0.5 for _ in range(14)]),
-            expected_size=14,
+            expected_min=np.array([-5 for _ in range(10)]),
+            expected_max=np.array([5 for _ in range(10)]),
+            expected_size=10,
         )
 
-        # test for grid0
-        ac_space = get_manager_ac_space(env_name="grid0", **params)
-        del ac_space  # TODO
+        # test for highway-imitation
+        ac_space = get_meta_ac_space(env_name="highway-imitation", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([1 for _ in range(10)]),
+            expected_size=10,
+        )
 
-        # test for grid1
-        ac_space = get_manager_ac_space(env_name="grid1", **params)
-        del ac_space  # TODO
+        # test for i210-v0
+        ac_space = get_meta_ac_space(env_name="i210-v0", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v0", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
 
-        # test for bottleneck0
-        ac_space = get_manager_ac_space(env_name="bottleneck0", **params)
-        del ac_space  # TODO
+        # test for i210-v1
+        ac_space = get_meta_ac_space(env_name="i210-v1", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v1", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
 
-        # test for bottleneck1
-        ac_space = get_manager_ac_space(env_name="bottleneck1", **params)
-        del ac_space  # TODO
+        # test for i210-v2
+        ac_space = get_meta_ac_space(env_name="i210-v0", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(50)]),
+            expected_max=np.array([20 for _ in range(50)]),
+            expected_size=50,
+        )
+        ac_space = get_meta_ac_space(env_name="i210-v2", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(50)]),
+            expected_max=np.array([5 for _ in range(50)]),
+            expected_size=50,
+        )
 
-        # test for bottleneck2
-        ac_space = get_manager_ac_space(env_name="bottleneck2", **params)
-        del ac_space  # TODO
+        # test for Point2DEnv
+        ac_space = get_meta_ac_space(env_name="Point2DEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
+
+        # test for Point2DImageEnv
+        ac_space = get_meta_ac_space(env_name="Point2DImageEnv", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-4 for _ in range(2)]),
+            expected_max=np.array([4 for _ in range(2)]),
+            expected_size=2,
+        )
 
     def test_state_indices(self):
         # non-relevant parameters for most tests
         params = dict(
-            ob_space=None,
+            ob_space=Box(-1, 1, shape=(2,)),
             use_fingerprints=False,
             fingerprint_dim=1,
         )
@@ -420,73 +561,323 @@ class TestMisc(unittest.TestCase):
             [0, 2]
         )
 
-        # test for ring0
+        # test for ring-v0
         self.assertListEqual(
-            get_state_indices(env_name="ring0", **params),
-            [0]
-        )
-
-        # test for ring1
-        self.assertListEqual(
-            get_state_indices(env_name="ring1", **params),
-            [0]
-        )
-
-        # test for merge0
-        self.assertListEqual(
-            get_state_indices(env_name="merge0", **params),
+            get_state_indices(env_name="ring-v0", **params),
             [0, 5, 10, 15, 20]
         )
 
-        # test for merge1
+        # test for ring-v1
         self.assertListEqual(
-            get_state_indices(env_name="merge1", **params),
+            get_state_indices(env_name="ring-v1", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for ring-v2
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v2", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for ring-imitation
+        self.assertListEqual(
+            get_state_indices(env_name="ring-imitation", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for merge-v0
+        self.assertListEqual(
+            get_state_indices(env_name="merge-v0", **params),
+            [0, 5, 10, 15, 20]
+        )
+
+        # test for merge-v1
+        self.assertListEqual(
+            get_state_indices(env_name="merge-v1", **params),
             [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]
         )
 
-        # test for merge2
+        # test for merge-v2
         self.assertListEqual(
-            get_state_indices(env_name="merge2", **params),
+            get_state_indices(env_name="merge-v2", **params),
             [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]
         )
 
-        # test for figureeight0
+        # test for highway-v0
         self.assertListEqual(
-            get_state_indices(env_name="figureeight0", **params),
-            [13]
+            get_state_indices(env_name="highway-v0", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         )
 
-        # test for figureeight1
+        # test for highway-v1
         self.assertListEqual(
-            get_state_indices(env_name="figureeight1", **params),
-            [1, 3, 5, 7, 9, 11, 13]
+            get_state_indices(env_name="highway-v1", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         )
 
-        # test for figureeight2
+        # test for highway-v2
         self.assertListEqual(
-            get_state_indices(env_name="figureeight2", **params),
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+            get_state_indices(env_name="highway-v2", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         )
 
-        # test for grid0
-        state_indices = get_state_indices(env_name="grid0", **params)
-        del state_indices  # TODO
+        # test for highway-imitation
+        self.assertListEqual(
+            get_state_indices(env_name="highway-imitation", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+        )
 
-        # test for grid1
-        state_indices = get_state_indices(env_name="grid1", **params)
-        del state_indices  # TODO
+        # test for i210-v0
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v0", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
+        )
 
-        # test for bottleneck0
-        state_indices = get_state_indices(env_name="bottleneck0", **params)
-        del state_indices  # TODO
+        # test for i210-v1
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v1", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
+        )
 
-        # test for bottleneck1
-        state_indices = get_state_indices(env_name="bottleneck1", **params)
-        del state_indices  # TODO
+        # test for i210-v2
+        self.assertListEqual(
+            get_state_indices(env_name="i210-v2", **params),
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
+             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
+             220, 225, 230, 235, 240, 245]
+        )
 
-        # test for bottleneck2
-        state_indices = get_state_indices(env_name="bottleneck2", **params)
-        del state_indices  # TODO
+        # test for Point2DEnv
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DEnv", **params),
+            [0, 1]
+        )
+
+        # test for Point2DImageEnv
+        self.assertListEqual(
+            get_state_indices(env_name="Point2DImageEnv", **params),
+            [3072, 3073]
+        )
+
+    def test_import_flow_env(self):
+        """Validate the functionality of the import_flow_env() method.
+
+        This is done for the following 3 cases:
+
+        1. "singleagent_ring"
+        2. "multiagent_ring"
+        3. "flow:sdfn" --> returns ValueError
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+        env = import_flow_env(
+            "flow:singleagent_ring", False, False, False, False)
+
+        # check the spaces
+        test_space(
+            gym_space=env.action_space,
+            expected_min=np.array([-1.]),
+            expected_max=np.array([1.]),
+            expected_size=1,
+        )
+        test_space(
+            gym_space=env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(3)]),
+            expected_max=np.array([float("inf") for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # delete the environment
+        del env
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+        env = import_flow_env(
+            "flow:multiagent_ring", False, True, False, False)
+
+        # check the spaces
+        test_space(
+            gym_space=env.action_space,
+            expected_min=np.array([-1.]),
+            expected_max=np.array([1.]),
+            expected_size=1,
+        )
+        test_space(
+            gym_space=env.observation_space,
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # delete the environment
+        del env
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+        self.assertRaises(
+            ValueError,
+            import_flow_env,
+            env_name="flow:sdfn",
+            render=False,
+            shared=False,
+            maddpg=False,
+            evaluate=False,
+        )
+
+
+class TestTFUtil(unittest.TestCase):
+
+    def setUp(self):
+        self.sess = tf.compat.v1.Session()
+
+    def tearDown(self):
+        self.sess.close()
+
+    def test_layer(self):
+        """Check the functionality of the layer() method.
+
+        This method is tested for the following features:
+
+        1. the number of outputs from the layer equals num_outputs
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. layer_norm is applied if requested
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Choose a random number of outputs.
+        num_outputs = random.randint(1, 10)
+
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test1',
+            ),
+            num_outputs=num_outputs,
+            name="test1",
+        )
+
+        # Test the number of outputs.
+        self.assertEqual(out_val.shape[-1], num_outputs)
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test2',
+            ),
+            num_outputs=num_outputs,
+            name="test2",
+        )
+
+        # Test the name matches what is expected.
+        self.assertEqual(out_val.name, "test2/BiasAdd:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        out_val = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test3',
+            ),
+            act_fun=tf.nn.relu,
+            num_outputs=num_outputs,
+            name="test3",
+        )
+
+        # Test that the name matches the activation function that was added.
+        self.assertEqual(out_val.name, "Relu:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        _ = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test5',
+            ),
+            layer_norm=True,
+            num_outputs=num_outputs,
+            name="test5",
+        )
+
+        # Test that the LayerNorm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['LayerNorm/beta:0',
+             'LayerNorm/gamma:0',
+             'test5/bias:0',
+             'test5/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_gaussian_likelihood(self):
+        """Check the functionality of the gaussian_likelihood() method."""
+        input_ = tf.constant([[0, 1, 2]], dtype=tf.float32)
+        mu_ = tf.constant([[0, 0, 0]], dtype=tf.float32)
+        log_std = tf.constant([[-4, -3, -2]], dtype=tf.float32)
+        val = gaussian_likelihood(input_, mu_, log_std)
+        expected = -304.65784
+
+        self.assertAlmostEqual(self.sess.run(val)[0], expected, places=4)
+
+    def test_apply_squashing(self):
+        """Check the functionality of the apply_squashing() method."""
+        # Some inputs
+        mu_ = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+        pi_ = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+        logp_pi = tf.constant([[0, 0.5, 1, 2]], dtype=tf.float32)
+
+        # Run the function.
+        det_policy, policy, logp_pi = apply_squashing_func(mu_, pi_, logp_pi)
+
+        # Initialize everything.
+        sess = tf.compat.v1.Session()
+        sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Test the output from the deterministic squashed output.
+        np.testing.assert_almost_equal(
+            sess.run(det_policy), [[0., 0.4621172, 0.7615942, 0.9640276]])
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

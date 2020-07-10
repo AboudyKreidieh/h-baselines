@@ -5,17 +5,19 @@ import random
 import shutil
 import os
 import csv
+import tensorflow as tf
 
-from hbaselines.goal_conditioned.algorithm import TD3
-from hbaselines.goal_conditioned.tf_util import get_trainable_vars
-from hbaselines.goal_conditioned.policy import FeedForwardPolicy
-from hbaselines.goal_conditioned.policy import GoalConditionedPolicy
-from hbaselines.goal_conditioned.algorithm import FEEDFORWARD_PARAMS
-from hbaselines.goal_conditioned.algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.fcnet.td3 import FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
+from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 
 
-class TestTD3(unittest.TestCase):
-    """Test the components of the TD3 algorithm."""
+class TestOffPolicyRLAlgorithm(unittest.TestCase):
+    """Test the components of the OffPolicyRLAlgorithm algorithm."""
 
     def setUp(self):
         self.env = 'MountainCarContinuous-v0'
@@ -24,15 +26,15 @@ class TestTD3(unittest.TestCase):
             'policy': None,
             'env': 'MountainCarContinuous-v0',
             'eval_env': None,
-            'num_cpus': 1,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
             'reward_scale': 1.,
             'render': False,
             'render_eval': False,
-            'verbose': 2,
+            'verbose': 0,
             'policy_kwargs': None,
+            'num_envs': 1,
             '_init_setup_model': True
         }
 
@@ -41,12 +43,11 @@ class TestTD3(unittest.TestCase):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Test the attribute values.
         self.assertEqual(alg.policy, self.init_parameters['policy'])
         self.assertEqual(alg.eval_env, self.init_parameters['eval_env'])
-        self.assertEqual(alg.num_cpus, self.init_parameters['num_cpus'])
         self.assertEqual(alg.nb_train_steps,
                          self.init_parameters['nb_train_steps'])
         self.assertEqual(alg.nb_rollout_steps,
@@ -64,10 +65,11 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
@@ -121,12 +123,14 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
+        policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
@@ -136,78 +140,78 @@ class TestTD3(unittest.TestCase):
         # TensorFlow graph.
         self.assertListEqual(
             expected_vars,
-            ['Manager/model/pi/fc0/bias:0',
-             'Manager/model/pi/fc0/kernel:0',
-             'Manager/model/pi/fc1/bias:0',
-             'Manager/model/pi/fc1/kernel:0',
-             'Manager/model/pi/output/bias:0',
-             'Manager/model/pi/output/kernel:0',
-             'Manager/model/qf_0/fc0/bias:0',
-             'Manager/model/qf_0/fc0/kernel:0',
-             'Manager/model/qf_0/fc1/bias:0',
-             'Manager/model/qf_0/fc1/kernel:0',
-             'Manager/model/qf_0/qf_output/bias:0',
-             'Manager/model/qf_0/qf_output/kernel:0',
-             'Manager/model/qf_1/fc0/bias:0',
-             'Manager/model/qf_1/fc0/kernel:0',
-             'Manager/model/qf_1/fc1/bias:0',
-             'Manager/model/qf_1/fc1/kernel:0',
-             'Manager/model/qf_1/qf_output/bias:0',
-             'Manager/model/qf_1/qf_output/kernel:0',
-             'Manager/target/pi/fc0/bias:0',
-             'Manager/target/pi/fc0/kernel:0',
-             'Manager/target/pi/fc1/bias:0',
-             'Manager/target/pi/fc1/kernel:0',
-             'Manager/target/pi/output/bias:0',
-             'Manager/target/pi/output/kernel:0',
-             'Manager/target/qf_0/fc0/bias:0',
-             'Manager/target/qf_0/fc0/kernel:0',
-             'Manager/target/qf_0/fc1/bias:0',
-             'Manager/target/qf_0/fc1/kernel:0',
-             'Manager/target/qf_0/qf_output/bias:0',
-             'Manager/target/qf_0/qf_output/kernel:0',
-             'Manager/target/qf_1/fc0/bias:0',
-             'Manager/target/qf_1/fc0/kernel:0',
-             'Manager/target/qf_1/fc1/bias:0',
-             'Manager/target/qf_1/fc1/kernel:0',
-             'Manager/target/qf_1/qf_output/bias:0',
-             'Manager/target/qf_1/qf_output/kernel:0',
-             'Worker/model/pi/fc0/bias:0',
-             'Worker/model/pi/fc0/kernel:0',
-             'Worker/model/pi/fc1/bias:0',
-             'Worker/model/pi/fc1/kernel:0',
-             'Worker/model/pi/output/bias:0',
-             'Worker/model/pi/output/kernel:0',
-             'Worker/model/qf_0/fc0/bias:0',
-             'Worker/model/qf_0/fc0/kernel:0',
-             'Worker/model/qf_0/fc1/bias:0',
-             'Worker/model/qf_0/fc1/kernel:0',
-             'Worker/model/qf_0/qf_output/bias:0',
-             'Worker/model/qf_0/qf_output/kernel:0',
-             'Worker/model/qf_1/fc0/bias:0',
-             'Worker/model/qf_1/fc0/kernel:0',
-             'Worker/model/qf_1/fc1/bias:0',
-             'Worker/model/qf_1/fc1/kernel:0',
-             'Worker/model/qf_1/qf_output/bias:0',
-             'Worker/model/qf_1/qf_output/kernel:0',
-             'Worker/target/pi/fc0/bias:0',
-             'Worker/target/pi/fc0/kernel:0',
-             'Worker/target/pi/fc1/bias:0',
-             'Worker/target/pi/fc1/kernel:0',
-             'Worker/target/pi/output/bias:0',
-             'Worker/target/pi/output/kernel:0',
-             'Worker/target/qf_0/fc0/bias:0',
-             'Worker/target/qf_0/fc0/kernel:0',
-             'Worker/target/qf_0/fc1/bias:0',
-             'Worker/target/qf_0/fc1/kernel:0',
-             'Worker/target/qf_0/qf_output/bias:0',
-             'Worker/target/qf_0/qf_output/kernel:0',
-             'Worker/target/qf_1/fc0/bias:0',
-             'Worker/target/qf_1/fc0/kernel:0',
-             'Worker/target/qf_1/fc1/bias:0',
-             'Worker/target/qf_1/fc1/kernel:0',
-             'Worker/target/qf_1/qf_output/bias:0',
-             'Worker/target/qf_1/qf_output/kernel:0']
+            ['level_0/model/pi/fc0/bias:0',
+             'level_0/model/pi/fc0/kernel:0',
+             'level_0/model/pi/fc1/bias:0',
+             'level_0/model/pi/fc1/kernel:0',
+             'level_0/model/pi/output/bias:0',
+             'level_0/model/pi/output/kernel:0',
+             'level_0/model/qf_0/fc0/bias:0',
+             'level_0/model/qf_0/fc0/kernel:0',
+             'level_0/model/qf_0/fc1/bias:0',
+             'level_0/model/qf_0/fc1/kernel:0',
+             'level_0/model/qf_0/qf_output/bias:0',
+             'level_0/model/qf_0/qf_output/kernel:0',
+             'level_0/model/qf_1/fc0/bias:0',
+             'level_0/model/qf_1/fc0/kernel:0',
+             'level_0/model/qf_1/fc1/bias:0',
+             'level_0/model/qf_1/fc1/kernel:0',
+             'level_0/model/qf_1/qf_output/bias:0',
+             'level_0/model/qf_1/qf_output/kernel:0',
+             'level_0/target/pi/fc0/bias:0',
+             'level_0/target/pi/fc0/kernel:0',
+             'level_0/target/pi/fc1/bias:0',
+             'level_0/target/pi/fc1/kernel:0',
+             'level_0/target/pi/output/bias:0',
+             'level_0/target/pi/output/kernel:0',
+             'level_0/target/qf_0/fc0/bias:0',
+             'level_0/target/qf_0/fc0/kernel:0',
+             'level_0/target/qf_0/fc1/bias:0',
+             'level_0/target/qf_0/fc1/kernel:0',
+             'level_0/target/qf_0/qf_output/bias:0',
+             'level_0/target/qf_0/qf_output/kernel:0',
+             'level_0/target/qf_1/fc0/bias:0',
+             'level_0/target/qf_1/fc0/kernel:0',
+             'level_0/target/qf_1/fc1/bias:0',
+             'level_0/target/qf_1/fc1/kernel:0',
+             'level_0/target/qf_1/qf_output/bias:0',
+             'level_0/target/qf_1/qf_output/kernel:0',
+             'level_1/model/pi/fc0/bias:0',
+             'level_1/model/pi/fc0/kernel:0',
+             'level_1/model/pi/fc1/bias:0',
+             'level_1/model/pi/fc1/kernel:0',
+             'level_1/model/pi/output/bias:0',
+             'level_1/model/pi/output/kernel:0',
+             'level_1/model/qf_0/fc0/bias:0',
+             'level_1/model/qf_0/fc0/kernel:0',
+             'level_1/model/qf_0/fc1/bias:0',
+             'level_1/model/qf_0/fc1/kernel:0',
+             'level_1/model/qf_0/qf_output/bias:0',
+             'level_1/model/qf_0/qf_output/kernel:0',
+             'level_1/model/qf_1/fc0/bias:0',
+             'level_1/model/qf_1/fc0/kernel:0',
+             'level_1/model/qf_1/fc1/bias:0',
+             'level_1/model/qf_1/fc1/kernel:0',
+             'level_1/model/qf_1/qf_output/bias:0',
+             'level_1/model/qf_1/qf_output/kernel:0',
+             'level_1/target/pi/fc0/bias:0',
+             'level_1/target/pi/fc0/kernel:0',
+             'level_1/target/pi/fc1/bias:0',
+             'level_1/target/pi/fc1/kernel:0',
+             'level_1/target/pi/output/bias:0',
+             'level_1/target/pi/output/kernel:0',
+             'level_1/target/qf_0/fc0/bias:0',
+             'level_1/target/qf_0/fc0/kernel:0',
+             'level_1/target/qf_0/fc1/bias:0',
+             'level_1/target/qf_0/fc1/kernel:0',
+             'level_1/target/qf_0/qf_output/bias:0',
+             'level_1/target/qf_0/qf_output/kernel:0',
+             'level_1/target/qf_1/fc0/bias:0',
+             'level_1/target/qf_1/fc0/kernel:0',
+             'level_1/target/qf_1/fc1/bias:0',
+             'level_1/target/qf_1/fc1/kernel:0',
+             'level_1/target/qf_1/qf_output/bias:0',
+             'level_1/target/qf_1/qf_output/kernel:0']
         )
 
     def test_learn_init(self):
@@ -216,41 +220,133 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
-        # Run the learn operation for zero timesteps.
-        alg.learn(0, log_dir='results', start_timesteps=0)
+        # Run the learn operation for zero steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=0)
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
         self.assertEqual(alg.epoch, 0)
-        self.assertEqual(len(alg.episode_rewards_history), 0)
+        self.assertEqual(len(alg.episode_rew_history), 0)
         self.assertEqual(alg.epoch_episodes, 0)
-        self.assertEqual(len(alg.epoch_actions), 0)
-        self.assertEqual(len(alg.epoch_q1s), 0)
-        self.assertEqual(len(alg.epoch_q2s), 0)
-        self.assertEqual(len(alg.epoch_actor_losses), 0)
-        self.assertEqual(len(alg.epoch_critic_losses), 0)
         self.assertEqual(len(alg.epoch_episode_rewards), 0)
         self.assertEqual(len(alg.epoch_episode_steps), 0)
         shutil.rmtree('results')
 
         # Test the seeds.
-        alg.learn(0, log_dir='results', seed=1, start_timesteps=0)
+        alg.learn(0, log_dir='results', seed=1, initial_exploration_steps=0)
         self.assertEqual(np.random.sample(), 0.417022004702574)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
 
-    def test_learn_start_timesteps(self):
-        """TODO"""
-        pass
+    def test_learn_initial_exploration_steps(self):
+        """Test the initial_exploration_steps parameter in the learn method.
 
-    def test_collect_samples(self):
-        """Validate the functionality of the _collect_samples method."""
-        pass
+        This is done for the following cases:
+
+        1. initial_exploration_steps= = 0
+        2. initial_exploration_steps= = 100
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=0)
+
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 1)
+
+        # Clear memory.
+        del alg
+        shutil.rmtree('results')
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=100)
+
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 100)
+
+        # Clear memory.
+        del alg
+        shutil.rmtree('results')
 
     def test_evaluate(self):
-        """Validate the functionality of the _evaluate method."""
-        pass
+        """Validate the functionality of the _evaluate method.
+
+        This is done for the following cases:
+
+        1. policy = FeedForwardPolicy
+        2. policy = GoalConditionedPolicy
+        """
+        # Set the random seeds.
+        random.seed(0)
+        np.random.seed(0)
+        tf.compat.v1.set_random_seed(0)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalConditionedPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
 
     def test_fingerprints(self):
         """Validate the functionality of the fingerprints.
@@ -261,54 +357,52 @@ class TestTD3(unittest.TestCase):
 
         Policy-specific features of the fingerprint implementation are also
         tested here. This feature should add a fingerprint dimension to the
-        manager and worker observation spaces, but NOT the context space of the
-        worker or the action space of the manager. The worker reward function
-        should also be ignoring the fingerprint elements  during its
-        computation. The fingerprint elements are passed by the algorithm, and
-        tested under test_algorithm.py
+        observation spaces, but NOT the context space of the lower-level or the
+        action space of the higher-level. The intrinsic reward function should
+        also be ignoring the fingerprint elements during its computation. The
+        fingerprint elements are passed by the algorithm, and tested under
+        test_algorithm.py
         """
         # Create the algorithm.
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['nb_rollout_steps'] = 1
         policy_params['policy_kwargs'] = {'use_fingerprints': True}
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
-        # Test the observation spaces of the manager and worker, as well as the
-        # context space of the worker and action space of the manager.
-        self.assertTupleEqual(alg.policy_tf.manager.ob_space.shape, (4,))
-        self.assertTupleEqual(alg.policy_tf.manager.ac_space.shape, (2,))
-        self.assertTupleEqual(alg.policy_tf.worker.ob_space.shape, (4,))
-        self.assertTupleEqual(alg.policy_tf.worker.co_space.shape, (2,))
+        # Test the observation spaces of the policies, as well as the context
+        # space of the lower-level policy and action space of the higher-level
+        # policy.
+        self.assertTupleEqual(alg.policy_tf.policy[0].ob_space.shape, (4,))
+        self.assertTupleEqual(alg.policy_tf.policy[0].ac_space.shape, (2,))
+        self.assertTupleEqual(alg.policy_tf.policy[-1].ob_space.shape, (4,))
+        self.assertTupleEqual(alg.policy_tf.policy[-1].co_space.shape, (2,))
 
-        # Test worker_reward method within the policy.
+        # Test intrinsic_reward method within the policy.
         self.assertAlmostEqual(
-            alg.policy_tf.worker_reward_fn(states=np.array([1, 2, 3]),
-                                           goals=np.array([0, 0]),
-                                           next_states=np.array([1, 2, 3])),
+            alg.policy_tf.intrinsic_reward_fn(
+                states=np.array([1, 2, 3]),
+                goals=np.array([0, 0]),
+                next_states=np.array([1, 2, 3])),
             -np.sqrt(1**2 + 2**2)
         )
 
         # Validate that observations include the fingerprints elements upon
         # initializing the `learn` procedure and  during a step in the
         # `_collect_samples` method.
-        alg.learn(1, log_dir='results', log_interval=1, start_timesteps=0)
-        self.assertEqual(
-            len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+        alg.learn(1, log_dir='results', log_interval=1,
+                  initial_exploration_steps=0)
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
 
         # Validate that observations include the fingerprints elements during
         # a reset in the `_collect_samples` method.
-        alg.learn(500, log_dir='results', log_interval=500, start_timesteps=0)
-        self.assertEqual(
-            len(alg.obs),
-            alg.env.observation_space.shape[0]
-            + alg.policy_tf.fingerprint_dim[0])
+        alg.learn(500, log_dir='results', log_interval=500,
+                  initial_exploration_steps=0)
+        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
         np.testing.assert_almost_equal(
-            alg.obs[-alg.policy_tf.fingerprint_dim[0]:],
+            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:],
             np.array([4.99, 0.01]))
 
         # Delete generated files.
@@ -319,7 +413,7 @@ class TestTD3(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = False
-        alg = TD3(**policy_params)
+        alg = OffPolicyRLAlgorithm(**policy_params)
 
         # test for one evaluation environment
         rewards = [0, 1, 2]

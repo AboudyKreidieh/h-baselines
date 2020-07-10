@@ -25,6 +25,7 @@ except ModuleNotFoundError:
     mujoco_py = object()
 
     def mujoco_env():
+        """Create a dummy environment for testing purposes."""
         return None
     setattr(mujoco_env, "MujocoEnv", gym.Env)
 
@@ -49,26 +50,39 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     FILE = "ant.xml"
     ORI_IND = 3
 
-    def __init__(self, file_path=None, expose_all_qpos=True,
-                 expose_body_coms=None, expose_body_comvels=None):
+    def __init__(self,
+                 file_path=None,
+                 expose_all_qpos=True,
+                 expose_body_coms=None,
+                 expose_body_comvels=None,
+                 top_down_view=False,
+                 ant_fall=False):
         """Instantiate the Ant environment.
 
         Parameters
         ----------
-        file_path : str, optional
-            TODO
-        expose_all_qpos : bool, optional
-            TODO
-        expose_body_coms : TODO, optional
-            TODO
-        expose_body_comvels : TODO, optional
-            TODO
+        file_path : str
+            path to the xml file
+        expose_all_qpos : bool
+            whether to provide all qpos values via the observation
+        expose_body_coms : list of str
+            whether to provide all body_coms values via the observation
+        expose_body_comvels : list of str
+            whether to provide all body_comvels values via the observation
+        top_down_view : bool, optional
+            if set to True, the top-down view is provided via the observations
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
         """
         self._expose_all_qpos = expose_all_qpos
         self._expose_body_coms = expose_body_coms
         self._expose_body_comvels = expose_body_comvels
         self._body_com_indices = {}
         self._body_comvel_indices = {}
+        self._top_down_view = top_down_view
+        self._ant_fall = ant_fall
 
         try:
             mujoco_env.MujocoEnv.__init__(self, file_path, 5)
@@ -94,6 +108,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.step(a)
 
     def step(self, a):
+        """Advance the simulation by one step."""
         xposbefore = self.get_body_com("torso")[0]
         self.do_simulation(a, self.frame_skip)
         xposafter = self.get_body_com("torso")[0]
@@ -102,7 +117,10 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         survive_reward = 1.0
         reward = forward_reward - ctrl_cost + survive_reward
         state = self.state_vector()
-        notdone = np.isfinite(state).all() and 0.2 <= state[2] <= 1.0
+        if self._ant_fall:
+            notdone = np.isfinite(state).all() and 4.2 <= state[2] <= 5.0
+        else:
+            notdone = np.isfinite(state).all() and 0.2 <= state[2] <= 1.0
         done = not notdone
         ob = self._get_obs()
         return ob, reward, done, dict(
@@ -115,13 +133,15 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
-                self.physics.data.qvel.flat[:14],
+                self.physics.data.qpos.flat,  # Ensures only ant obs.
+                self.physics.data.qvel.flat,
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
             ])
         else:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[2:15],
-                self.physics.data.qvel.flat[:14],
+                self.physics.data.qpos.flat[2:],
+                self.physics.data.qvel.flat,
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
             ])
 
         if self._expose_body_coms is not None:
@@ -155,7 +175,20 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def viewer_setup(self):
         """Create the viewer."""
-        self.viewer.cam.distance = self.model.stat.extent * 0.5
+        if self._top_down_view:
+            self.update_cam()
+        else:
+            self.viewer.cam.distance = self.model.stat.extent * 0.5
+
+    def update_cam(self):
+        """Update the position of the camera."""
+        if self.viewer is not None:
+            x, y = self.get_xy()
+            self.viewer.cam.azimuth = 0
+            self.viewer.cam.distance = 15.
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = x
+            self.viewer.cam.lookat[1] = y
 
     def get_ori(self):
         """Return the orientation of the agent."""

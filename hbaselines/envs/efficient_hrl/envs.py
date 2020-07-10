@@ -15,11 +15,9 @@ DISTANCE_THRESHOLD = 5
 class UniversalAntMazeEnv(AntMazeEnv):
     """Universal environment variant of AntMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -28,7 +26,11 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 horizon=500):
+                 maze_size_scaling=8,
+                 top_down_view=False,
+                 image_size=32,
+                 horizon=500,
+                 ant_fall=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -44,11 +46,24 @@ class UniversalAntMazeEnv(AntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
-            the desired context / goal, or the (lower, upper) bound tuple for
-            each dimension of the goal
+        context_range : [float] or [(float, float)] or [[float]]
+            one of the following three:
+
+            1. the desired context / goal
+            2. the (lower, upper) bound tuple for each dimension of the goal
+            3. a list of desired contexts / goals. Goals are sampled from these
+               list of possible goals
+        top_down_view : bool
+            specifies whether the observation should have an image prepended
+            useful for training convolutional policies
+        image_size : int
+            determines the width and height of the rendered image
         horizon : float, optional
             time horizon
+        ant_fall : bool
+            specifies whether you are using the AntFall environment. The agent
+            in this environment is placed on a block of height 4; the "dying"
+            conditions for the agent need to be accordingly offset.
 
         Raises
         ------
@@ -60,14 +75,16 @@ class UniversalAntMazeEnv(AntMazeEnv):
         super(UniversalAntMazeEnv, self).__init__(
             maze_id=maze_id,
             maze_height=0.5,
-            maze_size_scaling=8,
+            maze_size_scaling=maze_size_scaling,
             n_bins=0,
             sensor_range=3.,
             sensor_span=2 * np.pi,
             observe_blocks=False,
             put_spin_near_agent=False,
-            top_down_view=False,
-            manual_collision=False
+            top_down_view=top_down_view,
+            image_size=image_size,
+            manual_collision=False,
+            ant_fall=ant_fall,
         )
 
         self.horizon = horizon
@@ -94,7 +111,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 assert all(not isinstance(i, tuple) for i in
                            self.context_range), \
                     "When not using random contexts, every element in " \
-                    "context_range, must be a single value."
+                    "context_range, must be a single value or a list of " \
+                    "values."
 
     @property
     def context_space(self):
@@ -113,10 +131,24 @@ class UniversalAntMazeEnv(AntMazeEnv):
                     context_low.append(low)
                     context_high.append(high)
                 return Box(low=np.asarray(context_low),
-                           high=np.asarray(context_high))
+                           high=np.asarray(context_high),
+                           dtype=np.float32)
             else:
-                return Box(low=np.asarray(self.context_range),
-                           high=np.asarray(self.context_range))
+                # If there are a list of possible goals, use the min and max
+                # values of each index for the context space.
+                if isinstance(self.context_range[0], list):
+                    min_val = []
+                    max_val = []
+                    for i in range(len(self.context_range[0])):
+                        min_val.append(min(v[i] for v in self.context_range))
+                        max_val.append(max(v[i] for v in self.context_range))
+
+                    return Box(low=np.array(min_val), high=np.array(max_val))
+                else:
+                    # Use the original context as the context space. It is a
+                    # fixed value in this case.
+                    return Box(low=np.asarray(self.context_range),
+                               high=np.asarray(self.context_range))
         else:
             return None
 
@@ -186,8 +218,14 @@ class UniversalAntMazeEnv(AntMazeEnv):
 
         if self.use_contexts:
             if not self.random_contexts:
-                # In this case, the context range is just the context.
-                self.current_context = self.context_range
+                if isinstance(self.context_range[0], list):
+                    # In this case, sample on of the contexts as the next
+                    # environmental context.
+                    self.current_context = random.sample(self.context_range, 1)
+                    self.current_context = self.current_context[0]
+                else:
+                    # In this case, the context range is just the context.
+                    self.current_context = self.context_range
             else:
                 # In this case, choose random values between the context range.
                 self.current_context = []
@@ -226,7 +264,7 @@ class AntMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -255,6 +293,71 @@ class AntMaze(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            top_down_view=False,
+            maze_size_scaling=8)
+
+
+class ImageAntMaze(UniversalAntMazeEnv):
+    """Visual Ant Maze Environment.
+
+    In this task, immovable blocks are placed to confine the agent to a
+    U-shaped corridor. That is, blocks are placed everywhere except at (0,0),
+    (8,0), (16,0), (16,8), (16,16), (8,16), and (0,16). The agent is
+    initialized at position (0,0) and tasked at reaching a specific target
+    position. "Success" in this environment is defined as being within an L2
+    distance of 5 from the target.
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None,
+                 image_size=32):
+        """Initialize the Image Ant Maze environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+        image_size : int
+            determines the width and height of the rendered image
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "Maze"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[image_size * image_size * 3 + 0,
+                               image_size * image_size * 3 + 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(ImageAntMaze, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=8,
+            top_down_view=True,
+            image_size=image_size,
         )
 
 
@@ -284,7 +387,7 @@ class AntPush(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -313,6 +416,9 @@ class AntPush(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            maze_size_scaling=8,
+            ant_fall=False,
+            top_down_view=False,
         )
 
 
@@ -344,7 +450,7 @@ class AntFall(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -373,4 +479,80 @@ class AntFall(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
+            maze_size_scaling=8,
+            ant_fall=True,
+            top_down_view=False,
+        )
+
+
+class AntFourRooms(UniversalAntMazeEnv):
+    """Ant Four Rooms Environment.
+
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None):
+        """Initialize the Ant Four Rooms environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "FourRooms"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[0, 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(AntFourRooms, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=3,
+            ant_fall=False,
+            top_down_view=False,
         )
