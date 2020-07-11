@@ -9,6 +9,8 @@ from gym.spaces import Box
 from hbaselines.envs.deeploco.envs import BipedalSoccer
 from hbaselines.envs.deeploco.envs import BipedalObstacles
 from hbaselines.envs.efficient_hrl.envs import AntMaze
+from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
+from hbaselines.envs.efficient_hrl.envs import ImageAntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
@@ -89,6 +91,115 @@ ENV_ATTRIBUTES = {
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)]
+        ),
+    },
+
+    "HumanoidMaze": {
+        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+            low=np.array([-3.0, -3.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                          0.785398, -0.9162995, -0.610865,
+                          -0.26179925, -0.8290325, -1.134463, -1.3788117,
+                          -0.26179925, -0.8290325, -1.134463, -1.3788117,
+                          -1.265365, -1.265365, -1.2217325,
+                          -1.265365, -1.265365, -1.2217325]),
+            high=np.array([3.0, 3.0, 1.0, 1.0, 1.0, 1.0,
+                           1.0, 0.785398, 0.9162995, 0.610865,
+                           0.26179925, 0.8290325, 1.134463, 1.3788117,
+                           0.26179925, 0.8290325, 1.134463, 1.3788117,
+                           1.265365, 1.265365, 1.2217325,
+                           1.265365, 1.265365, 1.2217325]), dtype=np.float32)
+        if relative_goals else gym.spaces.Box(
+            low=np.array([-2.0, -2.0, 0.0, -1.0, -1.0, -1.0, -1.0,
+                          -0.7853980, -1.309, -0.610865,
+                          -0.436332, -1.0472, -1.91986, -2.79253,
+                          -0.436332, -1.0472, -1.91986, -2.79253,
+                          -1.48353, -1.48353, -1.5708,
+                          -1.0472, -1.0472, -1.5708]),
+            high=np.array([10.0, 10.0, 2.0, 1.0, 1.0, 1.0, 1.0,
+                           0.785398, 0.523599, 0.610865,
+                           0.0872665, 0.610865, 0.349066, -0.0349066,
+                           0.0872665, 0.610865, 0.349066, -0.0349066,
+                           1.0472, 1.0472, 0.872665,
+                           1.48353, 1.48353, 0.872665]), dtype=np.float32),
+        "state_indices": list(range(24)),
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 0]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 8]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[0, 8]
+            )
+        ] if evaluate else HumanoidMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-2, 10), (-2, 10)]
+        ),
+    },
+
+    "HumanoidMazeXY": {
+        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+            low=np.array([-3.0, -3.0]),
+            high=np.array([3.0, 3.0]), dtype=np.float32)
+        if relative_goals else gym.spaces.Box(
+            low=np.array([-2.0, -2.0]),
+            high=np.array([10.0, 10.0]), dtype=np.float32),
+        "state_indices": list(range(2)),
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 0]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[8, 8]
+            ),
+            HumanoidMaze(
+                use_contexts=True,
+                context_range=[0, 8]
+            )
+        ] if evaluate else HumanoidMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-2, 10), (-2, 10)]
+        ),
+    },
+
+    "ImageAntMaze": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [32*32*3 + i for i in range(15)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[16, 0],
+                image_size=32,
+            ),
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[16, 16],
+                image_size=32,
+            ),
+            ImageAntMaze(
+                use_contexts=True,
+                context_range=[0, 16],
+                image_size=32,
+            )
+        ] if evaluate else ImageAntMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-4, 20), (-4, 20)],
+            image_size=32,
         ),
     },
 
@@ -614,12 +725,8 @@ ENV_ATTRIBUTES = {
 
     "BipedalObstacles": {
         "meta_ac_space": lambda relative_goals: gym.spaces.Box(
-            low=np.array([x for i, x in enumerate(
-                BipedalObstacles.observation_space.low) if i - 1024 in [
-                              0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
-            high=np.array([x for i, x in enumerate(
-                BipedalObstacles.observation_space.high) if i - 1024 in [
-                               0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]]),
+            low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2]),
+            high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]),
             dtype=np.float32),
         "state_indices": [i + 1024 for i in [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],

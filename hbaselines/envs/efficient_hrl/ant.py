@@ -55,6 +55,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                  expose_all_qpos=True,
                  expose_body_coms=None,
                  expose_body_comvels=None,
+                 top_down_view=False,
                  ant_fall=False):
         """Instantiate the Ant environment.
 
@@ -68,6 +69,8 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             whether to provide all body_coms values via the observation
         expose_body_comvels : list of str
             whether to provide all body_comvels values via the observation
+        top_down_view : bool, optional
+            if set to True, the top-down view is provided via the observations
         ant_fall : bool
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
@@ -78,6 +81,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._expose_body_comvels = expose_body_comvels
         self._body_com_indices = {}
         self._body_comvel_indices = {}
+        self._top_down_view = top_down_view
         self._ant_fall = ant_fall
 
         try:
@@ -171,7 +175,20 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def viewer_setup(self):
         """Create the viewer."""
-        self.viewer.cam.distance = self.model.stat.extent * 0.5
+        if self._top_down_view:
+            self.update_cam()
+        else:
+            self.viewer.cam.distance = self.model.stat.extent * 0.5
+
+    def update_cam(self):
+        """Update the position of the camera."""
+        if self.viewer is not None:
+            x, y = self.get_xy()
+            self.viewer.cam.azimuth = 0
+            self.viewer.cam.distance = 15.
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = x
+            self.viewer.cam.lookat[1] = y
 
     def get_ori(self):
         """Return the orientation of the agent."""

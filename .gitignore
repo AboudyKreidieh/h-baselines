@@ -8,3 +8,4 @@ run_tests.sh
 debug
 *.idea/
 *.ipynb_checkpoints/
+*data/
