@@ -329,6 +329,11 @@ class Point2DEnv(MultitaskEnv, Serializable):
                 )
         return {'goals': goals}
 
+    def set_position(self, pos):
+        """Set the position of the agent."""
+        self._position[0] = pos[0]
+        self._position[1] = pos[1]
+
     # ======================================================================= #
     #                     Functions for ImageEnv wrapper                      #
     # ======================================================================= #
