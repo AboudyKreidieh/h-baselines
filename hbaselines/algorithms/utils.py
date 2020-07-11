@@ -25,8 +25,8 @@ def is_td3_policy(policy):
 def is_sac_policy(policy):
     """Check whether a policy is for designed to support SAC."""
     return policy in [
-        SACFeedForward,
-        SACGoalConditioned,
+        SACFeedForwardPolicy,
+        SACGoalConditionedPolicy,
         SACMultiFeedForwardPolicy,
     ]
 

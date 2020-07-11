@@ -238,11 +238,9 @@ class UniversalAntMazeEnv(AntMazeEnv):
 class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
     """Universal environment variant of HumanoidMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -604,6 +602,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        image_size : int
+            determines the width and height of the rendered image
 
         Raises
         ------
@@ -947,6 +947,7 @@ class AntFourRooms(UniversalAntMazeEnv):
     position (0,0) and tasked at reaching a specific target position. "Success"
     in this environment is defined as being within an L2 distance of 5 from the
     target.
+
     +------------------------------------+
     | X               |                  |
     |                 |                  |

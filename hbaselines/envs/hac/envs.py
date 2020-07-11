@@ -586,7 +586,8 @@ class Pendulum(Environment):
         """Return the observation space."""
         # State will include (i) joint angles and (ii) joint velocities
         return gym.spaces.Box(
-            low=0, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(2 * len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )

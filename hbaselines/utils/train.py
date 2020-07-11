@@ -100,13 +100,21 @@ def get_hyperparameters(args, policy):
 def parse_options(description, example_usage, args):
     """Parse training options user can specify in command line.
 
+    Parameters
+    ----------
+    description : str
+        the description of the script using this parser
+    example_usage : str
+        an example of the runner script being used
+    args : list of str
+        command-line arguments
+
     Returns
     -------
     argparse.Namespace
         the output parser object
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=description, epilog=example_usage)
 
     # required input parameters
