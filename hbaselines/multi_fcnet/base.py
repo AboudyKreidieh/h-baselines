@@ -434,6 +434,15 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             layers=self.layers,
             act_fun=self.act_fun,
             use_huber=self.use_huber,
+            ignore_flat_channels=self.ignore_flat_channels,
+            includes_image=self.includes_image,
+            ignore_image=self.ignore_image,
+            image_height=self.image_height,
+            image_width=self.image_width,
+            image_channels=self.image_channels,
+            filters=self.filters,
+            kernel_sizes=self.kernel_sizes,
+            strides=self.strides,
             **self.additional_params
         )
 
