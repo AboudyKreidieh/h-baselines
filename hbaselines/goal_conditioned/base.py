@@ -459,8 +459,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             batch_dims=1, axis=1)
 
         if self.connected_gradients:
-            with tf.compat.v1.variable_scope(scope):
+            if scope is None:
                 self._setup_connected_gradients()
+            else:
+                with tf.compat.v1.variable_scope(scope):
+                    self._setup_connected_gradients()
 
     def initialize(self):
         """See parent class.
