@@ -278,7 +278,7 @@ class HumanoidMazeEnv(gym.Env):
 
         try:
             self.wrapped_env = model_cls(*args, file_path=file_path, **kwargs)
-        except AssertionError:
+        except (AssertionError, TypeError):
             # for testing purposes
             pass
 

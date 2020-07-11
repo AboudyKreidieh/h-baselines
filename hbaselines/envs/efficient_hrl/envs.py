@@ -244,11 +244,9 @@ class UniversalAntMazeEnv(AntMazeEnv):
 class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
     """Universal environment variant of HumanoidMazeEnv.
 
-    FIXME
     This environment extends the generic gym environment by including contexts,
     or goals. The goals are added to the observation, and an additional
-    contextual reward is included to the generic rewards. If a certain goal is
-    met, the environment registers a "done" flag and the environment is reset.
+    contextual reward is included to the generic rewards.
     """
 
     def __init__(self,
@@ -438,7 +436,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
         """
         try:
             self.prev_obs = super(UniversalHumanoidMazeEnv, self).reset()
-        except NotImplementedError:
+        except (NotImplementedError, AttributeError):
             # for testing purposes
             self.prev_obs = np.empty(1)
 

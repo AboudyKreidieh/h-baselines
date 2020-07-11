@@ -52,7 +52,6 @@ def negative_distance(states,
         the output reward
     offset : float
         an offset value that is added to the returned reward
-        the output reward
     output_activation : function
         a function that the un-normalized reward is passed through
 
