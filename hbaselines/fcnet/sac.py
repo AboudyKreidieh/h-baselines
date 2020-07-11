@@ -414,7 +414,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-
                 batch_size = tf.shape(pi_h)[0]
                 image_size = (self.image_height *
                               self.image_width *
@@ -432,7 +431,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-
                     pi_h_image = tf.reshape(
                         original_pi_h[:, :image_size],
                         [batch_size, self.image_height, self.image_width,

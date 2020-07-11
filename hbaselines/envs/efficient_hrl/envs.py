@@ -549,7 +549,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -671,7 +671,7 @@ class ImageHumanoidMaze(UniversalAntMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -795,7 +795,7 @@ class HumanoidPush(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -919,7 +919,7 @@ class HumanoidFall(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 
@@ -1045,7 +1045,7 @@ class HumanoidFourRooms(UniversalHumanoidMazeEnv):
         random_contexts : bool
             specifies whether the context is a single value, or a random set of
             values between some range
-        context_range : list of float or list of (float, float)
+        context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
 

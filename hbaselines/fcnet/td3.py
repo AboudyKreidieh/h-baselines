@@ -465,7 +465,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-
                 batch_size = tf.shape(pi_h)[0]
                 image_size = (self.image_height *
                               self.image_width *
@@ -482,7 +481,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 # ignoring the image is useful for the lower level policy
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-
                     pi_h_image = tf.reshape(
                         original_pi_h[:, :image_size],
                         [batch_size, self.image_height, self.image_width,
@@ -495,7 +493,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                             strides) in enumerate(zip(self.filters,
                                                       self.kernel_sizes,
                                                       self.strides)):
-
                         pi_h_image = self._conv_layer(
                             pi_h_image, filters, kernel_size, strides,
                             'conv{}'.format(i),
@@ -572,7 +569,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
-
                 batch_size = tf.shape(qf_h)[0]
                 image_size = (self.image_height *
                               self.image_width *
@@ -589,7 +585,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 # ignoring the image is useful for the lower level critic
                 # for creating an abstraction barrier
                 if not self.ignore_image:
-
                     qf_h_image = tf.reshape(
                         original_qf_h[:, :image_size],
                         [batch_size, self.image_height, self.image_width,
