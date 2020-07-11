@@ -359,7 +359,8 @@ class UR5(Environment):
     def observation_space(self):
         """Return the observation space."""
         return gym.spaces.Box(
-            low=-1, high=1,  # TODO: bounds?
+            low=-float("inf"),
+            high=float("inf"),
             shape=(len(self.sim.data.qpos) + len(self.sim.data.qvel),),
             dtype=np.float32,
         )

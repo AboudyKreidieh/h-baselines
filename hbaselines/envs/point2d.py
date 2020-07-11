@@ -128,8 +128,6 @@ class Point2DEnv(MultitaskEnv, Serializable):
         """
         if walls is None:
             walls = []
-        if walls is None:
-            walls = []
         if fixed_goal is not None:
             fixed_goal = np.array(fixed_goal)
         if len(kwargs) > 0:
