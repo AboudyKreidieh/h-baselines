@@ -8,8 +8,10 @@ from copy import deepcopy
 from flow.core.params import EnvParams
 from flow.controllers import IDMController
 
-from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
-    point_distance, construct_maze
+from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect
+from hbaselines.envs.efficient_hrl.maze_env_utils import point_distance
+from hbaselines.envs.efficient_hrl.maze_env_utils import construct_maze
+from hbaselines.envs.efficient_hrl.maze_env_utils import ray_segment_intersect
 from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
@@ -74,6 +76,11 @@ class TestEfficientHRLAntEnvironments(unittest.TestCase):
         x, y, *_ = line_intersect(p1, p2, p3, p4)
         self.assertAlmostEqual(x, 1)
         self.assertAlmostEqual(y, 1)
+
+        # test ray_segment_intersect
+        ray = ((0, 1), 2)
+        segment = ((3, 4), (5, 6))
+        self.assertIsNone(ray_segment_intersect(ray, segment))
 
     def test_contextual_reward(self):
         """Check the functionality of the context_space attribute.
