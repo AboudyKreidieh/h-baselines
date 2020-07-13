@@ -6,15 +6,6 @@ import tensorflow as tf
 from gym.spaces import Discrete
 
 from stable_baselines.common.tf_layers import linear
-from stable_baselines.common.distributions import make_proba_dist_type
-from stable_baselines.common.distributions import \
-    CategoricalProbabilityDistribution
-from stable_baselines.common.distributions import \
-    MultiCategoricalProbabilityDistribution
-from stable_baselines.common.distributions import \
-    DiagGaussianProbabilityDistribution
-from stable_baselines.common.distributions import \
-    BernoulliProbabilityDistribution
 from stable_baselines.common.input import observation_input
 
 
@@ -104,6 +95,147 @@ def mlp_extractor(flat_observations, net_arch, act_fun):
     return latent_policy, latent_value
 
 
+class DiagGaussianProbabilityDistribution(object):
+
+    def __init__(self, flat):
+        """
+        Probability distributions from multivariate Gaussian input
+
+        :param flat: ([float]) the multivariate Gaussian input data
+        """
+        self.flat = flat
+        mean, logstd = tf.split(axis=len(flat.shape) - 1, num_or_size_splits=2,
+                                value=flat)
+        self.mean = mean
+        self.logstd = logstd
+        self.std = tf.exp(logstd)
+        super(DiagGaussianProbabilityDistribution, self).__init__()
+
+    def flatparam(self):
+        return self.flat
+
+    def mode(self):
+        # Bounds are taken into account outside this class (during training
+        # only)
+        return self.mean
+
+    def neglogp(self, x):
+        return 0.5 * tf.reduce_sum(tf.square((x - self.mean) / self.std),
+                                   axis=-1) \
+               + 0.5 * np.log(2.0 * np.pi) * tf.cast(tf.shape(x)[-1],
+                                                     tf.float32) \
+               + tf.reduce_sum(self.logstd, axis=-1)
+
+    def kl(self, other):
+        assert isinstance(other, DiagGaussianProbabilityDistribution)
+        return tf.reduce_sum(other.logstd - self.logstd + (
+                    tf.square(self.std) + tf.square(self.mean - other.mean)) /
+                             (2.0 * tf.square(other.std)) - 0.5, axis=-1)
+
+    def entropy(self):
+        return tf.reduce_sum(self.logstd + .5 * np.log(2.0 * np.pi * np.e),
+                             axis=-1)
+
+    def sample(self):
+        # Bounds are taken into acount outside this class (during training
+        # only) Otherwise, it changes the distribution and breaks PPO2 for
+        # instance
+        return self.mean + self.std * tf.random_normal(tf.shape(self.mean),
+                                                       dtype=self.mean.dtype)
+
+    @classmethod
+    def fromflat(cls, flat):
+        """
+        Create an instance of this from new multivariate Gaussian input
+
+        :param flat: ([float]) the multivariate Gaussian input data
+        :return: (ProbabilityDistribution) the instance from the given
+            multivariate Gaussian input data
+        """
+        return cls(flat)
+
+    def logp(self, x):
+        """
+        returns the of the log likelihood
+
+        :param x: (str) the labels of each index
+        :return: ([float]) The log likelihood of the distribution
+        """
+        return - self.neglogp(x)
+
+
+class DiagGaussianProbabilityDistributionType(object):
+    def __init__(self, size):
+        """
+        The probability distribution type for multivariate Gaussian input
+
+        :param size: (int) the number of dimensions of the multivariate
+            gaussian
+        """
+        self.size = size
+
+    @staticmethod
+    def proba_distribution_from_flat(flat):
+        """
+        returns the probability distribution from flat probabilities
+
+        :param flat: ([float]) the flat probabilities
+        :return: (ProbabilityDistribution) the instance of the
+            ProbabilityDistribution associated
+        """
+        return DiagGaussianProbabilityDistribution(flat)
+
+    def proba_distribution_from_latent(self,
+                                       pi_latent_vector,
+                                       vf_latent_vector,
+                                       init_scale=1.0,
+                                       init_bias=0.0):
+        mean = linear(pi_latent_vector, 'pi', self.size,
+                      init_scale=init_scale, init_bias=init_bias)
+        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size],
+                                 initializer=tf.zeros_initializer())
+        pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
+        q_values = linear(vf_latent_vector, 'q', self.size,
+                          init_scale=init_scale, init_bias=init_bias)
+        return self.proba_distribution_from_flat(pdparam), mean, q_values
+
+    def param_shape(self):
+        return [2 * self.size]
+
+    def sample_shape(self):
+        return [self.size]
+
+    @staticmethod
+    def sample_dtype():
+        return tf.float32
+
+    def param_placeholder(self, prepend_shape, name=None):
+        """
+        returns the TensorFlow placeholder for the input parameters
+
+        :param prepend_shape: ([int]) the prepend shape
+        :param name: (str) the placeholder name
+        :return: (TensorFlow Tensor) the placeholder
+        """
+        return tf.placeholder(
+            dtype=tf.float32,
+            shape=prepend_shape + self.param_shape(),
+            name=name)
+
+    def sample_placeholder(self, prepend_shape, name=None):
+        """
+        returns the TensorFlow placeholder for the sampling
+
+        :param prepend_shape: ([int]) the prepend shape
+        :param name: (str) the placeholder name
+        :return: (TensorFlow Tensor) the placeholder
+        """
+        return tf.placeholder(
+            dtype=self.sample_dtype(),
+            shape=prepend_shape + self.sample_shape(),
+            name=name)
+
+
 class FeedForwardPolicy(object):
     """
     Policy object that implements actor critic
@@ -156,10 +288,8 @@ class FeedForwardPolicy(object):
         self.reuse = reuse
         self.ob_space = ob_space
         self.ac_space = ac_space
-        self._pdtype = make_proba_dist_type(ac_space)
-        self._policy = None
-        self._proba_distribution = None
-        self._value_fn = None
+        self._pdtype = DiagGaussianProbabilityDistributionType(
+            ac_space.shape[0])
         self._action = None
         self._deterministic_action = None
 
@@ -254,25 +384,9 @@ class FeedForwardPolicy(object):
             self._action = self.proba_distribution.sample()
             self._deterministic_action = self.proba_distribution.mode()
             self._neglogp = self.proba_distribution.neglogp(self.action)
-            if isinstance(self.proba_distribution,
-                          CategoricalProbabilityDistribution):
-                self._policy_proba = tf.nn.softmax(self.policy)
-            elif isinstance(self.proba_distribution,
-                            DiagGaussianProbabilityDistribution):
-                self._policy_proba = [
-                    self.proba_distribution.mean,
-                    self.proba_distribution.std]
-            elif isinstance(self.proba_distribution,
-                            BernoulliProbabilityDistribution):
-                self._policy_proba = tf.nn.sigmoid(self.policy)
-            elif isinstance(self.proba_distribution,
-                            MultiCategoricalProbabilityDistribution):
-                self._policy_proba = [
-                    tf.nn.softmax(categorical.flatparam())
-                    for categorical in self.proba_distribution.categoricals]
-            else:
-                # it will return nothing, as it is not implemented
-                self._policy_proba = []
+            self._policy_proba = [
+                self.proba_distribution.mean,
+                self.proba_distribution.std]
             self._value_flat = self.value_fn[:, 0]
 
     @property
