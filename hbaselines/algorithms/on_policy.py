@@ -262,7 +262,6 @@ class PPO2(object):
         self.sess = None
         self.initial_state = None
         self.step = None
-        self.proba_step = None
         self.params = None
         self._runner = None
 
@@ -479,7 +478,6 @@ class PPO2(object):
             self.train_model = train_model
             self.act_model = act_model
             self.step = act_model.step
-            self.proba_step = act_model.proba_step
             self.value = act_model.value
             self.initial_state = act_model.initial_state
             tf.global_variables_initializer().run(session=self.sess)
@@ -690,7 +688,7 @@ class Runner(AbstractEnvRunner):
         total_reward = []
         for _ in range(self.n_steps):
             actions, values, self.states, neglogpacs = self.model.step(
-                self.obs, self.states, self.dones)
+                self.obs)
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
@@ -724,7 +722,7 @@ class Runner(AbstractEnvRunner):
         mb_values = np.asarray(mb_values, dtype=np.float32)
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
-        last_values = self.model.value(self.obs, self.states, self.dones)
+        last_values = self.model.value(self.obs)
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
         true_reward = np.copy(mb_rewards)
