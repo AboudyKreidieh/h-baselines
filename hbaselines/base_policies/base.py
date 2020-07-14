@@ -182,3 +182,32 @@ class Policy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
+
+    @staticmethod
+    def _remove_fingerprint(val, ob_dim, fingerprint_dim, additional_dim):
+        """Remove the fingerprint from the input.
+
+        This is a hacky procedure to remove the fingerprint elements from the
+        computation. The fingerprint elements are the last few elements of the
+        observation dimension, before any additional concatenated observations
+        (e.g. contexts or actions).
+
+        Parameters
+        ----------
+        val : tf.Variable
+            the original input
+        ob_dim : int
+            number of environmental observation elements
+        fingerprint_dim : int
+            number of fingerprint elements
+        additional_dim : int
+            number of additional elements that were added to the input variable
+
+        Returns
+        -------
+        tf.Variable
+            the input with the fingerprints zeroed out
+        """
+        return val * tf.constant([1.0] * (ob_dim - fingerprint_dim) +
+                                 [0.0] * fingerprint_dim +
+                                 [1.0] * additional_dim)

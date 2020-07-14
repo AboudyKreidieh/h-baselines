@@ -312,12 +312,6 @@ class OnPolicyRLAlgorithm(object):
             lam=self.lam,
         )
 
-    def _get_pretrain_placeholders(self):
-        policy = self.act_model
-        if isinstance(self.action_space, gym.spaces.Discrete):
-            return policy.obs_ph, self.action_ph, policy.policy
-        return policy.obs_ph, self.action_ph, policy.deterministic_action
-
     def setup_model(self):
         self.n_batch = self.n_envs * self.n_steps
 
@@ -331,77 +325,49 @@ class OnPolicyRLAlgorithm(object):
             self.sess = make_session(
                 num_cpu=self.n_cpu_tf_sess, graph=self.graph)
 
-            n_batch_step = None
-            n_batch_train = None
-
-            act_model = self.policy(
+            model = self.policy(
                 sess=self.sess,
                 ob_space=self.observation_space,
                 ac_space=self.action_space,
                 co_space=None,  # FIXME
-                n_env=self.n_envs,
-                n_steps=1,
-                n_batch=n_batch_step,
                 reuse=False,
                 **self.policy_kwargs
             )
-            with tf.variable_scope(
-                    "train_model", reuse=True,
-                    custom_getter=outer_scope_getter("train_model")):
-                train_model = self.policy(
-                    sess=self.sess,
-                    ob_space=self.observation_space,
-                    ac_space=self.action_space,
-                    co_space=None,  # FIXME
-                    n_env=self.n_envs // self.nminibatches,
-                    n_steps=self.n_steps,
-                    n_batch=n_batch_train,
-                    reuse=True,
-                    **self.policy_kwargs
-                )
 
             with tf.variable_scope("loss", reuse=False):
-                self.action_ph = train_model.pdtype.sample_placeholder(
+                self.action_ph = model.pdtype.sample_placeholder(
                     [None],
-                    name="action_ph"
-                )
+                    name="action_ph")
                 self.advs_ph = tf.placeholder(
                     tf.float32,
-                    [None],
-                    name="advs_ph"
-                )
+                    shape=[None],
+                    name="advs_ph")
                 self.rewards_ph = tf.placeholder(
                     tf.float32,
-                    [None],
-                    name="rewards_ph"
-                )
+                    shape=[None],
+                    name="rewards_ph")
                 self.old_neglog_pac_ph = tf.placeholder(
                     tf.float32,
-                    [None],
-                    name="old_neglog_pac_ph"
-                )
+                    shape=[None],
+                    name="old_neglog_pac_ph")
                 self.old_vpred_ph = tf.placeholder(
                     tf.float32,
-                    [None],
-                    name="old_vpred_ph"
-                )
+                    shape=[None],
+                    name="old_vpred_ph")
                 self.learning_rate_ph = tf.placeholder(
                     tf.float32,
-                    [],
-                    name="learning_rate_ph"
-                )
+                    shape=[],
+                    name="learning_rate_ph")
                 self.clip_range_ph = tf.placeholder(
                     tf.float32,
-                    [],
-                    name="clip_range_ph"
-                )
+                    shape=[],
+                    name="clip_range_ph")
 
-                neglogpac = train_model.proba_distribution.neglogp(
-                    self.action_ph)
+                neglogpac = model.proba_distribution.neglogp(self.action_ph)
                 self.entropy = tf.reduce_mean(
-                    train_model.proba_distribution.entropy())
+                    model.proba_distribution.entropy())
 
-                vpred = train_model.value_flat
+                vpred = model.value_flat
 
                 # Value function clipping: not present in the original PPO
                 if self.cliprange_vf is None:
@@ -424,13 +390,13 @@ class OnPolicyRLAlgorithm(object):
 
                 if self.clip_range_vf_ph is None:
                     # No clipping
-                    vpred_clipped = train_model.value_flat
+                    vpred_clipped = model.value_flat
                 else:
                     # Clip the different between old and new value
                     # NOTE: this depends on the reward scaling
                     vpred_clipped = self.old_vpred_ph + \
                         tf.clip_by_value(
-                            train_model.value_flat - self.old_vpred_ph,
+                            model.value_flat - self.old_vpred_ph,
                             - self.clip_range_vf_ph, self.clip_range_vf_ph)
 
                 vf_losses1 = tf.square(vpred - self.rewards_ph)
@@ -493,10 +459,10 @@ class OnPolicyRLAlgorithm(object):
                 tf.summary.scalar('old_value_pred',
                                   tf.reduce_mean(self.old_vpred_ph))
 
-            self.train_model = train_model
-            self.act_model = act_model
-            self.step = act_model.step
-            self.value = act_model.value
+            self.train_model = model
+            self.act_model = model
+            self.step = model.step
+            self.value = model.value
             tf.global_variables_initializer().run(session=self.sess)
 
             self.summary = tf.summary.merge_all()

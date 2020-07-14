@@ -1,99 +1,11 @@
-from itertools import zip_longest
-
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Discrete
 
 from hbaselines.base_policies.base import Policy
+from hbaselines.utils.tf_util import layer
 
 from stable_baselines.common.tf_layers import linear
-from stable_baselines.common.input import observation_input
-
-
-def mlp_extractor(flat_observations, net_arch, act_fun):
-    """
-    Constructs an MLP that receives observations as an input and outputs a
-    latent representation for the policy and a value network. The ``net_arch``
-    parameter allows to specify the amount and size of the hidden layers and
-    how many of them are shared between the policy network and the value
-    network. It is assumed to be a list with the following structure:
-
-    1. An arbitrary length (zero allowed) number of integers each specifying
-       the number of units in a shared layer. If the number of ints is zero,
-       there will be no shared layers.
-    2. An optional dict, to specify the following non-shared layers for the
-       value network and the policy network. It is formatted like
-       ``dict(vf=[<value layer sizes>], pi=[<policy layer sizes>])``. If it is
-       missing any of the keys (pi or vf), no non-shared layers (empty list) is
-       assumed.
-
-    For example to construct a network with one shared layer of size 55
-    followed by two non-shared layers for the value network of size 255 and a
-    single non-shared layer of size 128 for the policy network, the following
-    layers_spec would be used: ``[55, dict(vf=[255, 255], pi=[128])]``. A
-    simple shared network topology with two layers of size 128 would be
-    specified as [128, 128].
-
-    :param flat_observations: (tf.Tensor) The observations to base policy and
-        value function on.
-    :param net_arch: ([int or dict]) The specification of the policy and value
-        networks. See above for details on its formatting.
-    :param act_fun: (tf function) The activation function to use for the
-        networks.
-    :return: (tf.Tensor, tf.Tensor) latent_policy, latent_value of the
-        specified network. If all layers are shared, then ``latent_policy ==
-        latent_value``
-    """
-    latent = flat_observations
-    # Layer sizes of the network that only belongs to the policy network
-    policy_only_layers = []
-    # Layer sizes of the network that only belongs to the value network
-    value_only_layers = []
-
-    # Iterate through the shared layers and build the shared parts of the
-    # network
-    for idx, layer in enumerate(net_arch):
-        if isinstance(layer, int):  # Check that this is a shared layer
-            layer_size = layer
-            latent = act_fun(linear(latent, "shared_fc{}".format(idx),
-                                    layer_size, init_scale=np.sqrt(2)))
-        else:
-            assert isinstance(layer, dict), \
-                "Error: the net_arch list can only contain ints and dicts"
-            if 'pi' in layer:
-                assert isinstance(layer['pi'], list), \
-                    "Error: net_arch[-1]['pi'] must contain a list of " \
-                    "integers."
-                policy_only_layers = layer['pi']
-
-            if 'vf' in layer:
-                assert isinstance(layer['vf'], list), \
-                    "Error: net_arch[-1]['vf'] must contain a list of " \
-                    "integers."
-                value_only_layers = layer['vf']
-            # From here on the network splits up in policy and value network
-            break
-
-    # Build the non-shared part of the network
-    latent_policy = latent
-    latent_value = latent
-    for idx, (pi_layer_size, vf_layer_size) in enumerate(
-            zip_longest(policy_only_layers, value_only_layers)):
-        if pi_layer_size is not None:
-            assert isinstance(pi_layer_size, int), \
-                "Error: net_arch[-1]['pi'] must only contain integers."
-            latent_policy = act_fun(linear(
-                latent_policy, "pi_fc{}".format(idx), pi_layer_size,
-                init_scale=np.sqrt(2)))
-
-        if vf_layer_size is not None:
-            assert isinstance(vf_layer_size, int), \
-                "Error: net_arch[-1]['vf'] must only contain integers."
-            latent_value = act_fun(linear(
-                latent_value, "vf_fc{}".format(idx), vf_layer_size,
-                init_scale=np.sqrt(2)))
-
-    return latent_policy, latent_value
 
 
 class DiagGaussianProbabilityDistribution(object):
@@ -188,7 +100,6 @@ class DiagGaussianProbabilityDistributionType(object):
 
     def proba_distribution_from_latent(self,
                                        pi_latent_vector,
-                                       vf_latent_vector,
                                        init_scale=1.0,
                                        init_bias=0.0):
         mean = linear(pi_latent_vector, 'pi', self.size,
@@ -196,9 +107,7 @@ class DiagGaussianProbabilityDistributionType(object):
         logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size],
                                  initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        q_values = linear(vf_latent_vector, 'q', self.size,
-                          init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), mean, q_values
+        return self.proba_distribution_from_flat(pdparam), mean
 
     def param_shape(self):
         return [2 * self.size]
@@ -244,11 +153,7 @@ class FeedForwardPolicy(Policy):
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment
     :param ac_space: (Gym Space) The action space of the environment
-    :param n_env: (int) The number of environments to run
-    :param n_steps: (int) The number of steps to run for each environment
-    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
-    :param scale: (bool) whether or not to scale the input
     """
 
     recurrent = False
@@ -273,13 +178,10 @@ class FeedForwardPolicy(Policy):
                  layers,
                  act_fun,
                  use_huber,
-                 n_env,
-                 n_steps,
-                 n_batch,
+                 scope=None,
                  reuse=False,
-                 scale=False,
-                 obs_phs=None,
-                 add_action_ph=False):
+                 zero_fingerprint=False,
+                 fingerprint_dim=2):
         """Instantiate the policy object.
 
         Parameters
@@ -345,69 +247,188 @@ class FeedForwardPolicy(Policy):
         self.noptepochs = noptepochs
         self.cliprange = cliprange
         self.cliprange_vf = cliprange_vf
+        self.zero_fingerprint = zero_fingerprint
+        self.fingerprint_dim = fingerprint_dim
 
-        self.n_env = n_env
-        self.n_steps = n_steps
-        self.n_batch = n_batch
-        with tf.variable_scope("input", reuse=False):
-            if obs_phs is None:
-                self._obs_ph, self._processed_obs = observation_input(
-                    ob_space, n_batch, scale=scale)
-            else:
-                self._obs_ph, self._processed_obs = obs_phs
+        # Compute the shape of the input observation space, which may include
+        # the contextual term.
+        ob_dim = self._get_ob_dim(ob_space, co_space)
 
-            self._action_ph = None
-            if add_action_ph:
-                self._action_ph = tf.placeholder(
-                    dtype=ac_space.dtype,
-                    shape=(n_batch,) + ac_space.shape,
-                    name="action_ph")
+        # =================================================================== #
+        # Step 1: Create input variables.                                     #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("input", reuse=False):
+            self.terminals1 = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='terminals1')
+            self.rew_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='rewards')
+            self.action_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ac_space.shape,
+                name='actions')
+            self.obs_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs0')
+            self.obs1_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,) + ob_dim,
+                name='obs1')
+
+        # logging of rewards to tensorboard
+        with tf.compat.v1.variable_scope("input_info", reuse=False):
+            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
+
+        # =================================================================== #
+        # Step 2: Create actor and critic variables.                          #
+        # =================================================================== #
+
         self.reuse = reuse
         self._pdtype = DiagGaussianProbabilityDistributionType(
             ac_space.shape[0])
         self._action = None
         self._deterministic_action = None
 
-        net_arch = [dict(vf=layers, pi=layers)]
-
+        # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=reuse):
-            pi_latent, vf_latent = mlp_extractor(
-                tf.layers.flatten(self.processed_obs), net_arch, act_fun)
+            # Create the policy.
+            pi_latent = self._create_mlp(
+                input_ph=self.obs_ph,
+                num_output=self.ac_space.shape[0],
+                layers=self.layers,
+                act_fun=self.act_fun,
+                stochastic=True,
+                squash=False,
+                layer_norm=self.layer_norm,
+                reuse=False,
+                scope="pi",
+            )
 
-            self._value_fn = linear(vf_latent, 'vf', 1)
+            # Create the value function.
+            self._value_fn = self._create_mlp(
+                input_ph=self.obs_ph,
+                num_output=1,
+                layers=self.layers,
+                act_fun=self.act_fun,
+                stochastic=False,
+                squash=False,
+                layer_norm=self.layer_norm,
+                reuse=False,
+                scope="vf",
+            )
 
-            self._proba_distribution, self._policy, self.q_value = \
+            self._proba_distribution, self._policy = \
                 self.pdtype.proba_distribution_from_latent(
-                    pi_latent, vf_latent, init_scale=0.01)
+                    pi_latent, init_scale=0.01)
 
         self._setup_init()
+
+    def _create_mlp(self,
+                    input_ph,
+                    num_output,
+                    layers,
+                    act_fun,
+                    stochastic,
+                    squash,
+                    layer_norm,
+                    reuse=False,
+                    scope="pi"):
+        """Create a multi-layer perceptron (MLP) model.
+
+        Parameters
+        ----------
+        input_ph : tf.compat.v1.placeholder
+            the input placeholder
+        num_output : int
+            number of output elements from the model
+        layers : list of int
+            TODO
+        act_fun : tf.nn.*
+            TODO
+        stochastic : bool
+            whether the output should be stochastic or deterministic. If
+            stochastic, a tuple of two elements is returned (the mean and
+            logstd)
+        squash : bool
+            TODO
+        layer_norm : bool
+            TODO
+        reuse : bool
+            TODO
+        scope : str
+            TODO
+
+        Returns
+        -------
+        tf.Variable or (tf.Variable, tf.Variable)
+            the output from the model
+        """
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+            pi_h = input_ph
+
+            # Zero out the fingerprint observations for the worker policy.
+            if self.zero_fingerprint:
+                pi_h = self._remove_fingerprint(
+                    pi_h,
+                    self.ob_space.shape[0],
+                    self.fingerprint_dim,
+                    self.co_space.shape[0]
+                )
+
+            # Create the hidden layers.
+            for i, layer_size in enumerate(layers):
+                pi_h = layer(
+                    pi_h,  layer_size, 'fc{}'.format(i),
+                    act_fun=act_fun,
+                    layer_norm=layer_norm
+                )
+
+            if stochastic:
+                return pi_h  # FIXME
+
+                # # Create the output mean.
+                # policy_mean = layer(
+                #     pi_h, num_output, 'mean',
+                #     act_fun=None,
+                #     kernel_initializer=tf.random_uniform_initializer(
+                #         minval=-3e-3, maxval=3e-3)
+                # )
+                #
+                # # create the output log_std.
+                # log_std = layer(
+                #     pi_h, num_output, 'log_std',
+                #     act_fun=None,
+                # )
+                #
+                # if squash:
+                #     pass  # TODO
+                # else:
+                #     policy_out = (policy_mean, log_std)
+            else:
+                # Create the output layer.
+                policy = layer(
+                    pi_h, num_output, 'output',
+                    act_fun=None,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3)
+                )
+
+                if squash:
+                    pass  # TODO
+                else:
+                    policy_out = policy
+
+        return policy_out
 
     @property
     def is_discrete(self):
         """bool: is action space discrete."""
         return isinstance(self.ac_space, Discrete)
-
-    @property
-    def obs_ph(self):
-        """tf.Tensor: placeholder for observations, shape (self.n_batch, ) +
-        self.ob_space.shape."""
-        return self._obs_ph
-
-    @property
-    def processed_obs(self):
-        """tf.Tensor: processed observations, shape (self.n_batch, ) +
-        self.ob_space.shape.
-
-        The form of processing depends on the type of the observation space,
-        and the parameters whether scale is passed to the constructor; see
-        observation_input for more information."""
-        return self._processed_obs
-
-    @property
-    def action_ph(self):
-        """tf.Tensor: placeholder for actions, shape (self.n_batch, ) +
-        self.ac_space.shape."""
-        return self._action_ph
 
     def _setup_init(self):
         """Sets up the distributions, actions, and value."""
