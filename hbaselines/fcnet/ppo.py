@@ -5,8 +5,6 @@ from gym.spaces import Discrete
 from hbaselines.base_policies.base import Policy
 from hbaselines.utils.tf_util import layer
 
-from stable_baselines.common.tf_layers import linear
-
 
 class DiagGaussianProbabilityDistribution(object):
 
@@ -22,7 +20,6 @@ class DiagGaussianProbabilityDistribution(object):
         self.mean = mean
         self.logstd = logstd
         self.std = tf.exp(logstd)
-        super(DiagGaussianProbabilityDistribution, self).__init__()
 
     def flatparam(self):
         return self.flat
@@ -75,75 +72,6 @@ class DiagGaussianProbabilityDistribution(object):
         :return: ([float]) The log likelihood of the distribution
         """
         return - self.neglogp(x)
-
-
-class DiagGaussianProbabilityDistributionType(object):
-    def __init__(self, size):
-        """
-        The probability distribution type for multivariate Gaussian input
-
-        :param size: (int) the number of dimensions of the multivariate
-            gaussian
-        """
-        self.size = size
-
-    @staticmethod
-    def proba_distribution_from_flat(flat):
-        """
-        returns the probability distribution from flat probabilities
-
-        :param flat: ([float]) the flat probabilities
-        :return: (ProbabilityDistribution) the instance of the
-            ProbabilityDistribution associated
-        """
-        return DiagGaussianProbabilityDistribution(flat)
-
-    def proba_distribution_from_latent(self,
-                                       pi_latent_vector,
-                                       init_scale=1.0,
-                                       init_bias=0.0):
-        mean = linear(pi_latent_vector, 'pi', self.size,
-                      init_scale=init_scale, init_bias=init_bias)
-        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size],
-                                 initializer=tf.zeros_initializer())
-        pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        return self.proba_distribution_from_flat(pdparam), mean
-
-    def param_shape(self):
-        return [2 * self.size]
-
-    def sample_shape(self):
-        return [self.size]
-
-    @staticmethod
-    def sample_dtype():
-        return tf.float32
-
-    def param_placeholder(self, prepend_shape, name=None):
-        """
-        returns the TensorFlow placeholder for the input parameters
-
-        :param prepend_shape: ([int]) the prepend shape
-        :param name: (str) the placeholder name
-        :return: (TensorFlow Tensor) the placeholder
-        """
-        return tf.placeholder(
-            dtype=tf.float32,
-            shape=prepend_shape + self.param_shape(),
-            name=name)
-
-    def sample_placeholder(self, prepend_shape, name=None):
-        """
-        returns the TensorFlow placeholder for the sampling
-
-        :param prepend_shape: ([int]) the prepend shape
-        :param name: (str) the placeholder name
-        :return: (TensorFlow Tensor) the placeholder
-        """
-        return tf.placeholder(
-            dtype=self.sample_dtype(),
-            shape=prepend_shape + self.sample_shape(),
-            name=name)
 
 
 class FeedForwardPolicy(Policy):
@@ -289,44 +217,47 @@ class FeedForwardPolicy(Policy):
         # =================================================================== #
 
         self.reuse = reuse
-        self._pdtype = DiagGaussianProbabilityDistributionType(
-            ac_space.shape[0])
         self._action = None
         self._deterministic_action = None
 
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=reuse):
             # Create the policy.
-            pi_latent = self._create_mlp(
+            self.action, pi_mean, pi_logstd = self._create_mlp(
                 input_ph=self.obs_ph,
                 num_output=self.ac_space.shape[0],
                 layers=self.layers,
                 act_fun=self.act_fun,
                 stochastic=True,
-                squash=False,
                 layer_norm=self.layer_norm,
                 reuse=False,
                 scope="pi",
             )
 
             # Create the value function.
-            self._value_fn = self._create_mlp(
+            self.value_fn = self._create_mlp(
                 input_ph=self.obs_ph,
                 num_output=1,
                 layers=self.layers,
                 act_fun=self.act_fun,
                 stochastic=False,
-                squash=False,
                 layer_norm=self.layer_norm,
                 reuse=False,
                 scope="vf",
             )
 
-            self._proba_distribution, self._policy = \
-                self.pdtype.proba_distribution_from_latent(
-                    pi_latent, init_scale=0.01)
+            pdparam = tf.concat([pi_mean, pi_mean * 0.0 + pi_logstd], axis=1)
+            self.proba_distribution = DiagGaussianProbabilityDistribution(
+                pdparam)
+            self.policy = pi_mean
 
-        self._setup_init()
+        with tf.variable_scope("output", reuse=True):
+            self.deterministic_action = self.proba_distribution.mode()
+            self.neglogp = self.proba_distribution.neglogp(self.action)
+            self.policy_proba = [
+                self.proba_distribution.mean,
+                self.proba_distribution.std]
+            self.value_flat = self.value_fn[:, 0]
 
     def _create_mlp(self,
                     input_ph,
@@ -334,7 +265,6 @@ class FeedForwardPolicy(Policy):
                     layers,
                     act_fun,
                     stochastic,
-                    squash,
                     layer_norm,
                     reuse=False,
                     scope="pi"):
@@ -354,8 +284,6 @@ class FeedForwardPolicy(Policy):
             whether the output should be stochastic or deterministic. If
             stochastic, a tuple of two elements is returned (the mean and
             logstd)
-        squash : bool
-            TODO
         layer_norm : bool
             TODO
         reuse : bool
@@ -389,26 +317,29 @@ class FeedForwardPolicy(Policy):
                 )
 
             if stochastic:
-                return pi_h  # FIXME
+                # Create the output mean.
+                policy_mean = layer(
+                    pi_h, num_output, 'mean',
+                    act_fun=None,
+                    kernel_initializer=tf.random_uniform_initializer(
+                        minval=-3e-3, maxval=3e-3)
+                )
 
-                # # Create the output mean.
-                # policy_mean = layer(
-                #     pi_h, num_output, 'mean',
-                #     act_fun=None,
-                #     kernel_initializer=tf.random_uniform_initializer(
-                #         minval=-3e-3, maxval=3e-3)
-                # )
-                #
-                # # create the output log_std.
-                # log_std = layer(
-                #     pi_h, num_output, 'log_std',
-                #     act_fun=None,
-                # )
-                #
-                # if squash:
-                #     pass  # TODO
-                # else:
-                #     policy_out = (policy_mean, log_std)
+                # Create the output log_std.
+                log_std = tf.get_variable(
+                    name='logstd',
+                    shape=[1, num_output],
+                    initializer=tf.zeros_initializer()
+                )
+
+                # Create a method to sample from the distribution.
+                std = tf.exp(log_std)
+                action = policy_mean + std * tf.random_normal(
+                    shape=tf.shape(policy_mean),
+                    dtype=tf.float32
+                )
+
+                policy_out = (action, policy_mean, log_std)
             else:
                 # Create the output layer.
                 policy = layer(
@@ -418,10 +349,7 @@ class FeedForwardPolicy(Policy):
                         minval=-3e-3, maxval=3e-3)
                 )
 
-                if squash:
-                    pass  # TODO
-                else:
-                    policy_out = policy
+                policy_out = policy
 
         return policy_out
 
@@ -429,70 +357,6 @@ class FeedForwardPolicy(Policy):
     def is_discrete(self):
         """bool: is action space discrete."""
         return isinstance(self.ac_space, Discrete)
-
-    def _setup_init(self):
-        """Sets up the distributions, actions, and value."""
-        with tf.variable_scope("output", reuse=True):
-            assert self.policy is not None \
-                and self.proba_distribution is not None \
-                and self.value_fn is not None
-            self._action = self.proba_distribution.sample()
-            self._deterministic_action = self.proba_distribution.mode()
-            self._neglogp = self.proba_distribution.neglogp(self.action)
-            self._policy_proba = [
-                self.proba_distribution.mean,
-                self.proba_distribution.std]
-            self._value_flat = self.value_fn[:, 0]
-
-    @property
-    def pdtype(self):
-        """ProbabilityDistributionType: type of the distribution for stochastic
-        actions."""
-        return self._pdtype
-
-    @property
-    def policy(self):
-        """tf.Tensor: policy output, e.g. logits."""
-        return self._policy
-
-    @property
-    def proba_distribution(self):
-        """ProbabilityDistribution: distribution of stochastic actions."""
-        return self._proba_distribution
-
-    @property
-    def value_fn(self):
-        """tf.Tensor: value estimate, of shape (self.n_batch, 1)"""
-        return self._value_fn
-
-    @property
-    def value_flat(self):
-        """tf.Tensor: value estimate, of shape (self.n_batch, )"""
-        return self._value_flat
-
-    @property
-    def action(self):
-        """tf.Tensor: stochastic action, of shape (self.n_batch, ) +
-        self.ac_space.shape."""
-        return self._action
-
-    @property
-    def deterministic_action(self):
-        """tf.Tensor: deterministic action, of shape (self.n_batch, ) +
-        self.ac_space.shape."""
-        return self._deterministic_action
-
-    @property
-    def neglogp(self):
-        """tf.Tensor: negative log likelihood of the action sampled by
-        self.action."""
-        return self._neglogp
-
-    @property
-    def policy_proba(self):
-        """tf.Tensor: parameters of the probability distribution.
-        Depends on pdtype."""
-        return self._policy_proba
 
     def step(self, obs, deterministic=False):
         """

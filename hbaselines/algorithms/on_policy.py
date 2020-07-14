@@ -335,8 +335,9 @@ class OnPolicyRLAlgorithm(object):
             )
 
             with tf.variable_scope("loss", reuse=False):
-                self.action_ph = model.pdtype.sample_placeholder(
-                    [None],
+                self.action_ph = tf.placeholder(
+                    tf.float32,
+                    shape=[None, self.action_space.shape[0]],
                     name="action_ph")
                 self.advs_ph = tf.placeholder(
                     tf.float32,
