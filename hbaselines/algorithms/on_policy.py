@@ -28,25 +28,31 @@ from stable_baselines.common.runners import AbstractEnvRunner
 # =========================================================================== #
 
 FEEDFORWARD_PARAMS = dict(
-    # TODO
+    # discount factor
     gamma=0.99,
-    # TODO
+    # the learning rate
     learning_rate=3e-4,
-    # TODO
+    # entropy coefficient for the loss calculation
     ent_coef=0.01,
-    # TODO
+    # value function coefficient for the loss calculation
     vf_coef=0.5,
-    # TODO
+    # the maximum value for the gradient clipping
     max_grad_norm=0.5,
-    # TODO
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
     lam=0.95,
-    # TODO
+    # number of training minibatches per update
     nminibatches=4,
-    # TODO
+    # number of epoch when optimizing the surrogate
     noptepochs=4,
-    # TODO
+    # clipping parameter, it can be a function
     cliprange=0.2,
-    # TODO
+    # clipping parameter for the value function, it can be a function. This is
+    # a parameter specific to the OpenAI implementation. If None is passed
+    # (default), then `cliprange` (that is used for the policy) will be used.
+    # IMPORTANT: this clipping depends on the reward scaling. To deactivate
+    # value function clipping (and recover the original PPO implementation),
+    # you have to pass a negative value (e.g. -1).
     cliprange_vf=None,
     # enable layer normalisation
     layer_norm=False,
@@ -122,38 +128,10 @@ class OnPolicyRLAlgorithm(object):
         The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     env : Gym environment or str
         The environment to learn from (if registered in Gym, can be str)
-    gamma : float
-        Discount factor
     n_steps : int
         The number of steps to run for each environment per update (i.e. batch
         size is n_steps * n_env where n_env is number of environment copies
         running in parallel)
-    ent_coef : float
-        Entropy coefficient for the loss calculation
-    learning_rate : float or callable
-        The learning rate, it can be a function
-    vf_coef : float
-        Value function coefficient for the loss calculation
-    max_grad_norm : float
-        The maximum value for the gradient clipping
-    lam : float
-        Factor for trade-off of bias vs variance for Generalized Advantage
-        Estimator
-    nminibatches : int
-        Number of training minibatches per update. For recurrent policies, the
-        number of environments run in parallel should be a multiple of
-        nminibatches.
-    noptepochs : int
-        Number of epoch when optimizing the surrogate
-    cliprange : float or callable
-        Clipping parameter, it can be a function
-    cliprange_vf : float or callable
-        Clipping parameter for the value function, it can be a function. This
-        is a parameter specific to the OpenAI implementation. If None is
-        passed (default), then `cliprange` (that is used for the policy) will
-        be used. IMPORTANT: this clipping depends on the reward scaling.
-        To deactivate value function clipping (and recover the original PPO
-        implementation), you have to pass a negative value (e.g. -1).
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     _init_setup_model : bool
@@ -161,32 +139,18 @@ class OnPolicyRLAlgorithm(object):
     policy_kwargs : dict
         additional arguments to be passed to the policy on creation
     seed : int
-        Seed for the pseudo-random generators (python, numpy, tensorflow). If
-        None (default), use random seed. Note that if you want completely
-        deterministic results, you must set `n_cpu_tf_sess` to 1.
-    n_cpu_tf_sess : int
-        The number of threads for TensorFlow operations. If None, the number of
-        cpu of the current machine will be used.
+        seed for the pseudo-random generators (python, numpy, tensorflow).
     """
     def __init__(self,
                  policy,
                  env,
-                 gamma=0.99,
                  n_steps=128,
-                 ent_coef=0.01,
-                 learning_rate=2.5e-4,
-                 vf_coef=0.5,
-                 max_grad_norm=0.5,
-                 lam=0.95,
                  nminibatches=4,
                  noptepochs=4,
-                 cliprange=0.2,
-                 cliprange_vf=None,
                  verbose=0,
                  _init_setup_model=True,
                  policy_kwargs=None,
-                 seed=None,
-                 n_cpu_tf_sess=None):
+                 seed=None):
         """Instantiate the algorithm object.
 
         Parameters
@@ -195,27 +159,11 @@ class OnPolicyRLAlgorithm(object):
             TODO
         env : TODO
             TODO
-        gamma : TODO
-            TODO
         n_steps : TODO
-            TODO
-        ent_coef : TODO
-            TODO
-        learning_rate : TODO
-            TODO
-        vf_coef : TODO
-            TODO
-        max_grad_norm : TODO
-            TODO
-        lam : TODO
             TODO
         nminibatches : TODO
             TODO
         noptepochs : TODO
-            TODO
-        cliprange : TODO
-            TODO
-        cliprange_vf : TODO
             TODO
         verbose : TODO
             TODO
@@ -225,21 +173,15 @@ class OnPolicyRLAlgorithm(object):
             TODO
         seed : TODO
             TODO
-        n_cpu_tf_sess : TODO
-            TODO
         """
-        self.learning_rate = learning_rate
-        self.cliprange = cliprange
-        self.cliprange_vf = cliprange_vf
+        self.policy = policy
+        self.env = env
         self.n_steps = n_steps
-        self.ent_coef = ent_coef
-        self.vf_coef = vf_coef
-        self.max_grad_norm = max_grad_norm
-        self.gamma = gamma
-        self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
         self.policy_kwargs = {'verbose': verbose}
+
+        self.initial_state = None
 
         # Collect the spaces of the environments.
         self.observation_space = env.observation_space
@@ -263,16 +205,11 @@ class OnPolicyRLAlgorithm(object):
 
         self.model = None
         self.value = None
-        self.n_batch = None
         self.summary = None
         self._runner = None
-        self.initial_state = None
         self.step = None
 
-        self.policy = policy
-        self.env = env
         self.verbose = verbose
-        self.n_envs = 1
         self._vectorize_action = False
         self.num_timesteps = 0
         self.graph = None
@@ -280,7 +217,7 @@ class OnPolicyRLAlgorithm(object):
         self.params = None
         self.seed = seed
         self._param_load_ops = None
-        self.n_cpu_tf_sess = n_cpu_tf_sess
+        self.episode_reward = None
         self.episode_reward = None
         self.ep_info_buf = None
 
@@ -291,13 +228,11 @@ class OnPolicyRLAlgorithm(object):
             env=self.env,
             model=self,
             n_steps=self.n_steps,
-            gamma=self.gamma,
-            lam=self.lam,
+            gamma=self.policy_kwargs["gamma"],
+            lam=self.policy_kwargs["lam"],
         )
 
     def setup_model(self):
-        self.n_batch = self.n_envs * self.n_steps
-
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Setup the seed value.
@@ -305,8 +240,7 @@ class OnPolicyRLAlgorithm(object):
             np.random.seed(self.seed)
             tf.compat.v1.set_random_seed(self.seed)
 
-            self.sess = make_session(
-                num_cpu=self.n_cpu_tf_sess, graph=self.graph)
+            self.sess = make_session(num_cpu=3, graph=self.graph)
 
             model = self.policy(
                 sess=self.sess,
@@ -322,8 +256,6 @@ class OnPolicyRLAlgorithm(object):
                     model.rew_ph))
                 tf.summary.scalar('advantage', tf.reduce_mean(
                     model.advs_ph))
-                tf.summary.scalar('clip_range', tf.reduce_mean(
-                    self.cliprange))
 
                 tf.summary.scalar('old_neglog_action_probability',
                                   tf.reduce_mean(model.old_neglog_pac_ph))
@@ -337,73 +269,25 @@ class OnPolicyRLAlgorithm(object):
 
             self.summary = tf.summary.merge_all()
 
-    def _train_step(self,
-                    obs,
-                    returns,
-                    masks,
-                    actions,
-                    values,
-                    neglogpacs,
-                    states=None):
-        """Training of PPO2 Algorithm
-
-        :param obs: (np.ndarray) The current observation of the environment
-        :param returns: (np.ndarray) the rewards
-        :param masks: (np.ndarray) The last masks for done episodes (used in
-        recurent policies)
-        :param actions: (np.ndarray) the actions
-        :param values: (np.ndarray) the values
-        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of
-        Actions
-        :param states: (np.ndarray) For recurrent policies, the internal state
-        of the recurrent model
-        :return: policy gradient loss, value function loss, policy entropy,
-                approximation of kl divergence, updated clipping range,
-                training update operation
-        """
-        advs = returns - values
-        advs = (advs - advs.mean()) / (advs.std() + 1e-8)
-        td_map = {
-            self.model.obs_ph: obs,
-            self.model.action_ph: actions,
-            self.model.advs_ph: advs,
-            self.model.rew_ph: returns,
-            self.model.old_neglog_pac_ph: neglogpacs,
-            self.model.old_vpred_ph: values,
-        }
-
-        policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = \
-            self.sess.run(
-                [self.model.pg_loss,
-                 self.model.vf_loss,
-                 self.model.entropy,
-                 self.model.approxkl,
-                 self.model.clipfrac,
-                 self.model.optimizer],
-                td_map
-            )
-
-        return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
-
     def learn(self, total_timesteps, log_interval=1):
         # Transform to callable if needed
         rewards_buffer = deque(maxlen=100)
 
         if self.episode_reward is None:
-            self.episode_reward = np.zeros((self.n_envs,))
+            self.episode_reward = np.zeros((1,))
         if self.ep_info_buf is None:
             self.ep_info_buf = deque(maxlen=100)
 
         t_first_start = time.time()
-        n_updates = total_timesteps // self.n_batch
+        n_updates = total_timesteps // self.n_steps
 
         for update in range(1, n_updates + 1):
-            assert self.n_batch % self.nminibatches == 0, (
+            assert self.n_steps % self.nminibatches == 0, (
                 "The number of minibatches (`nminibatches`) "
                 "is not a factor of the total number of samples "
                 "collected per rollout (`n_batch`), "
                 "some samples won't be used.")
-            batch_size = self.n_batch // self.nminibatches
+            batch_size = self.n_steps // self.nminibatches
             t_start = time.time()
 
             # true_reward is the reward without discount
@@ -419,15 +303,15 @@ class OnPolicyRLAlgorithm(object):
 
             self.ep_info_buf.extend(ep_infos)
             mb_loss_vals = []
-            inds = np.arange(self.n_batch)
+            inds = np.arange(self.n_steps)
             for epoch_num in range(self.noptepochs):
                 np.random.shuffle(inds)
-                for start in range(0, self.n_batch, batch_size):
+                for start in range(0, self.n_steps, batch_size):
                     end = start + batch_size
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
                         obs, returns, masks, actions, values, neglogpacs))
-                    mb_loss_vals.append(self._train_step(*slices))
+                    mb_loss_vals.append(self.model.update(*slices))
 
             if self.verbose >= 1 and (
                     update % log_interval == 0 or update == 1):
@@ -447,7 +331,7 @@ class OnPolicyRLAlgorithm(object):
                       'approxkl', 'clipfrac']
         loss_vals = np.mean(mb_loss_vals, axis=0)
         t_now = time.time()
-        fps = int(self.n_batch / (t_now - t_start))
+        fps = int(self.n_steps / (t_now - t_start))
 
         explained_var = explained_variance(values, returns)
 
@@ -533,7 +417,7 @@ class Runner(AbstractEnvRunner):
                 total_reward.append(self.total_reward)
                 self.total_reward = 0
 
-            self.model.num_timesteps += self.n_envs
+            self.model.num_timesteps += 1
 
             for info in infos:
                 maybe_ep_info = info.get('episode')

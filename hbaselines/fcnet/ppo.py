@@ -93,6 +93,10 @@ class FeedForwardPolicy(Policy):
                  ac_space,
                  co_space,
                  verbose,
+                 layer_norm,
+                 layers,
+                 act_fun,
+                 use_huber,
                  gamma,
                  learning_rate,
                  ent_coef,
@@ -103,10 +107,6 @@ class FeedForwardPolicy(Policy):
                  noptepochs,
                  cliprange,
                  cliprange_vf,
-                 layer_norm,
-                 layers,
-                 act_fun,
-                 use_huber,
                  scope=None,
                  reuse=False,
                  zero_fingerprint=False,
@@ -125,26 +125,6 @@ class FeedForwardPolicy(Policy):
             TODO
         verbose : TODO
             TODO
-        gamma : TODO
-            TODO
-        learning_rate : TODO
-            TODO
-        ent_coef : TODO
-            TODO
-        vf_coef : TODO
-            TODO
-        max_grad_norm : TODO
-            TODO
-        lam : TODO
-            TODO
-        nminibatches : TODO
-            TODO
-        noptepochs : TODO
-            TODO
-        cliprange : TODO
-            TODO
-        cliprange_vf : TODO
-            TODO
         layer_norm : TODO
             TODO
         layers : TODO
@@ -153,6 +133,33 @@ class FeedForwardPolicy(Policy):
             TODO
         use_huber : TODO
             TODO
+        gamma : float
+            discount factor
+        learning_rate : float
+            the learning rate
+        ent_coef : float
+            entropy coefficient for the loss calculation
+        vf_coef : float
+            value function coefficient for the loss calculation
+        max_grad_norm : float
+            the maximum value for the gradient clipping
+        lam : float
+            factor for trade-off of bias vs variance for Generalized Advantage
+            Estimator
+        nminibatches : int
+            number of training minibatches per update
+        noptepochs : int
+            number of epoch when optimizing the surrogate
+        cliprange : float or callable
+            clipping parameter, it can be a function
+        cliprange_vf : float or callable
+            clipping parameter for the value function, it can be a function.
+            This is a parameter specific to the OpenAI implementation. If None
+            is passed (default), then `cliprange` (that is used for the policy)
+            will be used. IMPORTANT: this clipping depends on the reward
+            scaling. To deactivate value function clipping (and recover the
+            original PPO implementation), you have to pass a negative value
+            (e.g. -1).
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
@@ -542,3 +549,51 @@ class FeedForwardPolicy(Policy):
         :return: ([float]) The associated value of the action
         """
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
+
+    def update(self,
+               obs,
+               returns,
+               masks,
+               actions,
+               values,
+               neglogpacs,
+               states=None):
+        """Training of PPO2 Algorithm
+
+        :param obs: (np.ndarray) The current observation of the environment
+        :param returns: (np.ndarray) the rewards
+        :param masks: (np.ndarray) The last masks for done episodes (used in
+        recurent policies)
+        :param actions: (np.ndarray) the actions
+        :param values: (np.ndarray) the values
+        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of
+        Actions
+        :param states: (np.ndarray) For recurrent policies, the internal state
+        of the recurrent model
+        :return: policy gradient loss, value function loss, policy entropy,
+                approximation of kl divergence, updated clipping range,
+                training update operation
+        """
+        advs = returns - values
+        advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+        td_map = {
+            self.obs_ph: obs,
+            self.action_ph: actions,
+            self.advs_ph: advs,
+            self.rew_ph: returns,
+            self.old_neglog_pac_ph: neglogpacs,
+            self.old_vpred_ph: values,
+        }
+
+        policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = \
+            self.sess.run(
+                [self.pg_loss,
+                 self.vf_loss,
+                 self.entropy,
+                 self.approxkl,
+                 self.clipfrac,
+                 self.optimizer],
+                td_map
+            )
+
+        return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
