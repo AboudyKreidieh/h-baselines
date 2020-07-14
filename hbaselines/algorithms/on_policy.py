@@ -14,8 +14,12 @@ import tensorflow as tf
 import gym
 from collections import deque
 
+from hbaselines.algorithms.utils import is_feedforward_policy
+from hbaselines.algorithms.utils import is_goal_conditioned_policy
+from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.misc import explained_variance
-from hbaselines.utils.tf_util import make_session, outer_scope_getter
+from hbaselines.utils.tf_util import make_session
+from hbaselines.utils.tf_util import outer_scope_getter
 
 from stable_baselines.common.runners import AbstractEnvRunner
 
@@ -48,7 +52,12 @@ FEEDFORWARD_PARAMS = dict(
     # enable layer normalisation
     layer_norm=False,
     # the size of the neural network for the policy
-    layers=[256, 256],
+    layers=[64, 64],
+    # the activation function to use in the neural network
+    act_fun=tf.nn.relu,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=False,
 )
 
 
@@ -103,7 +112,7 @@ MULTI_FEEDFORWARD_PARAMS.update(dict(
 ))
 
 
-class PPO2(object):
+class OnPolicyRLAlgorithm(object):
     """On-policy RL algorithm class.
 
     Supports the training of PPO policies.
@@ -148,8 +157,6 @@ class PPO2(object):
         implementation), you have to pass a negative value (e.g. -1).
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    tensorboard_log : str
-        the log location for tensorboard (if None, no logging)
     _init_setup_model : bool
         Whether or not to build the network at the creation of the instance
     policy_kwargs : dict
@@ -177,7 +184,6 @@ class PPO2(object):
                  cliprange=0.2,
                  cliprange_vf=None,
                  verbose=0,
-                 tensorboard_log=None,
                  _init_setup_model=True,
                  policy_kwargs=None,
                  seed=None,
@@ -214,8 +220,6 @@ class PPO2(object):
             TODO
         verbose : TODO
             TODO
-        tensorboard_log : TODO
-            TODO
         _init_setup_model : TODO
             TODO
         policy_kwargs : TODO
@@ -236,7 +240,27 @@ class PPO2(object):
         self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
-        self.tensorboard_log = tensorboard_log
+        self.policy_kwargs = {'verbose': verbose}
+
+        # Collect the spaces of the environments.
+        self.observation_space = env.observation_space
+        self.action_space = env.action_space
+        all_ob_space = None
+
+        # Add the default policy kwargs to the policy_kwargs term.
+        if is_feedforward_policy(policy):
+            self.policy_kwargs.update(FEEDFORWARD_PARAMS.copy())
+
+        if is_goal_conditioned_policy(policy):
+            self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
+            self.policy_kwargs['env_name'] = self.env_name.__str__()
+            self.policy_kwargs['num_envs'] = num_envs
+
+        if is_multiagent_policy(policy):
+            self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
+            self.policy_kwargs["all_ob_space"] = all_ob_space
+
+        self.policy_kwargs.update(policy_kwargs or {})
 
         self.action_ph = None
         self.advs_ph = None
@@ -258,19 +282,13 @@ class PPO2(object):
         self.value = None
         self.n_batch = None
         self.summary = None
-
-        self.sess = None
+        self._runner = None
         self.initial_state = None
         self.step = None
-        self.params = None
-        self._runner = None
 
         self.policy = policy
         self.env = env
         self.verbose = verbose
-        self.policy_kwargs = {} if policy_kwargs is None else policy_kwargs
-        self.observation_space = None
-        self.action_space = None
         self.n_envs = 1
         self._vectorize_action = False
         self.num_timesteps = 0
@@ -282,9 +300,6 @@ class PPO2(object):
         self.n_cpu_tf_sess = n_cpu_tf_sess
         self.episode_reward = None
         self.ep_info_buf = None
-
-        self.observation_space = env.observation_space
-        self.action_space = env.action_space
 
         if _init_setup_model:
             self.setup_model()
@@ -320,11 +335,13 @@ class PPO2(object):
             n_batch_train = None
 
             act_model = self.policy(
-                self.sess,
-                self.observation_space,
-                self.action_space,
-                self.n_envs, 1,
-                n_batch_step,
+                sess=self.sess,
+                ob_space=self.observation_space,
+                ac_space=self.action_space,
+                co_space=None,  # FIXME
+                n_env=self.n_envs,
+                n_steps=1,
+                n_batch=n_batch_step,
                 reuse=False,
                 **self.policy_kwargs
             )
@@ -332,12 +349,13 @@ class PPO2(object):
                     "train_model", reuse=True,
                     custom_getter=outer_scope_getter("train_model")):
                 train_model = self.policy(
-                    self.sess,
-                    self.observation_space,
-                    self.action_space,
-                    self.n_envs // self.nminibatches,
-                    self.n_steps,
-                    n_batch_train,
+                    sess=self.sess,
+                    ob_space=self.observation_space,
+                    ac_space=self.action_space,
+                    co_space=None,  # FIXME
+                    n_env=self.n_envs // self.nminibatches,
+                    n_steps=self.n_steps,
+                    n_batch=n_batch_train,
                     reuse=True,
                     **self.policy_kwargs
                 )
@@ -479,7 +497,6 @@ class PPO2(object):
             self.act_model = act_model
             self.step = act_model.step
             self.value = act_model.value
-            self.initial_state = act_model.initial_state
             tf.global_variables_initializer().run(session=self.sess)
 
             self.summary = tf.summary.merge_all()
@@ -493,8 +510,6 @@ class PPO2(object):
                     actions,
                     values,
                     neglogpacs,
-                    update,
-                    writer,
                     states=None,
                     cliprange_vf=None):
         """Training of PPO2 Algorithm
@@ -509,8 +524,6 @@ class PPO2(object):
         :param values: (np.ndarray) the values
         :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of
         Actions
-        :param update: (int) the current step iteration
-        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :param states: (np.ndarray) For recurrent policies, the internal state
         of the recurrent model
         :return: policy gradient loss, value function loss, policy entropy,
@@ -583,23 +596,18 @@ class PPO2(object):
 
             self.ep_info_buf.extend(ep_infos)
             mb_loss_vals = []
-            update_fac = \
-                self.n_batch // self.nminibatches // self.noptepochs + 1
             inds = np.arange(self.n_batch)
             for epoch_num in range(self.noptepochs):
                 np.random.shuffle(inds)
                 for start in range(0, self.n_batch, batch_size):
-                    timestep = self.num_timesteps // update_fac + (
-                        (self.noptepochs * self.n_batch + epoch_num *
-                         self.n_batch + start) // batch_size)
                     end = start + batch_size
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
                         obs, returns, masks, actions, values, neglogpacs))
                     mb_loss_vals.append(
                         self._train_step(
-                            lr_now, cliprange_now, *slices, writer=None,
-                            update=timestep, cliprange_vf=cliprange_vf_now
+                            lr_now, cliprange_now, *slices,
+                            cliprange_vf=cliprange_vf_now
                         )
                     )
 
@@ -687,8 +695,7 @@ class Runner(AbstractEnvRunner):
         ep_infos = []
         total_reward = []
         for _ in range(self.n_steps):
-            actions, values, self.states, neglogpacs = self.model.step(
-                self.obs)
+            actions, values, neglogpacs = self.model.step(self.obs)
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)

@@ -13,6 +13,8 @@ from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy as \
+    PPOFeedForwardPolicy
 
 
 def is_td3_policy(policy):
@@ -36,7 +38,7 @@ def is_sac_policy(policy):
 def is_ppo_policy(policy):
     """Check whether a policy is for designed to support PPO."""
     return policy in [
-
+        PPOFeedForwardPolicy,
     ]
 
 
@@ -45,6 +47,7 @@ def is_feedforward_policy(policy):
     return policy in [
         TD3FeedForwardPolicy,
         SACFeedForwardPolicy,
+        PPOFeedForwardPolicy,
         TD3MultiFeedForwardPolicy,
         SACMultiFeedForwardPolicy,
     ]

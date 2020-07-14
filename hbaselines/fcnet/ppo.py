@@ -1,9 +1,10 @@
-import warnings
 from itertools import zip_longest
 
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Discrete
+
+from hbaselines.base_policies.base import Policy
 
 from stable_baselines.common.tf_layers import linear
 from stable_baselines.common.input import observation_input
@@ -236,7 +237,7 @@ class DiagGaussianProbabilityDistributionType(object):
             name=name)
 
 
-class FeedForwardPolicy(object):
+class FeedForwardPolicy(Policy):
     """
     Policy object that implements actor critic
 
@@ -256,18 +257,95 @@ class FeedForwardPolicy(object):
                  sess,
                  ob_space,
                  ac_space,
+                 co_space,
+                 verbose,
+                 gamma,
+                 learning_rate,
+                 ent_coef,
+                 vf_coef,
+                 max_grad_norm,
+                 lam,
+                 nminibatches,
+                 noptepochs,
+                 cliprange,
+                 cliprange_vf,
+                 layer_norm,
+                 layers,
+                 act_fun,
+                 use_huber,
                  n_env,
                  n_steps,
                  n_batch,
-                 layers=None,
-                 net_arch=None,
-                 act_fun=tf.tanh,
-                 feature_extraction="mlp",
                  reuse=False,
                  scale=False,
                  obs_phs=None,
-                 add_action_ph=False,
-                 **kwargs):
+                 add_action_ph=False):
+        """Instantiate the policy object.
+
+        Parameters
+        ----------
+        sess : TODO
+            TODO
+        ob_space : TODO
+            TODO
+        ac_space : TODO
+            TODO
+        co_space : TODO
+            TODO
+        verbose : TODO
+            TODO
+        gamma : TODO
+            TODO
+        learning_rate : TODO
+            TODO
+        ent_coef : TODO
+            TODO
+        vf_coef : TODO
+            TODO
+        max_grad_norm : TODO
+            TODO
+        lam : TODO
+            TODO
+        nminibatches : TODO
+            TODO
+        noptepochs : TODO
+            TODO
+        cliprange : TODO
+            TODO
+        cliprange_vf : TODO
+            TODO
+        layer_norm : TODO
+            TODO
+        layers : TODO
+            TODO
+        act_fun : TODO
+            TODO
+        use_huber : TODO
+            TODO
+        """
+        super(FeedForwardPolicy, self).__init__(
+            sess=sess,
+            ob_space=ob_space,
+            ac_space=ac_space,
+            co_space=co_space,
+            verbose=verbose,
+            layer_norm=layer_norm,
+            layers=layers,
+            act_fun=act_fun,
+            use_huber=use_huber,
+        )
+
+        self.gamma = gamma
+        self.learning_rate = learning_rate
+        self.ent_coef = ent_coef
+        self.vf_coef = vf_coef
+        self.max_grad_norm = max_grad_norm
+        self.lam = lam
+        self.nminibatches = nminibatches
+        self.noptepochs = noptepochs
+        self.cliprange = cliprange
+        self.cliprange_vf = cliprange_vf
+
         self.n_env = n_env
         self.n_steps = n_steps
         self.n_batch = n_batch
@@ -284,34 +362,13 @@ class FeedForwardPolicy(object):
                     dtype=ac_space.dtype,
                     shape=(n_batch,) + ac_space.shape,
                     name="action_ph")
-        self.sess = sess
         self.reuse = reuse
-        self.ob_space = ob_space
-        self.ac_space = ac_space
         self._pdtype = DiagGaussianProbabilityDistributionType(
             ac_space.shape[0])
         self._action = None
         self._deterministic_action = None
 
-        self._kwargs_check(feature_extraction, kwargs)
-
-        if layers is not None:
-            warnings.warn(
-                "Usage of the `layers` parameter is deprecated! Use net_arch "
-                "instead (it has a different semantics though).",
-                DeprecationWarning
-            )
-            if net_arch is not None:
-                warnings.warn(
-                    "The new `net_arch` parameter overrides the deprecated "
-                    "`layers` parameter!",
-                    DeprecationWarning
-                )
-
-        if net_arch is None:
-            if layers is None:
-                layers = [64, 64]
-            net_arch = [dict(vf=layers, pi=layers)]
+        net_arch = [dict(vf=layers, pi=layers)]
 
         with tf.variable_scope("model", reuse=reuse):
             pi_latent, vf_latent = mlp_extractor(
@@ -329,17 +386,6 @@ class FeedForwardPolicy(object):
     def is_discrete(self):
         """bool: is action space discrete."""
         return isinstance(self.ac_space, Discrete)
-
-    @property
-    def initial_state(self):
-        """
-        The initial state of the policy. For feedforward policies, None. For a
-        recurrent policy, a NumPy array of shape (self.n_env, ) + state_shape.
-        """
-        assert not self.recurrent, \
-            "When using recurrent policies, you must overwrite " \
-            "`initial_state()` method"
-        return None
 
     @property
     def obs_ph(self):
@@ -362,18 +408,6 @@ class FeedForwardPolicy(object):
         """tf.Tensor: placeholder for actions, shape (self.n_batch, ) +
         self.ac_space.shape."""
         return self._action_ph
-
-    @staticmethod
-    def _kwargs_check(feature_extraction, kwargs):
-        """
-        Ensure that the user is not passing wrong keywords
-        when using policy_kwargs.
-
-        :param feature_extraction: (str)
-        :param kwargs: (dict)
-        """
-        if feature_extraction == 'mlp' and len(kwargs) > 0:
-            raise ValueError("Unknown keywords for policy: {}".format(kwargs))
 
     def _setup_init(self):
         """Sets up the distributions, actions, and value."""
@@ -460,7 +494,7 @@ class FeedForwardPolicy(object):
                 [self.action, self.value_flat, self.neglogp],
                 {self.obs_ph: obs}
             )
-        return action, value, self.initial_state, neglogp
+        return action, value, neglogp
 
     def proba_step(self, obs):
         """
