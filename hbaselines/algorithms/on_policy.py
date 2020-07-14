@@ -50,10 +50,6 @@ FEEDFORWARD_PARAMS = dict(
     # factor for trade-off of bias vs variance for Generalized Advantage
     # Estimator
     lam=0.95,
-    # number of training minibatches per update
-    nminibatches=4,
-    # number of epoch when optimizing the surrogate
-    noptepochs=4,
     # clipping parameter, it can be a function
     cliprange=0.2,
     # clipping parameter for the value function, it can be a function. This is
@@ -147,8 +143,6 @@ class OnPolicyRLAlgorithm(object):
         Whether or not to build the network at the creation of the instance
     policy_kwargs : dict
         additional arguments to be passed to the policy on creation
-    seed : int
-        seed for the pseudo-random generators (python, numpy, tensorflow).
     """
     def __init__(self,
                  policy,
@@ -156,8 +150,8 @@ class OnPolicyRLAlgorithm(object):
                  eval_env=None,
                  n_steps=128,
                  n_eval_episodes=50,
-                 nminibatches=4,  # TODO: remove
-                 noptepochs=4,  # TODO: remove
+                 n_minibatches=4,
+                 n_opt_epochs=4,  # TODO: remove
                  meta_update_freq=10,
                  reward_scale=1.,
                  render=False,
@@ -179,6 +173,10 @@ class OnPolicyRLAlgorithm(object):
             TODO
         n_steps : TODO
             TODO
+        n_minibatches : int
+            number of training minibatches per update
+        n_opt_epochs : int
+            number of epoch when optimizing the surrogate
         n_eval_episodes : TODO
             TODO
         meta_update_freq : TODO
@@ -219,6 +217,8 @@ class OnPolicyRLAlgorithm(object):
         self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
         self.n_steps = n_steps
+        self.n_minibatches = n_minibatches
+        self.n_opt_epochs = n_opt_epochs
         self.n_eval_episodes = n_eval_episodes
         self.n_eval_episodes = n_eval_episodes
         self.meta_update_freq = meta_update_freq
@@ -230,8 +230,11 @@ class OnPolicyRLAlgorithm(object):
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
-        self.nminibatches = nminibatches  # TODO: remove
-        self.noptepochs = noptepochs  # TODO: remove
+        assert self.n_steps % self.n_minibatches == 0, \
+            "The number of minibatches (`n_minibatches`) is not a factor of " \
+            "the total number of samples collected per rollout (`n_steps`), " \
+            "some samples won't be used."
+
         self.initial_state = None  # TODO: remove
 
         # Create the environment and collect the initial observations.
@@ -259,18 +262,29 @@ class OnPolicyRLAlgorithm(object):
 
         # init
         self.graph = None
-        self.sess = None
         self.policy_tf = None
+        self.sess = None
         self.summary = None
+        self.episode_step = [0 for _ in range(num_envs)]
+        self.episodes = 0
+        self.total_steps = 0
+        self.epoch_episode_steps = []
+        self.epoch_episode_rewards = []
+        self.epoch_episodes = 0
+        self.epoch = 0
+        self.episode_rew_history = deque(maxlen=100)
+        self.episode_reward = [0 for _ in range(num_envs)]
+        self.rew_ph = None
+        self.rew_history_ph = None
+        self.eval_rew_ph = None
+        self.eval_success_ph = None
+        self.saver = None
 
         # TODO: remove
         self.value = None
         self.step = None
         self.env = env
         self.num_timesteps = 0
-        self.params = None
-        self.episode_reward = None
-        self.ep_info_buf = None
 
         if self.policy_kwargs.get("use_fingerprints", False):
             # Append the fingerprint dimension to the observation dimension.
@@ -286,6 +300,7 @@ class OnPolicyRLAlgorithm(object):
         if _init_setup_model:
             self.trainable_vars = self.setup_model()
 
+        # TODO: remove
         self.runner = Runner(
             env=self.env,
             model=self,
@@ -398,7 +413,7 @@ class OnPolicyRLAlgorithm(object):
                 sess=self.sess,
                 ob_space=self.ob_space,
                 ac_space=self.ac_space,
-                co_space=None,  # FIXME
+                co_space=self.co_space,
                 reuse=False,
                 **self.policy_kwargs
             )
@@ -429,64 +444,286 @@ class OnPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
-    def learn(self, total_timesteps, log_interval=1):
-        # Transform to callable if needed
-        rewards_buffer = deque(maxlen=100)
+    def learn(self,
+              total_steps,
+              log_dir=None,
+              seed=None,
+              eval_interval=50000,
+              save_interval=50000):
+        """Perform the complete training operation.
 
-        if self.episode_reward is None:
-            self.episode_reward = np.zeros((1,))
-        if self.ep_info_buf is None:
-            self.ep_info_buf = deque(maxlen=100)
+        Parameters
+        ----------
+        total_steps : int
+            the total number of samples to train on
+        log_dir : str
+            the directory where the training and evaluation statistics, as well
+            as the tensorboard log, should be stored
+        seed : int or None
+            the initial seed for training, if None: keep current seed
+        eval_interval : int
+            number of simulation steps in the training environment before an
+            evaluation is performed
+        save_interval : int
+            number of simulation steps in the training environment before the
+            model is saved
+        """
+        # Create a saver object.
+        self.saver = tf.compat.v1.train.Saver(
+            self.trainable_vars,
+            max_to_keep=total_steps // save_interval)
 
-        t_first_start = time.time()
-        n_updates = total_timesteps // self.n_steps
+        # Make sure that the log directory exists, and if not, make it.
+        ensure_dir(log_dir)
+        ensure_dir(os.path.join(log_dir, "checkpoints"))
 
-        for update in range(1, n_updates + 1):
-            assert self.n_steps % self.nminibatches == 0, (
-                "The number of minibatches (`nminibatches`) "
-                "is not a factor of the total number of samples "
-                "collected per rollout (`n_batch`), "
-                "some samples won't be used.")
-            batch_size = self.n_steps // self.nminibatches
-            t_start = time.time()
+        # Create a tensorboard object for logging.
+        save_path = os.path.join(log_dir, "tb_log")
+        writer = tf.compat.v1.summary.FileWriter(save_path)
 
-            # true_reward is the reward without discount
-            rollout = self.runner.run()
-            # Unpack
-            obs, returns, masks, actions, values, neglogpacs, states, \
-                ep_infos, true_reward, total_reward = rollout
-            rewards_buffer.extend(total_reward)
+        # file path for training and evaluation results
+        train_filepath = os.path.join(log_dir, "train.csv")
+        eval_filepath = os.path.join(log_dir, "eval.csv")
 
-            # Early stopping due to the callback
-            if not self.runner.continue_training:
-                break
+        # Setup the seed value.
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
-            self.ep_info_buf.extend(ep_infos)
-            mb_loss_vals = []
-            inds = np.arange(self.n_steps)
-            for epoch_num in range(self.noptepochs):
-                np.random.shuffle(inds)
-                for start in range(0, self.n_steps, batch_size):
-                    end = start + batch_size
-                    mbinds = inds[start:end]
-                    slices = (arr[mbinds] for arr in (
-                        obs, returns, masks, actions, values, neglogpacs))
-                    mb_loss_vals.append(self.model.update(*slices))
+        if self.verbose >= 2:
+            print('Using agent with the following configuration:')
+            print(str(self.__dict__.items()))
 
-            if self.verbose >= 1 and (
-                    update % log_interval == 0 or update == 1):
+        eval_steps_incr = 0
+        save_steps_incr = 0
+        start_time = time.time()
+
+        rewards_buffer = deque(maxlen=100)  # TODO: remove
+
+        with self.sess.as_default(), self.graph.as_default():
+            n_updates = total_steps // self.n_steps
+
+            for update in range(1, n_updates + 1):
+                batch_size = self.n_steps // self.n_minibatches
+                t_start = time.time()
+
+                # Reset epoch-specific variables.
+                self.epoch_episodes = 0
+                self.epoch_episode_steps = []
+                self.epoch_episode_rewards = []
+
+                # Perform rollouts.
+                # rollout = self._collect_samples(total_steps)
+
+                # Train.
+                # self._train()
+
+                # true_reward is the reward without discount
+                rollout = self.runner.run()
+                # Unpack
+                obs, returns, masks, actions, values, neglogpacs, states, \
+                    ep_infos, true_reward, total_reward = rollout
+                rewards_buffer.extend(total_reward)
+                self.total_steps += self.n_steps
+
+                mb_loss_vals = []
+                inds = np.arange(self.n_steps)
+                for epoch_num in range(self.n_opt_epochs):
+                    np.random.shuffle(inds)
+                    for start in range(0, self.n_steps, batch_size):
+                        end = start + batch_size
+                        mbinds = inds[start:end]
+                        slices = (arr[mbinds] for arr in (
+                            obs, returns, masks, actions, values, neglogpacs))
+                        mb_loss_vals.append(self.model.update(*slices))
+
+                # Log statistics.
                 self._log_training(
-                    mb_loss_vals, t_start, values, returns,
-                    update, rewards_buffer, t_first_start)
+                    train_filepath,
+                    mb_loss_vals,
+                    t_start,
+                    values,
+                    returns,
+                    update,
+                    rewards_buffer,
+                    start_time,
+                )
+
+                # Run and store summary.
+                if writer is not None:
+                    td_map = self.policy_tf.get_td_map(
+                        obs,
+                        returns,
+                        actions,
+                        values,
+                        neglogpacs
+                    )
+
+                    # Check if td_map is empty.
+                    if not td_map:
+                        break
+
+                    td_map.update({
+                        self.rew_ph: np.mean(self.epoch_episode_rewards),
+                        self.rew_history_ph: np.mean(self.episode_rew_history),
+                    })
+                    summary = self.sess.run(self.summary, td_map)
+                    writer.add_summary(summary, self.total_steps)
+
+                # Save a checkpoint of the model.
+                if (self.total_steps - save_steps_incr) >= save_interval:
+                    save_steps_incr += save_interval
+                    self.save(os.path.join(log_dir, "checkpoints/itr"))
+
+                # Update the epoch count.
+                self.epoch += 1
+
+    def save(self, save_path):
+        """Save the parameters of a tensorflow model.
+
+        Parameters
+        ----------
+        save_path : str
+            Prefix of filenames created for the checkpoint
+        """
+        self.saver.save(self.sess, save_path, global_step=self.total_steps)
+
+    def load(self, load_path):
+        """Load model parameters from a checkpoint.
+
+        Parameters
+        ----------
+        load_path : str
+            location of the checkpoint
+        """
+        self.saver.restore(self.sess, load_path)
+
+    def _collect_samples(self, total_steps):
+        """Perform the sample collection operation over multiple steps.
+
+        This method calls collect_sample for a multiple steps, and attempts to
+        run the operation in parallel if multiple environments are available.
+
+        Parameters
+        ----------
+        total_steps : int
+            the total number of samples to train on. Used by the fingerprint
+            element
+        """
+        context_list = [[] for _ in range(self.num_envs)]
+        action_list = [[] for _ in range(self.num_envs)]
+        reward_list = [[] for _ in range(self.num_envs)]
+        obs_list = [[] for _ in range(self.num_envs)]
+        done_list = [[] for _ in range(self.num_envs)]
+        all_obs_list = [[] for _ in range(self.num_envs)]
+
+        # Loop through the sampling procedure the number of times it would
+        # require to run through each environment in parallel until the number
+        # of required steps have been collected.
+        n_itr = math.ceil(self.n_steps / self.num_envs)
+        for itr in range(n_itr):
+            n_steps = self.num_envs if itr < n_itr - 1 \
+                else self.n_steps - (n_itr - 1) * self.num_envs
+
+            # Collect the most recent contextual term from every environment.
+            if self.num_envs > 1:
+                context = [ray.get(self.sampler[env_num].get_context.remote())
+                           for env_num in range(self.num_envs)]
+            else:
+                context = [self.sampler[0].get_context()]
+
+            # Predict next action. Use random actions when initializing the
+            # replay buffer.
+            action = [self._policy(
+                obs=self.obs[env_num],
+                context=context[env_num],
+                apply_noise=True,
+                env_num=env_num,
+            ) for env_num in range(n_steps)]
+
+            # Update the environment.
+            if self.num_envs > 1:
+                ret = ray.get([
+                    self.sampler[env_num].collect_sample.remote(
+                        action=action[env_num],
+                        multiagent=is_multiagent_policy(self.policy),
+                        steps=self.total_steps,
+                        total_steps=total_steps,
+                        use_fingerprints=self.policy_kwargs.get(
+                            "use_fingerprints", False)
+                    )
+                    for env_num in range(n_steps)
+                ])
+            else:
+                ret = [
+                    self.sampler[0].collect_sample(
+                        action=action[0],
+                        multiagent=is_multiagent_policy(self.policy),
+                        steps=self.total_steps,
+                        total_steps=total_steps,
+                        use_fingerprints=self.policy_kwargs.get(
+                            "use_fingerprints", False)
+                    )
+                ]
+
+            for ret_i in ret:
+                num = ret_i["env_num"]
+                context = ret_i["context"]
+                action = ret_i["action"]
+                reward = ret_i["reward"]
+                obs = ret_i["obs"]
+                done = ret_i["done"]
+                all_obs = ret_i["all_obs"]
+
+                # Store the new data.
+                context_list[num].append(context)
+                action_list[num].append(action)
+                reward_list[num].append(reward)
+                obs_list[num].append(obs)
+                done_list[num].append(done)
+                all_obs_list[num].append(all_obs)
+
+                # Book-keeping.
+                self.total_steps += 1
+                self.episode_step[num] += 1
+                if isinstance(reward, dict):
+                    self.episode_reward[num] += sum(
+                        reward[k] for k in reward.keys())
+                else:
+                    self.episode_reward[num] += reward
+
+                # Update the current observation.
+                self.obs[num] = (obs[1] if done else obs).copy()
+                self.all_obs[num] = all_obs[1] if done else all_obs
+
+                # Handle episode done.
+                if done:
+                    self.epoch_episode_rewards.append(self.episode_reward[num])
+                    self.episode_rew_history.append(self.episode_reward[num])
+                    self.epoch_episode_steps.append(self.episode_step[num])
+                    self.episode_reward[num] = 0
+                    self.episode_step[num] = 0
+                    self.epoch_episodes += 1
+                    self.episodes += 1
+
+        # Concatenate the stored data.
+        # TODO
+
+        # Compute the advantages.
+        # TODO
+
+    def _train(self):
+        pass
 
     def _log_training(self,
+                      file_path,
                       mb_loss_vals,
                       t_start,
                       values,
                       returns,
                       update,
                       rewards_buffer,
-                      t_first_start):
+                      start_time):
         loss_names = ['policy_loss', 'value_loss', 'policy_entropy',
                       'approxkl', 'clipfrac']
         loss_vals = np.mean(mb_loss_vals, axis=0)
@@ -502,10 +739,37 @@ class OnPolicyRLAlgorithm(object):
             "fps": fps,
             "explained_variance": float(explained_var),
             'ep_reward_mean': np.mean(rewards_buffer),
-            'time_elapsed': t_start - t_first_start,
+            'time_elapsed': t_start - start_time,
         }
         for (loss_val, loss_name) in zip(loss_vals, loss_names):
             combined_stats[loss_name] = loss_val
+
+        # # Log statistics.
+        # duration = time.time() - start_time
+        #
+        # combined_stats = {
+        #     # Rollout statistics.
+        #     'rollout/episodes': self.epoch_episodes,
+        #     'rollout/episode_steps': np.mean(self.epoch_episode_steps),
+        #     'rollout/return': np.mean(self.epoch_episode_rewards),
+        #     'rollout/return_history': np.mean(self.episode_rew_history),
+        #
+        #     # Total statistics.
+        #     'total/epochs': self.epoch + 1,
+        #     'total/steps': self.total_steps,
+        #     'total/duration': duration,
+        #     'total/steps_per_second': self.total_steps / duration,
+        #     'total/episodes': self.episodes,
+        # }
+
+        # Save combined_stats in a csv file.
+        if file_path is not None:
+            exists = os.path.exists(file_path)
+            with open(file_path, 'a') as f:
+                w = csv.DictWriter(f, fieldnames=combined_stats.keys())
+                if not exists:
+                    w.writeheader()
+                w.writerow(combined_stats)
 
         # Print statistics.
         print("-" * 67)
@@ -584,6 +848,7 @@ class Runner(AbstractEnvRunner):
                 if maybe_ep_info is not None:
                     ep_infos.append(maybe_ep_info)
             mb_rewards.append(rewards)
+
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
@@ -592,6 +857,7 @@ class Runner(AbstractEnvRunner):
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
         last_values = self.model.value(self.obs)
+
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
         true_reward = np.copy(mb_rewards)

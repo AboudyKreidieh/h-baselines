@@ -102,8 +102,6 @@ class FeedForwardPolicy(Policy):
                  vf_coef,
                  max_grad_norm,
                  lam,
-                 nminibatches,
-                 noptepochs,
                  cliprange,
                  cliprange_vf,
                  scope=None,
@@ -145,10 +143,6 @@ class FeedForwardPolicy(Policy):
         lam : float
             factor for trade-off of bias vs variance for Generalized Advantage
             Estimator
-        nminibatches : int
-            number of training minibatches per update
-        noptepochs : int
-            number of epoch when optimizing the surrogate
         cliprange : float or callable
             clipping parameter, it can be a function
         cliprange_vf : float or callable
@@ -178,8 +172,6 @@ class FeedForwardPolicy(Policy):
         self.vf_coef = vf_coef
         self.max_grad_norm = max_grad_norm
         self.lam = lam
-        self.nminibatches = nminibatches
-        self.noptepochs = noptepochs
         self.cliprange = cliprange
         self.cliprange_vf = cliprange_vf
         self.zero_fingerprint = zero_fingerprint
@@ -288,9 +280,7 @@ class FeedForwardPolicy(Policy):
         # Step 5: Setup the operations for computing model statistics.        #
         # =================================================================== #
 
-        # Setup the running means and standard deviations of the model inputs
-        # and outputs.
-        self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
+        self._setup_stats(scope or "Model")
 
     def _create_mlp(self,
                     input_ph,
@@ -449,50 +439,27 @@ class FeedForwardPolicy(Policy):
         This method also adds the same running means and stds as scalars to
         tensorboard for additional storage.
         """
-        ops = []
-        names = []
-
-        names.append('{}/reference_action_mean'.format(base))
-        ops.append(tf.reduce_mean(self.deterministic_action))
-
-        names.append('{}/reference_action_std'.format(base))
-        ops.append(tf.reduce_mean(self.action_logstd))
-
-        names.append('rewards')
-        ops.append(tf.reduce_mean(self.rew_ph))
-
-        names.append('advantage')
-        ops.append(tf.reduce_mean(self.advs_ph))
-
-        names.append('old_neglog_action_probability')
-        ops.append(tf.reduce_mean(self.old_neglog_pac_ph))
-
-        names.append('old_value_pred')
-        ops.append(tf.reduce_mean(self.old_vpred_ph))
-
-        names.append('entropy_loss')
-        ops.append(self.entropy)
-
-        names.append('policy_gradient_loss')
-        ops.append(self.pg_loss)
-
-        names.append('value_function_loss')
-        ops.append(self.vf_loss)
-
-        names.append('approximate_kullback-leibler')
-        ops.append(self.approxkl)
-
-        names.append('clip_factor')
-        ops.append(self.clipfrac)
-
-        names.append('loss')
-        ops.append(self.loss)
+        ops = {
+            'reference_action_mean': tf.reduce_mean(self.deterministic_action),
+            'reference_action_std': tf.reduce_mean(self.action_logstd),
+            'rewards': tf.reduce_mean(self.rew_ph),
+            'advantage': tf.reduce_mean(self.advs_ph),
+            'old_neglog_action_probability': tf.reduce_mean(
+                self.old_neglog_pac_ph),
+            'old_value_pred': tf.reduce_mean(self.old_vpred_ph),
+            'entropy_loss': self.entropy,
+            'policy_gradient_loss': self.pg_loss,
+            'value_function_loss': self.vf_loss,
+            'approximate_kullback-leibler': self.approxkl,
+            'clip_factor': self.clipfrac,
+            'loss': self.loss,
+        }
 
         # Add all names and ops to the tensorboard summary.
-        for op, name in zip(ops, names):
+        for key in ops.keys():
+            name = "{}/{}".format(base, key)
+            op = ops[key]
             tf.compat.v1.summary.scalar(name, op)
-
-        return ops, names
 
     def initialize(self):
         """See parent class."""
@@ -572,3 +539,17 @@ class FeedForwardPolicy(Policy):
             )
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
+
+    def get_td_map(self, obs, returns, actions, values, neglogpacs):
+        """See parent class."""
+        advs = returns - values
+        advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+
+        return {
+            self.obs_ph: obs,
+            self.action_ph: actions,
+            self.advs_ph: advs,
+            self.rew_ph: returns,
+            self.old_neglog_pac_ph: neglogpacs,
+            self.old_vpred_ph: values,
+        }
