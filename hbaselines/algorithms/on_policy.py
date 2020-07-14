@@ -19,7 +19,6 @@ from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.utils.misc import explained_variance
 from hbaselines.utils.tf_util import make_session
-from hbaselines.utils.tf_util import outer_scope_getter
 
 from stable_baselines.common.runners import AbstractEnvRunner
 
@@ -262,23 +261,7 @@ class OnPolicyRLAlgorithm(object):
 
         self.policy_kwargs.update(policy_kwargs or {})
 
-        self.action_ph = None
-        self.advs_ph = None
-        self.rewards_ph = None
-        self.old_neglog_pac_ph = None
-        self.old_vpred_ph = None
-        self.learning_rate_ph = None
-        self.clip_range_ph = None
-        self.clip_range_vf_ph = None
-        self.entropy = None
-        self.vf_loss = None
-        self.pg_loss = None
-        self.approxkl = None
-        self.clipfrac = None
-        self._train = None
-        self.loss_names = None
-        self.train_model = None
-        self.act_model = None
+        self.model = None
         self.value = None
         self.n_batch = None
         self.summary = None
@@ -334,134 +317,20 @@ class OnPolicyRLAlgorithm(object):
                 **self.policy_kwargs
             )
 
-            with tf.variable_scope("loss", reuse=False):
-                self.action_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[None, self.action_space.shape[0]],
-                    name="action_ph")
-                self.advs_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[None],
-                    name="advs_ph")
-                self.rewards_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[None],
-                    name="rewards_ph")
-                self.old_neglog_pac_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[None],
-                    name="old_neglog_pac_ph")
-                self.old_vpred_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[None],
-                    name="old_vpred_ph")
-                self.learning_rate_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[],
-                    name="learning_rate_ph")
-                self.clip_range_ph = tf.placeholder(
-                    tf.float32,
-                    shape=[],
-                    name="clip_range_ph")
-
-                neglogpac = model.proba_distribution.neglogp(self.action_ph)
-                self.entropy = tf.reduce_mean(
-                    model.proba_distribution.entropy())
-
-                vpred = model.value_flat
-
-                # Value function clipping: not present in the original PPO
-                if self.cliprange_vf is None:
-                    # Default behavior (legacy from OpenAI baselines):
-                    # use the same clipping as for the policy
-                    self.clip_range_vf_ph = self.clip_range_ph
-                    self.cliprange_vf = self.cliprange
-                elif isinstance(self.cliprange_vf, (float, int)) \
-                        and self.cliprange_vf < 0:
-                    # Original PPO implementation: no value function
-                    # clipping
-                    self.clip_range_vf_ph = None
-                else:
-                    # Last possible behavior: clipping range
-                    # specific to the value function
-                    self.clip_range_vf_ph = tf.placeholder(
-                        tf.float32,
-                        [],
-                        name="clip_range_vf_ph")
-
-                if self.clip_range_vf_ph is None:
-                    # No clipping
-                    vpred_clipped = model.value_flat
-                else:
-                    # Clip the different between old and new value
-                    # NOTE: this depends on the reward scaling
-                    vpred_clipped = self.old_vpred_ph + \
-                        tf.clip_by_value(
-                            model.value_flat - self.old_vpred_ph,
-                            - self.clip_range_vf_ph, self.clip_range_vf_ph)
-
-                vf_losses1 = tf.square(vpred - self.rewards_ph)
-                vf_losses2 = tf.square(vpred_clipped - self.rewards_ph)
-                self.vf_loss = .5 * tf.reduce_mean(
-                    tf.maximum(vf_losses1, vf_losses2))
-
-                ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
-                pg_losses = -self.advs_ph * ratio
-                pg_losses2 = -self.advs_ph * tf.clip_by_value(
-                    ratio, 1.0 - self.clip_range_ph,
-                    1.0 + self.clip_range_ph)
-                self.pg_loss = tf.reduce_mean(
-                    tf.maximum(pg_losses, pg_losses2))
-                self.approxkl = .5 * tf.reduce_mean(
-                    tf.square(neglogpac - self.old_neglog_pac_ph))
-                self.clipfrac = tf.reduce_mean(
-                    tf.cast(tf.greater(tf.abs(ratio - 1.0),
-                                       self.clip_range_ph), tf.float32))
-                loss = self.pg_loss - self.entropy * self.ent_coef \
-                    + self.vf_loss * self.vf_coef
-
-                tf.summary.scalar('entropy_loss', self.entropy)
-                tf.summary.scalar('policy_gradient_loss', self.pg_loss)
-                tf.summary.scalar('value_function_loss', self.vf_loss)
-                tf.summary.scalar(
-                    'approximate_kullback-leibler', self.approxkl)
-                tf.summary.scalar('clip_factor', self.clipfrac)
-                tf.summary.scalar('loss', loss)
-
-                with tf.variable_scope('model'):
-                    self.params = tf.trainable_variables()
-                grads = tf.gradients(loss, self.params)
-                if self.max_grad_norm is not None:
-                    grads, _grad_norm = tf.clip_by_global_norm(
-                        grads, self.max_grad_norm)
-                grads = list(zip(grads, self.params))
-            trainer = tf.train.AdamOptimizer(
-                learning_rate=self.learning_rate_ph, epsilon=1e-5)
-            self._train = trainer.apply_gradients(grads)
-
-            self.loss_names = ['policy_loss', 'value_loss',
-                               'policy_entropy', 'approxkl', 'clipfrac']
-
             with tf.variable_scope("input_info", reuse=False):
                 tf.summary.scalar('discounted_rewards', tf.reduce_mean(
-                    self.rewards_ph))
-                tf.summary.scalar('learning_rate', tf.reduce_mean(
-                    self.learning_rate_ph))
+                    model.rew_ph))
                 tf.summary.scalar('advantage', tf.reduce_mean(
-                    self.advs_ph))
+                    model.advs_ph))
                 tf.summary.scalar('clip_range', tf.reduce_mean(
-                    self.clip_range_ph))
-                if self.clip_range_vf_ph is not None:
-                    tf.summary.scalar('clip_range_vf', tf.reduce_mean(
-                        self.clip_range_vf_ph))
+                    self.cliprange))
 
                 tf.summary.scalar('old_neglog_action_probability',
-                                  tf.reduce_mean(self.old_neglog_pac_ph))
+                                  tf.reduce_mean(model.old_neglog_pac_ph))
                 tf.summary.scalar('old_value_pred',
-                                  tf.reduce_mean(self.old_vpred_ph))
+                                  tf.reduce_mean(model.old_vpred_ph))
 
-            self.train_model = model
-            self.act_model = model
+            self.model = model
             self.step = model.step
             self.value = model.value
             tf.global_variables_initializer().run(session=self.sess)
@@ -469,20 +338,15 @@ class OnPolicyRLAlgorithm(object):
             self.summary = tf.summary.merge_all()
 
     def _train_step(self,
-                    learning_rate,
-                    cliprange,
                     obs,
                     returns,
                     masks,
                     actions,
                     values,
                     neglogpacs,
-                    states=None,
-                    cliprange_vf=None):
+                    states=None):
         """Training of PPO2 Algorithm
 
-        :param learning_rate: (float) learning rate
-        :param cliprange: (float) Clipping factor
         :param obs: (np.ndarray) The current observation of the environment
         :param returns: (np.ndarray) the rewards
         :param masks: (np.ndarray) The last masks for done episodes (used in
@@ -496,31 +360,26 @@ class OnPolicyRLAlgorithm(object):
         :return: policy gradient loss, value function loss, policy entropy,
                 approximation of kl divergence, updated clipping range,
                 training update operation
-        :param cliprange_vf: (float) Clipping factor for the value function
         """
         advs = returns - values
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
         td_map = {
-            self.train_model.obs_ph: obs,
-            self.action_ph: actions,
-            self.advs_ph: advs,
-            self.rewards_ph: returns,
-            self.learning_rate_ph: learning_rate,
-            self.clip_range_ph: cliprange,
-            self.old_neglog_pac_ph: neglogpacs,
-            self.old_vpred_ph: values,
+            self.model.obs_ph: obs,
+            self.model.action_ph: actions,
+            self.model.advs_ph: advs,
+            self.model.rew_ph: returns,
+            self.model.old_neglog_pac_ph: neglogpacs,
+            self.model.old_vpred_ph: values,
         }
-        if states is not None:
-            td_map[self.train_model.states_ph] = states
-            td_map[self.train_model.dones_ph] = masks
 
-        if cliprange_vf is not None and cliprange_vf >= 0:
-            td_map[self.clip_range_vf_ph] = cliprange_vf
-
-        policy_loss, value_loss, policy_entropy, approxkl, \
-            clipfrac, _ = self.sess.run(
-                [self.pg_loss, self.vf_loss, self.entropy, self.approxkl,
-                 self.clipfrac, self._train],
+        policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = \
+            self.sess.run(
+                [self.model.pg_loss,
+                 self.model.vf_loss,
+                 self.model.entropy,
+                 self.model.approxkl,
+                 self.model.clipfrac,
+                 self.model.optimizer],
                 td_map
             )
 
@@ -546,9 +405,6 @@ class OnPolicyRLAlgorithm(object):
                 "some samples won't be used.")
             batch_size = self.n_batch // self.nminibatches
             t_start = time.time()
-            lr_now = self.learning_rate
-            cliprange_now = self.cliprange
-            cliprange_vf_now = self.cliprange_vf
 
             # true_reward is the reward without discount
             rollout = self.runner.run()
@@ -571,20 +427,13 @@ class OnPolicyRLAlgorithm(object):
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (
                         obs, returns, masks, actions, values, neglogpacs))
-                    mb_loss_vals.append(
-                        self._train_step(
-                            lr_now, cliprange_now, *slices,
-                            cliprange_vf=cliprange_vf_now
-                        )
-                    )
+                    mb_loss_vals.append(self._train_step(*slices))
 
             if self.verbose >= 1 and (
                     update % log_interval == 0 or update == 1):
                 self._log_training(
                     mb_loss_vals, t_start, values, returns,
                     update, rewards_buffer, t_first_start)
-
-        return self
 
     def _log_training(self,
                       mb_loss_vals,
@@ -594,6 +443,8 @@ class OnPolicyRLAlgorithm(object):
                       update,
                       rewards_buffer,
                       t_first_start):
+        loss_names = ['policy_loss', 'value_loss', 'policy_entropy',
+                      'approxkl', 'clipfrac']
         loss_vals = np.mean(mb_loss_vals, axis=0)
         t_now = time.time()
         fps = int(self.n_batch / (t_now - t_start))
@@ -609,7 +460,7 @@ class OnPolicyRLAlgorithm(object):
             'ep_reward_mean': np.mean(rewards_buffer),
             'time_elapsed': t_start - t_first_start,
         }
-        for (loss_val, loss_name) in zip(loss_vals, self.loss_names):
+        for (loss_val, loss_name) in zip(loss_vals, loss_names):
             combined_stats[loss_name] = loss_val
 
         # Print statistics.

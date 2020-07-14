@@ -4,6 +4,7 @@ from gym.spaces import Discrete
 
 from hbaselines.base_policies.base import Policy
 from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import get_trainable_vars
 
 
 class DiagGaussianProbabilityDistribution(object):
@@ -193,7 +194,7 @@ class FeedForwardPolicy(Policy):
                 name='terminals1')
             self.rew_ph = tf.compat.v1.placeholder(
                 tf.float32,
-                shape=(None, 1),
+                shape=(None,),
                 name='rewards')
             self.action_ph = tf.compat.v1.placeholder(
                 tf.float32,
@@ -207,6 +208,18 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs1')
+            self.advs_ph = tf.placeholder(
+                tf.float32,
+                shape=(None,),
+                name="advs_ph")
+            self.old_neglog_pac_ph = tf.placeholder(
+                tf.float32,
+                shape=(None,),
+                name="old_neglog_pac_ph")
+            self.old_vpred_ph = tf.placeholder(
+                tf.float32,
+                shape=(None,),
+                name="old_vpred_ph")
 
         # logging of rewards to tensorboard
         with tf.compat.v1.variable_scope("input_info", reuse=False):
@@ -233,6 +246,15 @@ class FeedForwardPolicy(Policy):
                 reuse=False,
                 scope="pi",
             )
+            self.deterministic_action = pi_mean
+
+            # Create a method the log-probability of current actions.
+            pi_std = tf.exp(pi_logstd)
+            self.neglogp = 0.5 * tf.reduce_sum(tf.square(
+                (self.action - pi_mean) / pi_std), axis=-1) \
+                + 0.5 * np.log(2.0 * np.pi) * tf.cast(
+                tf.shape(self.action)[-1], tf.float32) \
+                + tf.reduce_sum(pi_logstd, axis=-1)
 
             # Create the value function.
             self.value_fn = self._create_mlp(
@@ -245,19 +267,27 @@ class FeedForwardPolicy(Policy):
                 reuse=False,
                 scope="vf",
             )
+            self.value_flat = self.value_fn[:, 0]
 
             pdparam = tf.concat([pi_mean, pi_mean * 0.0 + pi_logstd], axis=1)
             self.proba_distribution = DiagGaussianProbabilityDistribution(
                 pdparam)
-            self.policy = pi_mean
+            self.policy_proba = [pi_mean, pi_std]
 
-        with tf.variable_scope("output", reuse=True):
-            self.deterministic_action = self.proba_distribution.mode()
-            self.neglogp = self.proba_distribution.neglogp(self.action)
-            self.policy_proba = [
-                self.proba_distribution.mean,
-                self.proba_distribution.std]
-            self.value_flat = self.value_fn[:, 0]
+        # =================================================================== #
+        # Step 4: Setup the optimizers for the actor and critic.              #
+        # =================================================================== #
+
+        with tf.compat.v1.variable_scope("Optimizer", reuse=False):
+            self._setup_optimizers(scope)
+
+        # =================================================================== #
+        # Step 5: Setup the operations for computing model statistics.        #
+        # =================================================================== #
+
+        # Setup the running means and standard deviations of the model inputs
+        # and outputs.
+        self.stats_ops, self.stats_names = self._setup_stats(scope or "Model")
 
     def _create_mlp(self,
                     input_ph,
@@ -352,6 +382,118 @@ class FeedForwardPolicy(Policy):
                 policy_out = policy
 
         return policy_out
+
+    def _setup_optimizers(self, scope):
+        """TODO."""
+        scope_name = 'model/'
+        if scope is not None:
+            scope_name = scope + '/' + scope_name
+
+        neglogpac = self.proba_distribution.neglogp(self.action_ph)
+        self.entropy = tf.reduce_mean(
+            self.proba_distribution.entropy())
+
+        vpred = self.value_flat
+
+        # Value function clipping: not present in the original PPO
+        if self.cliprange_vf is None:
+            # Default behavior (legacy from OpenAI baselines):
+            # use the same clipping as for the policy
+            self.cliprange_vf = self.cliprange
+
+        if self.cliprange_vf < 0:
+            # Original PPO implementation: no value function clipping.
+            vpred_clipped = self.value_flat
+        else:
+            # Clip the different between old and new value
+            # NOTE: this depends on the reward scaling
+            vpred_clipped = self.old_vpred_ph + tf.clip_by_value(
+                self.value_flat - self.old_vpred_ph,
+                -self.cliprange_vf, self.cliprange_vf)
+
+        vf_losses1 = tf.square(vpred - self.rew_ph)
+        vf_losses2 = tf.square(vpred_clipped - self.rew_ph)
+        self.vf_loss = .5 * tf.reduce_mean(
+            tf.maximum(vf_losses1, vf_losses2))
+
+        ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
+        pg_losses = -self.advs_ph * ratio
+        pg_losses2 = -self.advs_ph * tf.clip_by_value(
+            ratio, 1.0 - self.cliprange, 1.0 + self.cliprange)
+        self.pg_loss = tf.reduce_mean(
+            tf.maximum(pg_losses, pg_losses2))
+        self.approxkl = .5 * tf.reduce_mean(
+            tf.square(neglogpac - self.old_neglog_pac_ph))
+        self.clipfrac = tf.reduce_mean(
+            tf.cast(tf.greater(tf.abs(ratio - 1.0),
+                               self.cliprange), tf.float32))
+        self.loss = self.pg_loss - self.entropy * self.ent_coef \
+            + self.vf_loss * self.vf_coef
+
+        tf.summary.scalar('entropy_loss', self.entropy)
+        tf.summary.scalar('policy_gradient_loss', self.pg_loss)
+        tf.summary.scalar('value_function_loss', self.vf_loss)
+        tf.summary.scalar(
+            'approximate_kullback-leibler', self.approxkl)
+        tf.summary.scalar('clip_factor', self.clipfrac)
+        tf.summary.scalar('loss', self.loss)
+
+        self.params = tf.trainable_variables()
+
+        # Compute the gradients of the loss.
+        grads = tf.gradients(self.loss, get_trainable_vars(scope_name))
+
+        # Perform gradient clipping if requested.
+        if self.max_grad_norm is not None:
+            grads, _grad_norm = tf.clip_by_global_norm(
+                grads, self.max_grad_norm)
+        grads = list(zip(grads, self.params))
+
+        # Create the operation that applies the gradients.
+        self.optimizer = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate,
+            epsilon=1e-5
+        ).apply_gradients(grads)
+
+    def _setup_stats(self, base):
+        """Create the running means and std of the model inputs and outputs.
+
+        This method also adds the same running means and stds as scalars to
+        tensorboard for additional storage.
+        """
+        ops = []
+        names = []
+
+        # ops += [tf.reduce_mean(self.critic_tf[0])]
+        # names += ['{}/reference_Q1_mean'.format(base)]
+        # ops += [reduce_std(self.critic_tf[0])]
+        # names += ['{}/reference_Q1_std'.format(base)]
+        #
+        # ops += [tf.reduce_mean(self.critic_tf[1])]
+        # names += ['{}/reference_Q2_mean'.format(base)]
+        # ops += [reduce_std(self.critic_tf[1])]
+        # names += ['{}/reference_Q2_std'.format(base)]
+        #
+        # ops += [tf.reduce_mean(self.critic_with_actor_tf[0])]
+        # names += ['{}/reference_actor_Q1_mean'.format(base)]
+        # ops += [reduce_std(self.critic_with_actor_tf[0])]
+        # names += ['{}/reference_actor_Q1_std'.format(base)]
+        #
+        # ops += [tf.reduce_mean(self.critic_with_actor_tf[1])]
+        # names += ['{}/reference_actor_Q2_mean'.format(base)]
+        # ops += [reduce_std(self.critic_with_actor_tf[1])]
+        # names += ['{}/reference_actor_Q2_std'.format(base)]
+        #
+        # ops += [tf.reduce_mean(self.actor_tf)]
+        # names += ['{}/reference_action_mean'.format(base)]
+        # ops += [reduce_std(self.actor_tf)]
+        # names += ['{}/reference_action_std'.format(base)]
+        #
+        # # Add all names and ops to the tensorboard summary.
+        # for op, name in zip(ops, names):
+        #     tf.compat.v1.summary.scalar(name, op)
+
+        return ops, names
 
     @property
     def is_discrete(self):

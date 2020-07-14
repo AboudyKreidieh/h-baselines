@@ -68,27 +68,6 @@ def get_globals_vars(name=None):
         tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=name)
 
 
-def outer_scope_getter(scope, new_scope=""):
-    """Remove a scope layer for the getter.
-
-    Parameters
-    ----------
-    scope : str
-        the layer to remove
-    new_scope : str
-        optional replacement name
-
-    Returns
-    -------
-    function (function, str, ``*args``, ``**kwargs``): Tensorflow Tensor
-    """
-    def _getter(getter, name, *args, **kwargs):
-        name = name.replace(scope + "/", new_scope, 1)
-        val = getter(name, *args, **kwargs)
-        return val
-    return _getter
-
-
 def reduce_std(tensor, axis=None, keepdims=False):
     """Get the standard deviation of a Tensor.
 
