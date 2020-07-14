@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from gym.spaces import Discrete
 
 from hbaselines.base_policies.base import Policy
 from hbaselines.utils.tf_util import layer
@@ -228,10 +227,6 @@ class FeedForwardPolicy(Policy):
                 shape=(None,),
                 name="old_vpred_ph")
 
-        # logging of rewards to tensorboard
-        with tf.compat.v1.variable_scope("input_info", reuse=False):
-            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
-
         # =================================================================== #
         # Step 2: Create actor and critic variables.                          #
         # =================================================================== #
@@ -254,8 +249,9 @@ class FeedForwardPolicy(Policy):
                 scope="pi",
             )
             self.deterministic_action = pi_mean
+            self.action_logstd = pi_logstd
 
-            # Create a method the log-probability of current actions.
+            # Create a method the log-probability of current actions.  TODO
             pi_std = tf.exp(pi_logstd)
             self.neglogp = 0.5 * tf.reduce_sum(tf.square(
                 (self.action - pi_mean) / pi_std), axis=-1) \
@@ -276,10 +272,10 @@ class FeedForwardPolicy(Policy):
             )
             self.value_flat = self.value_fn[:, 0]
 
+            # TODO: remove
             pdparam = tf.concat([pi_mean, pi_mean * 0.0 + pi_logstd], axis=1)
             self.proba_distribution = DiagGaussianProbabilityDistribution(
                 pdparam)
-            self.policy_proba = [pi_mean, pi_std]
 
         # =================================================================== #
         # Step 4: Setup the optimizers for the actor and critic.              #
@@ -391,16 +387,13 @@ class FeedForwardPolicy(Policy):
         return policy_out
 
     def _setup_optimizers(self, scope):
-        """TODO."""
+        """Setup the actor and critic optimizers."""
         scope_name = 'model/'
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
         neglogpac = self.proba_distribution.neglogp(self.action_ph)
-        self.entropy = tf.reduce_mean(
-            self.proba_distribution.entropy())
-
-        vpred = self.value_flat
+        self.entropy = tf.reduce_mean(self.proba_distribution.entropy())
 
         # Value function clipping: not present in the original PPO
         if self.cliprange_vf is None:
@@ -418,43 +411,31 @@ class FeedForwardPolicy(Policy):
                 self.value_flat - self.old_vpred_ph,
                 -self.cliprange_vf, self.cliprange_vf)
 
-        vf_losses1 = tf.square(vpred - self.rew_ph)
+        vf_losses1 = tf.square(self.value_flat - self.rew_ph)
         vf_losses2 = tf.square(vpred_clipped - self.rew_ph)
-        self.vf_loss = .5 * tf.reduce_mean(
-            tf.maximum(vf_losses1, vf_losses2))
+        self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
         ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
         pg_losses = -self.advs_ph * ratio
         pg_losses2 = -self.advs_ph * tf.clip_by_value(
             ratio, 1.0 - self.cliprange, 1.0 + self.cliprange)
-        self.pg_loss = tf.reduce_mean(
-            tf.maximum(pg_losses, pg_losses2))
+        self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
         self.approxkl = .5 * tf.reduce_mean(
             tf.square(neglogpac - self.old_neglog_pac_ph))
-        self.clipfrac = tf.reduce_mean(
-            tf.cast(tf.greater(tf.abs(ratio - 1.0),
-                               self.cliprange), tf.float32))
+        self.clipfrac = tf.reduce_mean(tf.cast(tf.greater(
+            tf.abs(ratio - 1.0), self.cliprange), tf.float32))
         self.loss = self.pg_loss - self.entropy * self.ent_coef \
             + self.vf_loss * self.vf_coef
 
-        tf.summary.scalar('entropy_loss', self.entropy)
-        tf.summary.scalar('policy_gradient_loss', self.pg_loss)
-        tf.summary.scalar('value_function_loss', self.vf_loss)
-        tf.summary.scalar(
-            'approximate_kullback-leibler', self.approxkl)
-        tf.summary.scalar('clip_factor', self.clipfrac)
-        tf.summary.scalar('loss', self.loss)
-
-        self.params = tf.trainable_variables()
-
         # Compute the gradients of the loss.
-        grads = tf.gradients(self.loss, get_trainable_vars(scope_name))
+        var_list = get_trainable_vars(scope_name)
+        grads = tf.gradients(self.loss, var_list)
 
         # Perform gradient clipping if requested.
         if self.max_grad_norm is not None:
             grads, _grad_norm = tf.clip_by_global_norm(
                 grads, self.max_grad_norm)
-        grads = list(zip(grads, self.params))
+        grads = list(zip(grads, var_list))
 
         # Create the operation that applies the gradients.
         self.optimizer = tf.train.AdamOptimizer(
@@ -471,41 +452,51 @@ class FeedForwardPolicy(Policy):
         ops = []
         names = []
 
-        # ops += [tf.reduce_mean(self.critic_tf[0])]
-        # names += ['{}/reference_Q1_mean'.format(base)]
-        # ops += [reduce_std(self.critic_tf[0])]
-        # names += ['{}/reference_Q1_std'.format(base)]
-        #
-        # ops += [tf.reduce_mean(self.critic_tf[1])]
-        # names += ['{}/reference_Q2_mean'.format(base)]
-        # ops += [reduce_std(self.critic_tf[1])]
-        # names += ['{}/reference_Q2_std'.format(base)]
-        #
-        # ops += [tf.reduce_mean(self.critic_with_actor_tf[0])]
-        # names += ['{}/reference_actor_Q1_mean'.format(base)]
-        # ops += [reduce_std(self.critic_with_actor_tf[0])]
-        # names += ['{}/reference_actor_Q1_std'.format(base)]
-        #
-        # ops += [tf.reduce_mean(self.critic_with_actor_tf[1])]
-        # names += ['{}/reference_actor_Q2_mean'.format(base)]
-        # ops += [reduce_std(self.critic_with_actor_tf[1])]
-        # names += ['{}/reference_actor_Q2_std'.format(base)]
-        #
-        # ops += [tf.reduce_mean(self.actor_tf)]
-        # names += ['{}/reference_action_mean'.format(base)]
-        # ops += [reduce_std(self.actor_tf)]
-        # names += ['{}/reference_action_std'.format(base)]
-        #
-        # # Add all names and ops to the tensorboard summary.
-        # for op, name in zip(ops, names):
-        #     tf.compat.v1.summary.scalar(name, op)
+        names.append('{}/reference_action_mean'.format(base))
+        ops.append(tf.reduce_mean(self.deterministic_action))
+
+        names.append('{}/reference_action_std'.format(base))
+        ops.append(tf.reduce_mean(self.action_logstd))
+
+        names.append('rewards')
+        ops.append(tf.reduce_mean(self.rew_ph))
+
+        names.append('advantage')
+        ops.append(tf.reduce_mean(self.advs_ph))
+
+        names.append('old_neglog_action_probability')
+        ops.append(tf.reduce_mean(self.old_neglog_pac_ph))
+
+        names.append('old_value_pred')
+        ops.append(tf.reduce_mean(self.old_vpred_ph))
+
+        names.append('entropy_loss')
+        ops.append(self.entropy)
+
+        names.append('policy_gradient_loss')
+        ops.append(self.pg_loss)
+
+        names.append('value_function_loss')
+        ops.append(self.vf_loss)
+
+        names.append('approximate_kullback-leibler')
+        ops.append(self.approxkl)
+
+        names.append('clip_factor')
+        ops.append(self.clipfrac)
+
+        names.append('loss')
+        ops.append(self.loss)
+
+        # Add all names and ops to the tensorboard summary.
+        for op, name in zip(ops, names):
+            tf.compat.v1.summary.scalar(name, op)
 
         return ops, names
 
-    @property
-    def is_discrete(self):
-        """bool: is action space discrete."""
-        return isinstance(self.ac_space, Discrete)
+    def initialize(self):
+        """See parent class."""
+        pass
 
     def step(self, obs, deterministic=False):
         """
@@ -518,27 +509,11 @@ class FeedForwardPolicy(Policy):
         :return: ([float], [float], [float], [float]) actions, values, states,
             neglogp
         """
-        if deterministic:
-            action, value, neglogp = self.sess.run(
-                [self.deterministic_action, self.value_flat, self.neglogp],
-                {self.obs_ph: obs}
-            )
-        else:
-            action, value, neglogp = self.sess.run(
-                [self.action, self.value_flat, self.neglogp],
-                {self.obs_ph: obs}
-            )
-        return action, value, neglogp
-
-    def proba_step(self, obs):
-        """
-        Returns the action probability for a single step
-
-        :param obs: ([float] or [int]) The current observation of the
-            environment
-        :return: ([float]) the action probability
-        """
-        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
+        return self.sess.run(
+            [self.deterministic_action if deterministic else self.action,
+             self.value_flat, self.neglogp],
+            {self.obs_ph: obs}
+        )
 
     def value(self, obs):
         """

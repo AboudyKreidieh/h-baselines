@@ -7,18 +7,27 @@ Supported algorithms through this class:
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
 """
+import ray
+import os
 import time
+import csv
 import random
 import numpy as np
 import tensorflow as tf
-import gym
+import math
 from collections import deque
+from copy import deepcopy
+from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
-from hbaselines.utils.misc import explained_variance
+from hbaselines.algorithms.utils import add_fingerprint
+from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
+from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.env_util import create_env
+from hbaselines.utils.misc import explained_variance
 
 from stable_baselines.common.runners import AbstractEnvRunner
 
@@ -144,13 +153,20 @@ class OnPolicyRLAlgorithm(object):
     def __init__(self,
                  policy,
                  env,
+                 eval_env=None,
                  n_steps=128,
-                 nminibatches=4,
-                 noptepochs=4,
+                 n_eval_episodes=50,
+                 nminibatches=4,  # TODO: remove
+                 noptepochs=4,  # TODO: remove
+                 meta_update_freq=10,
+                 reward_scale=1.,
+                 render=False,
+                 render_eval=False,
+                 eval_deterministic=True,
+                 num_envs=1,
                  verbose=0,
-                 _init_setup_model=True,
                  policy_kwargs=None,
-                 seed=None):
+                 _init_setup_model=True):
         """Instantiate the algorithm object.
 
         Parameters
@@ -159,11 +175,23 @@ class OnPolicyRLAlgorithm(object):
             TODO
         env : TODO
             TODO
+        eval_env : TODO
+            TODO
         n_steps : TODO
             TODO
-        nminibatches : TODO
+        n_eval_episodes : TODO
             TODO
-        noptepochs : TODO
+        meta_update_freq : TODO
+            TODO
+        reward_scale : TODO
+            TODO
+        render : TODO
+            TODO
+        render_eval : TODO
+            TODO
+        eval_deterministic : TODO
+            TODO
+        num_envs : TODO
             TODO
         verbose : TODO
             TODO
@@ -171,22 +199,48 @@ class OnPolicyRLAlgorithm(object):
             TODO
         policy_kwargs : TODO
             TODO
-        seed : TODO
-            TODO
         """
+        shared = False if policy_kwargs is None else \
+            policy_kwargs.get("shared", False)
+        maddpg = False if policy_kwargs is None else \
+            policy_kwargs.get("maddpg", False)
+
+        # Run assertions.
+        assert num_envs <= n_steps, \
+            "num_envs must be less than or equal to nb_rollout_steps"
+
+        # Instantiate the ray instance.
+        if num_envs > 1:
+            ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
+
         self.policy = policy
-        self.env = env
+        self.env_name = deepcopy(env) if isinstance(env, str) \
+            else env.__str__()
+        self.eval_env, _ = create_env(
+            eval_env, render_eval, shared, maddpg, evaluate=True)
         self.n_steps = n_steps
-        self.nminibatches = nminibatches
-        self.noptepochs = noptepochs
+        self.n_eval_episodes = n_eval_episodes
+        self.n_eval_episodes = n_eval_episodes
+        self.meta_update_freq = meta_update_freq
+        self.reward_scale = reward_scale
+        self.render = render
+        self.render_eval = render_eval
+        self.eval_deterministic = eval_deterministic
+        self.num_envs = num_envs
+        self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
-        self.initial_state = None
+        self.nminibatches = nminibatches  # TODO: remove
+        self.noptepochs = noptepochs  # TODO: remove
+        self.initial_state = None  # TODO: remove
+
+        # Create the environment and collect the initial observations.
+        self.sampler, self.obs, self.all_obs = self.setup_sampler(
+            env, render, shared, maddpg)
 
         # Collect the spaces of the environments.
-        self.observation_space = env.observation_space
-        self.action_space = env.action_space
-        all_ob_space = None
+        self.ac_space, self.ob_space, self.co_space, all_ob_space = \
+            self.get_spaces()
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):
@@ -203,26 +257,34 @@ class OnPolicyRLAlgorithm(object):
 
         self.policy_kwargs.update(policy_kwargs or {})
 
-        self.model = None
-        self.value = None
-        self.summary = None
-        self._runner = None
-        self.step = None
-
-        self.verbose = verbose
-        self._vectorize_action = False
-        self.num_timesteps = 0
+        # init
         self.graph = None
         self.sess = None
+        self.policy_tf = None
+        self.summary = None
+
+        # TODO: remove
+        self.value = None
+        self.step = None
+        self.env = env
+        self.num_timesteps = 0
         self.params = None
-        self.seed = seed
-        self._param_load_ops = None
-        self.episode_reward = None
         self.episode_reward = None
         self.ep_info_buf = None
 
+        if self.policy_kwargs.get("use_fingerprints", False):
+            # Append the fingerprint dimension to the observation dimension.
+            fingerprint_range = self.policy_kwargs["fingerprint_range"]
+            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
+            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
+            self.ob_space = Box(low, high, dtype=np.float32)
+
+            # Add the fingerprint term to the first observation.
+            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
+
+        # Create the model variables and operations.
         if _init_setup_model:
-            self.setup_model()
+            self.trainable_vars = self.setup_model()
 
         self.runner = Runner(
             env=self.env,
@@ -232,42 +294,140 @@ class OnPolicyRLAlgorithm(object):
             lam=self.policy_kwargs["lam"],
         )
 
+    def setup_sampler(self, env, render, shared, maddpg):
+        """Create the environment and collect the initial observations.
+
+        Parameters
+        ----------
+        env : str
+            the name of the environment
+        render : bool
+            whether to render the environment
+        shared : bool
+            specifies whether agents in an environment are meant to share
+            policies. This is solely used by multi-agent Flow environments.
+        maddpg : bool
+            whether to use an environment variant that is compatible with the
+            MADDPG algorithm
+
+        Returns
+        -------
+        list of Sampler or list of RaySampler
+            the sampler objects
+        list of array_like or list of dict < str, array_like >
+            the initial observation. If the environment is multi-agent, this
+            will be a dictionary of observations for each agent, indexed by the
+            agent ID. One element for each environment.
+        list of array_like or list of None
+            additional information, used by MADDPG variants of the multi-agent
+            policy to pass full-state information. One element for each
+            environment
+        """
+        if self.num_envs > 1:
+            from hbaselines.utils.sampler import RaySampler
+            sampler = [
+                RaySampler.remote(
+                    env_name=env,
+                    render=render,
+                    shared=shared,
+                    maddpg=maddpg,
+                    env_num=env_num,
+                    evaluate=False,
+                )
+                for env_num in range(self.num_envs)
+            ]
+            ob = ray.get([s.get_init_obs.remote() for s in sampler])
+        else:
+            from hbaselines.utils.sampler import Sampler
+            sampler = [
+                Sampler(
+                    env_name=env,
+                    render=render,
+                    shared=shared,
+                    maddpg=maddpg,
+                    env_num=0,
+                    evaluate=False,
+                )
+            ]
+            ob = [s.get_init_obs() for s in sampler]
+
+        # Separate the observation and full-state observation.
+        obs = [get_obs(o)[0] for o in ob]
+        all_obs = [get_obs(o)[1] for o in ob]
+
+        return sampler, obs, all_obs
+
+    def get_spaces(self):
+        """Collect the spaces of the environments.
+
+        Returns
+        -------
+        gym.spaces.*
+            the action space of the training environment
+        gym.spaces.*
+            the observation space of the training environment
+        gym.spaces.* or None
+            the context space of the training environment (i.e. the same of the
+            desired environmental goal)
+        gym.spaces.* or None
+            the full-state observation space of the training environment
+        """
+        sampler = self.sampler[0]
+
+        if self.num_envs > 1:
+            ac_space = ray.get(sampler.action_space.remote())
+            ob_space = ray.get(sampler.observation_space.remote())
+            co_space = ray.get(sampler.context_space.remote())
+            all_ob_space = ray.get(sampler.all_observation_space.remote())
+        else:
+            ac_space = sampler.action_space()
+            ob_space = sampler.observation_space()
+            co_space = sampler.context_space()
+            all_ob_space = sampler.all_observation_space()
+
+        return ac_space, ob_space, co_space, all_ob_space
+
     def setup_model(self):
         self.graph = tf.Graph()
         with self.graph.as_default():
-            # Setup the seed value.
-            random.seed(self.seed)
-            np.random.seed(self.seed)
-            tf.compat.v1.set_random_seed(self.seed)
-
+            # Create the tensorflow session.
             self.sess = make_session(num_cpu=3, graph=self.graph)
 
-            model = self.policy(
+            # Create the policy.
+            self.policy_tf = self.policy(
                 sess=self.sess,
-                ob_space=self.observation_space,
-                ac_space=self.action_space,
+                ob_space=self.ob_space,
+                ac_space=self.ac_space,
                 co_space=None,  # FIXME
                 reuse=False,
                 **self.policy_kwargs
             )
 
-            with tf.variable_scope("input_info", reuse=False):
-                tf.summary.scalar('discounted_rewards', tf.reduce_mean(
-                    model.rew_ph))
-                tf.summary.scalar('advantage', tf.reduce_mean(
-                    model.advs_ph))
+            # for tensorboard logging
+            with tf.compat.v1.variable_scope("Train"):
+                self.rew_ph = tf.compat.v1.placeholder(tf.float32)
+                self.rew_history_ph = tf.compat.v1.placeholder(tf.float32)
 
-                tf.summary.scalar('old_neglog_action_probability',
-                                  tf.reduce_mean(model.old_neglog_pac_ph))
-                tf.summary.scalar('old_value_pred',
-                                  tf.reduce_mean(model.old_vpred_ph))
+            # Add tensorboard scalars for the return, return history, and
+            # success rate.
+            tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
+            tf.compat.v1.summary.scalar("Train/return_history",
+                                        self.rew_history_ph)
 
-            self.model = model
-            self.step = model.step
-            self.value = model.value
-            tf.global_variables_initializer().run(session=self.sess)
+            # Create the tensorboard summary.
+            self.summary = tf.compat.v1.summary.merge_all()
 
-            self.summary = tf.summary.merge_all()
+            self.model = self.policy_tf  # TODO: remove
+            self.step = self.policy_tf.step  # TODO: remove
+            self.value = self.policy_tf.value  # TODO: remove
+
+            # Initialize the model parameters and optimizers.
+            with self.sess.as_default():
+                self.sess.run(tf.compat.v1.global_variables_initializer())
+                self.policy_tf.initialize()
+
+            return tf.compat.v1.get_collection(
+                tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
     def learn(self, total_timesteps, log_interval=1):
         # Transform to callable if needed
@@ -405,7 +565,7 @@ class Runner(AbstractEnvRunner):
             mb_dones.append(self.dones)
             clipped_actions = actions
             # Clip the actions to avoid out of bound error
-            if isinstance(self.env.action_space, gym.spaces.Box):
+            if isinstance(self.env.action_space, Box):
                 clipped_actions = np.clip(
                     actions,
                     self.env.action_space.low,
