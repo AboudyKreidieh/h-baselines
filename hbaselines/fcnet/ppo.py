@@ -96,12 +96,10 @@ class FeedForwardPolicy(Policy):
                  layers,
                  act_fun,
                  use_huber,
-                 gamma,
                  learning_rate,
                  ent_coef,
                  vf_coef,
                  max_grad_norm,
-                 lam,
                  cliprange,
                  cliprange_vf,
                  scope=None,
@@ -166,12 +164,10 @@ class FeedForwardPolicy(Policy):
             use_huber=use_huber,
         )
 
-        self.gamma = gamma
         self.learning_rate = learning_rate
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
         self.max_grad_norm = max_grad_norm
-        self.lam = lam
         self.cliprange = cliprange
         self.cliprange_vf = cliprange_vf
         self.zero_fingerprint = zero_fingerprint
@@ -492,14 +488,7 @@ class FeedForwardPolicy(Policy):
         """
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
-    def update(self,
-               obs,
-               returns,
-               masks,
-               actions,
-               values,
-               neglogpacs,
-               states=None):
+    def update(self, obs, returns, actions, values, neglogpacs):
         """Training of PPO2 Algorithm
 
         :param obs: (np.ndarray) The current observation of the environment
