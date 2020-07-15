@@ -27,7 +27,6 @@ from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.env_util import create_env
-from hbaselines.utils.misc import explained_variance
 
 
 # =========================================================================== #
@@ -119,15 +118,15 @@ class OnPolicyRLAlgorithm(object):
 
     Attributes
     ----------
-    policy : TODO
-        TODO
+    policy : type [ hbaselines.base_policies.Policy ]
+        the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
     n_steps : int
-        TODO
+        number of steps to sample in between training operations
     n_minibatches : int
         number of training minibatches per update
     n_opt_epochs : int
@@ -176,7 +175,7 @@ class OnPolicyRLAlgorithm(object):
         desired environmental goal)
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : TODO
+    policy_tf : hbaselines.base_policies.Policy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -244,14 +243,14 @@ class OnPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        policy : TODO
+        policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         n_steps : int
-            TODO
+            number of steps to sample in between training operations
         n_minibatches : int
             number of training minibatches per update
         n_opt_epochs : int
@@ -576,16 +575,10 @@ class OnPolicyRLAlgorithm(object):
                 rollout = self._collect_samples(total_steps)
 
                 # Train.
-                mb_loss_vals = self._train(**rollout)
+                self._train(**rollout)
 
                 # Log statistics.
-                self._log_training(
-                    train_filepath,
-                    mb_loss_vals,
-                    rollout["mb_values"],
-                    rollout["mb_returns"],
-                    start_time,
-                )
+                self._log_training(train_filepath, start_time)
 
                 # Run and store summary.
                 if writer is not None:
@@ -848,25 +841,26 @@ class OnPolicyRLAlgorithm(object):
         }
 
     def _gae_returns(self, mb_rewards, mb_values, mb_dones, obs, context):
-        """TODO.
+        """Compute the bootstrapped/discounted returns.
 
         Parameters
         ----------
-        mb_rewards : TODO
-            TODO
-        mb_values : TODO
-            TODO
-        mb_dones : TODO
-            TODO
-        obs : TODO
-            TODO
-        context : TODO
-            TODO
+        mb_rewards : array_like
+            a minibatch of rewards from a given environment
+        mb_values : array_like
+            a minibatch of values computed by the policy from a given
+            environment
+        mb_dones : array_like
+            a minibatch of done masks from a given environment
+        obs : array_like
+            the current observation within the environment
+        context : array_like or None
+            the current contextual term within the environment
 
         Returns
         -------
-        TODO
-            TODO
+        array_like
+            GAE-style expected discounted returns.
         """
         # Compute the last estimated value.
         last_values = self.policy_tf.value([obs], context)
@@ -901,24 +895,25 @@ class OnPolicyRLAlgorithm(object):
                mb_values,
                mb_neglogpacs,
                mb_all_obs):
-        """TODO.
+        """Perform the training operation.
 
         Parameters
         ----------
-        mb_obs : TODO
-            TODO
-        mb_contexts : TODO
-            TODO
-        mb_returns : TODO
-            TODO
-        mb_actions : TODO
-            TODO
-        mb_values : TODO
-            TODO
-        mb_neglogpacs : TODO
-            TODO
-        mb_all_obs : TODO
-            TODO
+        mb_obs : array_like
+            a minibatch of observations
+        mb_contexts : array_like
+            a minibatch of contextual terms
+        mb_returns : array_like
+            a minibatch of contextual expected discounted retuns
+        mb_actions : array_like
+            a minibatch of actions
+        mb_values : array_like
+            a minibatch of estimated values by the policy
+        mb_neglogpacs : array_like
+            a minibatch of the negative log-likelihood of performed actions
+        mb_all_obs : array_like or None
+            a minibatch of full-state observations. Used by the multi-agent
+            MADDPG policies.
 
         Returns
         -------
@@ -927,14 +922,13 @@ class OnPolicyRLAlgorithm(object):
         """
         batch_size = self.n_steps // self.n_minibatches
 
-        mb_loss_vals = []
         inds = np.arange(self.n_steps)
         for epoch_num in range(self.n_opt_epochs):
             np.random.shuffle(inds)
             for start in range(0, self.n_steps, batch_size):
                 end = start + batch_size
                 mbinds = inds[start:end]
-                mb_loss_vals.append(self.policy_tf.update(
+                self.policy_tf.update(
                     obs=mb_obs[mbinds],
                     context=None if mb_contexts[0] is None
                     else mb_contexts[mbinds],
@@ -942,37 +936,22 @@ class OnPolicyRLAlgorithm(object):
                     actions=mb_actions[mbinds],
                     values=mb_values[mbinds],
                     neglogpacs=mb_neglogpacs[mbinds],
-                ))
+                )
 
-        return mb_loss_vals
-
-    def _log_training(self,
-                      file_path,
-                      mb_loss_vals,
-                      values,
-                      returns,
-                      start_time):
-        """TODO.
+    def _log_training(self, file_path, start_time):
+        """Log training statistics.
 
         Parameters
         ----------
-        file_path : TODO
-            TODO
-        mb_loss_vals : TODO
-            TODO
-        values : TODO
-            TODO
-        returns : TODO
-            TODO
-        start_time : TODO
-            TODO
+        file_path : str
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        start_time : float
+            the time when training began. This is used to print the total
+            training time.
         """
         # Log statistics.
         duration = time.time() - start_time
-        explained_var = explained_variance(values, returns)
-        loss_names = ['policy_loss', 'value_loss', 'policy_entropy',
-                      'approxkl', 'clipfrac']
-        loss_vals = np.mean(mb_loss_vals, axis=0)
 
         combined_stats = {
             # Rollout statistics.
@@ -980,7 +959,6 @@ class OnPolicyRLAlgorithm(object):
             'rollout/episode_steps': np.mean(self.epoch_episode_steps),
             'rollout/return': np.mean(self.epoch_episode_rewards),
             'rollout/return_history': np.mean(self.episode_rew_history),
-            "rollout/explained_variance": float(explained_var),
 
             # Total statistics.
             'total/epochs': self.epoch + 1,
@@ -989,8 +967,6 @@ class OnPolicyRLAlgorithm(object):
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,
         }
-        for (loss_val, loss_name) in zip(loss_vals, loss_names):
-            combined_stats["loss/{}".format(loss_name)] = loss_val
 
         # Save combined_stats in a csv file.
         if file_path is not None:

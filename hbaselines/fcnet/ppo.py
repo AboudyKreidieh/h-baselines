@@ -5,6 +5,7 @@ import tensorflow as tf
 from hbaselines.base_policies.base import Policy
 from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.tf_util import explained_variance
 
 
 class FeedForwardPolicy(Policy):
@@ -29,48 +30,53 @@ class FeedForwardPolicy(Policy):
         IMPORTANT: this clipping depends on the reward scaling. To deactivate
         value function clipping (and recover the original PPO implementation),
         you have to pass a negative value (e.g. -1).
-    zero_fingerprint : TODO
-        TODO
-    fingerprint_dim : TODO
-        TODO
+    zero_fingerprint : bool
+        whether to zero the last two elements of the observations for the actor
+        and critic computations. Used for the worker policy when fingerprints
+        are being implemented.
+    fingerprint_dim : bool
+        the number of fingerprint elements in the observation. Used when trying
+        to zero the fingerprint elements.
     rew_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the rewards / discounted returns
     action_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the actions
     obs_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the observations
     advs_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the advantages
     old_neglog_pac_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the negative-log probability of the actions that were
+        performed
     old_vpred_ph : tf.compat.v1.placeholder
-        TODO
+        placeholder for the current predictions of the values of given states
     action : tf.Variable
-        TODO
+        the output from the policy/actor
     pi_mean : tf.Variable
-        TODO
+        the output from the policy's mean term
     pi_logstd : tf.Variable
-        TODO
+        the output from the policy's log-std term
     pi_std : tf.Variable
-        TODO
+        the expnonential of the pi_logstd term
     neglogp : tf.Variable
-        TODO
+        a differentiable form of the negative log-probability of actions by the
+        current policy
     value_fn : tf.Variable
-        TODO
+        the output from the value function
     value_flat : tf.Variable
-        TODO
+        a one-dimensional (vector) version of value_fn
     entropy : tf.Variable
-        TODO
+        computes the entropy of actions performed by the policy
     vf_loss : tf.Variable
-        TODO
+        the output from the computed value function loss of a batch of data
     pg_loss : tf.Variable
-        TODO
+        the output from the computed policy gradient loss of a batch of data
     approxkl : tf.Variable
-        TODO
+        computes the KL-divergence between two models
     loss : tf.Variable
-        TODO
+        the output from the computed loss of a batch of data
     optimizer : tf.Operation
-        TODO
+        the operation that updates the trainable parameters of the actor
     """
 
     def __init__(self,
@@ -268,9 +274,9 @@ class FeedForwardPolicy(Policy):
         layer_norm : bool
             enable layer normalisation
         reuse : bool
-            TODO
+            whether or not to reuse parameters
         scope : str
-            TODO
+            the scope name of the actor
 
         Returns
         -------
@@ -335,7 +341,7 @@ class FeedForwardPolicy(Policy):
         return policy_out
 
     def _neglogp(self, x):
-        """TODO."""
+        """Compute the negative log-probability of an input action (x)."""
         return 0.5 * tf.reduce_sum(
             tf.square((x - self.pi_mean) / self.pi_std), axis=-1) \
             + 0.5 * np.log(2.0 * np.pi) \
@@ -421,6 +427,8 @@ class FeedForwardPolicy(Policy):
             'approximate_kullback-leibler': self.approxkl,
             'clip_factor': self.clipfrac,
             'loss': self.loss,
+            'explained_variance': explained_variance(
+                self.old_vpred_ph, self.rew_ph)
         }
 
         # Add all names and ops to the tensorboard summary.
