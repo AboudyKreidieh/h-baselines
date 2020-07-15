@@ -24,10 +24,6 @@ class Policy(object):
         the size of the Neural network for the policy
     act_fun : tf.nn.*
         the activation function to use in the neural network
-    use_huber : bool
-        specifies whether to use the huber distance function as the loss for
-        the critic. If set to False, the mean-squared error metric is used
-        instead
     """
 
     def __init__(self,
@@ -38,8 +34,7 @@ class Policy(object):
                  verbose,
                  layer_norm,
                  layers,
-                 act_fun,
-                 use_huber):
+                 act_fun):
         """Instantiate the base policy object.
 
         Parameters
@@ -61,10 +56,6 @@ class Policy(object):
             the size of the Neural network for the policy
         act_fun : tf.nn.*
             the activation function to use in the neural network
-        use_huber : bool
-            specifies whether to use the huber distance function as the loss
-            for the critic. If set to False, the mean-squared error metric is
-            used instead
         """
         self.sess = sess
         self.ob_space = ob_space
@@ -74,7 +65,6 @@ class Policy(object):
         self.layers = layers
         self.layer_norm = layer_norm
         self.act_fun = act_fun
-        self.use_huber = use_huber
 
     def initialize(self):
         """Initialize the policy.
@@ -84,14 +74,39 @@ class Policy(object):
         """
         raise NotImplementedError
 
-    def update(self, update_actor=True, **kwargs):
+    def update(self, obs, context, returns, actions, values, neglogpacs):
         """Perform a gradient update step.
 
         Parameters
         ----------
-        update_actor : bool
-            specifies whether to update the actor policy. The critic policy is
-            still updated if this value is set to False.
+        obs : array_like
+            the current observation of the environment
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        returns : array_like
+            the rewards
+        actions : array_like
+            the actions
+        values : array_like
+            the values
+        neglogpacs : array_like
+            negative log-likelihood probability of actions
+
+        Returns
+        -------
+        float
+            policy gradient loss
+        float
+            value function loss
+        float
+            policy entropy
+        float
+            approximation of kl divergence
+        float
+            updated clipping range
+        float
+            training update operation
         """
         raise NotImplementedError
 
@@ -123,8 +138,25 @@ class Policy(object):
         """
         raise NotImplementedError
 
-    def get_td_map(self):
-        """Return dict map for the summary (to be run in the algorithm)."""
+    def get_td_map(self, obs, context, returns, actions, values, neglogpacs):
+        """Return dict map for the summary (to be run in the algorithm).
+
+        Parameters
+        ----------
+        obs : array_like
+            the current observation of the environment
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        returns : array_like
+            the rewards
+        actions : array_like
+            the actions
+        values : array_like
+            the values
+        neglogpacs : array_like
+            negative log-likelihood probability of actions
+        """
         raise NotImplementedError
 
     @staticmethod

@@ -1,3 +1,4 @@
+"""PPO-compatible feedforward policy."""
 import numpy as np
 import tensorflow as tf
 
@@ -6,85 +7,71 @@ from hbaselines.utils.tf_util import layer
 from hbaselines.utils.tf_util import get_trainable_vars
 
 
-class DiagGaussianProbabilityDistribution(object):
-
-    def __init__(self, flat):
-        """
-        Probability distributions from multivariate Gaussian input
-
-        :param flat: ([float]) the multivariate Gaussian input data
-        """
-        self.flat = flat
-        mean, logstd = tf.split(axis=len(flat.shape) - 1, num_or_size_splits=2,
-                                value=flat)
-        self.mean = mean
-        self.logstd = logstd
-        self.std = tf.exp(logstd)
-
-    def flatparam(self):
-        return self.flat
-
-    def mode(self):
-        # Bounds are taken into account outside this class (during training
-        # only)
-        return self.mean
-
-    def neglogp(self, x):
-        return 0.5 * tf.reduce_sum(tf.square((x - self.mean) / self.std),
-                                   axis=-1) \
-               + 0.5 * np.log(2.0 * np.pi) * tf.cast(tf.shape(x)[-1],
-                                                     tf.float32) \
-               + tf.reduce_sum(self.logstd, axis=-1)
-
-    def kl(self, other):
-        assert isinstance(other, DiagGaussianProbabilityDistribution)
-        return tf.reduce_sum(other.logstd - self.logstd + (
-                    tf.square(self.std) + tf.square(self.mean - other.mean)) /
-                             (2.0 * tf.square(other.std)) - 0.5, axis=-1)
-
-    def entropy(self):
-        return tf.reduce_sum(self.logstd + .5 * np.log(2.0 * np.pi * np.e),
-                             axis=-1)
-
-    def sample(self):
-        # Bounds are taken into acount outside this class (during training
-        # only) Otherwise, it changes the distribution and breaks PPO2 for
-        # instance
-        return self.mean + self.std * tf.random_normal(tf.shape(self.mean),
-                                                       dtype=self.mean.dtype)
-
-    @classmethod
-    def fromflat(cls, flat):
-        """
-        Create an instance of this from new multivariate Gaussian input
-
-        :param flat: ([float]) the multivariate Gaussian input data
-        :return: (ProbabilityDistribution) the instance from the given
-            multivariate Gaussian input data
-        """
-        return cls(flat)
-
-    def logp(self, x):
-        """
-        returns the of the log likelihood
-
-        :param x: (str) the labels of each index
-        :return: ([float]) The log likelihood of the distribution
-        """
-        return - self.neglogp(x)
-
-
 class FeedForwardPolicy(Policy):
-    """
-    Policy object that implements actor critic
+    """Feed-forward neural network policy.
 
-    :param sess: (TensorFlow session) The current TensorFlow session
-    :param ob_space: (Gym Space) The observation space of the environment
-    :param ac_space: (Gym Space) The action space of the environment
-    :param reuse: (bool) If the policy is reusable or not
+    Attributes
+    ----------
+    learning_rate : float
+        the learning rate
+    ent_coef : float
+        entropy coefficient for the loss calculation
+    vf_coef : float
+        value function coefficient for the loss calculation
+    max_grad_norm : float
+        the maximum value for the gradient clipping
+    cliprange : float or callable
+        clipping parameter, it can be a function
+    cliprange_vf : float or callable
+        clipping parameter for the value function, it can be a function. This
+        is a parameter specific to the OpenAI implementation. If None is passed
+        (default), then `cliprange` (that is used for the policy) will be used.
+        IMPORTANT: this clipping depends on the reward scaling. To deactivate
+        value function clipping (and recover the original PPO implementation),
+        you have to pass a negative value (e.g. -1).
+    zero_fingerprint : TODO
+        TODO
+    fingerprint_dim : TODO
+        TODO
+    rew_ph : tf.compat.v1.placeholder
+        TODO
+    action_ph : tf.compat.v1.placeholder
+        TODO
+    obs_ph : tf.compat.v1.placeholder
+        TODO
+    advs_ph : tf.compat.v1.placeholder
+        TODO
+    old_neglog_pac_ph : tf.compat.v1.placeholder
+        TODO
+    old_vpred_ph : tf.compat.v1.placeholder
+        TODO
+    action : tf.Variable
+        TODO
+    pi_mean : tf.Variable
+        TODO
+    pi_logstd : tf.Variable
+        TODO
+    pi_std : tf.Variable
+        TODO
+    neglogp : tf.Variable
+        TODO
+    value_fn : tf.Variable
+        TODO
+    value_flat : tf.Variable
+        TODO
+    entropy : tf.Variable
+        TODO
+    vf_loss : tf.Variable
+        TODO
+    pg_loss : tf.Variable
+        TODO
+    approxkl : tf.Variable
+        TODO
+    loss : tf.Variable
+        TODO
+    optimizer : tf.Operation
+        TODO
     """
-
-    recurrent = False
 
     def __init__(self,
                  sess,
@@ -95,7 +82,6 @@ class FeedForwardPolicy(Policy):
                  layer_norm,
                  layers,
                  act_fun,
-                 use_huber,
                  learning_rate,
                  ent_coef,
                  vf_coef,
@@ -103,33 +89,29 @@ class FeedForwardPolicy(Policy):
                  cliprange,
                  cliprange_vf,
                  scope=None,
-                 reuse=False,
                  zero_fingerprint=False,
                  fingerprint_dim=2):
         """Instantiate the policy object.
 
         Parameters
         ----------
-        sess : TODO
-            TODO
-        ob_space : TODO
-            TODO
-        ac_space : TODO
-            TODO
-        co_space : TODO
-            TODO
-        verbose : TODO
-            TODO
-        layer_norm : TODO
-            TODO
-        layers : TODO
-            TODO
-        act_fun : TODO
-            TODO
-        use_huber : TODO
-            TODO
-        gamma : float
-            discount factor
+        sess : tf.compat.v1.Session
+            the current TensorFlow session
+        ob_space : gym.spaces.*
+            the observation space of the environment
+        ac_space : gym.spaces.*
+            the action space of the environment
+        co_space : gym.spaces.*
+            the context space of the environment
+        verbose : int
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
+        layer_norm : bool
+            enable layer normalisation
+        layers : list of int or None
+            the size of the Neural network for the policy
+        act_fun : tf.nn.*
+            the activation function to use in the neural network
         learning_rate : float
             the learning rate
         ent_coef : float
@@ -138,9 +120,6 @@ class FeedForwardPolicy(Policy):
             value function coefficient for the loss calculation
         max_grad_norm : float
             the maximum value for the gradient clipping
-        lam : float
-            factor for trade-off of bias vs variance for Generalized Advantage
-            Estimator
         cliprange : float or callable
             clipping parameter, it can be a function
         cliprange_vf : float or callable
@@ -161,7 +140,6 @@ class FeedForwardPolicy(Policy):
             layer_norm=layer_norm,
             layers=layers,
             act_fun=act_fun,
-            use_huber=use_huber,
         )
 
         self.learning_rate = learning_rate
@@ -182,10 +160,6 @@ class FeedForwardPolicy(Policy):
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
-            self.terminals1 = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None, 1),
-                name='terminals1')
             self.rew_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
@@ -198,10 +172,6 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs0')
-            self.obs1_ph = tf.compat.v1.placeholder(
-                tf.float32,
-                shape=(None,) + ob_dim,
-                name='obs1')
             self.advs_ph = tf.placeholder(
                 tf.float32,
                 shape=(None,),
@@ -219,14 +189,10 @@ class FeedForwardPolicy(Policy):
         # Step 2: Create actor and critic variables.                          #
         # =================================================================== #
 
-        self.reuse = reuse
-        self._action = None
-        self._deterministic_action = None
-
         # Create networks and core TF parts that are shared across setup parts.
-        with tf.variable_scope("model", reuse=reuse):
+        with tf.variable_scope("model", reuse=False):
             # Create the policy.
-            self.action, pi_mean, pi_logstd = self._create_mlp(
+            self.action, self.pi_mean, self.pi_logstd = self._create_mlp(
                 input_ph=self.obs_ph,
                 num_output=self.ac_space.shape[0],
                 layers=self.layers,
@@ -236,16 +202,10 @@ class FeedForwardPolicy(Policy):
                 reuse=False,
                 scope="pi",
             )
-            self.deterministic_action = pi_mean
-            self.action_logstd = pi_logstd
+            self.pi_std = tf.exp(self.pi_logstd)
 
-            # Create a method the log-probability of current actions.  TODO
-            pi_std = tf.exp(pi_logstd)
-            self.neglogp = 0.5 * tf.reduce_sum(tf.square(
-                (self.action - pi_mean) / pi_std), axis=-1) \
-                + 0.5 * np.log(2.0 * np.pi) * tf.cast(
-                tf.shape(self.action)[-1], tf.float32) \
-                + tf.reduce_sum(pi_logstd, axis=-1)
+            # Create a method the log-probability of current actions.
+            self.neglogp = self._neglogp(self.action)
 
             # Create the value function.
             self.value_fn = self._create_mlp(
@@ -260,14 +220,16 @@ class FeedForwardPolicy(Policy):
             )
             self.value_flat = self.value_fn[:, 0]
 
-            # TODO: remove
-            pdparam = tf.concat([pi_mean, pi_mean * 0.0 + pi_logstd], axis=1)
-            self.proba_distribution = DiagGaussianProbabilityDistribution(
-                pdparam)
-
         # =================================================================== #
         # Step 4: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
+
+        self.entropy = None
+        self.vf_loss = None
+        self.pg_loss = None
+        self.approxkl = None
+        self.loss = None
+        self.optimizer = None
 
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_optimizers(scope)
@@ -296,15 +258,15 @@ class FeedForwardPolicy(Policy):
         num_output : int
             number of output elements from the model
         layers : list of int
-            TODO
+            the size of the Neural network for the policy
         act_fun : tf.nn.*
-            TODO
+            the activation function to use in the neural network
         stochastic : bool
             whether the output should be stochastic or deterministic. If
             stochastic, a tuple of two elements is returned (the mean and
             logstd)
         layer_norm : bool
-            TODO
+            enable layer normalisation
         reuse : bool
             TODO
         scope : str
@@ -372,14 +334,24 @@ class FeedForwardPolicy(Policy):
 
         return policy_out
 
+    def _neglogp(self, x):
+        """TODO."""
+        return 0.5 * tf.reduce_sum(
+            tf.square((x - self.pi_mean) / self.pi_std), axis=-1) \
+            + 0.5 * np.log(2.0 * np.pi) \
+            * tf.cast(tf.shape(x)[-1], tf.float32) \
+            + tf.reduce_sum(self.pi_logstd, axis=-1)
+
     def _setup_optimizers(self, scope):
         """Setup the actor and critic optimizers."""
         scope_name = 'model/'
         if scope is not None:
             scope_name = scope + '/' + scope_name
 
-        neglogpac = self.proba_distribution.neglogp(self.action_ph)
-        self.entropy = tf.reduce_mean(self.proba_distribution.entropy())
+        neglogpac = self._neglogp(self.action_ph)
+        self.entropy = tf.reduce_sum(
+            tf.reshape(self.pi_logstd, [-1])
+            + .5 * np.log(2.0 * np.pi * np.e), axis=-1)
 
         # Value function clipping: not present in the original PPO
         if self.cliprange_vf is None:
@@ -436,8 +408,8 @@ class FeedForwardPolicy(Policy):
         tensorboard for additional storage.
         """
         ops = {
-            'reference_action_mean': tf.reduce_mean(self.deterministic_action),
-            'reference_action_std': tf.reduce_mean(self.action_logstd),
+            'reference_action_mean': tf.reduce_mean(self.pi_mean),
+            'reference_action_std': tf.reduce_mean(self.pi_logstd),
             'rewards': tf.reduce_mean(self.rew_ph),
             'advantage': tf.reduce_mean(self.advs_ph),
             'old_neglog_action_probability': tf.reduce_mean(
@@ -461,52 +433,33 @@ class FeedForwardPolicy(Policy):
         """See parent class."""
         pass
 
-    def step(self, obs, deterministic=False):
-        """
-        Returns the policy for a single step
+    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
+        """See parent class."""
+        # Add the contextual observation, if applicable.
+        obs = self._get_obs(obs, context, axis=1)
 
-        :param obs: ([float] or [int]) The current observation of the
-            environment
-        :param deterministic: (bool) Whether or not to return deterministic
-            actions.
-        :return: ([float], [float], [float], [float]) actions, values, states,
-            neglogp
-        """
         return self.sess.run(
-            [self.deterministic_action if deterministic else self.action,
+            [self.action if apply_noise else self.pi_mean,
              self.value_flat, self.neglogp],
             {self.obs_ph: obs}
         )
 
-    def value(self, obs):
-        """
-        Returns the value for a single step
+    def value(self, obs, context):
+        """See parent class."""
+        # Add the contextual observation, if applicable.
+        obs = self._get_obs(obs, context, axis=1)
 
-        :param obs: ([float] or [int]) The current observation of the
-            environment
-        :return: ([float]) The associated value of the action
-        """
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
-    def update(self, obs, returns, actions, values, neglogpacs):
-        """Training of PPO2 Algorithm
+    def update(self, obs, context, returns, actions, values, neglogpacs):
+        """See parent class."""
+        # Add the contextual observation, if applicable.
+        obs = self._get_obs(obs, context, axis=1)
 
-        :param obs: (np.ndarray) The current observation of the environment
-        :param returns: (np.ndarray) the rewards
-        :param masks: (np.ndarray) The last masks for done episodes (used in
-        recurent policies)
-        :param actions: (np.ndarray) the actions
-        :param values: (np.ndarray) the values
-        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of
-        Actions
-        :param states: (np.ndarray) For recurrent policies, the internal state
-        of the recurrent model
-        :return: policy gradient loss, value function loss, policy entropy,
-                approximation of kl divergence, updated clipping range,
-                training update operation
-        """
+        # Compute the advantages.
         advs = returns - values
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+
         td_map = {
             self.obs_ph: obs,
             self.action_ph: actions,
@@ -529,8 +482,12 @@ class FeedForwardPolicy(Policy):
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def get_td_map(self, obs, returns, actions, values, neglogpacs):
+    def get_td_map(self, obs, context, returns, actions, values, neglogpacs):
         """See parent class."""
+        # Add the contextual observation, if applicable.
+        obs = self._get_obs(obs, context, axis=1)
+
+        # Compute the advantages.
         advs = returns - values
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 

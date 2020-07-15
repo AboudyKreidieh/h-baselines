@@ -58,9 +58,6 @@ FEEDFORWARD_PARAMS = dict(
     layers=[64, 64],
     # the activation function to use in the neural network
     act_fun=tf.nn.relu,
-    # specifies whether to use the huber distance function as the loss for the
-    # critic. If set to False, the mean-squared error metric is used instead
-    use_huber=False,
 )
 
 
@@ -122,21 +119,109 @@ class OnPolicyRLAlgorithm(object):
 
     Attributes
     ----------
-    policy : ActorCriticPolicy or str
-        The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
-    env : Gym environment or str
-        The environment to learn from (if registered in Gym, can be str)
+    policy : TODO
+        TODO
+    env_name : str
+        name of the environment. Affects the action bounds of the higher-level
+        policies
+    eval_env : gym.Env or list of gym.Env
+        the environment(s) to evaluate from
     n_steps : int
-        The number of steps to run for each environment per update (i.e. batch
-        size is n_steps * n_env where n_env is number of environment copies
-        running in parallel)
+        TODO
+    n_minibatches : int
+        number of training minibatches per update
+    n_opt_epochs : int
+        number of epoch when optimizing the surrogate
+    n_eval_episodes : int
+        the number of evaluation episodes
+    gamma : float
+        the discount factor
+    lam : float
+        factor for trade-off of bias vs variance for Generalized Advantage
+        Estimator
+    reward_scale : float
+        the value the reward should be scaled by
+    render : bool
+        enable rendering of the training environment
+    render_eval : bool
+        enable rendering of the evaluation environment
+    eval_deterministic : bool
+        if set to True, the policy provides deterministic actions to the
+        evaluation environment. Otherwise, stochastic or noisy actions are
+        returned.
+    num_envs : int
+        number of environments used to run simulations in parallel. Each
+        environment is run on a separate CPUS and uses the same policy as the
+        rest. Must be less than or equal to nb_rollout_steps.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    _init_setup_model : bool
-        Whether or not to build the network at the creation of the instance
     policy_kwargs : dict
-        additional arguments to be passed to the policy on creation
+        policy-specific hyperparameters
+    sampler : list of hbaselines.utils.sampler.Sampler
+        the training environment sampler object. One environment is provided
+        for each CPU
+    obs : list of array_like or list of dict < str, array_like >
+        the most recent training observation. If you are using a multi-agent
+        environment, this will be a dictionary of observations for each agent,
+        indexed by the agent ID. One element for each environment.
+    all_obs : list of array_like or list of None
+        additional information, used by MADDPG variants of the multi-agent
+        policy to pass full-state information. One element for each environment
+    ac_space : gym.spaces.*
+        the action space of the training environment
+    ob_space : gym.spaces.*
+        the observation space of the training environment
+    co_space : gym.spaces.*
+        the context space of the training environment (i.e. the same of the
+        desired environmental goal)
+    graph : tf.Graph
+        the current tensorflow graph
+    policy_tf : TODO
+        the policy object
+    sess : tf.compat.v1.Session
+        the current tensorflow session
+    summary : tf.Summary
+        tensorboard summary object
+    episode_step : list of int
+        the number of steps since the most recent rollout began. One for each
+        environment.
+    episodes : int
+        the total number of rollouts performed since training began
+    total_steps : int
+        the total number of steps that have been executed since training began
+    epoch_episode_steps : list of int
+        a list of rollout lengths from the most recent training iterations
+    epoch_episode_rewards : list of float
+        a list of cumulative rollout rewards from the most recent training
+        iterations
+    epoch_episodes : int
+        the total number of rollouts performed since the most recent training
+        iteration began
+    epoch : int
+        the total number of training iterations
+    episode_rew_history : list of float
+        the cumulative return from the last 100 training episodes
+    episode_reward : list of float
+        the cumulative reward since the most reward began. One for each
+        environment.
+    rew_ph : tf.compat.v1.placeholder
+        a placeholder for the average training return for the last epoch. Used
+        for logging purposes.
+    rew_history_ph : tf.compat.v1.placeholder
+        a placeholder for the average training return for the last 100
+        episodes. Used for logging purposes.
+    eval_rew_ph : tf.compat.v1.placeholder
+        placeholder for the average evaluation return from the last time
+        evaluations occurred. Used for logging purposes.
+    eval_success_ph : tf.compat.v1.placeholder
+        placeholder for the average evaluation success rate from the last time
+        evaluations occurred. Used for logging purposes.
+    saver : tf.compat.v1.train.Saver
+        tensorflow saver object
+    trainable_vars : list of str
+        the trainable variables
     """
+
     def __init__(self,
                  policy,
                  env,
@@ -145,7 +230,6 @@ class OnPolicyRLAlgorithm(object):
                  n_eval_episodes=50,
                  n_minibatches=4,
                  n_opt_epochs=4,
-                 meta_update_freq=10,
                  gamma=0.99,
                  lam=0.95,
                  reward_scale=1.,
@@ -161,42 +245,45 @@ class OnPolicyRLAlgorithm(object):
         Parameters
         ----------
         policy : TODO
-            TODO
-        env : TODO
-            TODO
-        eval_env : TODO
-            TODO
-        n_steps : TODO
+            the policy model to use
+        env : gym.Env or str
+            the environment to learn from (if registered in Gym, can be str)
+        eval_env : gym.Env or str
+            the environment to evaluate from (if registered in Gym, can be str)
+        n_steps : int
             TODO
         n_minibatches : int
             number of training minibatches per update
         n_opt_epochs : int
             number of epoch when optimizing the surrogate
-        n_eval_episodes : TODO
-            TODO
-        meta_update_freq : TODO
-            TODO
+        n_eval_episodes : int
+            the number of evaluation episodes
         gamma : float
             discount factor
         lam : float
             factor for trade-off of bias vs variance for Generalized Advantage
             Estimator
-        reward_scale : TODO
-            TODO
-        render : TODO
-            TODO
-        render_eval : TODO
-            TODO
-        eval_deterministic : TODO
-            TODO
-        num_envs : TODO
-            TODO
-        verbose : TODO
-            TODO
-        _init_setup_model : TODO
-            TODO
-        policy_kwargs : TODO
-            TODO
+        reward_scale : float
+            the value the reward should be scaled by
+        render : bool
+            enable rendering of the training environment
+        render_eval : bool
+            enable rendering of the evaluation environment
+        eval_deterministic : bool
+            if set to True, the policy provides deterministic actions to the
+            evaluation environment. Otherwise, stochastic or noisy actions are
+            returned.
+        num_envs : int
+            number of environments used to run simulations in parallel. Each
+            environment is run on a separate CPUS and uses the same policy as
+            the rest. Must be less than or equal to nb_rollout_steps.
+        verbose : int
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
+        policy_kwargs : dict
+            policy-specific hyperparameters
+        _init_setup_model : bool
+            Whether or not to build the network at the creation of the instance
         """
         shared = False if policy_kwargs is None else \
             policy_kwargs.get("shared", False)
@@ -220,8 +307,6 @@ class OnPolicyRLAlgorithm(object):
         self.n_minibatches = n_minibatches
         self.n_opt_epochs = n_opt_epochs
         self.n_eval_episodes = n_eval_episodes
-        self.n_eval_episodes = n_eval_episodes
-        self.meta_update_freq = meta_update_freq
         self.gamma = gamma
         self.lam = lam
         self.reward_scale = reward_scale
@@ -399,7 +484,6 @@ class OnPolicyRLAlgorithm(object):
                 ob_space=self.ob_space,
                 ac_space=self.ac_space,
                 co_space=self.co_space,
-                reuse=False,
                 **self.policy_kwargs
             )
 
@@ -507,6 +591,8 @@ class OnPolicyRLAlgorithm(object):
                 if writer is not None:
                     td_map = self.policy_tf.get_td_map(
                         obs=rollout["mb_obs"],
+                        context=None if rollout["mb_contexts"][0] is None
+                        else rollout["mb_contexts"],
                         returns=rollout["mb_returns"],
                         actions=rollout["mb_actions"],
                         values=rollout["mb_values"],
@@ -588,10 +674,11 @@ class OnPolicyRLAlgorithm(object):
         else:
             obs = np.array(obs).reshape((-1,) + self.ob_space.shape)
 
-        action, value, neglogpac = self.policy_tf.step(
-            obs,
-            deterministic=not apply_noise,
-        )
+        action, value, neglogpac = self.policy_tf.get_action(
+            obs, context,
+            random_actions=False,
+            apply_noise=apply_noise,
+            env_num=env_num)
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
         if isinstance(action, dict):
@@ -761,17 +848,28 @@ class OnPolicyRLAlgorithm(object):
         }
 
     def _gae_returns(self, mb_rewards, mb_values, mb_dones, obs, context):
-        """
+        """TODO.
 
-        :param mb_rewards:
-        :param mb_values:
-        :param mb_dones:
-        :param obs:
-        :param context:
-        :return:
+        Parameters
+        ----------
+        mb_rewards : TODO
+            TODO
+        mb_values : TODO
+            TODO
+        mb_dones : TODO
+            TODO
+        obs : TODO
+            TODO
+        context : TODO
+            TODO
+
+        Returns
+        -------
+        TODO
+            TODO
         """
         # Compute the last estimated value.
-        last_values = self.policy_tf.value([obs])
+        last_values = self.policy_tf.value([obs], context)
 
         # Discount/bootstrap off value fn.
         mb_advs = np.zeros_like(mb_rewards)
@@ -803,6 +901,30 @@ class OnPolicyRLAlgorithm(object):
                mb_values,
                mb_neglogpacs,
                mb_all_obs):
+        """TODO.
+
+        Parameters
+        ----------
+        mb_obs : TODO
+            TODO
+        mb_contexts : TODO
+            TODO
+        mb_returns : TODO
+            TODO
+        mb_actions : TODO
+            TODO
+        mb_values : TODO
+            TODO
+        mb_neglogpacs : TODO
+            TODO
+        mb_all_obs : TODO
+            TODO
+
+        Returns
+        -------
+        TODO
+            TODO
+        """
         batch_size = self.n_steps // self.n_minibatches
 
         mb_loss_vals = []
@@ -814,7 +936,8 @@ class OnPolicyRLAlgorithm(object):
                 mbinds = inds[start:end]
                 mb_loss_vals.append(self.policy_tf.update(
                     obs=mb_obs[mbinds],
-                    # context=mb_contexts[mb_obs],
+                    context=None if mb_contexts[0] is None
+                    else mb_contexts[mbinds],
                     returns=mb_returns[mbinds],
                     actions=mb_actions[mbinds],
                     values=mb_values[mbinds],
@@ -829,14 +952,20 @@ class OnPolicyRLAlgorithm(object):
                       values,
                       returns,
                       start_time):
-        """
+        """TODO.
 
-        :param file_path:
-        :param mb_loss_vals:
-        :param values:
-        :param returns:
-        :param start_time:
-        :return:
+        Parameters
+        ----------
+        file_path : TODO
+            TODO
+        mb_loss_vals : TODO
+            TODO
+        values : TODO
+            TODO
+        returns : TODO
+            TODO
+        start_time : TODO
+            TODO
         """
         # Log statistics.
         duration = time.time() - start_time
