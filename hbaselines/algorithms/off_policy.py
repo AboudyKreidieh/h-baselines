@@ -452,7 +452,7 @@ class OffPolicyRLAlgorithm(object):
         list of Sampler or list of RaySampler
             the sampler objects
         list of array_like or list of dict < str, array_like >
-            the initila observation. If the environment is multi-agent, this
+            the initial observation. If the environment is multi-agent, this
             will be a dictionary of observations for each agent, indexed by the
             agent ID. One element for each environment.
         list of array_like or list of None
@@ -568,7 +568,7 @@ class OffPolicyRLAlgorithm(object):
                 apply_noise=True,
                 random_actions=False,
                 env_num=0):
-        """Get the actions and critic output, from a given observation.
+        """Get the actions from a given observation.
 
         Parameters
         ----------

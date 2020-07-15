@@ -95,6 +95,13 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # respect to the parameters of the higher-level policies. Only used if
     # `connected_gradients` is set to True.
     cg_weights=0.0005,
+    # specifies whether to add a time-dependent fingerprint to the observations
+    use_fingerprints=False,
+    # the low and high values for each fingerprint element, if they are being
+    # used
+    fingerprint_range=([0, 0], [5, 5]),
+    # specifies whether to use centralized value functions
+    centralized_value_functions=False,
 ))
 
 
@@ -173,6 +180,11 @@ class OnPolicyRLAlgorithm(object):
     co_space : gym.spaces.*
         the context space of the training environment (i.e. the same of the
         desired environmental goal)
+    horizon : int
+        time horizon, which is used to check if an environment terminated early
+        and used to compute the done mask as per TD3 implementation (see
+        appendix A of their paper). If the horizon cannot be found, it is
+        assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
     policy_tf : hbaselines.base_policies.Policy
@@ -283,6 +295,11 @@ class OnPolicyRLAlgorithm(object):
             policy-specific hyperparameters
         _init_setup_model : bool
             Whether or not to build the network at the creation of the instance
+
+        Raises
+        ------
+        AssertionError
+            if num_envs > nb_rollout_steps
         """
         shared = False if policy_kwargs is None else \
             policy_kwargs.get("shared", False)
@@ -292,6 +309,11 @@ class OnPolicyRLAlgorithm(object):
         # Run assertions.
         assert num_envs <= n_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
+
+        assert n_steps % n_minibatches == 0, \
+            "The number of minibatches (`n_minibatches`) is not a factor of " \
+            "the total number of samples collected per rollout (`n_steps`), " \
+            "some samples won't be used."
 
         # Instantiate the ray instance.
         if num_envs > 1:
@@ -316,11 +338,6 @@ class OnPolicyRLAlgorithm(object):
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
 
-        assert self.n_steps % self.n_minibatches == 0, \
-            "The number of minibatches (`n_minibatches`) is not a factor of " \
-            "the total number of samples collected per rollout (`n_steps`), " \
-            "some samples won't be used."
-
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs = self.setup_sampler(
             env, render, shared, maddpg)
@@ -343,6 +360,13 @@ class OnPolicyRLAlgorithm(object):
             self.policy_kwargs["all_ob_space"] = all_ob_space
 
         self.policy_kwargs.update(policy_kwargs or {})
+
+        # Compute the time horizon, which is used to check if an environment
+        # terminated early and used to compute the done mask for TD3.
+        if self.num_envs > 1:
+            self.horizon = ray.get(self.sampler[0].horizon.remote())
+        else:
+            self.horizon = self.sampler[0].horizon()
 
         # init
         self.graph = None
@@ -472,6 +496,7 @@ class OnPolicyRLAlgorithm(object):
         return ac_space, ob_space, co_space, all_ob_space
 
     def setup_model(self):
+        """Create the graph, session, policy, and summary objects."""
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Create the tensorflow session.
@@ -479,10 +504,10 @@ class OnPolicyRLAlgorithm(object):
 
             # Create the policy.
             self.policy_tf = self.policy(
-                sess=self.sess,
-                ob_space=self.ob_space,
-                ac_space=self.ac_space,
-                co_space=self.co_space,
+                self.sess,
+                self.ob_space,
+                self.ac_space,
+                self.co_space,
                 **self.policy_kwargs
             )
 
@@ -580,6 +605,30 @@ class OnPolicyRLAlgorithm(object):
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
 
+                # Evaluate.
+                if self.eval_env is not None and \
+                        (self.total_steps - eval_steps_incr) >= eval_interval:
+                    eval_steps_incr += eval_interval
+
+                    # Run the evaluation operations over the evaluation env(s).
+                    # Note that multiple evaluation envs can be provided.
+                    if isinstance(self.eval_env, list):
+                        eval_rewards = []
+                        eval_successes = []
+                        eval_info = []
+                        for env in self.eval_env:
+                            rew, suc, inf = self._evaluate(total_steps, env)
+                            eval_rewards.append(rew)
+                            eval_successes.append(suc)
+                            eval_info.append(inf)
+                    else:
+                        eval_rewards, eval_successes, eval_info = \
+                            self._evaluate(total_steps, self.eval_env)
+
+                    # Log the evaluation statistics.
+                    self._log_eval(eval_filepath, start_time, eval_rewards,
+                                   eval_successes, eval_info)
+
                 # Run and store summary.
                 if writer is not None:
                     td_map = self.policy_tf.get_td_map(
@@ -631,8 +680,13 @@ class OnPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _policy(self, obs, context, apply_noise=True, env_num=0):
-        """Get the actions and critic output, from a given observation.
+    def _policy(self,
+                obs,
+                context,
+                apply_noise=True,
+                random_actions=False,
+                env_num=0):
+        """Get the actions from a given observation.
 
         Parameters
         ----------
@@ -643,6 +697,10 @@ class OnPolicyRLAlgorithm(object):
             environment.
         apply_noise : bool
             enable the noise
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
         env_num : int
             the environment number. Used to handle situations when multiple
             parallel environments are being used.
@@ -669,9 +727,10 @@ class OnPolicyRLAlgorithm(object):
 
         action, value, neglogpac = self.policy_tf.get_action(
             obs, context,
-            random_actions=False,
             apply_noise=apply_noise,
-            env_num=env_num)
+            random_actions=random_actions,
+            env_num=env_num,
+        )
 
         # Flatten the actions. Dictionaries correspond to multi-agent policies.
         if isinstance(action, dict):
@@ -681,7 +740,10 @@ class OnPolicyRLAlgorithm(object):
 
         return action, value, neglogpac
 
-    def _collect_samples(self, total_steps):
+    def _collect_samples(self,
+                         total_steps,
+                         run_steps=None,
+                         random_actions=False):
         """Perform the sample collection operation over multiple steps.
 
         This method calls collect_sample for a multiple steps, and attempts to
@@ -692,6 +754,13 @@ class OnPolicyRLAlgorithm(object):
         total_steps : int
             the total number of samples to train on. Used by the fingerprint
             element
+        run_steps : int, optional
+            number of steps to collect samples from. If not provided, the value
+            defaults to `self.nb_rollout_steps`.
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
         """
         mb_rewards = [[] for _ in range(self.num_envs)]
         mb_obs = [[] for _ in range(self.num_envs)]
@@ -705,10 +774,11 @@ class OnPolicyRLAlgorithm(object):
         # Loop through the sampling procedure the number of times it would
         # require to run through each environment in parallel until the number
         # of required steps have been collected.
-        n_itr = math.ceil(self.n_steps / self.num_envs)
+        run_steps = run_steps or self.n_steps
+        n_itr = math.ceil(run_steps / self.num_envs)
         for itr in range(n_itr):
             n_steps = self.num_envs if itr < n_itr - 1 \
-                else self.n_steps - (n_itr - 1) * self.num_envs
+                else run_steps - (n_itr - 1) * self.num_envs
 
             # Collect the most recent contextual term from every environment.
             if self.num_envs > 1:
@@ -723,6 +793,7 @@ class OnPolicyRLAlgorithm(object):
                 obs=self.obs[env_num],
                 context=context[env_num],
                 apply_noise=True,
+                random_actions=random_actions,
                 env_num=env_num,
             ) for env_num in range(n_steps)]
             action = [o[0] for o in output]
@@ -914,11 +985,6 @@ class OnPolicyRLAlgorithm(object):
         mb_all_obs : array_like or None
             a minibatch of full-state observations. Used by the multi-agent
             MADDPG policies.
-
-        Returns
-        -------
-        TODO
-            TODO
         """
         batch_size = self.n_steps // self.n_minibatches
 
@@ -937,6 +1003,179 @@ class OnPolicyRLAlgorithm(object):
                     values=mb_values[mbinds],
                     neglogpacs=mb_neglogpacs[mbinds],
                 )
+
+    def _evaluate(self, total_steps, env):
+        """Perform the evaluation operation.
+
+        This method runs the evaluation environment for a number of episodes
+        and returns the cumulative rewards and successes from each environment.
+
+        Parameters
+        ----------
+        total_steps : int
+            the total number of samples to train on
+        env : gym.Env
+            the evaluation environment that the policy is meant to be tested on
+
+        Returns
+        -------
+        list of float
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        list of bool
+            a list of boolean terms representing if each episode ended in
+            success or not. If the list is empty, then the environment did not
+            output successes or failures, and the success rate will be set to
+            zero.
+        dict
+            additional information that is meant to be logged
+        """
+        num_steps = deepcopy(self.total_steps)
+        eval_episode_rewards = []
+        eval_episode_successes = []
+        ret_info = {'initial': [], 'final': [], 'average': []}
+
+        if self.verbose >= 1:
+            for _ in range(3):
+                print("-------------------")
+            print("Running evaluation for {} episodes:".format(
+                self.n_eval_episodes))
+
+        # Clear replay buffer-related memory in the policy to allow for the
+        # meta-actions to properly updated.
+        if is_goal_conditioned_policy(self.policy):
+            self.policy_tf.clear_memory(0)
+
+        for i in range(self.n_eval_episodes):
+            # Reset the environment.
+            eval_obs = env.reset()
+            eval_obs, eval_all_obs = get_obs(eval_obs)
+
+            # Add the fingerprint term, if needed.
+            eval_obs = add_fingerprint(
+                obs=eval_obs,
+                steps=self.total_steps,
+                total_steps=total_steps,
+                use_fingerprints=self.policy_kwargs.get(
+                    "use_fingerprints", False),
+            )
+
+            # Reset rollout-specific variables.
+            eval_episode_reward = 0.
+            eval_episode_step = 0
+
+            rets = np.array([])
+            while True:
+                # Collect the contextual term. None if it is not passed.
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
+                eval_action = self._policy(
+                    obs=eval_obs,
+                    context=context,
+                    apply_noise=not self.eval_deterministic,
+                    random_actions=False,
+                    env_num=0,
+                )
+
+                # Update the environment.
+                obs, eval_r, done, info = env.step(eval_action)
+                obs, all_obs = get_obs(obs)
+
+                # Visualize the current step.
+                if self.render_eval:
+                    self.eval_env.render()  # pragma: no cover
+
+                # Add the distance to this list for logging purposes (applies
+                # only to the Ant* environments).
+                if hasattr(env, "current_context"):
+                    context = getattr(env, "current_context")
+                    reward_fn = getattr(env, "contextual_reward")
+                    rets = np.append(rets, reward_fn(eval_obs, context, obs))
+
+                # Get the contextual term.
+                context0 = context1 = getattr(env, "current_context", None)
+
+                # Store a transition in the replay buffer. This is just for the
+                # purposes of calling features in the store_transition method
+                # of the policy.
+                self._store_transition(
+                    obs0=eval_obs,
+                    context0=context0,
+                    action=eval_action,
+                    reward=eval_r,
+                    obs1=obs,
+                    context1=context1,
+                    terminal1=False,
+                    is_final_step=False,
+                    all_obs0=eval_all_obs,
+                    all_obs1=all_obs,
+                    evaluate=True,
+                )
+
+                # Update the previous step observation.
+                eval_obs = obs.copy()
+                eval_all_obs = all_obs
+
+                # Add the fingerprint term, if needed.
+                eval_obs = add_fingerprint(
+                    obs=eval_obs,
+                    steps=self.total_steps,
+                    total_steps=total_steps,
+                    use_fingerprints=self.policy_kwargs.get(
+                        "use_fingerprints", False),
+                )
+
+                # Increment the reward and step count.
+                num_steps += 1
+                eval_episode_reward += eval_r
+                eval_episode_step += 1
+
+                if done:
+                    eval_episode_rewards.append(eval_episode_reward)
+                    maybe_is_success = info.get('is_success')
+                    if maybe_is_success is not None:
+                        eval_episode_successes.append(float(maybe_is_success))
+
+                    if self.verbose >= 1:
+                        if rets.shape[0] > 0:
+                            print("%d/%d: initial: %.3f, final: %.3f, average:"
+                                  " %.3f, success: %d"
+                                  % (i + 1, self.n_eval_episodes, rets[0],
+                                     rets[-1], float(rets.mean()),
+                                     int(info.get('is_success'))))
+                        else:
+                            print("%d/%d" % (i + 1, self.n_eval_episodes))
+
+                    if hasattr(env, "current_context"):
+                        ret_info['initial'].append(rets[0])
+                        ret_info['final'].append(rets[-1])
+                        ret_info['average'].append(float(rets.mean()))
+
+                    # Exit the loop.
+                    break
+
+        if self.verbose >= 1:
+            print("Done.")
+            print("Average return: {}".format(np.mean(eval_episode_rewards)))
+            if len(eval_episode_successes) > 0:
+                print("Success rate: {}".format(
+                    np.mean(eval_episode_successes)))
+            for _ in range(3):
+                print("-------------------")
+            print("")
+
+        # get the average of the reward information
+        ret_info['initial'] = np.mean(ret_info['initial'])
+        ret_info['final'] = np.mean(ret_info['final'])
+        ret_info['average'] = np.mean(ret_info['average'])
+
+        # Clear replay buffer-related memory in the policy once again so that
+        # it does not affect the training procedure.
+        if is_goal_conditioned_policy(self.policy):
+            self.policy_tf.clear_memory(0)
+
+        return eval_episode_rewards, eval_episode_successes, ret_info
 
     def _log_training(self, file_path, start_time):
         """Log training statistics.
@@ -984,3 +1223,59 @@ class OnPolicyRLAlgorithm(object):
             print("| {:<30} | {:<30} |".format(key, val))
         print("-" * 67)
         print('')
+
+    def _log_eval(self, file_path, start_time, rewards, successes, info):
+        """Log evaluation statistics.
+
+        Parameters
+        ----------
+        file_path : str
+            path to the evaluation csv file
+        start_time : float
+            the time when training began. This is used to print the total
+            training time.
+        rewards : array_like
+            the list of cumulative rewards from every episode in the evaluation
+            phase
+        successes : list of bool
+            a list of boolean terms representing if each episode ended in
+            success or not. If the list is empty, then the environment did not
+            output successes or failures, and the success rate will be set to
+            zero.
+        info : dict
+            additional information that is meant to be logged
+        """
+        duration = time.time() - start_time
+
+        if isinstance(info, dict):
+            rewards = [rewards]
+            successes = [successes]
+            info = [info]
+
+        for i, (rew, suc, info_i) in enumerate(zip(rewards, successes, info)):
+            if len(suc) > 0:
+                success_rate = np.mean(suc)
+            else:
+                success_rate = 0  # no success rate to log
+
+            evaluation_stats = {
+                "duration": duration,
+                "total_step": self.total_steps,
+                "success_rate": success_rate,
+                "average_return": np.mean(rew)
+            }
+            # Add additional evaluation information.
+            evaluation_stats.update(info_i)
+
+            if file_path is not None:
+                # Add an evaluation number to the csv file in case of multiple
+                # evaluation environments.
+                eval_fp = file_path[:-4] + "_{}.csv".format(i)
+                exists = os.path.exists(eval_fp)
+
+                # Save evaluation statistics in a csv file.
+                with open(eval_fp, "a") as f:
+                    w = csv.DictWriter(f, fieldnames=evaluation_stats.keys())
+                    if not exists:
+                        w.writeheader()
+                    w.writerow(evaluation_stats)
