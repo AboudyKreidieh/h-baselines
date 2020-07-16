@@ -6,6 +6,7 @@ import random
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
+from hbaselines.fcnet.ppo import FeedForwardPolicy
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 
@@ -111,8 +112,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  scope=None,
                  env_name="",
                  num_envs=1,
-                 meta_policy=None,
-                 worker_policy=None,
+                 # meta_policy=None,
+                 # worker_policy=None,
                  additional_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -214,6 +215,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
         """
+        meta_policy = FeedForwardPolicy
+        worker_policy = FeedForwardPolicy
+
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -289,17 +293,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     ob_space=ob_space_i,
                     ac_space=ac_space_i,
                     co_space=co_space_i,
-                    buffer_size=buffer_size,
-                    batch_size=batch_size,
-                    actor_lr=actor_lr,
-                    critic_lr=critic_lr,
                     verbose=verbose,
-                    tau=tau,
                     gamma=gamma,
                     layer_norm=layer_norm,
                     layers=layers,
                     act_fun=act_fun,
-                    use_huber=use_huber,
                     scope=scope_i,
                     zero_fingerprint=zero_fingerprint_i,
                     fingerprint_dim=self.fingerprint_dim[0],
@@ -309,18 +307,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # =================================================================== #
         # Step 2: Create attributes for the replay buffer.                    #
         # =================================================================== #
-
-        # Create the replay buffer.
-        self.replay_buffer = HierReplayBuffer(
-            buffer_size=int(buffer_size/meta_period),
-            batch_size=batch_size,
-            meta_period=meta_period,
-            obs_dim=ob_space.shape[0],
-            ac_dim=ac_space.shape[0],
-            co_dim=None if co_space is None else co_space.shape[0],
-            goal_dim=meta_ac_space.shape[0],
-            num_levels=num_levels
-        )
 
         # current action by the meta-level policies
         self._meta_action = [[None for _ in range(num_levels - 1)]
@@ -467,85 +453,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         (float, float)
             the actor loss for every policy in the hierarchy
         """
-        # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample():
-            return tuple([[0, 0] for _ in range(self.num_levels)]), \
-                tuple([0 for _ in range(self.num_levels)])
-
-        # Specifies whether to remove additional data from the replay buffer
-        # sampling procedure. Since only a subset of algorithms use additional
-        # data, removing it can speedup the other algorithms.
-        with_additional = self.off_policy_corrections
-
-        # Get a batch.
-        obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
-
-        # Do not use done masks for lower-level policies with negative
-        # intrinsic rewards (these the policies to terminate early).
-        if self._negative_reward_fn():
-            for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
-
-        # Update the higher-level policies.
-        actor_loss = []
-        critic_loss = []
-
-        if kwargs['update_meta']:
-            # Replace the goals with the most likely goals.
-            if self.off_policy_corrections:
-                meta_act = self._sample_best_meta_action(
-                    meta_obs0=obs0[0],
-                    meta_obs1=obs1[0],
-                    meta_action=act[0],
-                    worker_obses=additional["worker_obses"],
-                    worker_actions=additional["worker_actions"],
-                    k=8
-                )
-                act[0] = meta_act
-
-            for i in range(self.num_levels - 1):
-                if self.connected_gradients:
-                    # Perform the connected gradients update procedure.
-                    vf_loss, pi_loss = self._connected_gradients_update(
-                        obs0=obs0,
-                        actions=act,
-                        rewards=rew,
-                        obs1=obs1,
-                        terminals1=done,
-                        update_actor=kwargs['update_meta_actor'],
-                    )
-                else:
-                    # Perform the regular meta update procedure.
-                    vf_loss, pi_loss = self.policy[i].update_from_batch(
-                        obs0=obs0[i],
-                        actions=act[i],
-                        rewards=rew[i],
-                        obs1=obs1[i],
-                        terminals1=done[i],
-                        update_actor=kwargs['update_meta_actor'],
-                    )
-
-                actor_loss.append(pi_loss)
-                critic_loss.append(vf_loss)
-        else:
-            for i in range(self.num_levels - 1):
-                actor_loss.append(0)
-                critic_loss.append([0, 0])
-
-        # Update the lowest level policy.
-        w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
-            obs0=obs0[-1],
-            actions=act[-1],
-            rewards=rew[-1],
-            obs1=obs1[-1],
-            terminals1=done[-1],
-            update_actor=update_actor,
-        )
-        critic_loss.append(w_critic_loss)
-        actor_loss.append(w_actor_loss)
-
-        return tuple(critic_loss), tuple(actor_loss)
+        for i in range(self.num_levels):
+            self.policy[i].update()
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
@@ -635,45 +544,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     obs1=obs1[self.goal_indices]
                 ).flatten())
 
-            # Avoid storing samples when performing evaluations.
-            if not evaluate:
-                if not self.hindsight \
-                        or random.random() < self.subgoal_testing_rate:
-                    # Store a sample in the replay buffer.
-                    self.replay_buffer.add(
-                        obs_t=self._observations[env_num],
-                        context_t=self._contexts[env_num],
-                        action_t=self._actions[env_num],
-                        reward_t=self._rewards[env_num],
-                        done_t=self._dones[env_num],
-                    )
-
-                if self.hindsight:
-                    # Some temporary attributes.
-                    worker_obses = [
-                        self._get_obs(self._observations[env_num][i],
-                                      self._actions[env_num][0][i], 0)
-                        for i in range(len(self._observations[env_num]))]
-                    intrinsic_rewards = self._rewards[env_num][-1]
-
-                    # Implement hindsight action and goal transitions.
-                    goal, rewards = self._hindsight_actions_goals(
-                        initial_observations=worker_obses,
-                        initial_rewards=intrinsic_rewards
-                    )
-                    new_actions = deepcopy(self._actions[env_num])
-                    new_actions[0] = goal
-                    new_rewards = deepcopy(self._rewards[env_num])
-                    new_rewards[-1] = rewards
-
-                    # Store the hindsight sample in the replay buffer.
-                    self.replay_buffer.add(
-                        obs_t=self._observations[env_num],
-                        context_t=self._contexts[env_num],
-                        action_t=new_actions,
-                        reward_t=new_rewards,
-                        done_t=self._dones[env_num],
-                    )
+            # Store a sample in the replay buffer.
+            self.replay_buffer.add(
+                obs_t=self._observations[env_num],
+                context_t=self._contexts[env_num],
+                action_t=self._actions[env_num],
+                reward_t=self._rewards[env_num],
+                done_t=self._dones[env_num],
+            )
 
             # Clear the memory that has been stored in the replay buffer.
             self.clear_memory(env_num)
@@ -713,22 +591,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_td_map(self):
         """See parent class."""
-        # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample():
-            return {}
-
-        # Get a batch.
-        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
-
         td_map = {}
         for i in range(self.num_levels):
-            td_map.update(self.policy[i].get_td_map_from_batch(
-                obs0=obs0[i],
-                actions=act[i],
-                rewards=rew[i],
-                obs1=obs1[i],
-                terminals1=done[i]
-            ))
+            td_map.update(self.policy[i].get_td_map())
 
         return td_map
 
