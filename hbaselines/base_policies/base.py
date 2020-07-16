@@ -75,39 +75,7 @@ class Policy(object):
         raise NotImplementedError
 
     def update(self):
-        """Perform a gradient update step.
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation of the environment
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        returns : array_like
-            the rewards
-        actions : array_like
-            the actions
-        values : array_like
-            the values
-        neglogpacs : array_like
-            negative log-likelihood probability of actions
-
-        Returns
-        -------
-        float
-            policy gradient loss
-        float
-            value function loss
-        float
-            policy entropy
-        float
-            approximation of kl divergence
-        float
-            updated clipping range
-        float
-            training update operation
-        """
+        """Perform a gradient update step."""
         raise NotImplementedError
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
@@ -139,24 +107,7 @@ class Policy(object):
         raise NotImplementedError
 
     def get_td_map(self):
-        """Return dict map for the summary (to be run in the algorithm).
-
-        Parameters
-        ----------
-        obs : array_like
-            the current observation of the environment
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        returns : array_like
-            the rewards
-        actions : array_like
-            the actions
-        values : array_like
-            the values
-        neglogpacs : array_like
-            negative log-likelihood probability of actions
-        """
+        """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
 
     @staticmethod
