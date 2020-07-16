@@ -8,12 +8,15 @@ from copy import deepcopy
 from flow.core.params import EnvParams
 from flow.controllers import IDMController
 
-from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect, \
-    point_distance, construct_maze
+from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect
+from hbaselines.envs.efficient_hrl.maze_env_utils import point_distance
+from hbaselines.envs.efficient_hrl.maze_env_utils import construct_maze
+from hbaselines.envs.efficient_hrl.maze_env_utils import ray_segment_intersect
 from hbaselines.envs.efficient_hrl.envs import AntMaze
 from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
+from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
 
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
@@ -49,8 +52,8 @@ from hbaselines.utils.env_util import create_env
 os.environ["TEST_FLAG"] = "True"
 
 
-class TestEfficientHRLEnvironments(unittest.TestCase):
-    """Test the environments in envs/efficient_hrl/."""
+class TestEfficientHRLAntEnvironments(unittest.TestCase):
+    """Test the Ant* environments in envs/efficient_hrl/."""
 
     def test_maze_env_utils(self):
         """Test hbaselines/envs/efficient_hrl/maze_env_utils.py."""
@@ -73,6 +76,11 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         x, y, *_ = line_intersect(p1, p2, p3, p4)
         self.assertAlmostEqual(x, 1)
         self.assertAlmostEqual(y, 1)
+
+        # test ray_segment_intersect
+        ray = ((0, 1), 2)
+        segment = ((3, 4), (5, 6))
+        self.assertIsNone(ray_segment_intersect(ray, segment))
 
     def test_contextual_reward(self):
         """Check the functionality of the context_space attribute.
@@ -191,6 +199,123 @@ class TestEfficientHRLEnvironments(unittest.TestCase):
         # test case 4
         env = AntMaze(use_contexts=True, random_contexts=False,
                       context_range=[[-4, 5], [-3, 6], [-2, 7]])
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-3, 6]))
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-4, 5]))
+
+
+class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
+    """Test the Humanoid* environments in envs/efficient_hrl/."""
+
+    def test_contextual_reward(self):
+        """Check the functionality of the context_space attribute.
+
+        This method is tested for the following environments:
+
+        1. HumanoidMaze
+        """
+        # test case 1
+        env = HumanoidMaze(use_contexts=True, context_range=[0, 0])
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            0.7788007830667997
+        )
+
+    def test_context_space(self):
+        """Check the functionality of the context_space attribute.
+
+        This method is tested for the following cases:
+
+        1. no context
+        2. random contexts
+        3. fixed single context
+        4. fixed multiple contexts
+        """
+        # test case 1
+        env = HumanoidMaze(use_contexts=False)
+        self.assertIsNone(env.context_space)
+
+        # test case 2
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-4, 5), (4, 20)],
+        )
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 4]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([5, 20]))
+
+        # test case 3
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=False,
+            context_range=[-4, 5],
+        )
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 5]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([-4, 5]))
+
+        # test case 4
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=False,
+            context_range=[[-4, 5], [-3, 10], [-2, 7]],
+        )
+        np.testing.assert_almost_equal(
+            env.context_space.low, np.array([-4, 5]))
+        np.testing.assert_almost_equal(
+            env.context_space.high, np.array([-2, 10]))
+
+    def test_current_context(self):
+        """Check the functionality of the current_context attribute.
+
+        This method is tested for the following cases:
+
+        1. no context
+        2. random contexts
+        3. fixed single context
+        4. fixed multiple contexts
+        """
+        np.random.seed(0)
+        random.seed(0)
+
+        # test case 1
+        env = HumanoidMaze(use_contexts=False)
+        env.reset()
+        self.assertIsNone(env.current_context)
+
+        # test case 2
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=True,
+            context_range=[(-4, 5), (4, 20)],
+        )
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([3.5997967, 16.1272704]))
+
+        # test case 3
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=False,
+            context_range=[-4, 5],
+        )
+        env.reset()
+        np.testing.assert_almost_equal(
+            env.current_context, np.array([-4, 5]))
+
+        # test case 4
+        env = HumanoidMaze(
+            use_contexts=True,
+            random_contexts=False,
+            context_range=[[-4, 5], [-3, 6], [-2, 7]],
+        )
         env.reset()
         np.testing.assert_almost_equal(
             env.current_context, np.array([-3, 6]))
@@ -450,7 +575,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.760423525122517
+            8.910458790391056
         )
 
         # kill the environment
@@ -485,11 +610,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 8.484502989441593,
-             'rl_0_1': 8.484502989441593,
-             'rl_0_2': 8.484502989441593,
-             'rl_0_3': 8.484502989441593,
-             'rl_0_4': 8.484502989441593}
+            {'rl_0_0': 8.716569383965638,
+             'rl_0_1': 8.716569383965638,
+             'rl_0_2': 8.716569383965638,
+             'rl_0_3': 8.716569383965638,
+             'rl_0_4': 8.716569383965638}
         )
 
         # test case 4
@@ -531,7 +656,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.760423525122517
+            8.910458790391056
         )
 
         # kill the environment
@@ -566,11 +691,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 8.484502989441593,
-             'rl_0_1': 8.484502989441593,
-             'rl_0_2': 8.484502989441593,
-             'rl_0_3': 8.484502989441593,
-             'rl_0_4': 8.484502989441593}
+            {'rl_0_0': 8.716569383965638,
+             'rl_0_1': 8.716569383965638,
+             'rl_0_2': 8.716569383965638,
+             'rl_0_3': 8.716569383965638,
+             'rl_0_4': 8.716569383965638}
         )
 
         # test case 4
@@ -612,7 +737,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.760423525122517
+            13.910458790391056
         )
 
         # kill the environment
@@ -647,11 +772,11 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
                 {key: np.array([1]) for key in env.agents},
                 fail=False,
             ),
-            {'rl_0_0': 13.484502989441593,
-             'rl_0_1': 13.484502989441593,
-             'rl_0_2': 13.484502989441593,
-             'rl_0_3': 13.484502989441593,
-             'rl_0_4': 13.484502989441593}
+            {'rl_0_0': 13.716569383965638,
+             'rl_0_1': 13.716569383965638,
+             'rl_0_2': 13.716569383965638,
+             'rl_0_3': 13.716569383965638,
+             'rl_0_4': 13.716569383965638}
         )
 
         # test case 4
@@ -693,7 +818,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertAlmostEqual(
             env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.760423525122517
+            13.910458790391056
         )
 
         # kill the environment
@@ -1974,7 +2099,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [-0.0041661, -0.0080797, 0.0279598, 0.0662519, 0.1447145]
+            [-0.0359733, -0.0419105, -0.0042745,  0.0236156, -0.0198828]
         )
 
     def test_closed_env(self):
@@ -2047,7 +2172,7 @@ class TestAVImitation(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             env.query_expert(None),
-            [-0.0021488, -0.0365337, -0.0196091, -0.0057063, 0.0409672]
+            [-0.0266911, -0.0908724, -0.0835323, -0.0679369, -0.0327296]
         )
 
     def test_open_env(self):

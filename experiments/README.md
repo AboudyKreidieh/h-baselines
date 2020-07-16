@@ -15,7 +15,9 @@ If you are attempting to recreate our results from the paper titled
 ## Contents
 
 1. [Running Existing Models and Algorithms](#1-running-existing-models-and-algorithms)
-2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)
+2. [Visualizing Pre-trained Results](#2-visualizing-pre-trained-results)  
+    2.1 [Plotting Learning Curves](#21-plotting-learning-curves)  
+    2.2 [Visualizing Pr-trained Models](#22-visualizing-pr-trained-models)  
 3. [Training on Custom Environments](#3-training-on-custom-environments)
 4. [Performance of the CHER Algorithm](#4-performance-of-the-cher-algorithm)  
    4.1. [Rerunning Experiments](#41-rerunning-experiments)  
@@ -102,7 +104,6 @@ respective policies.
 * `--num_levels` (*int*): the number of levels within the hierarchy. Must be
   greater than 1. Defaults to 2.
 * `--meta_period` (*int*): the meta-policy action period. Defaults to 10.
-    parser.add_argument(
 * `--intrinsic_reward_type` (*str*): the reward function to be used by the 
   lower-level policies. See the base goal-conditioned policy for a description.
   Defaults to "negative_distance".
@@ -141,6 +142,63 @@ extra optional arguments:
 
 ## 2. Visualizing Pre-trained Results
 
+### 2.1 Plotting Learning Curves
+
+Results from a sequence of completed training operations using the following 
+command:
+
+```shell script
+python plot.py FOLDERS
+```
+
+The method take as a required input the path to where the model/algorithm 
+results are located. The results from each unique model/algorithm must be 
+separated by a folder. For example, if you were to have two results when 
+utilizing TD3, and one when utilizing SAC, the file structure should look 
+something similar to the following:
+
+```
+experiments -----|
+                 |
+                 |------ plot.py
+                 |
+                 |------ TD3
+                 |        |--- 0
+                 |        |    |--- train.csv
+                 |        |
+                 |        |--- 1
+                 |             |--- train.csv
+                 |
+                 |------ SAC
+                          |--- 0
+                               |--- train.csv
+```
+
+The command under this situation may be filled as follows:
+
+```shell script
+python plot.py "TD3" "SAC"
+```
+
+Additional command-line arguments are:
+
+* `--names` (*list of str*) : The names to be assigned for each result. Must be
+  equal in size to the number of folder specified. If not assigned, no legend 
+  is added.
+* `--out` (*str*) : the path where the figure should be saved. Append with a 
+  .svg file if you would like to generate SVG formatted graphs.
+* `--use_eval` (*store_true*) : whether to use the eval_*.csv or train.csv 
+  files to generate the plots
+* `--y` (*str*) : the column to use for the y-coordinates
+* `--x` (*str*) : the column to use for the x-coordinates
+* `--ylabel` (*str*) : the label to use for the y-axis. If set to None, the 
+  name of the column used for the y-coordinates is used.
+* `--xlabel` (*str*) : the label to use for the x-axis. If set to None, the 
+  name of the column used for the x-coordinates is used.
+* `--show` (*store_true*) : whether to show the figure that was saved
+
+### 2.2 Visualizing Pr-trained Models
+
 An evaluator script is written to run evaluation episodes of a given checkpoint
 using pre-trained policies. Run with the following command:
 
@@ -174,7 +232,6 @@ would be included to this dict as follows:
 ENV_ATTRIBUTES = {
     # do not delete existing environments
     # ...
-
     # create a new environment named "myEnv"
     "myEnv": {
         "meta_ac_space": None,
