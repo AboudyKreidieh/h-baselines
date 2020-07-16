@@ -597,10 +597,10 @@ class OnPolicyRLAlgorithm(object):
                 self.epoch_episode_rewards = []
 
                 # Perform rollouts.
-                rollout = self._collect_samples(total_steps)
+                self._collect_samples(total_steps)
 
                 # Train.
-                self._train(**rollout)
+                self._train()
 
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
@@ -631,15 +631,7 @@ class OnPolicyRLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
-                    td_map = self.policy_tf.get_td_map(
-                        obs=rollout["mb_obs"],
-                        context=None if rollout["mb_contexts"][0] is None
-                        else rollout["mb_contexts"],
-                        returns=rollout["mb_returns"],
-                        actions=rollout["mb_actions"],
-                        values=rollout["mb_values"],
-                        neglogpacs=rollout["mb_neglogpacs"],
-                    )
+                    td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
                     if not td_map:
@@ -890,7 +882,6 @@ class OnPolicyRLAlgorithm(object):
             mb_actions = np.concatenate(mb_actions, axis=0)
             mb_values = np.concatenate(mb_values, axis=0)
             mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
-            mb_all_obs = np.concatenate(mb_all_obs, axis=0)
             mb_returns = np.concatenate(mb_returns, axis=0)
         else:
             mb_obs = mb_obs[0]
@@ -898,18 +889,21 @@ class OnPolicyRLAlgorithm(object):
             mb_actions = mb_actions[0]
             mb_values = mb_values[0]
             mb_neglogpacs = mb_neglogpacs[0]
-            mb_all_obs = mb_all_obs[0]
             mb_returns = mb_returns[0]
 
-        return {
-            "mb_returns": mb_returns,
-            "mb_obs": mb_obs,
-            "mb_contexts": mb_contexts,
-            "mb_actions": mb_actions,
-            "mb_values": mb_values,
-            "mb_neglogpacs": mb_neglogpacs,
-            "mb_all_obs": mb_all_obs,
-        }
+        self.policy_tf.store_transition(
+            obs0=mb_obs,
+            context0=mb_contexts,
+            action=mb_actions,
+            reward=mb_returns,
+            obs1=None,
+            context1=None,
+            done=mb_dones,
+            is_final_step=False,
+            values=mb_values,
+            neglogpacs=mb_neglogpacs,
+            env_num=0,
+            evaluate=False)
 
     def _gae_returns(self, mb_rewards, mb_values, mb_dones, obs, context):
         """Compute the bootstrapped/discounted returns.
@@ -958,51 +952,9 @@ class OnPolicyRLAlgorithm(object):
 
         return mb_returns
 
-    def _train(self,
-               mb_obs,
-               mb_contexts,
-               mb_returns,
-               mb_actions,
-               mb_values,
-               mb_neglogpacs,
-               mb_all_obs):
-        """Perform the training operation.
-
-        Parameters
-        ----------
-        mb_obs : array_like
-            a minibatch of observations
-        mb_contexts : array_like
-            a minibatch of contextual terms
-        mb_returns : array_like
-            a minibatch of contextual expected discounted retuns
-        mb_actions : array_like
-            a minibatch of actions
-        mb_values : array_like
-            a minibatch of estimated values by the policy
-        mb_neglogpacs : array_like
-            a minibatch of the negative log-likelihood of performed actions
-        mb_all_obs : array_like or None
-            a minibatch of full-state observations. Used by the multi-agent
-            MADDPG policies.
-        """
-        batch_size = self.n_steps // self.n_minibatches
-
-        inds = np.arange(self.n_steps)
-        for epoch_num in range(self.n_opt_epochs):
-            np.random.shuffle(inds)
-            for start in range(0, self.n_steps, batch_size):
-                end = start + batch_size
-                mbinds = inds[start:end]
-                self.policy_tf.update(
-                    obs=mb_obs[mbinds],
-                    context=None if mb_contexts[0] is None
-                    else mb_contexts[mbinds],
-                    returns=mb_returns[mbinds],
-                    actions=mb_actions[mbinds],
-                    values=mb_values[mbinds],
-                    neglogpacs=mb_neglogpacs[mbinds],
-                )
+    def _train(self):
+        """Perform the training operation."""
+        self.policy_tf.update()
 
     def _evaluate(self, total_steps, env):
         """Perform the evaluation operation.

@@ -437,6 +437,19 @@ class FeedForwardPolicy(Policy):
             op = ops[key]
             tf.compat.v1.summary.scalar(name, op)
 
+    def store_transition(self, obs0, context0, action, reward, obs1, context1,
+                         done,
+                         is_final_step, values, neglogpacs,
+                         env_num=0, evaluate=False):
+        """See parent class."""
+        self.mb_returns = reward
+        self.mb_obs = obs0
+        self.mb_contexts = context0
+        self.mb_actions = action
+        self.mb_values = values
+        self.mb_neglogpacs = neglogpacs
+        self.mb_dones = done
+
     def initialize(self):
         """See parent class."""
         pass
@@ -459,8 +472,63 @@ class FeedForwardPolicy(Policy):
 
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
-    def update(self, obs, context, returns, actions, values, neglogpacs):
-        """See parent class."""
+    def update(self):
+        """See parent class.
+
+        Parameters
+        ----------
+        mb_obs : array_like
+            a minibatch of observations
+        mb_contexts : array_like
+            a minibatch of contextual terms
+        mb_returns : array_like
+            a minibatch of contextual expected discounted retuns
+        mb_actions : array_like
+            a minibatch of actions
+        mb_values : array_like
+            a minibatch of estimated values by the policy
+        mb_neglogpacs : array_like
+            a minibatch of the negative log-likelihood of performed actions
+        """
+        self.n_steps = 2000
+        self.n_minibatches = 10
+        self.n_opt_epochs = 10
+
+        batch_size = self.n_steps // self.n_minibatches
+
+        inds = np.arange(self.n_steps)
+        for epoch_num in range(self.n_opt_epochs):
+            np.random.shuffle(inds)
+            for start in range(0, self.n_steps, batch_size):
+                end = start + batch_size
+                mbinds = inds[start:end]
+                self.update_from_batch(
+                    obs=self.mb_obs[mbinds],
+                    context=None if self.mb_contexts[0] is None
+                    else self.mb_contexts[mbinds],
+                    returns=self.mb_returns[mbinds],
+                    actions=self.mb_actions[mbinds],
+                    values=self.mb_values[mbinds],
+                    neglogpacs=self.mb_neglogpacs[mbinds],
+                )
+
+    def update_from_batch(self,
+                          obs,
+                          context,
+                          returns,
+                          actions,
+                          values,
+                          neglogpacs):
+        """
+
+        :param obs:
+        :param context:
+        :param returns:
+        :param actions:
+        :param values:
+        :param neglogpacs:
+        :return:
+        """
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
@@ -488,22 +556,23 @@ class FeedForwardPolicy(Policy):
                 td_map
             )
 
-        return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
-
-    def get_td_map(self, obs, context, returns, actions, values, neglogpacs):
+    def get_td_map(self):
         """See parent class."""
         # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
+        obs = self._get_obs(
+            self.mb_obs,
+            None if self.mb_contexts[0] is None else self.mb_contexts,
+            axis=1)
 
         # Compute the advantages.
-        advs = returns - values
+        advs = self.mb_returns - self.mb_values
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         return {
             self.obs_ph: obs,
-            self.action_ph: actions,
+            self.action_ph: self.mb_actions,
             self.advs_ph: advs,
-            self.rew_ph: returns,
-            self.old_neglog_pac_ph: neglogpacs,
-            self.old_vpred_ph: values,
+            self.rew_ph: self.mb_returns,
+            self.old_neglog_pac_ph: self.mb_neglogpacs,
+            self.old_vpred_ph: self.mb_values,
         }

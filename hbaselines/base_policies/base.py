@@ -74,7 +74,7 @@ class Policy(object):
         """
         raise NotImplementedError
 
-    def update(self, obs, context, returns, actions, values, neglogpacs):
+    def update(self):
         """Perform a gradient update step.
 
         Parameters
@@ -138,7 +138,7 @@ class Policy(object):
         """
         raise NotImplementedError
 
-    def get_td_map(self, obs, context, returns, actions, values, neglogpacs):
+    def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm).
 
         Parameters
