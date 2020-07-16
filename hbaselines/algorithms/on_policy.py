@@ -36,6 +36,15 @@ from hbaselines.utils.env_util import create_env
 FEEDFORWARD_PARAMS = dict(
     # the learning rate
     learning_rate=3e-4,
+    # number of training minibatches per update
+    n_minibatches=4,
+    # number of epoch when optimizing the surrogate
+    n_opt_epochs=4,
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
     # entropy coefficient for the loss calculation
     ent_coef=0.01,
     # value function coefficient for the loss calculation
@@ -134,17 +143,6 @@ class OnPolicyRLAlgorithm(object):
         the environment(s) to evaluate from
     n_steps : int
         number of steps to sample in between training operations
-    n_minibatches : int
-        number of training minibatches per update
-    n_opt_epochs : int
-        number of epoch when optimizing the surrogate
-    n_eval_episodes : int
-        the number of evaluation episodes
-    gamma : float
-        the discount factor
-    lam : float
-        factor for trade-off of bias vs variance for Generalized Advantage
-        Estimator
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -239,10 +237,6 @@ class OnPolicyRLAlgorithm(object):
                  eval_env=None,
                  n_steps=128,
                  n_eval_episodes=50,
-                 n_minibatches=4,
-                 n_opt_epochs=4,
-                 gamma=0.99,
-                 lam=0.95,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -263,17 +257,8 @@ class OnPolicyRLAlgorithm(object):
             the environment to evaluate from (if registered in Gym, can be str)
         n_steps : int
             number of steps to sample in between training operations
-        n_minibatches : int
-            number of training minibatches per update
-        n_opt_epochs : int
-            number of epoch when optimizing the surrogate
         n_eval_episodes : int
             the number of evaluation episodes
-        gamma : float
-            discount factor
-        lam : float
-            factor for trade-off of bias vs variance for Generalized Advantage
-            Estimator
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -310,11 +295,6 @@ class OnPolicyRLAlgorithm(object):
         assert num_envs <= n_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
-        assert n_steps % n_minibatches == 0, \
-            "The number of minibatches (`n_minibatches`) is not a factor of " \
-            "the total number of samples collected per rollout (`n_steps`), " \
-            "some samples won't be used."
-
         # Instantiate the ray instance.
         if num_envs > 1:
             ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
@@ -325,11 +305,7 @@ class OnPolicyRLAlgorithm(object):
         self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
         self.n_steps = n_steps
-        self.n_minibatches = n_minibatches
-        self.n_opt_epochs = n_opt_epochs
         self.n_eval_episodes = n_eval_episodes
-        self.gamma = gamma
-        self.lam = lam
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -533,6 +509,67 @@ class OnPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
+    def _store_transition(self,
+                          obs0,
+                          context0,
+                          action,
+                          reward,
+                          obs1,
+                          context1,
+                          terminal1,
+                          is_final_step,
+                          env_num=0,
+                          evaluate=False,
+                          **kwargs):
+        """Store a transition in the replay buffer.
+
+        Parameters
+        ----------
+        obs0 : array_like
+            the last observation
+        action : array_like
+            the action
+        reward : float
+            the reward
+        obs1 : array_like
+            the current observation
+        terminal1 : bool
+            is the episode done
+        is_final_step : bool
+            whether the time horizon was met in the step corresponding to the
+            current sample. This is used by the TD3 algorithm to augment the
+            done mask.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
+        evaluate : bool
+            whether the sample is being provided by the evaluation environment.
+            If so, the data is not stored in the replay buffer.
+        kwargs : dict
+            additional parameters, containing the current and next-step full
+            observations for policies using MADDPG
+        """
+        # Scale the rewards by the provided term. Rewards are dictionaries when
+        # training independent multi-agent policies.
+        if isinstance(reward, dict):
+            reward = {k: self.reward_scale * reward[k] for k in reward.keys()}
+        else:
+            reward *= self.reward_scale
+
+        self.policy_tf.store_transition(
+            obs0=obs0,
+            context0=context0,
+            action=action,
+            reward=reward,
+            obs1=obs1,
+            context1=context1,
+            done=terminal1,
+            is_final_step=is_final_step,
+            env_num=env_num,
+            evaluate=evaluate,
+            **(kwargs if self.policy_kwargs.get("maddpg", False) else {}),
+        )
+
     def learn(self,
               total_steps,
               log_dir=None,
@@ -597,10 +634,10 @@ class OnPolicyRLAlgorithm(object):
                 self.epoch_episode_rewards = []
 
                 # Perform rollouts.
-                rollout = self._collect_samples(total_steps)
+                self._collect_samples(total_steps)
 
                 # Train.
-                self._train(**rollout)
+                self._train()
 
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
@@ -631,15 +668,7 @@ class OnPolicyRLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
-                    td_map = self.policy_tf.get_td_map(
-                        obs=rollout["mb_obs"],
-                        context=None if rollout["mb_contexts"][0] is None
-                        else rollout["mb_contexts"],
-                        returns=rollout["mb_returns"],
-                        actions=rollout["mb_actions"],
-                        values=rollout["mb_values"],
-                        neglogpacs=rollout["mb_neglogpacs"],
-                    )
+                    td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
                     if not td_map:
@@ -738,7 +767,7 @@ class OnPolicyRLAlgorithm(object):
         else:
             action = action.flatten()
 
-        return action, value, neglogpac
+        return action
 
     def _collect_samples(self,
                          total_steps,
@@ -762,15 +791,6 @@ class OnPolicyRLAlgorithm(object):
             instead of being computed by the policy. This is used for
             exploration purposes.
         """
-        mb_rewards = [[] for _ in range(self.num_envs)]
-        mb_obs = [[] for _ in range(self.num_envs)]
-        mb_contexts = [[] for _ in range(self.num_envs)]
-        mb_actions = [[] for _ in range(self.num_envs)]
-        mb_values = [[] for _ in range(self.num_envs)]
-        mb_neglogpacs = [[] for _ in range(self.num_envs)]
-        mb_dones = [[] for _ in range(self.num_envs)]
-        mb_all_obs = [[] for _ in range(self.num_envs)]
-
         # Loop through the sampling procedure the number of times it would
         # require to run through each environment in parallel until the number
         # of required steps have been collected.
@@ -789,16 +809,13 @@ class OnPolicyRLAlgorithm(object):
 
             # Predict next action. Use random actions when initializing the
             # replay buffer.
-            output = [self._policy(
+            action = [self._policy(
                 obs=self.obs[env_num],
                 context=context[env_num],
                 apply_noise=True,
                 random_actions=random_actions,
                 env_num=env_num,
             ) for env_num in range(n_steps)]
-            action = [o[0] for o in output]
-            values = [o[1] for o in output]
-            neglogpacs = [o[2] for o in output]
 
             # Update the environment.
             if self.num_envs > 1:
@@ -827,20 +844,27 @@ class OnPolicyRLAlgorithm(object):
 
             for ret_i in ret:
                 num = ret_i["env_num"]
+                context = ret_i["context"]
+                action = ret_i["action"]
                 reward = ret_i["reward"]
                 obs = ret_i["obs"]
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
 
-                # Store the new data.
-                mb_rewards[num].append(ret_i["reward"])
-                mb_obs[num].append([self.obs[num]])
-                mb_contexts[num].append(ret_i["context"])
-                mb_actions[num].append([ret_i["action"]])
-                mb_values[num].append(values[num])
-                mb_neglogpacs[num].append(neglogpacs[num])
-                mb_dones[num].append(ret_i["done"])
-                mb_all_obs[num].append(ret_i["all_obs"])
+                # Store a transition in the replay buffer.
+                self._store_transition(
+                    obs0=self.obs[num],
+                    context0=context,
+                    action=action,
+                    reward=reward,
+                    obs1=obs[0] if done else obs,
+                    context1=context,
+                    terminal1=done,
+                    is_final_step=(self.episode_step[num] >= self.horizon - 1),
+                    all_obs0=self.all_obs[num],
+                    all_obs1=all_obs[0] if done else all_obs,
+                    env_num=num,
+                )
 
                 # Book-keeping.
                 self.total_steps += 1
@@ -865,144 +889,9 @@ class OnPolicyRLAlgorithm(object):
                     self.epoch_episodes += 1
                     self.episodes += 1
 
-        # Compute the bootstrapped/discounted returns.
-        mb_returns = []
-        for num in range(self.num_envs):
-            mb_obs[num] = np.concatenate(mb_obs[num], axis=0)
-            mb_rewards[num] = np.asarray(mb_rewards[num])
-            mb_actions[num] = np.concatenate(mb_actions[num], axis=0)
-            mb_values[num] = np.concatenate(mb_values[num], axis=0)
-            mb_neglogpacs[num] = np.concatenate(mb_neglogpacs[num], axis=0)
-            mb_dones[num] = np.asarray(mb_dones[num])
-
-            mb_returns.append(self._gae_returns(
-                mb_rewards=mb_rewards[num],
-                mb_values=mb_values[num],
-                mb_dones=mb_dones[num],
-                obs=self.obs[num],
-                context=context[num],
-            ))
-
-        # Concatenate the stored data.
-        if self.num_envs > 1:
-            mb_obs = np.concatenate(mb_rewards, axis=0)
-            mb_contexts = np.concatenate(mb_contexts, axis=0)
-            mb_actions = np.concatenate(mb_actions, axis=0)
-            mb_values = np.concatenate(mb_values, axis=0)
-            mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
-            mb_all_obs = np.concatenate(mb_all_obs, axis=0)
-            mb_returns = np.concatenate(mb_returns, axis=0)
-        else:
-            mb_obs = mb_obs[0]
-            mb_contexts = mb_contexts[0]
-            mb_actions = mb_actions[0]
-            mb_values = mb_values[0]
-            mb_neglogpacs = mb_neglogpacs[0]
-            mb_all_obs = mb_all_obs[0]
-            mb_returns = mb_returns[0]
-
-        return {
-            "mb_returns": mb_returns,
-            "mb_obs": mb_obs,
-            "mb_contexts": mb_contexts,
-            "mb_actions": mb_actions,
-            "mb_values": mb_values,
-            "mb_neglogpacs": mb_neglogpacs,
-            "mb_all_obs": mb_all_obs,
-        }
-
-    def _gae_returns(self, mb_rewards, mb_values, mb_dones, obs, context):
-        """Compute the bootstrapped/discounted returns.
-
-        Parameters
-        ----------
-        mb_rewards : array_like
-            a minibatch of rewards from a given environment
-        mb_values : array_like
-            a minibatch of values computed by the policy from a given
-            environment
-        mb_dones : array_like
-            a minibatch of done masks from a given environment
-        obs : array_like
-            the current observation within the environment
-        context : array_like or None
-            the current contextual term within the environment
-
-        Returns
-        -------
-        array_like
-            GAE-style expected discounted returns.
-        """
-        # Compute the last estimated value.
-        last_values = self.policy_tf.value([obs], context)
-
-        # Discount/bootstrap off value fn.
-        mb_advs = np.zeros_like(mb_rewards)
-        mb_vactual = np.zeros_like(mb_rewards)
-        lastgaelam = 0
-        for t in reversed(range(self.n_steps)):
-            if t == self.n_steps - 1:
-                nextnonterminal = 1.0 - mb_dones[-1]
-                nextvalues = last_values
-                mb_vactual[t] = mb_rewards[t]
-            else:
-                nextnonterminal = 1.0 - mb_dones[t+1]
-                nextvalues = mb_values[t+1]
-                mb_vactual[t] = mb_rewards[t] \
-                    + self.gamma * nextnonterminal * nextvalues
-            delta = mb_rewards[t] \
-                + self.gamma * nextvalues * nextnonterminal - mb_values[t]
-            mb_advs[t] = lastgaelam = delta \
-                + self.gamma * self.lam * nextnonterminal * lastgaelam
-        mb_returns = mb_advs + mb_values
-
-        return mb_returns
-
-    def _train(self,
-               mb_obs,
-               mb_contexts,
-               mb_returns,
-               mb_actions,
-               mb_values,
-               mb_neglogpacs,
-               mb_all_obs):
-        """Perform the training operation.
-
-        Parameters
-        ----------
-        mb_obs : array_like
-            a minibatch of observations
-        mb_contexts : array_like
-            a minibatch of contextual terms
-        mb_returns : array_like
-            a minibatch of contextual expected discounted retuns
-        mb_actions : array_like
-            a minibatch of actions
-        mb_values : array_like
-            a minibatch of estimated values by the policy
-        mb_neglogpacs : array_like
-            a minibatch of the negative log-likelihood of performed actions
-        mb_all_obs : array_like or None
-            a minibatch of full-state observations. Used by the multi-agent
-            MADDPG policies.
-        """
-        batch_size = self.n_steps // self.n_minibatches
-
-        inds = np.arange(self.n_steps)
-        for epoch_num in range(self.n_opt_epochs):
-            np.random.shuffle(inds)
-            for start in range(0, self.n_steps, batch_size):
-                end = start + batch_size
-                mbinds = inds[start:end]
-                self.policy_tf.update(
-                    obs=mb_obs[mbinds],
-                    context=None if mb_contexts[0] is None
-                    else mb_contexts[mbinds],
-                    returns=mb_returns[mbinds],
-                    actions=mb_actions[mbinds],
-                    values=mb_values[mbinds],
-                    neglogpacs=mb_neglogpacs[mbinds],
-                )
+    def _train(self):
+        """Perform the training operation."""
+        self.policy_tf.update()
 
     def _evaluate(self, total_steps, env):
         """Perform the evaluation operation.
