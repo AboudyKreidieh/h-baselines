@@ -754,7 +754,7 @@ class OnPolicyRLAlgorithm(object):
         else:
             obs = np.array(obs).reshape((-1,) + self.ob_space.shape)
 
-        action, value, neglogpac = self.policy_tf.get_action(
+        action = self.policy_tf.get_action(
             obs, context,
             apply_noise=apply_noise,
             random_actions=random_actions,
