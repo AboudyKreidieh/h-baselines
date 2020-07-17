@@ -19,7 +19,6 @@ import tensorflow as tf
 import math
 from collections import deque
 from copy import deepcopy
-from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy

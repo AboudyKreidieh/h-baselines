@@ -1,6 +1,5 @@
 """Script containing the abstract policy class."""
 import numpy as np
-import tensorflow as tf
 
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import get_target_updates

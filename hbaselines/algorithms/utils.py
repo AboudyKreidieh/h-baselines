@@ -1,6 +1,4 @@
 """Utility method for the algorithm classes."""
-import numpy as np
-
 from hbaselines.fcnet.td3 import FeedForwardPolicy as \
     TD3FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
