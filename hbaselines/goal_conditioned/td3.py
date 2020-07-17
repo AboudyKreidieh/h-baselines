@@ -30,6 +30,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ignore_flat_channels,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 filters,
+                 kernel_sizes,
+                 strides,
+                 pre_exp_reward_scale,
+                 pre_exp_reward_shift,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -92,6 +103,22 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        filters: list of int
+            the channels of the neural network conv layers for the policy
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -147,6 +174,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             layers=layers,
             act_fun=act_fun,
             use_huber=use_huber,
+            ignore_flat_channels=ignore_flat_channels,
+            includes_image=includes_image,
+            ignore_image=ignore_image,
+            image_height=image_height,
+            image_width=image_width,
+            image_channels=image_channels,
+            filters=filters,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
+            pre_exp_reward_scale=pre_exp_reward_scale,
+            pre_exp_reward_shift=pre_exp_reward_shift,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,

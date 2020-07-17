@@ -8,6 +8,7 @@ import tensorflow as tf
 import json
 import time
 from copy import deepcopy
+from skvideo.io import FFmpegWriter
 
 from flow.core.util import emission_to_csv
 
@@ -75,6 +76,9 @@ def parse_options(args):
     parser.add_argument(
         '--num_rollouts', type=int, default=1,
         help='number of eval episodes')
+    parser.add_argument(
+        '--video', type=str, default='output.mp4',
+        help='path to the video to render')
     parser.add_argument(
         '--no_render', action='store_true',
         help='shuts off rendering')
@@ -184,29 +188,55 @@ def main(args):
         env.wrapped_env.restart_simulation(
             sim_params, render=not flags.no_render)
 
-    for episode_num in range(flags.num_rollouts):
-        # Run a rollout.
-        obs = env.reset()
-        total_reward = 0
-        while True:
-            context = [env.current_context] \
-                if hasattr(env, "current_context") else None
-            action = policy.get_action(
-                np.asarray([obs]),
-                context=context,
-                apply_noise=False,
-                random_actions=False,
-            )
-            obs, reward, done, _ = env.step(action[0])
-            if not flags.no_render:
-                env.render()
-            total_reward += reward
-            if done:
-                break
+    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+        out = FFmpegWriter(flags.video)
 
-        # Print total returns from a given episode.
-        episode_rewards.append(total_reward)
-        print("Round {}, return: {}".format(episode_num, total_reward))
+    if not isinstance(env, list):
+        env_list = [env]
+    else:
+        env_list = env
+
+    for env in env_list:
+        for episode_num in range(flags.num_rollouts):
+            obs, total_reward = env.reset(), 0
+
+            while True:
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
+                action = policy.get_action(
+                    np.asarray([obs]), context=context,
+                    apply_noise=False, random_actions=False)
+
+                # visualize the sub-goals of the hierarchical policy
+                if hasattr(policy, "_meta_action") \
+                        and policy._meta_action is not None \
+                        and hasattr(env, "set_goal"):
+                    goal = policy._meta_action[0][0] + (
+                        obs[policy.goal_indices]
+                        if policy.relative_goals else 0)
+                    env.set_goal(goal)
+
+                new_obs, reward, done, _ = env.step(action[0])
+                if not flags.no_render:
+                    out.writeFrame(env.render(
+                        mode='rgb_array', height=1024, width=1024))
+                total_reward += reward
+                if done:
+                    break
+
+                policy.store_transition(
+                    obs, context[0], action[0], reward, new_obs,
+                    context[0], done, done, evaluate=True)
+
+                obs = new_obs
+
+            # Print total returns from a given episode.
+            episode_rewards.append(total_reward)
+            print("Round {}, return: {}".format(episode_num, total_reward))
+
+    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+        out.close()
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(

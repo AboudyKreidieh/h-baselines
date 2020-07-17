@@ -47,6 +47,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    includes_image: bool
+        observation includes an image appended to it
+    ignore_image: bool
+        observation includes an image but should it be ignored
+    image_height: int
+        the height of the image in the observation
+    image_width: int
+        the width of the image in the observation
+    image_channels: int
+        the number of channels of the image in the observation
+    kernel_sizes: list of int
+        the kernel size of the neural network conv layers for the policy
+    strides: list of int
+        the kernel size of the neural network conv layers for the policy
+    filters: list of int
+        the channels of the neural network conv layers for the policy
     noise : float
         scaling term to the range of the action space, that is subsequently
         used as the standard deviation of Gaussian noise added to the action if
@@ -114,6 +130,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  layers,
                  act_fun,
                  use_huber,
+                 ignore_flat_channels,
+                 includes_image,
+                 ignore_image,
+                 image_height,
+                 image_width,
+                 image_channels,
+                 filters,
+                 kernel_sizes,
+                 strides,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -157,6 +182,22 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        includes_image: bool
+            observation includes an image appended to it
+        ignore_image: bool
+            observation includes an image but should it be ignored
+        image_height: int
+            the height of the image in the observation
+        image_width: int
+            the width of the image in the observation
+        image_channels: int
+            the number of channels of the image in the observation
+        kernel_sizes: list of int
+            the kernel size of the neural network conv layers for the policy
+        strides: list of int
+            the kernel size of the neural network conv layers for the policy
+        filters: list of int
+            the channels of the neural network conv layers for the policy
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -196,7 +237,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             layer_norm=layer_norm,
             layers=layers,
             act_fun=act_fun,
-            use_huber=use_huber
+            use_huber=use_huber,
+            ignore_flat_channels=ignore_flat_channels,
+            includes_image=includes_image,
+            ignore_image=ignore_image,
+            image_height=image_height,
+            image_width=image_width,
+            image_channels=image_channels,
+            filters=filters,
+            kernel_sizes=kernel_sizes,
+            strides=strides
         )
 
         # action magnitudes
@@ -412,6 +462,54 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     self.co_space.shape[0]
                 )
 
+            # if an image is present in the observation
+            # extra processing steps are needed
+            if self.includes_image:
+                batch_size = tf.shape(pi_h)[0]
+                image_size = (self.image_height *
+                              self.image_width *
+                              self.image_channels)
+
+                original_pi_h = pi_h
+                pi_h = original_pi_h[:, image_size:]
+
+                pi_h = tf.gather(
+                    pi_h, [i for i in range(pi_h.shape[1])
+                           if i not in self.ignore_flat_channels],
+                    axis=1)
+
+                # ignoring the image is useful for the lower level policy
+                # for creating an abstraction barrier
+                if not self.ignore_image:
+                    pi_h_image = tf.reshape(
+                        original_pi_h[:, :image_size],
+                        [batch_size, self.image_height, self.image_width,
+                         self.image_channels]
+                    )
+
+                    # create the hidden convolutional layers
+                    for i, (filters,
+                            kernel_size,
+                            strides) in enumerate(zip(self.filters,
+                                                      self.kernel_sizes,
+                                                      self.strides)):
+                        pi_h_image = self._conv_layer(
+                            pi_h_image, filters, kernel_size, strides,
+                            'conv{}'.format(i),
+                            act_fun=self.act_fun,
+                            layer_norm=self.layer_norm
+                        )
+
+                    h = pi_h_image.shape[1]
+                    w = pi_h_image.shape[2]
+                    c = pi_h_image.shape[3]
+                    pi_h = tf.concat(
+                        [tf.reshape(pi_h_image, [
+                            batch_size, h * w * c]) / tf.cast(h * w * c,
+                                                              tf.float32),
+                         pi_h], 1
+                    )
+
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
                 pi_h = layer(
@@ -468,6 +566,55 @@ class FeedForwardPolicy(ActorCriticPolicy):
                     self.co_space.shape[0] + self.ac_space.shape[0]
                 )
 
+            # if an image is present in the observation
+            # extra processing steps are needed
+            if self.includes_image:
+                batch_size = tf.shape(qf_h)[0]
+                image_size = (self.image_height *
+                              self.image_width *
+                              self.image_channels)
+
+                original_qf_h = qf_h
+                qf_h = original_qf_h[:, image_size:]
+
+                qf_h = tf.gather(
+                    qf_h, [i for i in range(qf_h.shape[1])
+                           if i not in self.ignore_flat_channels],
+                    axis=1)
+
+                # ignoring the image is useful for the lower level critic
+                # for creating an abstraction barrier
+                if not self.ignore_image:
+                    qf_h_image = tf.reshape(
+                        original_qf_h[:, :image_size],
+                        [batch_size, self.image_height, self.image_width,
+                         self.image_channels]
+                    )
+
+                    # create the hidden convolutional layers
+                    for i, (filters,
+                            kernel_size,
+                            strides) in enumerate(zip(self.filters,
+                                                      self.kernel_sizes,
+                                                      self.strides)):
+
+                        qf_h_image = self._conv_layer(
+                            qf_h_image, filters, kernel_size, strides,
+                            'conv{}'.format(i),
+                            act_fun=self.act_fun,
+                            layer_norm=self.layer_norm
+                        )
+
+                    h = qf_h_image.shape[1]
+                    w = qf_h_image.shape[2]
+                    c = qf_h_image.shape[3]
+                    qf_h = tf.concat(
+                        [tf.reshape(qf_h_image, [
+                            batch_size, h * w * c]) / tf.cast(h * w * c,
+                                                              tf.float32),
+                         qf_h], 1
+                    )
+
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
                 qf_h = layer(
@@ -511,8 +658,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
 
-        return self.update_from_batch(obs0, actions, rewards, obs1, terminals1,
-                                      update_actor=update_actor)
+        return self.update_from_batch(
+            obs0, actions, rewards, obs1, terminals1,
+            update_actor=update_actor)
 
     def update_from_batch(self,
                           obs0,

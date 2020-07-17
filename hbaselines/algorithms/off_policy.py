@@ -86,6 +86,29 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+
+    # Image Specific Parameters for training convolutional policies
+    # used mainly for TerrainRL-based environments
+    # convention is the image is in the last obs dimensions
+
+    # channels of the proprioceptive state to be ignored
+    ignore_flat_channels=[],
+    # observation includes an image appended to it
+    includes_image=False,
+    # observation includes an image but should it be ignored
+    ignore_image=False,
+    # the height of the image in the observation
+    image_height=32,
+    # the width of the image in the observation
+    image_width=32,
+    # the number of channels of the image in the observation
+    image_channels=3,
+    # the channels of the neural network conv layers for the policy
+    filters=[16, 16, 16],
+    # the kernel size of the neural network conv layers for the policy
+    kernel_sizes=[5, 5, 5],
+    # the kernel size of the neural network conv layers for the policy
+    strides=[2, 2, 2],
 )
 
 
@@ -105,6 +128,10 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,
+    # parameters for the intrinsic reward function before exp
+    pre_exp_reward_scale=2.0,
+    # parameters for the intrinsic reward function before exp
+    pre_exp_reward_shift=0.0,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -723,6 +750,16 @@ class OffPolicyRLAlgorithm(object):
         ensure_dir(log_dir)
         ensure_dir(os.path.join(log_dir, "checkpoints"))
 
+        # reload the model if one exists
+        filenames = os.listdir(os.path.join(log_dir, "checkpoints"))
+        if len(filenames) > 0:
+            metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
+            metanum = [int(f.split("-")[-1]) for f in metafiles]
+            ckpt_num = max(metanum)
+            ckpt = os.path.join(log_dir, "checkpoints/itr-{}".format(ckpt_num))
+            self.load(ckpt)
+            self.total_steps += ckpt_num
+
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
         writer = tf.compat.v1.summary.FileWriter(save_path)
@@ -746,11 +783,12 @@ class OffPolicyRLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
-            print("Collecting initial exploration samples...")
-            self._collect_samples(total_steps,
-                                  run_steps=initial_exploration_steps,
-                                  random_actions=True)
-            print("Done!")
+            if len(filenames) == 0:
+                print("Collecting initial exploration samples...")
+                self._collect_samples(total_steps,
+                                      run_steps=initial_exploration_steps,
+                                      random_actions=True)
+                print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0
@@ -835,6 +873,10 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
+        # add the capability to save replay buffers
+        self.policy_tf.replay_buffer.save(
+            save_path + "-{}.rb".format(self.total_steps))
+
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
@@ -844,6 +886,9 @@ class OffPolicyRLAlgorithm(object):
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
+
+        # add the capability to load pre existing replay buffers
+        self.policy_tf.replay_buffer.load(load_path + ".rb")
 
     def _collect_samples(self,
                          total_steps,
