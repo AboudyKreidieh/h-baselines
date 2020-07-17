@@ -3,7 +3,6 @@ import ray
 from gym.spaces import Box
 
 from hbaselines.algorithms.utils import get_obs
-from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.utils.env_util import create_env
 
 
@@ -84,12 +83,7 @@ class Sampler(object):
         else:
             raise ValueError("Horizon attribute not found.")
 
-    def collect_sample(self,
-                       action,
-                       multiagent,
-                       steps,
-                       total_steps,
-                       use_fingerprints):
+    def collect_sample(self, action, multiagent):
         """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
@@ -103,15 +97,6 @@ class Sampler(object):
             the action to be performed by the agent(s) within the environment
         multiagent : bool
              whether the policy is multi-agent
-        steps : int
-            the total number of steps that have been executed since training
-            began
-        total_steps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
 
         Returns
         -------
@@ -144,9 +129,6 @@ class Sampler(object):
         # Get the contextual term.
         context = getattr(self.env, "current_context", None)
 
-        # Add the fingerprint term to this observation, if needed.
-        obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
-
         # Done mask for multi-agent policies is slightly different.
         if multiagent:
             done = done["__all__"]
@@ -155,9 +137,6 @@ class Sampler(object):
             # Reset the environment.
             reset_obs = self.env.reset()
             reset_obs, reset_all_obs = get_obs(reset_obs)
-
-            # Add the fingerprint term, if needed.
-            obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
         else:
             reset_obs = None
             reset_all_obs = None

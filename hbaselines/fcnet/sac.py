@@ -56,13 +56,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         instead
     target_entropy : float
         target entropy used when learning the entropy coefficient
-    zero_fingerprint : bool
-        whether to zero the last two elements of the observations for the actor
-        and critic computations. Used for the worker policy when fingerprints
-        are being implemented.
-    fingerprint_dim : bool
-        the number of fingerprint elements in the observation. Used when trying
-        to zero the fingerprint elements.
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
         the replay buffer
     terminals1 : tf.compat.v1.placeholder
@@ -140,9 +133,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun,
                  use_huber,
                  target_entropy,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -185,13 +176,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             to None, a heuristic value is used.
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : bool
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
@@ -216,8 +200,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         else:
             self.target_entropy = target_entropy
 
-        self.zero_fingerprint = zero_fingerprint
-        self.fingerprint_dim = fingerprint_dim
         self._ac_means = 0.5 * (ac_space.high + ac_space.low)
         self._ac_magnitudes = 0.5 * (ac_space.high - ac_space.low)
 
@@ -352,15 +334,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
-            # zero out the fingerprint observations for the worker policy
-            if self.zero_fingerprint:
-                pi_h = self._remove_fingerprint(
-                    pi_h,
-                    self.ob_space.shape[0],
-                    self.fingerprint_dim,
-                    self.co_space.shape[0]
-                )
-
             # create the hidden layers
             for i, layer_size in enumerate(self.layers):
                 pi_h = layer(
@@ -438,15 +411,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             False.
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            # zero out the fingerprint observations for the worker policy
-            if self.zero_fingerprint:
-                obs = self._remove_fingerprint(
-                    obs,
-                    self.ob_space.shape[0],
-                    self.fingerprint_dim,
-                    self.co_space.shape[0]
-                )
-
             # Value function
             if create_vf:
                 with tf.compat.v1.variable_scope("vf", reuse=reuse):
