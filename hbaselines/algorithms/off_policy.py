@@ -728,8 +728,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_steps,
-                                  run_steps=initial_exploration_steps,
+            self._collect_samples(run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
 
@@ -751,7 +750,7 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_steps)
+                    self._collect_samples()
 
                     # Train.
                     self._train()
