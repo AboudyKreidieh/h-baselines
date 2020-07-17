@@ -117,12 +117,12 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # rate at which the original (non-hindsight) sample is stored in the
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
-    # whether to use the connected gradient update actor update procedure to
-    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
-    connected_gradients=False,
+    # whether to use the cooperative gradient update procedure for the
+    # higher-level policies. See: https://arxiv.org/abs/1912.02368v1
+    cooperative_gradients=False,
     # weights for the gradients of the loss of the lower-level policies with
     # respect to the parameters of the higher-level policies. Only used if
-    # `connected_gradients` is set to True.
+    # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
     # specifies whether to add a time-dependent fingerprint to the observations
     use_fingerprints=False,

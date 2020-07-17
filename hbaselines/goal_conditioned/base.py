@@ -84,13 +84,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     subgoal_testing_rate : float
         rate at which the original (non-hindsight) sample is stored in the
         replay buffer as well. Used only if `hindsight` is set to True.
-    connected_gradients : bool
-        whether to use the connected gradient update actor update procedure
-        to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+    cooperative_gradients : bool
+        whether to use the cooperative gradient update procedure for the
+        higher-level policy. See: https://arxiv.org/abs/1912.02368v1
     cg_weights : float
         weights for the gradients of the loss of the lower-level policies with
         respect to the parameters of the higher-level policies. Only used if
-        `connected_gradients` is set to True.
+        `cooperative_gradients` is set to True.
     use_fingerprints : bool
         specifies whether to add a time-dependent fingerprint to the
         observations
@@ -136,7 +136,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  off_policy_corrections,
                  hindsight,
                  subgoal_testing_rate,
-                 connected_gradients,
+                 cooperative_gradients,
                  cg_weights,
                  use_fingerprints,
                  fingerprint_range,
@@ -224,13 +224,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         subgoal_testing_rate : float
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
-        connected_gradients : bool
-            whether to use the connected gradient update actor update procedure
-            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+        cooperative_gradients : bool
+            whether to use the cooperative gradient update procedure for the
+            higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
-            used if `connected_gradients` is set to True.
+            used if `cooperative_gradients` is set to True.
         use_fingerprints : bool
             specifies whether to add a time-dependent fingerprint to the
             observations
@@ -275,7 +275,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.off_policy_corrections = off_policy_corrections
         self.hindsight = hindsight
         self.subgoal_testing_rate = subgoal_testing_rate
-        self.connected_gradients = connected_gradients
+        self.cooperative_gradients = cooperative_gradients
         self.cg_weights = cg_weights
         self.use_fingerprints = use_fingerprints
         self.fingerprint_range = fingerprint_range
@@ -458,12 +458,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     [self.batch_size, 1]),
             batch_dims=1, axis=1)
 
-        if self.connected_gradients:
+        if self.cooperative_gradients:
             if scope is None:
-                self._setup_connected_gradients()
+                self._setup_cooperative_gradients()
             else:
                 with tf.compat.v1.variable_scope(scope):
-                    self._setup_connected_gradients()
+                    self._setup_cooperative_gradients()
 
     def initialize(self):
         """See parent class.
@@ -541,9 +541,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 act[0] = meta_act
 
             for i in range(self.num_levels - 1):
-                if self.connected_gradients:
-                    # Perform the connected gradients update procedure.
-                    vf_loss, pi_loss = self._connected_gradients_update(
+                if self.cooperative_gradients:
+                    # Perform the cooperative gradients update procedure.
+                    vf_loss, pi_loss = self._cooperative_gradients_update(
                         obs0=obs0,
                         actions=act,
                         rewards=rew,
@@ -993,21 +993,21 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return new_goals, rewards
 
     # ======================================================================= #
-    #                      Auxiliary methods for HRL-CG                       #
+    #                       Auxiliary methods for CHER                        #
     # ======================================================================= #
 
-    def _setup_connected_gradients(self):
-        """Create the connected gradients meta-policy optimizer."""
+    def _setup_cooperative_gradients(self):
+        """Create the cooperative gradients meta-policy optimizer."""
         raise NotImplementedError
 
-    def _connected_gradients_update(self,
-                                    obs0,
-                                    actions,
-                                    rewards,
-                                    obs1,
-                                    terminals1,
-                                    update_actor=True):
-        """Perform the gradient update procedure for the HRL-CG algorithm.
+    def _cooperative_gradients_update(self,
+                                      obs0,
+                                      actions,
+                                      rewards,
+                                      obs1,
+                                      terminals1,
+                                      update_actor=True):
+        """Perform the gradient update procedure for the CHER algorithm.
 
         This procedure is similar to update_from_batch, expect it runs the
         self.cg_optimizer operation instead of the policy object's optimizer,
