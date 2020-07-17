@@ -74,7 +74,7 @@ class TestTrain(unittest.TestCase):
             'hindsight': False,
             'subgoal_testing_rate':
                 GOAL_CONDITIONED_PARAMS['subgoal_testing_rate'],
-            'connected_gradients': False,
+            'cooperative_gradients': False,
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
             'shared': False,
             'maddpg': False,
@@ -120,7 +120,7 @@ class TestTrain(unittest.TestCase):
             '--off_policy_corrections',
             '--hindsight',
             '--subgoal_testing_rate', '27',
-            '--connected_gradients',
+            '--cooperative_gradients',
             '--cg_weights', '28',
             '--shared',
             '--maddpg',
@@ -158,7 +158,7 @@ class TestTrain(unittest.TestCase):
                 'off_policy_corrections': True,
                 'hindsight': True,
                 'subgoal_testing_rate': 27.0,
-                'connected_gradients': True,
+                'cooperative_gradients': True,
                 'cg_weights': 28.0,
             }
         }
