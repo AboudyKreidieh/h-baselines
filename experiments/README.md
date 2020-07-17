@@ -266,7 +266,6 @@ from hbaselines.envs.snn4hrl.envs import AntGatherEnv
 ENV_ATTRIBUTES = {
     # do not delete existing environments
     # ...
-
     # create a new environment named "myEnv"
     "myEnv": {
         "meta_ac_space": lambda relative_goals: Box(
