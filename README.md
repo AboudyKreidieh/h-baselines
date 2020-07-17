@@ -25,12 +25,12 @@ available [here]().
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
-    2.3. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)  
+    2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.1. [Meta Period](#231-meta-period)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.2. [Intrinsic Rewards](#232-intrinsic-rewards)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#233-hiro-data-efficient-hierarchical-reinforcement-learning)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#234-hac-learning-multi-level-hierarchies-with-hindsight)  
-        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-cher-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
     2.4. [Multi-Agent Fully Connected Networks](#24-multi-agent-fully-connected-networks)  
 3. [Environments](#3-environments)  
     3.1. [MuJoCo Environments](#31-mujoco-environments)  
@@ -720,11 +720,11 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### 2.3.5 HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
+### 2.3.5 CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+The CHER algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
-weighted *connected gradient* term to the Manager's gradient update 
+weighted *cooperative gradient* term to the Manager's gradient update 
 procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
@@ -733,8 +733,8 @@ Under this formulation, the Manager's update step is defined as:
 
 <p align="center"><img src="/tex/ca9860e15619aaa5aa2687a72cf57a75.svg?invert_in_darkmode&sanitize=true" align=middle width=668.9097426pt height=68.9777022pt/></p>
 
-To use the connected gradient update procedure, set the 
-`connected_gradients` term in `policy_kwargs` to True. The weighting 
+To use the cooperative gradient update procedure, set the 
+`cooperative_gradients` term in `policy_kwargs` to True. The weighting 
 term (<img src="/tex/fd8be73b54f5436a5cd2e73ba9b6bfa9.svg?invert_in_darkmode&sanitize=true" align=middle width=9.58908224999999pt height=22.831056599999986pt/> in the above equation), can be modified via the 
 `cg_weights` term (see the example below).
 
@@ -746,10 +746,10 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
-        # add this line to include the connected gradient actor update 
-        # procedure to the higher-level policies
-        "connected_gradients": True,
-        # specify the connected gradient (lambda) weight
+        # add this line to include the cooperative gradient update procedure
+        # for the higher-level policies
+        "cooperative_gradients": True,
+        # specify the cooperative gradient (lambda) weight
         "cg_weights": 0.01
     }
 )
