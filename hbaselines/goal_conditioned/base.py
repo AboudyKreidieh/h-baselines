@@ -91,16 +91,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         weights for the gradients of the loss of the lower-level policies with
         respect to the parameters of the higher-level policies. Only used if
         `cooperative_gradients` is set to True.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_range : (list of float, list of float)
-        the low and high values for each fingerprint element, if they are being
-        used
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
-    centralized_value_functions : bool
-        specifies whether to use centralized value functions
     policy : list of hbaselines.base_policies.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
@@ -138,9 +128,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
                  scope=None,
                  env_name="",
                  num_envs=1,
@@ -231,14 +218,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
         meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use for the meta policies
         worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
@@ -277,18 +256,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.subgoal_testing_rate = subgoal_testing_rate
         self.cooperative_gradients = cooperative_gradients
         self.cg_weights = cg_weights
-        self.use_fingerprints = use_fingerprints
-        self.fingerprint_range = fingerprint_range
-        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
-        self.centralized_value_functions = centralized_value_functions
 
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
             ob_space=ob_space,
             relative_goals=relative_goals,
             env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
         )
 
         # =================================================================== #
@@ -306,7 +279,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ac_space_i = meta_ac_space if i < (num_levels - 1) else ac_space
             co_space_i = co_space if i == 0 else meta_ac_space
             ob_space_i = ob_space
-            zero_fingerprint_i = i == (num_levels - 1)
 
             # The policies are ordered from the highest level to lowest level
             # policies in the hierarchy.
@@ -334,8 +306,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     act_fun=act_fun,
                     use_huber=use_huber,
                     scope=scope_i,
-                    zero_fingerprint=zero_fingerprint_i,
-                    fingerprint_dim=self.fingerprint_dim[0],
                     **(additional_params or {}),
                 ))
 
@@ -385,12 +355,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._dones = [[] for _ in range(num_envs)]
 
         # Collect the state indices for the intrinsic rewards.
-        self.goal_indices = get_state_indices(
-            ob_space=ob_space,
-            env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
-        )
+        self.goal_indices = get_state_indices(ob_space, env_name)
 
         # Define the intrinsic reward function.
         if intrinsic_reward_type in ["negative_distance",

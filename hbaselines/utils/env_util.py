@@ -764,15 +764,8 @@ ENV_ATTRIBUTES = {
 }
 
 
-def get_meta_ac_space(ob_space,
-                      relative_goals,
-                      env_name,
-                      use_fingerprints,
-                      fingerprint_dim):
+def get_meta_ac_space(ob_space, relative_goals, env_name):
     """Compute the action space for the higher level policies.
-
-    If the fingerprint terms are being appended onto the observations, this
-    should be removed from the action space.
 
     Parameters
     ----------
@@ -785,11 +778,6 @@ def get_meta_ac_space(ob_space,
         the name of the environment. Used for special cases to assign the
         meta-level policies' action space to only ego observations in the
         observation space.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
 
     Returns
     -------
@@ -800,20 +788,12 @@ def get_meta_ac_space(ob_space,
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
             relative_goals)
     else:
-        if use_fingerprints:
-            low = np.array(ob_space.low)[:-fingerprint_dim[0]]
-            high = ob_space.high[:-fingerprint_dim[0]]
-            meta_ac_space = Box(low=low, high=high, dtype=np.float32)
-        else:
-            meta_ac_space = ob_space
+        meta_ac_space = ob_space
 
     return meta_ac_space
 
 
-def get_state_indices(ob_space,
-                      env_name,
-                      use_fingerprints,
-                      fingerprint_dim):
+def get_state_indices(ob_space, env_name):
     """Return the state indices for the intrinsic rewards.
 
     This assigns the indices of the state that are assigned goals, and
@@ -827,11 +807,6 @@ def get_state_indices(ob_space,
         the name of the environment. Used for special cases to assign the
         meta-level policies' action space to only ego observations in the
         observation space.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
 
     Returns
     -------
@@ -840,10 +815,6 @@ def get_state_indices(ob_space,
     """
     if env_name in ENV_ATTRIBUTES.keys():
         state_indices = ENV_ATTRIBUTES[env_name]["state_indices"]
-    elif use_fingerprints:
-        # Remove the last element to compute the reward.
-        state_indices = list(np.arange(
-            0, ob_space.shape[0] - fingerprint_dim[0]))
     else:
         # All observations are presented in the goal.
         state_indices = list(np.arange(0, ob_space.shape[0]))

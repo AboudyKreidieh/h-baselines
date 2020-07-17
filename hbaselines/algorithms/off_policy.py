@@ -19,13 +19,11 @@ import tensorflow as tf
 import math
 from collections import deque
 from copy import deepcopy
-from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
-from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
@@ -124,13 +122,6 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # respect to the parameters of the higher-level policies. Only used if
     # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
-    # specifies whether to add a time-dependent fingerprint to the observations
-    use_fingerprints=False,
-    # the low and high values for each fingerprint element, if they are being
-    # used
-    fingerprint_range=([0, 0], [5, 5]),
-    # specifies whether to use centralized value functions
-    centralized_value_functions=False,
 ))
 
 
@@ -416,16 +407,6 @@ class OffPolicyRLAlgorithm(object):
         self.eval_rew_ph = None
         self.eval_success_ph = None
         self.saver = None
-
-        if self.policy_kwargs.get("use_fingerprints", False):
-            # Append the fingerprint dimension to the observation dimension.
-            fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
-            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
-            self.ob_space = Box(low, high, dtype=np.float32)
-
-            # Add the fingerprint term to the first observation.
-            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -747,8 +728,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_steps,
-                                  run_steps=initial_exploration_steps,
+            self._collect_samples(run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
 
@@ -770,7 +750,7 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_steps)
+                    self._collect_samples()
 
                     # Train.
                     self._train()
@@ -845,10 +825,7 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self,
-                         total_steps,
-                         run_steps=None,
-                         random_actions=False):
+    def _collect_samples(self, run_steps=None, random_actions=False):
         """Perform the sample collection operation over multiple steps.
 
         This method calls collect_sample for a multiple steps, and attempts to
@@ -856,9 +833,6 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
@@ -899,10 +873,6 @@ class OffPolicyRLAlgorithm(object):
                     self.sampler[env_num].collect_sample.remote(
                         action=action[env_num],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                     for env_num in range(n_steps)
                 ])
@@ -911,10 +881,6 @@ class OffPolicyRLAlgorithm(object):
                     self.sampler[0].collect_sample(
                         action=action[0],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                 ]
 
@@ -1043,15 +1009,6 @@ class OffPolicyRLAlgorithm(object):
             eval_obs = env.reset()
             eval_obs, eval_all_obs = get_obs(eval_obs)
 
-            # Add the fingerprint term, if needed.
-            eval_obs = add_fingerprint(
-                obs=eval_obs,
-                steps=self.total_steps,
-                total_steps=total_steps,
-                use_fingerprints=self.policy_kwargs.get(
-                    "use_fingerprints", False),
-            )
-
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
             eval_episode_step = 0
@@ -1108,15 +1065,6 @@ class OffPolicyRLAlgorithm(object):
                 # Update the previous step observation.
                 eval_obs = obs.copy()
                 eval_all_obs = all_obs
-
-                # Add the fingerprint term, if needed.
-                eval_obs = add_fingerprint(
-                    obs=eval_obs,
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False),
-                )
 
                 # Increment the reward and step count.
                 num_steps += 1

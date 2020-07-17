@@ -40,9 +40,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -122,14 +119,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -157,9 +146,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
-            use_fingerprints=use_fingerprints,
-            fingerprint_range=fingerprint_range,
-            centralized_value_functions=centralized_value_functions,
             scope=scope,
             env_name=env_name,
             num_envs=num_envs,

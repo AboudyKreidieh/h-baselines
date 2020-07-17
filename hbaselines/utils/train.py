@@ -64,8 +64,6 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
-            "use_fingerprints": args.use_fingerprints,
-            "centralized_value_functions": args.centralized_value_functions,
         })
 
     # add MultiActorCriticPolicy parameters
@@ -328,15 +326,6 @@ def create_goal_conditioned_parser(parser):
         help="rate at which the original (non-hindsight) sample is stored in "
              "the replay buffer as well. Used only if `hindsight` is set to "
              "True.")
-    parser.add_argument(
-        "--use_fingerprints",
-        action="store_true",
-        help="specifies whether to add a time-dependent fingerprint to the "
-             "observations")
-    parser.add_argument(
-        "--centralized_value_functions",
-        action="store_true",
-        help="specifies whether to use centralized value functions")
     parser.add_argument(
         "--cooperative_gradients",
         action="store_true",
