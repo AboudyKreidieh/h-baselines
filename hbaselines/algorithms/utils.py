@@ -1,16 +1,18 @@
 """Utility method for the algorithm classes."""
-from hbaselines.fcnet.td3 import FeedForwardPolicy as \
-    TD3FeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
-from hbaselines.fcnet.sac import FeedForwardPolicy as \
-    SACFeedForwardPolicy
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
+    TD3MultiGoalConditionedPolicy
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
+    SACMultiGoalConditionedPolicy
 
 
 def is_td3_policy(policy):
@@ -19,6 +21,7 @@ def is_td3_policy(policy):
         TD3FeedForwardPolicy,
         TD3GoalConditionedPolicy,
         TD3MultiFeedForwardPolicy,
+        TD3MultiGoalConditionedPolicy,
     ]
 
 
@@ -28,6 +31,7 @@ def is_sac_policy(policy):
         SACFeedForwardPolicy,
         SACGoalConditionedPolicy,
         SACMultiFeedForwardPolicy,
+        SACMultiGoalConditionedPolicy,
     ]
 
 
@@ -46,14 +50,18 @@ def is_goal_conditioned_policy(policy):
     return policy in [
         TD3GoalConditionedPolicy,
         SACGoalConditionedPolicy,
+        TD3MultiGoalConditionedPolicy,
+        SACMultiGoalConditionedPolicy,
     ]
 
 
 def is_multiagent_policy(policy):
-    """Check whether a policy is a multi-agent feedforward policy."""
+    """Check whether a policy is a multi-agent policy."""
     return policy in [
         TD3MultiFeedForwardPolicy,
         SACMultiFeedForwardPolicy,
+        TD3MultiGoalConditionedPolicy,
+        SACMultiGoalConditionedPolicy,
     ]
 
 

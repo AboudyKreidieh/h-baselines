@@ -16,7 +16,7 @@ from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS

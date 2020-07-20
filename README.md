@@ -31,7 +31,7 @@ available [here]().
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#233-hiro-data-efficient-hierarchical-reinforcement-learning)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#234-hac-learning-multi-level-hierarchies-with-hindsight)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-cher-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
-    2.4. [Multi-Agent Fully Connected Networks](#24-multi-agent-fully-connected-networks)  
+    2.4. [Multi-Agent Policies](#24-multi-agent-policies)  
 3. [Environments](#3-environments)  
     3.1. [MuJoCo Environments](#31-mujoco-environments)  
     3.2. [Flow Environments](#32-flow-environments)  
@@ -755,22 +755,32 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-## 2.4 Multi-Agent Fully Connected Networks
+## 2.4 Multi-Agent Policies
 
-In order to train multiple workers in a triangular hierarchical structure, this
-repository also supports the training of multi-agent policies as well. These 
-policies are import via the following commands:
+This repository also supports the training of multi-agent variant of both the 
+fully connected and goal-conditioned policies. The fully-connected policies are
+import via the following commands:
 
 ```python
 # for TD3
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 
 # for SAC
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy
 ```
 
-These policy supports training off-policy variants of three popular multi-agent
-algorithms:
+Moreover, the hierarchical variants are import via the following commands:
+
+```python
+# for TD3
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy
+
+# for SAC
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy
+```
+
+These policies supports training off-policy variants of three popular 
+multi-agent algorithms:
 
 * **Independent learners**: Independent (or Naive) learners provide a separate
   policy with independent parameters to each agent in an environment.
@@ -784,7 +794,7 @@ algorithms:
 
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -805,7 +815,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -824,7 +834,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -839,6 +849,9 @@ algorithms:
   This works for both shared and non-shared policies. For shared policies,
   we use a single centralized value function instead of a value function
   for each agent.
+
+  *Note:* MADDPG variants of the goal-conditioned hierarchies are currently not
+  supported.
 
 # 3. Environments
 
