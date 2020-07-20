@@ -303,6 +303,18 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
+    def test_deprecated(self):
+        """Make sure that the original path still works (temporarily)."""
+        raised = False
+        try:
+            from hbaselines.multi_fcnet.td3 import FeedForwardPolicy
+            policy_params = self.policy_params_independent.copy()
+            _ = FeedForwardPolicy(**policy_params)
+        except ModuleNotFoundError:  # pragma: no cover
+            raised = True  # pragma: no cover
+
+        self.assertFalse(raised, 'Exception raised')
+
     def test_init_1(self):
         """Check the functionality of the __init__() method.
 
@@ -1238,6 +1250,18 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
+
+    def test_deprecated(self):
+        """Make sure that the original path still works (temporarily)."""
+        raised = False
+        try:
+            from hbaselines.multi_fcnet.sac import FeedForwardPolicy
+            policy_params = self.policy_params_independent.copy()
+            _ = FeedForwardPolicy(**policy_params)
+        except ModuleNotFoundError:  # pragma: no cover
+            raised = True  # pragma: no cover
+
+        self.assertFalse(raised, 'Exception raised')
 
     def test_init_1(self):
         """Check the functionality of the __init__() method.
