@@ -307,9 +307,9 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         """Make sure that the original path still works (temporarily)."""
         raised = False
         try:
-            from hbaselines.multi_fcnet.td3 import FeedForwardPolicy
+            from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
             policy_params = self.policy_params_independent.copy()
-            _ = FeedForwardPolicy(**policy_params)
+            _ = MultiFeedForwardPolicy(**policy_params)
         except ModuleNotFoundError:  # pragma: no cover
             raised = True  # pragma: no cover
 
@@ -1255,9 +1255,9 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         """Make sure that the original path still works (temporarily)."""
         raised = False
         try:
-            from hbaselines.multi_fcnet.sac import FeedForwardPolicy
+            from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
             policy_params = self.policy_params_independent.copy()
-            _ = FeedForwardPolicy(**policy_params)
+            _ = MultiFeedForwardPolicy(**policy_params)
         except ModuleNotFoundError:  # pragma: no cover
             raised = True  # pragma: no cover
 

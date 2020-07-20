@@ -22,18 +22,7 @@ def deprecated(base, new_path):
     This is a decorator which can be used to mark functions as deprecated. It
     will result in a warning being emitted when the function is used.
     """
-    # if isinstance(base, string_types):
-
-    # The @deprecated is used with a 'reason'.
-    #
-    # .. code-block:: python
-    #
-    #    @deprecated("please, use another function")
-    #    def old_function(x, y):
-    #      pass
-
     def decorator(func1):
-
         if inspect.isclass(func1):
             fmt1 = "The class {base}.{name} is deprecated, use " \
                    "{new_path} instead."
