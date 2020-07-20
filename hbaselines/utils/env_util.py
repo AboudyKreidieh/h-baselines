@@ -656,58 +656,6 @@ ENV_ATTRIBUTES = {
     },
 
     # ======================================================================= #
-    # Mixed autonomy traffic imitation environments.                          #
-    # ======================================================================= #
-
-    "ring-imitation": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
-            shape=(5,),
-            dtype=np.float32
-        ),
-        "state_indices": [5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring(
-                fixed_density=False,
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-                imitation=True,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "highway-imitation": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
-            shape=(10,),
-            dtype=np.float32
-        ),
-        "state_indices": [5 * i for i in range(10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=highway(
-                fixed_boundary=False,
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-                imitation=True,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    # ======================================================================= #
     # Bipedal environments.                                                   #
     # ======================================================================= #
 

@@ -16,7 +16,6 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
@@ -39,8 +38,7 @@ def get_flow_params(fixed_boundary,
                     stopping_penalty,
                     acceleration_penalty,
                     evaluate=False,
-                    multiagent=False,
-                    imitation=False):
+                    multiagent=False):
     """Return the flow-specific parameters of the single lane highway network.
 
     Parameters
@@ -57,8 +55,6 @@ def get_flow_params(fixed_boundary,
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
-    imitation : bool
-        whether to use the imitation environment
 
     Returns
     -------
@@ -153,15 +149,9 @@ def get_flow_params(fixed_boundary,
     # SET UP THE FLOW PARAMETERS
 
     if multiagent:
-        if imitation:
-            env_name = None  # to be added later
-        else:
-            env_name = AVOpenMultiAgentEnv
+        env_name = AVOpenMultiAgentEnv
     else:
-        if imitation:
-            env_name = AVOpenImitationEnv
-        else:
-            env_name = AVOpenEnv
+        env_name = AVOpenEnv
 
     return dict(
         # name of the experiment
