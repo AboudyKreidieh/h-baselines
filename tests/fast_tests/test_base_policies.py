@@ -140,28 +140,6 @@ class TestActorCriticPolicy(unittest.TestCase):
         expected = np.array([[1, 1, 1, 1]])
         np.testing.assert_almost_equal(policy.sess.run(val1), expected)
 
-    def test_remove_fingerprint(self):
-        """Check the functionality of the _remove_fingerprint() method.
-
-        This method is tested for two cases:
-
-        1. for an additional_dim of zero
-        2. for an additional_dim greater than zero
-        """
-        policy = ActorCriticPolicy(**self.policy_params)
-
-        # test case 1
-        val = tf.constant(value=[[1, 2, 3, 4]], dtype=tf.float32)
-        new_val = policy._remove_fingerprint(val, 4, 2, 0)
-        expected = np.array([[1, 2, 0, 0]])
-        np.testing.assert_almost_equal(policy.sess.run(new_val), expected)
-
-        # test case 2
-        val = tf.constant(value=[[1, 2, 3, 4]], dtype=tf.float32)
-        new_val = policy._remove_fingerprint(val, 3, 2, 1)
-        expected = np.array([[1, 0, 0, 4]])
-        np.testing.assert_almost_equal(policy.sess.run(new_val), expected)
-
 
 class TestImitationLearningPolicy(unittest.TestCase):
     """Test ImitationLearningPolicy in hbaselines/base_policies."""

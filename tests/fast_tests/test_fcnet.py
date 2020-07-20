@@ -360,7 +360,9 @@ class TestImitationFeedForwardPolicy(unittest.TestCase):
         # test the graph
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['model/pi/fc0/bias:0',
+            ['0:0',
+             '1:0',
+             'model/pi/fc0/bias:0',
              'model/pi/fc0/kernel:0',
              'model/pi/fc1/bias:0',
              'model/pi/fc1/kernel:0',

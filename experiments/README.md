@@ -126,10 +126,6 @@ respective policies.
   lower-level policies with respect to the parameters of the higher-level
   policies. Only used if `cooperative_gradients` is set to True. Defaults to
   0.0005.
-* `--use_fingerprints` (*store_true*): whether to add a time-dependent
-  fingerprint to the observations. 
-* `--centralized_value_functions` (*store_true*): whether to use centralized
-  value functions. 
 
 ### Fcnet Model with Multi-agent Feed-forward Policy
 

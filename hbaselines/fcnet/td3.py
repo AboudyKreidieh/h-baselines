@@ -72,13 +72,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor policy. See TD3 paper for more.
     target_noise_clip : float
         clipping term for the noise injected in the target actor policy
-    zero_fingerprint : bool
-        whether to zero the last two elements of the observations for the actor
-        and critic computations. Used for the worker policy when fingerprints
-        are being implemented.
-    fingerprint_dim : int
-        the number of fingerprint elements in the observation. Used when trying
-        to zero the fingerprint elements.
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
         the replay buffer
     terminals1 : tf.compat.v1.placeholder
@@ -142,9 +135,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  noise,
                  target_policy_noise,
                  target_noise_clip,
-                 scope=None,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 scope=None):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -209,13 +200,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             clipping term for the noise injected in the target actor policy
         scope : str
             an upper-level scope term. Used by policies that call this one.
-        zero_fingerprint : bool
-            whether to zero the last two elements of the observations for the
-            actor and critic computations. Used for the worker policy when
-            fingerprints are being implemented.
-        fingerprint_dim : int
-            the number of fingerprint elements in the observation. Used when
-            trying to zero the fingerprint elements.
 
         Raises
         ------
@@ -255,8 +239,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.noise = noise * ac_mag
         self.target_policy_noise = np.array([ac_mag * target_policy_noise])
         self.target_noise_clip = np.array([ac_mag * target_noise_clip])
-        self.zero_fingerprint = zero_fingerprint
-        self.fingerprint_dim = fingerprint_dim
         assert len(self.layers) >= 1, \
             "Error: must have at least one hidden layer for the policy."
 
@@ -453,15 +435,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = obs
 
-            # zero out the fingerprint observations for the worker policy
-            if self.zero_fingerprint:
-                pi_h = self._remove_fingerprint(
-                    pi_h,
-                    self.ob_space.shape[0],
-                    self.fingerprint_dim,
-                    self.co_space.shape[0]
-                )
-
             # if an image is present in the observation
             # extra processing steps are needed
             if self.includes_image:
@@ -556,15 +529,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # concatenate the observations and actions
             qf_h = tf.concat([obs, action], axis=-1)
-
-            # zero out the fingerprint observations for the worker policy
-            if self.zero_fingerprint:
-                qf_h = self._remove_fingerprint(
-                    qf_h,
-                    self.ob_space.shape[0],
-                    self.fingerprint_dim,
-                    self.co_space.shape[0] + self.ac_space.shape[0]
-                )
 
             # if an image is present in the observation
             # extra processing steps are needed

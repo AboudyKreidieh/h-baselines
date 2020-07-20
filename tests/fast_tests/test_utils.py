@@ -16,7 +16,7 @@ from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
@@ -74,8 +74,6 @@ class TestTrain(unittest.TestCase):
             'hindsight': False,
             'subgoal_testing_rate':
                 GOAL_CONDITIONED_PARAMS['subgoal_testing_rate'],
-            'use_fingerprints': False,
-            'centralized_value_functions': False,
             'cooperative_gradients': False,
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
             'shared': False,
@@ -136,8 +134,6 @@ class TestTrain(unittest.TestCase):
             '--off_policy_corrections',
             '--hindsight',
             '--subgoal_testing_rate', '27',
-            '--use_fingerprints',
-            '--centralized_value_functions',
             '--cooperative_gradients',
             '--cg_weights', '28',
             '--shared',
@@ -176,8 +172,6 @@ class TestTrain(unittest.TestCase):
                 'off_policy_corrections': True,
                 'hindsight': True,
                 'subgoal_testing_rate': 27.0,
-                'use_fingerprints': True,
-                'centralized_value_functions': True,
                 'cooperative_gradients': True,
                 'cg_weights': 28.0,
                 'filters': [16, 16, 16],
@@ -258,8 +252,6 @@ class TestEnvUtil(unittest.TestCase):
         params = dict(
             ob_space=None,
             relative_goals=False,
-            use_fingerprints=False,
-            fingerprint_dim=1,
         )
         rel_params = params.copy()
         rel_params.update({"relative_goals": True})
@@ -558,8 +550,6 @@ class TestEnvUtil(unittest.TestCase):
         # non-relevant parameters for most tests
         params = dict(
             ob_space=Box(-1, 1, shape=(2,)),
-            use_fingerprints=False,
-            fingerprint_dim=1,
         )
 
         # test for AntMaze
