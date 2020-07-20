@@ -472,7 +472,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_td3_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "multiagent-ring_small",
             "--initial_exploration_steps", "1",
             "--total_steps", "500",
@@ -491,7 +491,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_sac_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "multiagent-ring_small",
             "--initial_exploration_steps", "1",
             "--total_steps", "500",
@@ -511,7 +511,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_failure_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "multiagent-ring_small",
             "--initial_exploration_steps", "1",
             "--total_steps", "500",
@@ -527,7 +527,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_td3_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "multiagent-ring_small",
             "--shared",
             "--initial_exploration_steps", "1",
@@ -547,7 +547,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_sac_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "multiagent-ring_small",
             "--shared",
             "--initial_exploration_steps", "1",
@@ -568,7 +568,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_failure_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_options('', '', args=[
+        args = parse_train_options('', '', args=[
             "MountainCarContinuous-v0",
             "--shared",
             "--initial_exploration_steps", "1",
