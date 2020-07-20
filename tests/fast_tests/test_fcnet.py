@@ -9,8 +9,6 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.algorithms.off_policy import SAC_PARAMS, TD3_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
-    as IMITATION_FEEDFORWARD_PARAMS
 
 
 class TestTD3FeedForwardPolicy(unittest.TestCase):
