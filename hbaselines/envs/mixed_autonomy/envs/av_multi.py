@@ -810,6 +810,41 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             shape=(5 * self.num_rl,),
             dtype=np.float32)
 
+    def _apply_rl_actions(self, rl_actions):
+        """See class definition."""
+        for key in rl_actions.keys():
+            # Get the lane ID.
+            lane = int(key.split("_")[-1])
+
+            # Get the acceleration for the given lane.
+            acceleration = deepcopy(rl_actions[key])
+
+            # Apply the actions to the given lane.
+            self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])
+
+    def _apply_per_lane_actions(self, rl_actions, veh_ids):
+        """Apply accelerations to RL vehicles on a given lane.
+
+        Parameters
+        ----------
+        rl_actions : array_like
+            the actions to be performed on the given lane
+        veh_ids : list of str
+            the names of the RL vehicles on the given lane
+        """
+        accelerations = deepcopy(rl_actions)
+
+        # Redefine the accelerations if below a speed threshold so that all
+        # actions result in non-negative desired speeds.
+        for i, veh_id in enumerate(veh_ids):
+            ac_range = self.action_space.high[i] - self.action_space.low[i]
+            speed = self.k.vehicle.get_speed(veh_id)
+            if speed < 0.5 * ac_range * self.sim_step:
+                accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+        # Apply the actions via the simulator.
+        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
+
     def get_state(self):
         """See class definition."""
         self.leader = []
