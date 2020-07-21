@@ -79,10 +79,6 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'strides': None,
-            'pre_exp_reward_scale':
-                GOAL_CONDITIONED_PARAMS['pre_exp_reward_scale'],
-            'pre_exp_reward_shift':
-                GOAL_CONDITIONED_PARAMS['pre_exp_reward_shift'],
             'kernel_sizes': None,
             'dir_name': '',
             'filters': None,
@@ -92,6 +88,7 @@ class TestTrain(unittest.TestCase):
             'image_height': FEEDFORWARD_PARAMS['image_height'],
             'image_width': FEEDFORWARD_PARAMS['image_width'],
             'includes_image': False,
+            'save_replay_buffer': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -99,6 +96,7 @@ class TestTrain(unittest.TestCase):
         args = parse_options("", "", args=[
             "AntMaze",
             '--evaluate',
+            '--save_replay_buffer',
             '--n_training', '1',
             '--total_steps', '2',
             '--seed', '3',
@@ -151,6 +149,7 @@ class TestTrain(unittest.TestCase):
             'actor_update_freq': 12,
             'meta_update_freq': 13,
             'num_envs': 21,
+            'save_replay_buffer': True,
             '_init_setup_model': True,
             'policy_kwargs': {
                 'buffer_size': 14,
@@ -182,8 +181,6 @@ class TestTrain(unittest.TestCase):
                 'image_width': 32,
                 'includes_image': False,
                 'kernel_sizes': [5, 5, 5],
-                'pre_exp_reward_scale': 2.0,
-                'pre_exp_reward_shift': 0.0,
                 'strides': [2, 2, 2],
             }
         }
@@ -203,6 +200,7 @@ class TestTrain(unittest.TestCase):
             'render_eval': True,
             'verbose': 11,
             'num_envs': 21,
+            'save_replay_buffer': True,
             '_init_setup_model': True,
             'policy_kwargs': {
                 'buffer_size': 14,

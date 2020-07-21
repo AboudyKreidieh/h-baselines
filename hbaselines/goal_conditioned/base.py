@@ -127,8 +127,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  filters,
                  kernel_sizes,
                  strides,
-                 pre_exp_reward_scale,
-                 pre_exp_reward_shift,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -431,9 +429,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     next_states=next_states[self.goal_indices] / scale,
                     relative_context=relative_goals,
                     offset=0.0,
-                    # offset=pre_exp_reward_shift * pre_exp_reward_scale,
-                    # reward_scales=(pre_exp_reward_scale / max_distance),
-                    # output_activation=np.exp)
                 ) + offset
 
             # Perform the exponential and squashing operations to keep the

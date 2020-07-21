@@ -126,10 +126,6 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
     intrinsic_reward_scale=1,
-    # parameters for the intrinsic reward function before exp
-    pre_exp_reward_scale=2.0,
-    # parameters for the intrinsic reward function before exp
-    pre_exp_reward_shift=0.0,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -206,6 +202,9 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+    save_replay_buffer : bool
+        whether to save the data from the replay buffer, at the frequency that
+        the model is saved. Only the most recent replay buffer is stored.
     num_envs : int
         number of environments used to run simulations in parallel. Each
         environment is run on a separate CPUS and uses the same policy as the
@@ -294,6 +293,7 @@ class OffPolicyRLAlgorithm(object):
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
+                 save_replay_buffer=False,
                  num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
@@ -332,6 +332,10 @@ class OffPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
+        save_replay_buffer : bool
+            whether to save the data from the replay buffer, at the frequency
+            that the model is saved. Only the most recent replay buffer is
+            stored.
         num_envs : int
             number of environments used to run simulations in parallel. Each
             environment is run on a separate CPUS and uses the same policy as
@@ -376,6 +380,7 @@ class OffPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
+        self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
@@ -853,9 +858,10 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
-        # add the capability to save replay buffers
-        self.policy_tf.replay_buffer.save(
-            save_path + "-{}.rb".format(self.total_steps))
+        # Save data from the replay buffer.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.save(
+                save_path + "-{}.rb".format(self.total_steps))
 
     def load(self, load_path):
         """Load model parameters from a checkpoint.
@@ -867,8 +873,9 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-        # add the capability to load pre existing replay buffers
-        self.policy_tf.replay_buffer.load(load_path + ".rb")
+        # Load pre-existing replay buffers.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.load(load_path + ".rb")
 
     def _collect_samples(self, run_steps=None, random_actions=False):
         """Perform the sample collection operation over multiple steps.

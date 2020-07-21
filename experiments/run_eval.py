@@ -6,11 +6,8 @@ import random
 import numpy as np
 import tensorflow as tf
 import json
-import time
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
-
-from flow.core.util import emission_to_csv
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
@@ -205,10 +202,13 @@ def main(args):
                     if hasattr(env, "current_context") else None
 
                 action = policy.get_action(
-                    np.asarray([obs]), context=context,
-                    apply_noise=False, random_actions=False)
+                    obs=np.asarray([obs]),
+                    context=context,
+                    apply_noise=False,
+                    random_actions=False,
+                )
 
-                # visualize the sub-goals of the hierarchical policy
+                # Visualize the sub-goals of the hierarchical policy.
                 if hasattr(policy, "_meta_action") \
                         and policy._meta_action is not None \
                         and hasattr(env, "set_goal"):
@@ -220,14 +220,22 @@ def main(args):
                 new_obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
                     out.writeFrame(env.render(
-                        mode='rgb_array', height=1024, width=1024))
+                        mode='rgb_array'))  # , height=1024, width=1024))
                 total_reward += reward
                 if done:
                     break
 
                 policy.store_transition(
-                    obs, context[0], action[0], reward, new_obs,
-                    context[0], done, done, evaluate=True)
+                    obs0=obs,
+                    context0=context[0] if context is not None else None,
+                    action=action[0],
+                    reward=reward,
+                    obs1=new_obs,
+                    context1=context[0] if context is not None else None,
+                    done=done,
+                    is_final_step=done,
+                    evaluate=True
+                )
 
                 obs = new_obs
 
@@ -241,22 +249,6 @@ def main(args):
     # Print total statistics.
     print("Average, std return: {}, {}".format(
         np.mean(episode_rewards), np.std(episode_rewards)))
-
-    if env_name in FLOW_ENV_NAMES:
-        # wait a short period of time to ensure the xml file is readable
-        time.sleep(0.1)
-
-        # collect the location of the emission file
-        dir_path = env.wrapped_env.sim_params.emission_path
-        emission_filename = "{0}-emission.xml".format(
-            env.wrapped_env.network.name)
-        emission_path = os.path.join(dir_path, emission_filename)
-
-        # convert the emission file into a csv
-        emission_to_csv(emission_path)
-
-        # Delete the .xml version of the emission file.
-        os.remove(emission_path)
 
 
 if __name__ == '__main__':

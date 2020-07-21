@@ -20,6 +20,7 @@ def get_hyperparameters(args, policy):
         "reward_scale": args.reward_scale,
         "render": args.render,
         "render_eval": args.render_eval,
+        "save_replay_buffer": args.save_replay_buffer,
         "verbose": args.verbose,
         "num_envs": args.num_envs,
         "_init_setup_model": True,
@@ -75,8 +76,6 @@ def get_hyperparameters(args, policy):
             "meta_period": args.meta_period,
             "intrinsic_reward_type": args.intrinsic_reward_type,
             "intrinsic_reward_scale": args.intrinsic_reward_scale,
-            "pre_exp_reward_scale": args.pre_exp_reward_scale,
-            "pre_exp_reward_shift": args.pre_exp_reward_shift,
             "relative_goals": args.relative_goals,
             "off_policy_corrections": args.off_policy_corrections,
             "hindsight": args.hindsight,
@@ -195,6 +194,11 @@ def create_algorithm_parser(parser):
     parser.add_argument(
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
+    parser.add_argument(
+        '--save_replay_buffer', action='store_true',
+        help='whether to save the data from the replay buffer, at the '
+             'frequency that the model is saved. Only the most recent replay '
+             'buffer is stored.')
     parser.add_argument(
         '--num_envs', type=int, default=1,
         help='number of environments used to run simulations in parallel. '
@@ -372,16 +376,6 @@ def create_goal_conditioned_parser(parser):
         type=float,
         default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_scale"],
         help="the value that the intrinsic reward should be scaled by")
-    parser.add_argument(
-        "--pre_exp_reward_scale",
-        type=float,
-        default=GOAL_CONDITIONED_PARAMS["pre_exp_reward_scale"],
-        help="the value that the reward should be scaled by")
-    parser.add_argument(
-        "--pre_exp_reward_shift",
-        type=float,
-        default=GOAL_CONDITIONED_PARAMS["pre_exp_reward_shift"],
-        help="the value that the reward should be shifted by")
     parser.add_argument(
         "--relative_goals",
         action="store_true",
