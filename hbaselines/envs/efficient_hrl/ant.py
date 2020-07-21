@@ -47,7 +47,7 @@ def q_mult(a, b):
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """Gym representation of the Ant MuJoCo environment."""
 
-    FILE = "ant.xml"
+    FILE = "double_ant.xml"
     ORI_IND = 3
 
     def __init__(self, file_path=None, expose_all_qpos=True,
@@ -70,6 +70,8 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._expose_body_comvels = expose_body_comvels
         self._body_com_indices = {}
         self._body_comvel_indices = {}
+        self._goal = None
+        self.hide_goal = False
 
         try:
             mujoco_env.MujocoEnv.__init__(self, file_path, 5)
@@ -98,6 +100,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         """Advance the simulation by one step."""
         xposbefore = self.get_body_com("torso")[0]
         self.do_simulation(a, self.frame_skip)
+        self.set_to_goal()
         xposafter = self.get_body_com("torso")[0]
         forward_reward = (xposafter - xposbefore) / self.dt
         ctrl_cost = .5 * np.square(a).sum()
@@ -117,15 +120,15 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.physics.data.qpos.flat,  # Ensures only ant obs.
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[:15],
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext[:14], -1, 1).flat,
             ])
         else:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[2:],
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[2:15],
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext[:14], -1, 1).flat,
             ])
 
         if self._expose_body_coms is not None:
@@ -193,3 +196,17 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def get_xy(self):
         """Return the x,y position of the agent."""
         return self.physics.data.qpos[:2]
+
+    def set_goal(self, goal):
+        """Set the goal position of the agent."""
+        self._goal = goal
+
+    def set_to_goal(self):
+        """Update the goal position of the goal agent."""
+        qpos = np.copy(self.sim.data.qpos)
+        qvel = np.copy(self.sim.data.qvel)
+        if self._goal is not None:
+            qpos[15:15 + self._goal.size] = self._goal
+        qpos[17] = -10.0 if self.hide_goal else 2.4
+        qvel[14:28] = 0.0
+        self.set_state(qpos, qvel)
