@@ -287,6 +287,20 @@ class AntMazeEnv(gym.Env):
         """Return the orientation of the ant."""
         return self.wrapped_env.get_ori()
 
+    def set_goal(self, goal):
+        """Set the goal position of the agent."""
+        self.wrapped_env.set_goal(goal)
+
+    @property
+    def hide_goal(self):
+        """Check if the goal is hidden."""
+        return self.wrapped_env.hide_goal
+
+    @hide_goal.setter
+    def hide_goal(self, hide_goal):
+        """Choose whether the goal is hidden."""
+        self.wrapped_env.hide_goal = hide_goal
+
     def get_top_down_view(self):
         """Return the top-down view."""
         self._view = np.zeros_like(self._view)

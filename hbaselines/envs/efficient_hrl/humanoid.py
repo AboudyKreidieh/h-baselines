@@ -36,6 +36,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             file_path):
         """Create a humanoid agent."""
         self._goal = None
+        self.hide_goal = True
         mujoco_env.MujocoEnv.__init__(self, file_path, 5)
         utils.EzPickle.__init__(self)
 
@@ -115,7 +116,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qvel = np.copy(self.sim.data.qvel)
         if self._goal is not None:
             qpos[24:24 + self._goal.size] = self._goal
-        qpos[26] = 2.4
+        qpos[26] = -20.0 if self.hide_goal else 2.4
         qvel[23:46] = 0.0
         self.set_state(qpos, qvel)
 

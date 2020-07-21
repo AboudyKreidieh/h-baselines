@@ -283,8 +283,18 @@ class HumanoidMazeEnv(gym.Env):
         return self.wrapped_env.get_ori()
 
     def set_goal(self, goal):
-        """Set the goal position of the humanoid."""
+        """Set the goal position of the agent."""
         self.wrapped_env.set_goal(goal)
+
+    @property
+    def hide_goal(self):
+        """Check if the goal is hidden."""
+        return self.wrapped_env.hide_goal
+
+    @hide_goal.setter
+    def hide_goal(self, hide_goal):
+        """Choose whether the goal is hidden."""
+        self.wrapped_env.hide_goal = hide_goal
 
     def get_range_sensor_obs(self):
         """Return egocentric range sensor observations of maze."""

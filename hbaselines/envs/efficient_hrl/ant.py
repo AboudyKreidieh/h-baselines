@@ -71,7 +71,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._body_com_indices = {}
         self._body_comvel_indices = {}
         self._goal = None
-        self.hide_goal = False
+        self.hide_goal = True
 
         try:
             mujoco_env.MujocoEnv.__init__(self, file_path, 5)
