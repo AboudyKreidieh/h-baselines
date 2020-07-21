@@ -7,6 +7,8 @@ import numpy as np
 import tensorflow as tf
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns; sns.set()
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy
@@ -18,6 +20,12 @@ POLICY_DICT = {
     "FeedForwardPolicy": FeedForwardPolicy,
     "GoalConditionedPolicy": GoalConditionedPolicy,
 }
+
+"""
+
+python run_analysis.py --dir_name data/goal-conditioned/AntMaze/2020-06-05-08:11:54  data/goal-conditioned/AntMaze/2020-06-05-08:12:55  data/goal-conditioned/AntMaze/2020-06-05-17:07:44  data/goal-conditioned/AntMaze/2020-06-06-11:37:20 data/goal-conditioned/AntMaze/2020-06-05-08:12:23  data/goal-conditioned/AntMaze/2020-06-05-17:07:14  data/goal-conditioned/AntMaze/2020-06-05-17:07:52  data/goal-conditioned/AntMaze/2020-06-06-11:37:29 data/goal-conditioned/AntMaze/2020-06-05-08:12:47  data/goal-conditioned/AntMaze/2020-06-05-17:07:24  data/goal-conditioned/AntMaze/2020-06-06-11:37:13  data/goal-conditioned/AntMaze/2020-06-06-11:37:45 --name "CHER(0.001)" "HRL" "CHER(0.1)" "HRL" "CHER(0.1)" "HIRO" "CHER(0.001)" "CHER(0.1)" "HIRO" "HRL" "HIRO" "CHER(0.001)"
+
+"""
 
 
 def parse_options(args):
@@ -35,9 +43,10 @@ def parse_options(args):
 
     # required input parameters
     parser.add_argument(
-        'dir_name', type=str, help='the path to the checkpoints folder')
+        '--dir_name', type=str, nargs='+',
+        help='the path to the checkpoints folder')
     parser.add_argument(
-        'name', type=str,
+        '--name', type=str, nargs='+',
         help='the name of the experiment that we are inspecting.')
 
     # optional arguments
@@ -96,98 +105,103 @@ def main(args):
     """Execute multiple training operations."""
     flags = parse_options(args)
 
-    # get the hyperparameters
-    env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
+    data = {
+        'name': [],
+        'step': [],
+        'distance': [],
+    }
 
-    print(hp.keys())
-    del hp['algorithm']
-    del hp['date/time']
+    for dir_name, name in zip(flags.dir_name, flags.name):
 
-    # create the algorithm object. We will be using the eval environment in
-    # this object to perform the rollout.
-    alg = OffPolicyRLAlgorithm(
-        policy=policy, env=env_name, eval_env=env_name, **hp)
+        # get the hyperparameters
+        env_name, policy, hp, seed = get_hyperparameters_from_dir(dir_name)
 
-    # setup the seed value
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.compat.v1.set_random_seed(seed)
+        print(hp.keys())
+        del hp['algorithm']
+        del hp['date/time']
 
-    filenames = os.listdir(os.path.join(flags.dir_name, "checkpoints"))
-    metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
-    metanum = list(sorted([int(f.split("-")[-1]) for f in metafiles]))[:-1]
+        # create the algorithm object. We will be using the eval environment in
+        # this object to perform the rollout.
+        alg = OffPolicyRLAlgorithm(
+            policy=policy, env=env_name, eval_env=env_name, **hp)
 
-    # get the checkpoint number
-    ckpt_num = max(metanum)
+        # setup the seed value
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.compat.v1.set_random_seed(seed)
 
-    # location to the checkpoint
-    ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
-
-    # restore the previous checkpoint
-    alg.saver = tf.compat.v1.train.Saver(alg.trainable_vars)
-    alg.load(ckpt)
-
-    # some variables that will be needed when replaying the rollout
-    policy = alg.policy_tf
-
-    batches = []
-    for b in range(flags.num_batches):
-        worker_obs0 = policy.replay_buffer.sample(with_additional=False)[5]
-        batches.append(worker_obs0)
-
-    steps = []
-    distances = []
-
-    for ckpt_num_one, ckpt_num_two in zip(metanum[1:], metanum[:-1]):
+        filenames = os.listdir(os.path.join(dir_name, "checkpoints"))
+        metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
+        metanum = list(sorted([int(f.split("-")[-1]) for f in metafiles]))[:-1]
 
         # get the checkpoint number
-        ckpt_num = ckpt_num_one
+        ckpt_num = max(metanum)
 
         # location to the checkpoint
-        ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
+        ckpt = os.path.join(dir_name, "checkpoints/itr-{}".format(ckpt_num))
 
         # restore the previous checkpoint
+        alg.saver = tf.compat.v1.train.Saver(alg.trainable_vars)
         alg.load(ckpt)
 
         # some variables that will be needed when replaying the rollout
         policy = alg.policy_tf
 
-        mean_one = []
-        for b in batches:
-            a = policy.policy[-1].get_action(b, None, False, False)
-            mean_one.append(a)
+        batches = []
+        for b in range(flags.num_batches):
+            worker_obs0 = policy.replay_buffer.sample(with_additional=False)[5]
+            batches.append(worker_obs0)
 
-        # get the checkpoint number
-        ckpt_num = ckpt_num_two
+        for ckpt_num_one, ckpt_num_two in zip(metanum[1:], metanum[:-1]):
 
-        # location to the checkpoint
-        ckpt = os.path.join(flags.dir_name, "checkpoints/itr-{}".format(ckpt_num))
+            # get the checkpoint number
+            ckpt_num = ckpt_num_one
 
-        # restore the previous checkpoint
-        alg.load(ckpt)
+            # location to the checkpoint
+            ckpt = os.path.join(dir_name, "checkpoints/itr-{}".format(ckpt_num))
 
-        # some variables that will be needed when replaying the rollout
-        policy = alg.policy_tf
+            # restore the previous checkpoint
+            alg.load(ckpt)
 
-        mean_two = []
-        for b in batches:
-            a = policy.policy[-1].get_action(b, None, False, False)
-            mean_two.append(a)
+            # some variables that will be needed when replaying the rollout
+            policy = alg.policy_tf
 
-        # compute a distance metric between the policies
-        mean_one = np.concatenate(mean_one, axis=0)
-        mean_two = np.concatenate(mean_two, axis=0)
-        kl = np.sum((mean_one - mean_two) ** 2, axis=1).mean()
-        print("{},{},{},{}".format(flags.name, ckpt_num_one, ckpt_num_two, kl))
+            mean_one = []
+            for b in batches:
+                a = policy.policy[-1].get_action(b, None, False, False)
+                mean_one.append(a)
 
-        steps.append(ckpt_num_one)
-        distances.append(kl)
+            # get the checkpoint number
+            ckpt_num = ckpt_num_two
 
-    plt.plot(steps, distances)
-    plt.title("Policy Non-Stationarity for {}".format(flags.name))
-    plt.xlabel("Steps")
-    plt.ylabel("Policy Distribution KL Divergence")
-    plt.savefig("{}.png".format(flags.name))
+            # location to the checkpoint
+            ckpt = os.path.join(dir_name, "checkpoints/itr-{}".format(ckpt_num))
+
+            # restore the previous checkpoint
+            alg.load(ckpt)
+
+            # some variables that will be needed when replaying the rollout
+            policy = alg.policy_tf
+
+            mean_two = []
+            for b in batches:
+                a = policy.policy[-1].get_action(b, None, False, False)
+                mean_two.append(a)
+
+            # compute a distance metric between the policies
+            mean_one = np.concatenate(mean_one, axis=0)
+            mean_two = np.concatenate(mean_two, axis=0)
+            kl = np.sum((mean_one - mean_two) ** 2, axis=1).mean()
+            print("{},{},{},{}".format(name, ckpt_num_one, ckpt_num_two, kl))
+
+            data['name'].append(name)
+            data['step'].append(ckpt_num_one)
+            data['distance'].append(kl)
+
+    df = pd.DataFrame(data, columns=['name', 'step', 'distance'])
+    plt.title("Manager MDP Non-Stationarity")
+    ax = sns.lineplot(x='step', y='distance', hue='name', data=df)
+    plt.savefig('ns.png')
 
 
 if __name__ == '__main__':

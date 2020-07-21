@@ -748,8 +748,7 @@ class OffPolicyRLAlgorithm(object):
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
         # add the capability to save replay buffers
-        self.policy_tf.replay_buffer.save(
-            save_path + "-{}.rb".format(self.total_steps))
+        self.policy_tf.replay_buffer.save(save_path + ".rb")
 
     def load(self, load_path):
         """Load model parameters from a checkpoint.
@@ -762,6 +761,7 @@ class OffPolicyRLAlgorithm(object):
         self.saver.restore(self.sess, load_path)
 
         # add the capability to load pre existing replay buffers
+        load_path = "-".join(load_path.split("-")[:-1])
         self.policy_tf.replay_buffer.load(load_path + ".rb")
 
     def _collect_samples(self,
