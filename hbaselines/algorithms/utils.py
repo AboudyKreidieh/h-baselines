@@ -5,6 +5,10 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
+from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
+    TD3MultiFeedForwardPolicyOld
+from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
+    SACMultiFeedForwardPolicyOld
 from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
@@ -21,6 +25,7 @@ def is_td3_policy(policy):
         TD3FeedForwardPolicy,
         TD3GoalConditionedPolicy,
         TD3MultiFeedForwardPolicy,
+        TD3MultiFeedForwardPolicyOld,
         TD3MultiGoalConditionedPolicy,
     ]
 
@@ -31,6 +36,7 @@ def is_sac_policy(policy):
         SACFeedForwardPolicy,
         SACGoalConditionedPolicy,
         SACMultiFeedForwardPolicy,
+        SACMultiFeedForwardPolicyOld,
         SACMultiGoalConditionedPolicy,
     ]
 
@@ -41,7 +47,9 @@ def is_feedforward_policy(policy):
         TD3FeedForwardPolicy,
         SACFeedForwardPolicy,
         TD3MultiFeedForwardPolicy,
+        TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
+        SACMultiFeedForwardPolicyOld,
     ]
 
 
@@ -59,7 +67,9 @@ def is_multiagent_policy(policy):
     """Check whether a policy is a multi-agent policy."""
     return policy in [
         TD3MultiFeedForwardPolicy,
+        TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
+        SACMultiFeedForwardPolicyOld,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]
