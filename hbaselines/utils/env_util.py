@@ -77,20 +77,24 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntMaze(
                 use_contexts=True,
-                context_range=[16, 0]
+                context_range=[16, 0],
+                evaluate=True,
             ),
             AntMaze(
                 use_contexts=True,
-                context_range=[16, 16]
+                context_range=[16, 16],
+                evaluate=True,
             ),
             AntMaze(
                 use_contexts=True,
-                context_range=[0, 16]
+                context_range=[0, 16],
+                evaluate=True,
             )
         ] if evaluate else AntMaze(
             use_contexts=True,
             random_contexts=True,
-            context_range=[(-4, 20), (-4, 20)]
+            context_range=[(-4, 20), (-4, 20)],
+            evaluate=False,
         ),
     },
 
@@ -184,22 +188,26 @@ ENV_ATTRIBUTES = {
                 use_contexts=True,
                 context_range=[16, 0],
                 image_size=32,
+                evaluate=True,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[16, 16],
                 image_size=32,
+                evaluate=True,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[0, 16],
                 image_size=32,
+                evaluate=True,
             )
         ] if evaluate else ImageAntMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)],
             image_size=32,
+            evaluate=False,
         ),
     },
 
@@ -214,12 +222,14 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntPush(
             use_contexts=True,
-            context_range=[0, 19]
+            context_range=[0, 19],
+            evaluate=True,
         ) if evaluate else AntPush(
             use_contexts=True,
-            context_range=[0, 19]
+            context_range=[0, 19],
             # random_contexts=True,
             # context_range=[(-16, 16), (-4, 20)])
+            evaluate=False,
         ),
     },
 
@@ -234,12 +244,14 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntFall(
             use_contexts=True,
-            context_range=[0, 27, 4.5]
+            context_range=[0, 27, 4.5],
+            evaluate=True,
         ) if evaluate else AntFall(
             use_contexts=True,
-            context_range=[0, 27, 4.5]
+            context_range=[0, 27, 4.5],
             # random_contexts=True,
             # context_range=[(-4, 12), (-4, 28), (0, 5)])
+            evaluate=False,
         ),
     },
 
@@ -268,20 +280,24 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 0]
+                context_range=[30, 0],
+                evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[0, 30]
+                context_range=[0, 30],
+                evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 30]
+                context_range=[30, 30],
+                evaluate=True,
             )
         ] if evaluate else AntFourRooms(
             use_contexts=True,
             random_contexts=False,
-            context_range=[[30, 0], [0, 30], [30, 30]]
+            context_range=[[30, 0], [0, 30], [30, 30]],
+            evaluate=False,
         ),
     },
 

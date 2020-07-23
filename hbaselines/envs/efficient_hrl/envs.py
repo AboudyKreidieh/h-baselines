@@ -31,7 +31,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  top_down_view=False,
                  image_size=32,
                  horizon=500,
-                 ant_fall=False):
+                 ant_fall=False,
+                 evaluate=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -65,6 +66,9 @@ class UniversalAntMazeEnv(AntMazeEnv):
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
             conditions for the agent need to be accordingly offset.
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -86,6 +90,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             image_size=image_size,
             manual_collision=False,
             ant_fall=ant_fall,
+            evaluate=evaluate,
         )
 
         self.horizon = horizon
@@ -480,7 +485,8 @@ class AntMaze(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Maze environment.
 
         Parameters
@@ -494,6 +500,9 @@ class AntMaze(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -521,7 +530,9 @@ class AntMaze(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             top_down_view=False,
-            maze_size_scaling=8)
+            maze_size_scaling=8,
+            evaluate=evaluate,
+        )
 
 
 class HumanoidMaze(UniversalHumanoidMazeEnv):
@@ -596,7 +607,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 image_size=32):
+                 image_size=32,
+                 evaluate=False):
         """Initialize the Image Ant Maze environment.
 
         Parameters
@@ -612,6 +624,9 @@ class ImageAntMaze(UniversalAntMazeEnv):
             each dimension of the goal
         image_size : int
             determines the width and height of the rendered image
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -642,6 +657,7 @@ class ImageAntMaze(UniversalAntMazeEnv):
             maze_size_scaling=8,
             top_down_view=True,
             image_size=image_size,
+            evaluate=evaluate,
         )
 
 
@@ -723,7 +739,8 @@ class AntPush(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Push environment.
 
         Parameters
@@ -737,6 +754,9 @@ class AntPush(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -766,6 +786,7 @@ class AntPush(UniversalAntMazeEnv):
             maze_size_scaling=8,
             ant_fall=False,
             top_down_view=False,
+            evaluate=evaluate,
         )
 
 
@@ -845,7 +866,8 @@ class AntFall(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Fall environment.
 
         Parameters
@@ -859,6 +881,9 @@ class AntFall(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -888,6 +913,7 @@ class AntFall(UniversalAntMazeEnv):
             maze_size_scaling=8,
             ant_fall=True,
             top_down_view=False,
+            evaluate=evaluate,
         )
 
 
@@ -979,7 +1005,8 @@ class AntFourRooms(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Four Rooms environment.
 
         Parameters
@@ -993,6 +1020,9 @@ class AntFourRooms(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -1022,6 +1052,7 @@ class AntFourRooms(UniversalAntMazeEnv):
             maze_size_scaling=3,
             ant_fall=False,
             top_down_view=False,
+            evaluate=evaluate,
         )
 
 

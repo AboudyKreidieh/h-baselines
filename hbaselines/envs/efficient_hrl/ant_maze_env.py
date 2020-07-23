@@ -51,6 +51,7 @@ class AntMazeEnv(gym.Env):
                  image_size=64,
                  manual_collision=False,
                  ant_fall=False,
+                 evaluate=False,
                  *args,
                  **kwargs):
         """Instantiate the environment.
@@ -86,13 +87,18 @@ class AntMazeEnv(gym.Env):
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
             conditions for the agent need to be accordingly offset.
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
         """
         self._maze_id = maze_id
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
             raise AssertionError("MODEL_CLASS unspecified!")
-        xml_path = os.path.join(MODEL_DIR, model_cls.FILE)
+        # xml_path = os.path.join(MODEL_DIR, "ant.xml")
+        xml_path = os.path.join(
+            MODEL_DIR, "double_ant.xml" if evaluate else "ant.xml")
         tree = ET.parse(xml_path)
         worldbody = tree.find(".//worldbody")
 
@@ -479,14 +485,14 @@ class AntMazeEnv(gym.Env):
     def _get_obs(self):
         """Return the current step observation."""
         wrapped_obs = self.wrapped_env._get_obs()
-        if self._top_down_view:
-            img = self.render(mode='rgb_array',
-                              width=self.image_size,
-                              height=self.image_size)
-            img = img.astype(np.float32) / 255.0
-            view = [img.flat]
-        else:
-            view = []
+        # if self._top_down_view:
+        #     img = self.render(mode='rgb_array',
+        #                       width=self.image_size,
+        #                       height=self.image_size)
+        #     img = img.astype(np.float32) / 255.0
+        #     view = [img.flat]
+        # else:
+        view = []
 
         if self._observe_blocks:
             additional_obs = []
@@ -630,3 +636,15 @@ class AntMazeEnv(gym.Env):
         next_obs = self._get_obs()
         done = False
         return next_obs, inner_reward, done, info
+
+    def set_goal(self, goal, relative):
+        """Set the goal position of the agent.
+
+        Parameters
+        ----------
+        goal : array_like
+            the desired position of the agent
+        relative : bool
+            whether the goal is a relative or absolute position
+        """
+        self.wrapped_env.set_goal(goal, relative)

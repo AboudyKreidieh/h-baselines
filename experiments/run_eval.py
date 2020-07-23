@@ -74,8 +74,11 @@ def parse_options(args):
         '--num_rollouts', type=int, default=1,
         help='number of eval episodes')
     parser.add_argument(
-        '--video', type=str, default='output.mp4',
+        '--video', type=str, default='output',
         help='path to the video to render')
+    parser.add_argument(
+        '--save_video', action='store_true',
+        help='whether to save the rendering')
     parser.add_argument(
         '--no_render', action='store_true',
         help='shuts off rendering')
@@ -135,6 +138,10 @@ def main(args):
     """Execute multiple training operations."""
     flags = parse_options(args)
 
+    # Run assertions.
+    assert not (flags.no_render and flags.save_video), \
+        "If saving the rendering, no_render cannot be set to True."
+
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
     hp['num_envs'] = 1
@@ -185,16 +192,19 @@ def main(args):
         env.wrapped_env.restart_simulation(
             sim_params, render=not flags.no_render)
 
-    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
-        out = FFmpegWriter(flags.video)
-
     if not isinstance(env, list):
         env_list = [env]
     else:
         env_list = env
 
-    for env in env_list:
+    for env_num, env in enumerate(env_list):
         for episode_num in range(flags.num_rollouts):
+            if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+                out = FFmpegWriter("{}_{}_{}.mp4".format(
+                    flags.video, env_num, episode_num))
+            else:
+                out = None
+
             obs, total_reward = env.reset(), 0
 
             while True:
@@ -215,12 +225,15 @@ def main(args):
                     goal = policy._meta_action[0][0] + (
                         obs[policy.goal_indices]
                         if policy.relative_goals else 0)
-                    env.set_goal(goal)
+                    env.set_goal(goal, policy.relative_goals)
 
                 new_obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
-                    out.writeFrame(env.render(
-                        mode='rgb_array'))  # , height=1024, width=1024))
+                    if flags.save_video:
+                        out.writeFrame(env.render(
+                            mode='rgb_array'))  # , height=1024, width=1024))
+                    else:
+                        env.render()
                 total_reward += reward
                 if done:
                     break
@@ -234,7 +247,7 @@ def main(args):
                     context1=context[0] if context is not None else None,
                     done=done,
                     is_final_step=done,
-                    evaluate=True
+                    evaluate=True,
                 )
 
                 obs = new_obs
@@ -243,8 +256,10 @@ def main(args):
             episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
 
-    if not flags.no_render and env_name not in FLOW_ENV_NAMES:
-        out.close()
+            # Save the video.
+            if not flags.no_render and env_name not in FLOW_ENV_NAMES \
+                    and flags.save_video:
+                out.close()
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
