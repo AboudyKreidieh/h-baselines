@@ -1,7 +1,6 @@
 """Script containing the abstract policy class."""
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import get_target_updates
@@ -314,59 +313,6 @@ class ActorCriticPolicy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
-
-    @staticmethod
-    def _conv_layer(val,
-                    filters,
-                    kernel_size,
-                    strides,
-                    name,
-                    act_fun=None,
-                    kernel_initializer=slim.variance_scaling_initializer(
-                        factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-                    layer_norm=False):
-        """Create a convolutional layer.
-
-        Parameters
-        ----------
-        val : tf.Variable
-            the input to the layer
-        filters : int
-            the number of channels in the convolutional kernel
-        kernel_size : int or list of int
-            the height and width of the convolutional filter
-        strides : int or list of int
-            the strides in each direction of convolution
-        name : str
-            the scope of the layer
-        act_fun : tf.nn.* or None
-            the activation function
-        kernel_initializer : Any
-            the initializing operation to the weights of the layer
-        layer_norm : bool
-            whether to enable layer normalization
-
-        Returns
-        -------
-        tf.Variable
-            the output from the layer
-        """
-        val = tf.layers.conv2d(
-            val,
-            filters,
-            kernel_size,
-            strides=strides,
-            padding='same',
-            name=name,
-            kernel_initializer=kernel_initializer)
-
-        if layer_norm:
-            val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
-
-        if act_fun is not None:
-            val = act_fun(val)
-
-        return val
 
     @staticmethod
     def _setup_target_updates(model_scope, target_scope, scope, tau, verbose):

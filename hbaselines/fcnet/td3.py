@@ -4,7 +4,8 @@ import numpy as np
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
-from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import create_fcnet
+from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import print_params_shape
@@ -432,80 +433,44 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the actor
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        # Initial image pre-processing (for convolutional policies).
+        if self.includes_image:
+            pi_h = create_conv(
+                obs=obs,
+                image_height=self.image_height,
+                image_width=self.image_width,
+                image_channels=self.image_channels,
+                ignore_flat_channels=self.ignore_flat_channels,
+                ignore_image=self.ignore_image,
+                filters=self.filters,
+                kernel_sizes=self.kernel_sizes,
+                strides=self.strides,
+                act_fun=self.act_fun,
+                layer_norm=self.layer_norm,
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
             pi_h = obs
 
-            # if an image is present in the observation
-            # extra processing steps are needed
-            if self.includes_image:
-                batch_size = tf.shape(pi_h)[0]
-                image_size = (self.image_height *
-                              self.image_width *
-                              self.image_channels)
+        # Create the model.
+        policy = create_fcnet(
+            obs=pi_h,
+            layers=self.layers,
+            num_output=self.ac_space.shape[0],
+            stochastic=False,
+            act_fun=self.act_fun,
+            layer_norm=self.layer_norm,
+            scope=scope,
+            reuse=reuse,
+        )
 
-                original_pi_h = pi_h
-                pi_h = original_pi_h[:, image_size:]
+        # Scaling terms to the output from the policy.
+        ac_means = (self.ac_space.high + self.ac_space.low) / 2.
+        ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
 
-                pi_h = tf.gather(
-                    pi_h, [i for i in range(pi_h.shape[1])
-                           if i not in self.ignore_flat_channels],
-                    axis=1)
-
-                # ignoring the image is useful for the lower level policy
-                # for creating an abstraction barrier
-                if not self.ignore_image:
-                    pi_h_image = tf.reshape(
-                        original_pi_h[:, :image_size],
-                        [batch_size, self.image_height, self.image_width,
-                         self.image_channels]
-                    )
-
-                    # create the hidden convolutional layers
-                    for i, (filters,
-                            kernel_size,
-                            strides) in enumerate(zip(self.filters,
-                                                      self.kernel_sizes,
-                                                      self.strides)):
-                        pi_h_image = self._conv_layer(
-                            pi_h_image, filters, kernel_size, strides,
-                            'conv{}'.format(i),
-                            act_fun=self.act_fun,
-                            layer_norm=self.layer_norm
-                        )
-
-                    h = pi_h_image.shape[1]
-                    w = pi_h_image.shape[2]
-                    c = pi_h_image.shape[3]
-                    pi_h = tf.concat(
-                        [tf.reshape(pi_h_image, [
-                            batch_size, h * w * c]) / tf.cast(h * w * c,
-                                                              tf.float32),
-                         pi_h], 1
-                    )
-
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                pi_h = layer(
-                    pi_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
-
-            # create the output layer
-            policy = layer(
-                pi_h, self.ac_space.shape[0], 'output',
-                act_fun=tf.nn.tanh,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
-
-            # scaling terms to the output from the policy
-            ac_means = (self.ac_space.high + self.ac_space.low) / 2.
-            ac_magnitudes = (self.ac_space.high - self.ac_space.low) / 2.
-
-            policy = ac_means + ac_magnitudes * tf.to_float(policy)
-
-        return policy
+        # Apply squashing and scale by action space.
+        return ac_means + ac_magnitudes * tf.nn.tanh(policy)
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -526,75 +491,37 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the output from the critic
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            # concatenate the observations and actions
-            qf_h = tf.concat([obs, action], axis=-1)
+        # Concatenate the observations and actions.
+        qf_h = tf.concat([obs, action], axis=-1)
 
-            # if an image is present in the observation
-            # extra processing steps are needed
-            if self.includes_image:
-                batch_size = tf.shape(qf_h)[0]
-                image_size = (self.image_height *
-                              self.image_width *
-                              self.image_channels)
-
-                original_qf_h = qf_h
-                qf_h = original_qf_h[:, image_size:]
-
-                qf_h = tf.gather(
-                    qf_h, [i for i in range(qf_h.shape[1])
-                           if i not in self.ignore_flat_channels],
-                    axis=1)
-
-                # ignoring the image is useful for the lower level critic
-                # for creating an abstraction barrier
-                if not self.ignore_image:
-                    qf_h_image = tf.reshape(
-                        original_qf_h[:, :image_size],
-                        [batch_size, self.image_height, self.image_width,
-                         self.image_channels]
-                    )
-
-                    # create the hidden convolutional layers
-                    for i, (filters,
-                            kernel_size,
-                            strides) in enumerate(zip(self.filters,
-                                                      self.kernel_sizes,
-                                                      self.strides)):
-
-                        qf_h_image = self._conv_layer(
-                            qf_h_image, filters, kernel_size, strides,
-                            'conv{}'.format(i),
-                            act_fun=self.act_fun,
-                            layer_norm=self.layer_norm
-                        )
-
-                    h = qf_h_image.shape[1]
-                    w = qf_h_image.shape[2]
-                    c = qf_h_image.shape[3]
-                    qf_h = tf.concat(
-                        [tf.reshape(qf_h_image, [
-                            batch_size, h * w * c]) / tf.cast(h * w * c,
-                                                              tf.float32),
-                         qf_h], 1
-                    )
-
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                qf_h = layer(
-                    qf_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
-
-            # create the output layer
-            qvalue_fn = layer(
-                qf_h, 1, 'qf_output',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
+        # Initial image pre-processing (for convolutional policies).
+        if self.includes_image:
+            qf_h = create_conv(
+                obs=qf_h,
+                image_height=self.image_height,
+                image_width=self.image_width,
+                image_channels=self.image_channels,
+                ignore_flat_channels=self.ignore_flat_channels,
+                ignore_image=self.ignore_image,
+                filters=self.filters,
+                kernel_sizes=self.kernel_sizes,
+                strides=self.strides,
+                act_fun=self.act_fun,
+                layer_norm=self.layer_norm,
+                scope=scope,
+                reuse=reuse,
             )
 
-        return qvalue_fn
+        return create_fcnet(
+            obs=qf_h,
+            layers=self.layers,
+            num_output=1,
+            stochastic=False,
+            act_fun=self.act_fun,
+            layer_norm=self.layer_norm,
+            scope=scope,
+            reuse=reuse,
+        )
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
