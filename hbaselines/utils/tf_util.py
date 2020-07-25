@@ -336,25 +336,27 @@ def create_fcnet(obs,
     ----------
     obs : tf.Variable
         the input to the model
-    layers : TODO
-        TODO
-    num_output : TODO
-        TODO
-    stochastic : TODO
-        TODO
-    act_fun : TODO
-        TODO
-    layer_norm : TODO
-        TODO
-    scope : TODO
-        TODO
-    reuse : TODO
-        TODO
+    layers : list of int
+        the size of the neural network for the model
+    num_output : int
+        number of outputs from the model
+    stochastic : bool
+        whether the model should be stochastic or deterministic
+    act_fun : tf.nn.* or None
+        the activation function
+    layer_norm : bool
+        whether to enable layer normalization
+    scope : str
+        the scope name of the model
+    reuse : bool
+        whether or not to reuse parameters
 
     Returns
     -------
     tf.Variable or (tf.Variable, tf.Variable)
-        TODO
+        the output from the model. a variable representing the output from the
+        model in the deterministic case and a tuple of the (mean, logstd) in
+        the stochastic case
     """
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
         pi_h = obs
@@ -412,32 +414,32 @@ def create_conv(obs,
 
     Parameters
     ----------
-    obs : TODO
-        TODO
-    image_height : TODO
-        TODO
-    image_width : TODO
-        TODO
-    image_channels : TODO
-        TODO
-    ignore_flat_channels : TODO
-        TODO
-    ignore_image : TODO
-        TODO
-    filters : TODO
-        TODO
-    kernel_sizes : TODO
-        TODO
-    strides : TODO
-        TODO
-    act_fun : TODO
-        TODO
-    layer_norm : TODO
-        TODO
-    scope : TODO
-        TODO
-    reuse : TODO
-        TODO
+    obs : tf.Variable
+        the input to the model
+    image_height : int
+        the height of the image in the observation
+    image_width : int
+        the width of the image in the observation
+    image_channels : int
+        the number of channels of the image in the observation
+    ignore_flat_channels : list of int
+        channels of the proprioceptive state to be ignored
+    ignore_image : bool
+        observation includes an image but should it be ignored
+    filters : list of int
+        the number of channels in the convolutional kernel
+    kernel_sizes : int or list of int
+        the height and width of the convolutional filter
+    strides : int or list of int
+        the strides in each direction of convolution
+    act_fun : tf.nn.* or None
+        the activation function
+    layer_norm : bool
+        whether to enable layer normalization
+    scope : str
+        the scope name of the model
+    reuse : bool
+        whether or not to reuse parameters
 
     Returns
     -------

@@ -12,6 +12,7 @@ from hbaselines.utils.env_util import get_meta_ac_space
 from hbaselines.utils.env_util import get_state_indices
 from hbaselines.utils.env_util import import_flow_env
 from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import conv_layer
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
@@ -851,11 +852,11 @@ class TestTFUtil(unittest.TestCase):
             val=tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
-                name='input_test5',
+                name='input_test4',
             ),
             layer_norm=True,
             num_outputs=num_outputs,
-            name="test5",
+            name="test4",
         )
 
         # Test that the LayerNorm layer was added.
@@ -863,8 +864,138 @@ class TestTFUtil(unittest.TestCase):
             sorted([var.name for var in get_trainable_vars()]),
             ['LayerNorm/beta:0',
              'LayerNorm/gamma:0',
-             'test5/bias:0',
-             'test5/kernel:0']
+             'test4/bias:0',
+             'test4/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_conv_layer(self):
+        """Check the functionality of the conv_layer() method.
+
+        This method is tested for the following features:
+
+        1. that the filters, kernel_size, and strides features work as expected
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. layer_norm is applied if requested
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test2',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test2",
+            act_fun=None,
+            layer_norm=False,
+        )
+
+        # Test the shape of the output.
+        self.assertEqual(out_val.shape[-1], 16)
+        self.assertEqual(out_val.shape[-2], 16)
+        self.assertEqual(out_val.shape[-3], 16)
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test2',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test2",
+            act_fun=None,
+            layer_norm=False,
+        )
+
+        # Test the name matches what is expected.
+        self.assertEqual(out_val.name, "test2/BiasAdd:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test3',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test3",
+            act_fun=tf.nn.tanh,
+            layer_norm=False,
+        )
+
+        # Test that the name matches the activation function that was added.
+        self.assertEqual(out_val.name, "Tanh:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test4',
+        )
+
+        # Create the layer.
+        _ = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test4",
+            act_fun=None,
+            layer_norm=True,
+        )
+
+        # Test that the LayerNorm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['LayerNorm/beta:0',
+             'LayerNorm/gamma:0',
+             'test4/bias:0',
+             'test4/kernel:0']
         )
 
         # Clear the graph.
