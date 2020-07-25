@@ -230,8 +230,11 @@ def main(args):
                 new_obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
                     if flags.save_video:
-                        out.writeFrame(env.render(
-                            mode='rgb_array'))  # , height=1024, width=1024))
+                        if alg.env_name == "AntGather":
+                            out.writeFrame(env.render(mode='rgb_array'))
+                        else:
+                            out.writeFrame(env.render(
+                                mode='rgb_array', height=1024, width=1024))
                     else:
                         env.render()
                 total_reward += reward
