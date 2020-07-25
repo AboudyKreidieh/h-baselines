@@ -60,14 +60,14 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
              'model/qf_0/fc0/kernel:0',
              'model/qf_0/fc1/bias:0',
              'model/qf_0/fc1/kernel:0',
-             'model/qf_0/qf_output/bias:0',
-             'model/qf_0/qf_output/kernel:0',
+             'model/qf_0/output/bias:0',
+             'model/qf_0/output/kernel:0',
              'model/qf_1/fc0/bias:0',
              'model/qf_1/fc0/kernel:0',
              'model/qf_1/fc1/bias:0',
              'model/qf_1/fc1/kernel:0',
-             'model/qf_1/qf_output/bias:0',
-             'model/qf_1/qf_output/kernel:0',
+             'model/qf_1/output/bias:0',
+             'model/qf_1/output/kernel:0',
              'target/pi/fc0/bias:0',
              'target/pi/fc0/kernel:0',
              'target/pi/fc1/bias:0',
@@ -78,14 +78,14 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
              'target/qf_0/fc0/kernel:0',
              'target/qf_0/fc1/bias:0',
              'target/qf_0/fc1/kernel:0',
-             'target/qf_0/qf_output/bias:0',
-             'target/qf_0/qf_output/kernel:0',
+             'target/qf_0/output/bias:0',
+             'target/qf_0/output/kernel:0',
              'target/qf_1/fc0/bias:0',
              'target/qf_1/fc0/kernel:0',
              'target/qf_1/fc1/bias:0',
              'target/qf_1/fc1/kernel:0',
-             'target/qf_1/qf_output/bias:0',
-             'target/qf_1/qf_output/kernel:0']
+             'target/qf_1/output/bias:0',
+             'target/qf_1/output/kernel:0']
         )
 
         # test case 2
@@ -132,14 +132,14 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
             'model/qf_0/fc0/kernel:0',
             'model/qf_0/fc1/bias:0',
             'model/qf_0/fc1/kernel:0',
-            'model/qf_0/qf_output/bias:0',
-            'model/qf_0/qf_output/kernel:0',
+            'model/qf_0/output/bias:0',
+            'model/qf_0/output/kernel:0',
             'model/qf_1/fc0/bias:0',
             'model/qf_1/fc0/kernel:0',
             'model/qf_1/fc1/bias:0',
             'model/qf_1/fc1/kernel:0',
-            'model/qf_1/qf_output/bias:0',
-            'model/qf_1/qf_output/kernel:0',
+            'model/qf_1/output/bias:0',
+            'model/qf_1/output/kernel:0',
         ]
 
         target_var_list = [
@@ -153,14 +153,14 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
             'target/qf_0/fc0/kernel:0',
             'target/qf_0/fc1/bias:0',
             'target/qf_0/fc1/kernel:0',
-            'target/qf_0/qf_output/bias:0',
-            'target/qf_0/qf_output/kernel:0',
+            'target/qf_0/output/bias:0',
+            'target/qf_0/output/kernel:0',
             'target/qf_1/fc0/bias:0',
             'target/qf_1/fc0/kernel:0',
             'target/qf_1/fc1/bias:0',
             'target/qf_1/fc1/kernel:0',
-            'target/qf_1/qf_output/bias:0',
-            'target/qf_1/qf_output/kernel:0'
+            'target/qf_1/output/bias:0',
+            'target/qf_1/output/kernel:0'
         ]
 
         for model, target in zip(model_var_list, target_var_list):
@@ -222,26 +222,26 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
              'model/value_fns/qf1/fc0/kernel:0',
              'model/value_fns/qf1/fc1/bias:0',
              'model/value_fns/qf1/fc1/kernel:0',
-             'model/value_fns/qf1/qf_output/bias:0',
-             'model/value_fns/qf1/qf_output/kernel:0',
+             'model/value_fns/qf1/output/bias:0',
+             'model/value_fns/qf1/output/kernel:0',
              'model/value_fns/qf2/fc0/bias:0',
              'model/value_fns/qf2/fc0/kernel:0',
              'model/value_fns/qf2/fc1/bias:0',
              'model/value_fns/qf2/fc1/kernel:0',
-             'model/value_fns/qf2/qf_output/bias:0',
-             'model/value_fns/qf2/qf_output/kernel:0',
+             'model/value_fns/qf2/output/bias:0',
+             'model/value_fns/qf2/output/kernel:0',
              'model/value_fns/vf/fc0/bias:0',
              'model/value_fns/vf/fc0/kernel:0',
              'model/value_fns/vf/fc1/bias:0',
              'model/value_fns/vf/fc1/kernel:0',
-             'model/value_fns/vf/vf_output/bias:0',
-             'model/value_fns/vf/vf_output/kernel:0',
+             'model/value_fns/vf/output/bias:0',
+             'model/value_fns/vf/output/kernel:0',
              'target/value_fns/vf/fc0/bias:0',
              'target/value_fns/vf/fc0/kernel:0',
              'target/value_fns/vf/fc1/bias:0',
              'target/value_fns/vf/fc1/kernel:0',
-             'target/value_fns/vf/vf_output/bias:0',
-             'target/value_fns/vf/vf_output/kernel:0']
+             'target/value_fns/vf/output/bias:0',
+             'target/value_fns/vf/output/kernel:0']
         )
 
         # test case 2
@@ -301,8 +301,8 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
             'model/value_fns/vf/fc0/bias:0',
             'model/value_fns/vf/fc1/kernel:0',
             'model/value_fns/vf/fc1/bias:0',
-            'model/value_fns/vf/vf_output/kernel:0',
-            'model/value_fns/vf/vf_output/bias:0',
+            'model/value_fns/vf/output/kernel:0',
+            'model/value_fns/vf/output/bias:0',
         ]
 
         target_var_list = [
@@ -310,8 +310,8 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
             'target/value_fns/vf/fc0/bias:0',
             'target/value_fns/vf/fc1/kernel:0',
             'target/value_fns/vf/fc1/bias:0',
-            'target/value_fns/vf/vf_output/kernel:0',
-            'target/value_fns/vf/vf_output/bias:0',
+            'target/value_fns/vf/output/kernel:0',
+            'target/value_fns/vf/output/bias:0',
         ]
 
         for model, target in zip(model_var_list, target_var_list):
