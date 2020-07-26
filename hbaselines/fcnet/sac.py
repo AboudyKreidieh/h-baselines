@@ -41,36 +41,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         critic learning rate
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    layers : list of int
-        the size of the Neural network for the policy
     tau : float
         target update rate
     gamma : float
         discount factor
-    layer_norm : bool
-        enable layer normalisation
-    act_fun : tf.nn.*
-        the activation function to use in the neural network
     use_huber : bool
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
-    includes_image: bool
-        observation includes an image appended to it
-    ignore_image: bool
-        observation includes an image but should it be ignored
-    image_height: int
-        the height of the image in the observation
-    image_width: int
-        the width of the image in the observation
-    image_channels: int
-        the number of channels of the image in the observation
-    filters: list of int
-        the channels of the neural network conv layers for the policy
-    kernel_sizes: list of int
-        the kernel size of the neural network conv layers for the policy
-    strides: list of int
-        the kernel size of the neural network conv layers for the policy
+    model_params : dict
+        dictionary of model-specific parameters. See parent class.
     target_entropy : float
         target entropy used when learning the entropy coefficient
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
@@ -145,19 +125,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
-                 ignore_flat_channels,
-                 includes_image,
-                 ignore_image,
-                 image_height,
-                 image_width,
-                 image_channels,
-                 filters,
-                 kernel_sizes,
-                 strides,
+                 model_params,
                  target_entropy,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
@@ -187,32 +156,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
-        includes_image: bool
-            observation includes an image appended to it
-        ignore_image: bool
-            observation includes an image but should it be ignored
-        image_height: int
-            the height of the image in the observation
-        image_width: int
-            the width of the image in the observation
-        image_channels: int
-            the number of channels of the image in the observation
-        kernel_sizes: list of int
-            the kernel size of the neural network conv layers for the policy
-        strides: list of int
-            the kernel size of the neural network conv layers for the policy
-        filters: list of int
-            the channels of the neural network conv layers for the policy
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -231,19 +180,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
-            ignore_flat_channels=ignore_flat_channels,
-            includes_image=includes_image,
-            ignore_image=ignore_image,
-            image_height=image_height,
-            image_width=image_width,
-            image_channels=image_channels,
-            filters=filters,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
+            model_params=model_params,
         )
 
         if target_entropy is None:
@@ -383,19 +321,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the log-probability of a given observation given a fixed action
         """
         # Initial image pre-processing (for convolutional policies).
-        if self.includes_image:
+        if self.model_params["includes_image"]:
             pi_h = create_conv(
                 obs=obs,
-                image_height=self.image_height,
-                image_width=self.image_width,
-                image_channels=self.image_channels,
-                ignore_flat_channels=self.ignore_flat_channels,
-                ignore_image=self.ignore_image,
-                filters=self.filters,
-                kernel_sizes=self.kernel_sizes,
-                strides=self.strides,
-                act_fun=self.act_fun,
-                layer_norm=self.layer_norm,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
                 scope=scope,
                 reuse=reuse,
             )
@@ -405,11 +343,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Create the model.
         policy_mean, log_std = create_fcnet(
             obs=pi_h,
-            layers=self.layers,
+            layers=self.model_params["layers"],
             num_output=self.ac_space.shape[0],
             stochastic=True,
-            act_fun=self.act_fun,
-            layer_norm=self.layer_norm,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
             scope=scope,
             reuse=reuse,
         )
@@ -469,32 +407,32 @@ class FeedForwardPolicy(ActorCriticPolicy):
             False.
         """
         conv_params = dict(
-            image_height=self.image_height,
-            image_width=self.image_width,
-            image_channels=self.image_channels,
-            ignore_flat_channels=self.ignore_flat_channels,
-            ignore_image=self.ignore_image,
-            filters=self.filters,
-            kernel_sizes=self.kernel_sizes,
-            strides=self.strides,
-            act_fun=self.act_fun,
-            layer_norm=self.layer_norm,
+            image_height=self.model_params["image_height"],
+            image_width=self.model_params["image_width"],
+            image_channels=self.model_params["image_channels"],
+            ignore_flat_channels=self.model_params["ignore_flat_channels"],
+            ignore_image=self.model_params["ignore_image"],
+            filters=self.model_params["filters"],
+            kernel_sizes=self.model_params["kernel_sizes"],
+            strides=self.model_params["strides"],
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
             reuse=reuse,
         )
 
         fcnet_params = dict(
-            layers=self.layers,
+            layers=self.model_params["layers"],
             num_output=1,
             stochastic=False,
-            act_fun=self.act_fun,
-            layer_norm=self.layer_norm,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
             reuse=reuse,
         )
 
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # Value function
             if create_vf:
-                if self.includes_image:
+                if self.model_params["includes_image"]:
                     vf_h = create_conv(obs=obs, scope="vf", **conv_params)
                 else:
                     vf_h = obs
@@ -508,7 +446,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 # Concatenate the observations and actions.
                 qf_h = tf.concat([obs, action], axis=-1)
 
-                if self.includes_image:
+                if self.model_params["includes_image"]:
                     qf1_h = create_conv(obs=qf_h, scope="qf1", **conv_params)
                     qf2_h = create_conv(obs=qf_h, scope="qf2", **conv_params)
                 else:

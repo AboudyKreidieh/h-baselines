@@ -86,19 +86,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
-                 ignore_flat_channels,
-                 includes_image,
-                 ignore_image,
-                 image_height,
-                 image_width,
-                 image_channels,
-                 filters,
-                 kernel_sizes,
-                 strides,
+                 model_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -134,32 +123,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
-        includes_image: bool
-            observation includes an image appended to it
-        ignore_image: bool
-            observation includes an image but should it be ignored
-        image_height: int
-            the height of the image in the observation
-        image_width: int
-            the width of the image in the observation
-        image_channels: int
-            the number of channels of the image in the observation
-        kernel_sizes: list of int
-            the kernel size of the neural network conv layers for the policy
-        strides: list of int
-            the kernel size of the neural network conv layers for the policy
-        filters: list of int
-            the channels of the neural network conv layers for the policy
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -238,19 +207,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
-            ignore_flat_channels=ignore_flat_channels,
-            includes_image=includes_image,
-            ignore_image=ignore_image,
-            image_height=image_height,
-            image_width=image_width,
-            image_channels=image_channels,
-            filters=filters,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
+            model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
@@ -692,19 +650,19 @@ class MultiFeedForwardPolicy(BasePolicy):
             the output from the actor
         """
         # Initial image pre-processing (for convolutional policies).
-        if self.includes_image:
+        if self.model_params["includes_image"]:
             pi_h = create_conv(
                 obs=obs,
-                image_height=self.image_height,
-                image_width=self.image_width,
-                image_channels=self.image_channels,
-                ignore_flat_channels=self.ignore_flat_channels,
-                ignore_image=self.ignore_image,
-                filters=self.filters,
-                kernel_sizes=self.kernel_sizes,
-                strides=self.strides,
-                act_fun=self.act_fun,
-                layer_norm=self.layer_norm,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
                 scope=scope,
                 reuse=reuse,
             )
@@ -714,11 +672,11 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Create the model.
         policy = create_fcnet(
             obs=pi_h,
-            layers=self.layers,
+            layers=self.model_params["layers"],
             num_output=ac_space.shape[0],
             stochastic=False,
-            act_fun=self.act_fun,
-            layer_norm=self.layer_norm,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
             scope=scope,
             reuse=reuse,
         )
@@ -753,30 +711,30 @@ class MultiFeedForwardPolicy(BasePolicy):
         qf_h = tf.concat([obs, action], axis=-1)
 
         # Initial image pre-processing (for convolutional policies).
-        if self.includes_image:
+        if self.model_params["includes_image"]:
             qf_h = create_conv(
                 obs=qf_h,
-                image_height=self.image_height,
-                image_width=self.image_width,
-                image_channels=self.image_channels,
-                ignore_flat_channels=self.ignore_flat_channels,
-                ignore_image=self.ignore_image,
-                filters=self.filters,
-                kernel_sizes=self.kernel_sizes,
-                strides=self.strides,
-                act_fun=self.act_fun,
-                layer_norm=self.layer_norm,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
                 scope=scope,
                 reuse=reuse,
             )
 
         return create_fcnet(
             obs=qf_h,
-            layers=self.layers,
+            layers=self.model_params["layers"],
             num_output=1,
             stochastic=False,
-            act_fun=self.act_fun,
-            layer_norm=self.layer_norm,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
             scope=scope,
             reuse=reuse,
         )

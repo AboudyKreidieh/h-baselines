@@ -32,7 +32,6 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -55,7 +54,6 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -265,7 +263,6 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -288,7 +285,6 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -1213,7 +1209,6 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
@@ -1236,7 +1231,6 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
@@ -1999,7 +1993,6 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -2023,7 +2016,6 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -2669,7 +2661,6 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
@@ -2693,7 +2684,6 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())

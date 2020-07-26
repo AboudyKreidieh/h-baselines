@@ -27,6 +27,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.misc import recursive_update
 from hbaselines.utils.env_util import create_env
 
 
@@ -75,38 +76,41 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # enable layer normalisation
-    layer_norm=False,
-    # the size of the neural network for the policy
-    layers=[256, 256],
-    # the activation function to use in the neural network
-    act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    # dictionary of model-specific parameters
+    model_params=dict(
+        # the type of model to use. Must be one of {"fcnet", "conv"}.
+        model_type="fcnet",
+        # the size of the neural network for the policy
+        layers=[256, 256],
+        # enable layer normalisation
+        layer_norm=False,
+        # the activation function to use in the neural network
+        act_fun=tf.nn.relu,
 
-    # Image Specific Parameters for training convolutional policies
-    # used mainly for TerrainRL-based environments
-    # convention is the image is in the last obs dimensions
+        # --------------- Model parameters for "conv" models. --------------- #
 
-    # channels of the proprioceptive state to be ignored
-    ignore_flat_channels=[],
-    # observation includes an image appended to it
-    includes_image=False,
-    # observation includes an image but should it be ignored
-    ignore_image=False,
-    # the height of the image in the observation
-    image_height=32,
-    # the width of the image in the observation
-    image_width=32,
-    # the number of channels of the image in the observation
-    image_channels=3,
-    # the channels of the neural network conv layers for the policy
-    filters=[16, 16, 16],
-    # the kernel size of the neural network conv layers for the policy
-    kernel_sizes=[5, 5, 5],
-    # the kernel size of the neural network conv layers for the policy
-    strides=[2, 2, 2],
+        # channels of the proprioceptive state to be ignored
+        ignore_flat_channels=[],
+        # observation includes an image appended to it
+        includes_image=False,
+        # observation includes an image but should it be ignored
+        ignore_image=False,
+        # the height of the image in the observation
+        image_height=32,
+        # the width of the image in the observation
+        image_width=32,
+        # the number of channels of the image in the observation
+        image_channels=3,
+        # the channels of the neural network conv layers for the policy
+        filters=[16, 16, 16],
+        # the kernel size of the neural network conv layers for the policy
+        kernel_sizes=[5, 5, 5],
+        # the kernel size of the neural network conv layers for the policy
+        strides=[2, 2, 2],
+    )
 )
 
 
@@ -114,8 +118,7 @@ FEEDFORWARD_PARAMS = dict(
 #     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
-GOAL_CONDITIONED_PARAMS.update(dict(
+GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # number of levels within the hierarchy. Must be greater than 1. Two levels
     # correspond to a Manager/Worker paradigm.
     num_levels=2,
@@ -152,8 +155,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 #    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-MULTIAGENT_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTIAGENT_PARAMS.update(dict(
+MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
@@ -411,7 +413,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
 
-        self.policy_kwargs.update(policy_kwargs or {})
+        self.policy_kwargs = recursive_update(
+            self.policy_kwargs, policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
