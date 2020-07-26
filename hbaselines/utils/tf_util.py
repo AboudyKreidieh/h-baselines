@@ -423,7 +423,7 @@ def create_conv(obs,
         the width of the image in the observation
     image_channels : int
         the number of channels of the image in the observation
-    ignore_flat_channels : list of int
+    ignore_flat_channels : list
         channels of the proprioceptive state to be ignored
     ignore_image : bool
         observation includes an image but should it be ignored
@@ -454,11 +454,11 @@ def create_conv(obs,
         original_pi_h = obs
         pi_h = original_pi_h[:, image_size:]
 
-        pi_h = tf.gather(
-            pi_h,
-            [i for i in range(pi_h.shape[1]) if i not in ignore_flat_channels],
-            axis=1
-        )
+        ignored_indx = [
+            i for i in range(pi_h.shape[1]) if i not in ignore_flat_channels]
+
+        if len(ignored_indx) > 0:
+            pi_h_ignored = tf.gather(pi_h, ignored_indx, axis=1)
 
         # Ignoring the image is useful for the lower level for creating an
         # abstraction barrier.
@@ -489,5 +489,7 @@ def create_conv(obs,
                  tf.cast(h * w * c, tf.float32),
                  pi_h], 1
             )
+            if len(ignored_indx) > 0:
+                pi_h = tf.concat([pi_h, pi_h_ignored], 1)
 
         return pi_h

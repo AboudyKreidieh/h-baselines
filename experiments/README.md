@@ -102,8 +102,6 @@ respective policies.
 * `--model_params:layer_norm` (*store_true*): enable layer normalisation
 * `--model_params:ignore_flat_channels` (*list of int*): specifies which 
   channels of the observation to ignore
-* `--model_params:includes_image` (*store_true*): specifies whether the 
-  environment has an image in its observation space
 * `--model_params:ignore_image` (*store_true*): specifies whether the image in
   the observation. should be ignored and removed
 * `--model_params:image_height` (*int*): the height of the image observation

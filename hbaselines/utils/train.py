@@ -38,7 +38,6 @@ def get_hyperparameters(args, policy):
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
-            "includes_image": getattr(args, "model_params:includes_image"),
             "ignore_image": getattr(args, "model_params:ignore_image"),
             "image_height": getattr(args, "model_params:image_height"),
             "image_width": getattr(args, "model_params:image_width"),
@@ -316,11 +315,6 @@ def create_feedforward_parser(parser):
         type=int,
         nargs="+",
         help="specifies which channels of the observation to ignore")
-    parser.add_argument(
-        "--model_params:includes_image",
-        action="store_true",
-        help="specifies whether the environment has an image  "
-             "in its observation space")
     parser.add_argument(
         "--model_params:ignore_image",
         action="store_true",

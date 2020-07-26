@@ -93,7 +93,6 @@ class TestTrain(unittest.TestCase):
                 FEEDFORWARD_PARAMS['model_params']['image_height'],
             'model_params:image_width':
                 FEEDFORWARD_PARAMS['model_params']['image_width'],
-            'model_params:includes_image': False,
             'save_replay_buffer': False,
         }
         self.assertDictEqual(vars(args), expected_args)
@@ -188,7 +187,6 @@ class TestTrain(unittest.TestCase):
                     'image_channels': 3,
                     'image_height': 32,
                     'image_width': 32,
-                    'includes_image': False,
                     'kernel_sizes': [5, 5, 5],
                     'strides': [2, 2, 2],
                 },
@@ -234,7 +232,6 @@ class TestTrain(unittest.TestCase):
                     'image_channels': 3,
                     'image_height': 32,
                     'image_width': 32,
-                    'includes_image': False,
                     'kernel_sizes': [5, 5, 5],
                     'strides': [2, 2, 2],
                 },

@@ -365,7 +365,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the actor
         """
         # Initial image pre-processing (for convolutional policies).
-        if self.model_params["includes_image"]:
+        if self.model_params["model_type"] == "conv":
             pi_h = create_conv(
                 obs=obs,
                 image_height=self.model_params["image_height"],
@@ -426,7 +426,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         qf_h = tf.concat([obs, action], axis=-1)
 
         # Initial image pre-processing (for convolutional policies).
-        if self.model_params["includes_image"]:
+        if self.model_params["model_type"] == "conv":
             qf_h = create_conv(
                 obs=qf_h,
                 image_height=self.model_params["image_height"],

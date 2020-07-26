@@ -780,7 +780,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             the log-probability of a given observation given a fixed action
         """
         # Initial image pre-processing (for convolutional policies).
-        if self.model_params["includes_image"]:
+        if self.model_params["model_type"] == "conv":
             pi_h = create_conv(
                 obs=obs,
                 image_height=self.model_params["image_height"],
@@ -891,7 +891,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # Value function
             if create_vf:
-                if self.model_params["includes_image"]:
+                if self.model_params["model_type"] == "conv":
                     vf_h = create_conv(obs=obs, scope="vf", **conv_params)
                 else:
                     vf_h = obs
@@ -906,7 +906,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 # Concatenate the observations and actions.
                 qf_h = tf.concat([obs, action], axis=-1)
 
-                if self.model_params["includes_image"]:
+                if self.model_params["model_type"] == "conv":
                     qf1_h = create_conv(obs=qf_h, scope="qf1", **conv_params)
                     qf2_h = create_conv(obs=qf_h, scope="qf2", **conv_params)
                 else:
@@ -916,7 +916,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 qf1 = create_fcnet(
                     obs=qf1_h, scope="qf1", output_pre="qf_", **fcnet_params)
                 qf2 = create_fcnet(
-                    obs=qf2_h, scope="qf2", output_pre="Qf_", **fcnet_params)
+                    obs=qf2_h, scope="qf2", output_pre="qf_", **fcnet_params)
             else:
                 qf1, qf2 = None, None
 

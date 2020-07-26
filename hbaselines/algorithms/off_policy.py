@@ -94,8 +94,6 @@ FEEDFORWARD_PARAMS = dict(
 
         # channels of the proprioceptive state to be ignored
         ignore_flat_channels=[],
-        # observation includes an image appended to it
-        includes_image=False,
         # observation includes an image but should it be ignored
         ignore_image=False,
         # the height of the image in the observation

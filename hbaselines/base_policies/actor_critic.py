@@ -51,8 +51,6 @@ class ActorCriticPolicy(object):
         In addition, the following parameters may be required dependent on
         your choice of model type:
 
-        * includes_image (bool): observation includes an image appended to it.
-          Required if "model_type" is set to "conv".
         * ignore_image (bool): observation includes an image but should it be
           ignored. Required if "model_type" is set to "conv".
         * image_height (int): the height of the image in the observation.
@@ -130,8 +128,6 @@ class ActorCriticPolicy(object):
             In addition, the following parameters may be required dependent on
             your choice of model type:
 
-            * includes_image (bool): observation includes an image appended to
-              it. Required if "model_type" is set to "conv".
             * ignore_image (bool): observation includes an image but should it
               be ignored. Required if "model_type" is set to "conv".
             * image_height (int): the height of the image in the observation.
@@ -171,9 +167,8 @@ class ActorCriticPolicy(object):
                            if not_specified[i]])))
 
         if model_params["model_type"] == "conv":
-            required = ["includes_image", "ignore_image", "image_height",
-                        "image_width", "image_channels", "kernel_sizes",
-                        "strides", "filters"]
+            required = ["ignore_image", "image_height", "image_width",
+                        "image_channels", "kernel_sizes", "strides", "filters"]
             not_specified = [s not in model_params.keys() for s in required]
             if any(not_specified):
                 raise AssertionError(
