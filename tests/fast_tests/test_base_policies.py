@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Box
-from copy import deepcopy
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.base_policies import ImitationLearningPolicy

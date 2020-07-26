@@ -739,16 +739,6 @@ class OffPolicyRLAlgorithm(object):
         ensure_dir(log_dir)
         ensure_dir(os.path.join(log_dir, "checkpoints"))
 
-        # reload the model if one exists
-        filenames = os.listdir(os.path.join(log_dir, "checkpoints"))
-        if len(filenames) > 0:
-            metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
-            metanum = [int(f.split("-")[-1]) for f in metafiles]
-            ckpt_num = max(metanum)
-            ckpt = os.path.join(log_dir, "checkpoints/itr-{}".format(ckpt_num))
-            self.load(ckpt)
-            self.total_steps += ckpt_num
-
         # Create a tensorboard object for logging.
         save_path = os.path.join(log_dir, "tb_log")
         writer = tf.compat.v1.summary.FileWriter(save_path)
@@ -772,11 +762,10 @@ class OffPolicyRLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
-            if len(filenames) == 0:
-                print("Collecting initial exploration samples...")
-                self._collect_samples(run_steps=initial_exploration_steps,
-                                      random_actions=True)
-                print("Done!")
+            print("Collecting initial exploration samples...")
+            self._collect_samples(run_steps=initial_exploration_steps,
+                                  random_actions=True)
+            print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0
