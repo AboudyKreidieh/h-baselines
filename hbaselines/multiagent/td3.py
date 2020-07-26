@@ -735,6 +735,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            output_pre="qf_",
             scope=scope,
             reuse=reuse,
         )

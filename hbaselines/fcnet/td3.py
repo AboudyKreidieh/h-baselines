@@ -452,6 +452,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             layer_norm=self.model_params["layer_norm"],
             scope=scope,
             reuse=reuse,
+            output_pre="qf_",
         )
 
     def update(self, update_actor=True, **kwargs):

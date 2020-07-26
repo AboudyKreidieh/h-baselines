@@ -329,7 +329,8 @@ def create_fcnet(obs,
                  act_fun,
                  layer_norm,
                  scope=None,
-                 reuse=False):
+                 reuse=False,
+                 output_pre=""):
     """Create a fully-connected neural network model.
 
     Parameters
@@ -388,7 +389,7 @@ def create_fcnet(obs,
         else:
             # Create the output layer.
             policy = layer(
-                pi_h, num_output, 'output',
+                pi_h, num_output, '{}output'.format(output_pre),
                 act_fun=None,
                 kernel_initializer=tf.random_uniform_initializer(
                     minval=-3e-3, maxval=3e-3)

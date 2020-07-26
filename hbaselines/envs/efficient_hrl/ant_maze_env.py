@@ -96,7 +96,6 @@ class AntMazeEnv(gym.Env):
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
             raise AssertionError("MODEL_CLASS unspecified!")
-        # xml_path = os.path.join(MODEL_DIR, "ant.xml")
         xml_path = os.path.join(
             MODEL_DIR, "double_ant.xml" if evaluate else "ant.xml")
         tree = ET.parse(xml_path)
@@ -485,14 +484,14 @@ class AntMazeEnv(gym.Env):
     def _get_obs(self):
         """Return the current step observation."""
         wrapped_obs = self.wrapped_env._get_obs()
-        # if self._top_down_view:
-        #     img = self.render(mode='rgb_array',
-        #                       width=self.image_size,
-        #                       height=self.image_size)
-        #     img = img.astype(np.float32) / 255.0
-        #     view = [img.flat]
-        # else:
-        view = []
+        if self._top_down_view:
+            img = self.render(mode='rgb_array',
+                              width=self.image_size,
+                              height=self.image_size)
+            img = img.astype(np.float32) / 255.0
+            view = [img.flat]
+        else:
+            view = []
 
         if self._observe_blocks:
             additional_obs = []

@@ -896,7 +896,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                 else:
                     vf_h = obs
 
-                value_fn = create_fcnet(obs=vf_h, scope="vf", **fcnet_params)
+                value_fn = create_fcnet(
+                    obs=vf_h, scope="vf", output_pre="vf_", **fcnet_params)
             else:
                 value_fn = None
 
@@ -912,8 +913,10 @@ class MultiFeedForwardPolicy(BasePolicy):
                     qf1_h = qf_h
                     qf2_h = qf_h
 
-                qf1 = create_fcnet(obs=qf1_h, scope="qf1", **fcnet_params)
-                qf2 = create_fcnet(obs=qf2_h, scope="qf2", **fcnet_params)
+                qf1 = create_fcnet(
+                    obs=qf1_h, scope="qf1", output_pre="qf_", **fcnet_params)
+                qf2 = create_fcnet(
+                    obs=qf2_h, scope="qf2", output_pre="Qf_", **fcnet_params)
             else:
                 qf1, qf2 = None, None
 
