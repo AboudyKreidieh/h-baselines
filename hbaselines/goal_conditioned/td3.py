@@ -26,10 +26,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  noise,
                  target_policy_noise,
                  target_noise_clip,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -79,16 +77,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             actor policy. See TD3 paper for more.
         target_noise_clip : float
             clipping term for the noise injected in the target actor policy
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -132,10 +126,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,

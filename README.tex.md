@@ -310,13 +310,30 @@ The modifiable parameters of this policy are as follows:
   information, 2 tensorflow debug
 * **tau** (float) : target update rate
 * **gamma** (float) : discount factor
-* **layer_norm** (bool) : enable layer normalisation
-* **layers** (list of int) :the size of the Neural network for the policy
-* **act_fun** (tf.nn.*) : the activation function to use in the neural 
-  network
 * **use_huber** (bool) : specifies whether to use the huber distance 
   function as the loss for the critic. If set to False, the mean-squared 
   error metric is used instead
+* **model_params** (dict) : dictionary of model-specific parameters, including:
+  * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
+    "conv"}.
+  * **layers** (list of int) :the size of the Neural network for the policy
+  * **layer_norm** (bool) : enable layer normalisation
+  * **act_fun** (tf.nn.*) : the activation function to use in the neural 
+    network
+  * **ignore_image** (bool) : observation includes an image but should it be 
+    ignored. Required if "model_type" is set to "conv".
+  * **image_height** (int) : the height of the image in the observation. 
+    Required if "model_type" is set to "conv".
+  * **image_width** (int) : the width of the image in the observation. Required
+    if "model_type" is set to "conv".
+  * **image_channels** (int) : the number of channels of the image in the
+    observation. Required if "model_type" is set to "conv".
+  * **kernel_sizes** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **strides** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **filters** (list of int) : the channels of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
 
 Additionally, TD3 policy parameters are:
 

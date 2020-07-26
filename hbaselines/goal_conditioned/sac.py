@@ -21,10 +21,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  target_entropy,
                  num_levels,
                  meta_period,
@@ -66,16 +64,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -122,10 +116,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,

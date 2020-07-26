@@ -266,3 +266,230 @@ def layer(val,
         val = act_fun(val)
 
     return val
+
+
+def conv_layer(val,
+               filters,
+               kernel_size,
+               strides,
+               name,
+               act_fun=None,
+               kernel_initializer=slim.variance_scaling_initializer(
+                   factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
+               layer_norm=False):
+    """Create a convolutional layer.
+
+    Parameters
+    ----------
+    val : tf.Variable
+        the input to the layer
+    filters : int
+        the number of channels in the convolutional kernel
+    kernel_size : int or list of int
+        the height and width of the convolutional filter
+    strides : int or list of int
+        the strides in each direction of convolution
+    name : str
+        the scope of the layer
+    act_fun : tf.nn.* or None
+        the activation function
+    kernel_initializer : Any
+        the initializing operation to the weights of the layer
+    layer_norm : bool
+        whether to enable layer normalization
+
+    Returns
+    -------
+    tf.Variable
+        the output from the layer
+    """
+    val = tf.layers.conv2d(
+        val,
+        filters,
+        kernel_size,
+        strides=strides,
+        padding='same',
+        name=name,
+        kernel_initializer=kernel_initializer
+    )
+
+    if layer_norm:
+        val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
+
+    if act_fun is not None:
+        val = act_fun(val)
+
+    return val
+
+
+def create_fcnet(obs,
+                 layers,
+                 num_output,
+                 stochastic,
+                 act_fun,
+                 layer_norm,
+                 scope=None,
+                 reuse=False,
+                 output_pre=""):
+    """Create a fully-connected neural network model.
+
+    Parameters
+    ----------
+    obs : tf.Variable
+        the input to the model
+    layers : list of int
+        the size of the neural network for the model
+    num_output : int
+        number of outputs from the model
+    stochastic : bool
+        whether the model should be stochastic or deterministic
+    act_fun : tf.nn.* or None
+        the activation function
+    layer_norm : bool
+        whether to enable layer normalization
+    scope : str
+        the scope name of the model
+    reuse : bool
+        whether or not to reuse parameters
+
+    Returns
+    -------
+    tf.Variable or (tf.Variable, tf.Variable)
+        the output from the model. a variable representing the output from the
+        model in the deterministic case and a tuple of the (mean, logstd) in
+        the stochastic case
+    """
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        pi_h = obs
+
+        # Create the hidden layers.
+        for i, layer_size in enumerate(layers):
+            pi_h = layer(
+                pi_h, layer_size, 'fc{}'.format(i),
+                act_fun=act_fun,
+                layer_norm=layer_norm
+            )
+
+        if stochastic:
+            # Create the output mean.
+            policy_mean = layer(
+                pi_h, num_output, 'mean',
+                act_fun=None,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+            # Create the output log_std.
+            log_std = layer(
+                pi_h, num_output, 'log_std',
+                act_fun=None,
+            )
+
+            policy = (policy_mean, log_std)
+        else:
+            # Create the output layer.
+            policy = layer(
+                pi_h, num_output, '{}output'.format(output_pre),
+                act_fun=None,
+                kernel_initializer=tf.random_uniform_initializer(
+                    minval=-3e-3, maxval=3e-3)
+            )
+
+        return policy
+
+
+def create_conv(obs,
+                image_height,
+                image_width,
+                image_channels,
+                ignore_flat_channels,
+                ignore_image,
+                filters,
+                kernel_sizes,
+                strides,
+                act_fun,
+                layer_norm,
+                scope=None,
+                reuse=False):
+    """Create a convolutional network.
+
+    Parameters
+    ----------
+    obs : tf.Variable
+        the input to the model
+    image_height : int
+        the height of the image in the observation
+    image_width : int
+        the width of the image in the observation
+    image_channels : int
+        the number of channels of the image in the observation
+    ignore_flat_channels : list
+        channels of the proprioceptive state to be ignored
+    ignore_image : bool
+        observation includes an image but should it be ignored
+    filters : list of int
+        the number of channels in the convolutional kernel
+    kernel_sizes : int or list of int
+        the height and width of the convolutional filter
+    strides : int or list of int
+        the strides in each direction of convolution
+    act_fun : tf.nn.* or None
+        the activation function
+    layer_norm : bool
+        whether to enable layer normalization
+    scope : str
+        the scope name of the model
+    reuse : bool
+        whether or not to reuse parameters
+
+    Returns
+    -------
+    tf.Variable
+        the output from the network
+    """
+    with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        batch_size = tf.shape(obs)[0]
+        image_size = image_height * image_width * image_channels
+
+        original_pi_h = obs
+        pi_h = original_pi_h[:, image_size:]
+
+        ignored_indx = [
+            i for i in range(pi_h.shape[1]) if i not in ignore_flat_channels]
+
+        if len(ignored_indx) > 0:
+            pi_h_ignored = tf.gather(pi_h, ignored_indx, axis=1)
+
+        # Ignoring the image is useful for the lower level for creating an
+        # abstraction barrier.
+        if not ignore_image:
+            pi_h_image = tf.reshape(
+                original_pi_h[:, :image_size],
+                [batch_size, image_height, image_width, image_channels]
+            )
+
+            # Create the hidden convolutional layers.
+            for i, (filter_i, kernel_size_i, stride_i) in enumerate(zip(
+                    filters, kernel_sizes, strides)):
+                pi_h_image = conv_layer(
+                    pi_h_image,
+                    filter_i,
+                    kernel_size_i,
+                    stride_i,
+                    'conv{}'.format(i),
+                    act_fun=act_fun,
+                    layer_norm=layer_norm
+                )
+
+            h = pi_h_image.shape[1]
+            w = pi_h_image.shape[2]
+            c = pi_h_image.shape[3]
+            pi_h = tf.concat(
+                [tf.reshape(pi_h_image, [batch_size, h * w * c]) /
+                 tf.cast(h * w * c, tf.float32),
+                 pi_h], 1
+            )
+            if len(ignored_indx) > 0:
+                pi_h = tf.concat([pi_h, pi_h_ignored], 1)
+
+        return pi_h

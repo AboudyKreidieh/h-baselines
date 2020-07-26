@@ -7,7 +7,8 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
-from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import create_fcnet
+from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
@@ -85,10 +86,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -124,16 +123,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -212,10 +207,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
@@ -656,32 +649,44 @@ class MultiFeedForwardPolicy(BasePolicy):
         tf.Variable
             the output from the actor
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            pi_h = create_conv(
+                obs=obs,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
             pi_h = obs
 
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                pi_h = layer(
-                    pi_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
+        # Create the model.
+        policy = create_fcnet(
+            obs=pi_h,
+            layers=self.model_params["layers"],
+            num_output=ac_space.shape[0],
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            scope=scope,
+            reuse=reuse,
+        )
 
-            # create the output layer
-            policy = layer(
-                pi_h, ac_space.shape[0], 'output',
-                act_fun=tf.nn.tanh,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+        # Scaling terms to the output from the policy.
+        ac_means = (ac_space.high + ac_space.low) / 2.
+        ac_magnitudes = (ac_space.high - ac_space.low) / 2.
 
-            # scaling terms to the output from the policy
-            ac_means = (ac_space.high + ac_space.low) / 2.
-            ac_magnitudes = (ac_space.high - ac_space.low) / 2.
-
-            policy = ac_means + ac_magnitudes * tf.to_float(policy)
-
-        return policy
+        # Apply squashing and scale by action space.
+        return ac_means + ac_magnitudes * tf.nn.tanh(policy)
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -695,33 +700,45 @@ class MultiFeedForwardPolicy(BasePolicy):
         reuse : bool
             whether or not to reuse parameters
         scope : str
-            an outer scope term
+            the scope name of the actor
 
         Returns
         -------
         tf.Variable
             the output from the critic
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            # concatenate the observations and actions
-            qf_h = tf.concat([obs, action], axis=-1)
+        # Concatenate the observations and actions.
+        qf_h = tf.concat([obs, action], axis=-1)
 
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                qf_h = layer(
-                    qf_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
-
-            # create the output layer
-            qvalue_fn = layer(
-                qf_h, 1, 'qf_output',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            qf_h = create_conv(
+                obs=qf_h,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
             )
 
-        return qvalue_fn
+        return create_fcnet(
+            obs=qf_h,
+            layers=self.model_params["layers"],
+            num_output=1,
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            output_pre="qf_",
+            scope=scope,
+            reuse=reuse,
+        )
 
     def _setup_critic_update(self,
                              critic,

@@ -4,7 +4,8 @@ import numpy as np
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
-from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import create_fcnet
+from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
@@ -40,20 +41,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
         critic learning rate
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    layers : list of int
-        the size of the Neural network for the policy
     tau : float
         target update rate
     gamma : float
         discount factor
-    layer_norm : bool
-        enable layer normalisation
-    act_fun : tf.nn.*
-        the activation function to use in the neural network
     use_huber : bool
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    model_params : dict
+        dictionary of model-specific parameters. See parent class.
     target_entropy : float
         target entropy used when learning the entropy coefficient
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
@@ -128,10 +125,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  target_entropy,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
@@ -161,16 +156,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -189,10 +180,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber
+            use_huber=use_huber,
+            model_params=model_params,
         )
 
         if target_entropy is None:
@@ -331,30 +320,37 @@ class FeedForwardPolicy(ActorCriticPolicy):
         tf.Variable
             the log-probability of a given observation given a fixed action
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            pi_h = create_conv(
+                obs=obs,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
             pi_h = obs
 
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                pi_h = layer(
-                    pi_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
-
-            # create the output mean
-            policy_mean = layer(
-                pi_h, self.ac_space.shape[0], 'mean',
-                act_fun=None,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
-
-            # create the output log_std
-            log_std = layer(
-                pi_h, self.ac_space.shape[0], 'log_std',
-                act_fun=None,
-            )
+        # Create the model.
+        policy_mean, log_std = create_fcnet(
+            obs=pi_h,
+            layers=self.model_params["layers"],
+            num_output=self.ac_space.shape[0],
+            stochastic=True,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            scope=scope,
+            reuse=reuse,
+        )
 
         # OpenAI Variation to cap the standard deviation
         log_std = tf.clip_by_value(log_std, LOG_STD_MIN, LOG_STD_MAX)
@@ -410,68 +406,58 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the output from the value function. Set to None if `create_vf` is
             False.
         """
+        conv_params = dict(
+            image_height=self.model_params["image_height"],
+            image_width=self.model_params["image_width"],
+            image_channels=self.model_params["image_channels"],
+            ignore_flat_channels=self.model_params["ignore_flat_channels"],
+            ignore_image=self.model_params["ignore_image"],
+            filters=self.model_params["filters"],
+            kernel_sizes=self.model_params["kernel_sizes"],
+            strides=self.model_params["strides"],
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            reuse=reuse,
+        )
+
+        fcnet_params = dict(
+            layers=self.model_params["layers"],
+            num_output=1,
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            reuse=reuse,
+        )
+
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             # Value function
             if create_vf:
-                with tf.compat.v1.variable_scope("vf", reuse=reuse):
+                if self.model_params["model_type"] == "conv":
+                    vf_h = create_conv(obs=obs, scope="vf", **conv_params)
+                else:
                     vf_h = obs
 
-                    # create the hidden layers
-                    for i, layer_size in enumerate(self.layers):
-                        vf_h = layer(
-                            vf_h, layer_size, 'fc{}'.format(i),
-                            act_fun=self.act_fun,
-                            layer_norm=self.layer_norm
-                        )
-
-                    # create the output layer
-                    value_fn = layer(
-                        vf_h, 1, 'vf_output',
-                        kernel_initializer=tf.random_uniform_initializer(
-                            minval=-3e-3, maxval=3e-3)
-                    )
+                value_fn = create_fcnet(
+                    obs=vf_h, scope="vf", output_pre="vf_", **fcnet_params)
             else:
                 value_fn = None
 
             # Double Q values to reduce overestimation
             if create_qf:
-                with tf.compat.v1.variable_scope('qf1', reuse=reuse):
-                    # concatenate the observations and actions
-                    qf1_h = tf.concat([obs, action], axis=-1)
+                # Concatenate the observations and actions.
+                qf_h = tf.concat([obs, action], axis=-1)
 
-                    # create the hidden layers
-                    for i, layer_size in enumerate(self.layers):
-                        qf1_h = layer(
-                            qf1_h, layer_size, 'fc{}'.format(i),
-                            act_fun=self.act_fun,
-                            layer_norm=self.layer_norm
-                        )
+                if self.model_params["model_type"] == "conv":
+                    qf1_h = create_conv(obs=qf_h, scope="qf1", **conv_params)
+                    qf2_h = create_conv(obs=qf_h, scope="qf2", **conv_params)
+                else:
+                    qf1_h = qf_h
+                    qf2_h = qf_h
 
-                    # create the output layer
-                    qf1 = layer(
-                        qf1_h, 1, 'qf_output',
-                        kernel_initializer=tf.random_uniform_initializer(
-                            minval=-3e-3, maxval=3e-3)
-                    )
-
-                with tf.compat.v1.variable_scope('qf2', reuse=reuse):
-                    # concatenate the observations and actions
-                    qf2_h = tf.concat([obs, action], axis=-1)
-
-                    # create the hidden layers
-                    for i, layer_size in enumerate(self.layers):
-                        qf2_h = layer(
-                            qf2_h, layer_size, 'fc{}'.format(i),
-                            act_fun=self.act_fun,
-                            layer_norm=self.layer_norm
-                        )
-
-                    # create the output layer
-                    qf2 = layer(
-                        qf2_h, 1, 'qf_output',
-                        kernel_initializer=tf.random_uniform_initializer(
-                            minval=-3e-3, maxval=3e-3)
-                    )
+                qf1 = create_fcnet(
+                    obs=qf1_h, scope="qf1", output_pre="qf_", **fcnet_params)
+                qf2 = create_fcnet(
+                    obs=qf2_h, scope="qf2", output_pre="qf_", **fcnet_params)
             else:
                 qf1, qf2 = None, None
 

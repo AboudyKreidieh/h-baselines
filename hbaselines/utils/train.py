@@ -20,6 +20,7 @@ def get_hyperparameters(args, policy):
         "reward_scale": args.reward_scale,
         "render": args.render,
         "render_eval": args.render_eval,
+        "save_replay_buffer": args.save_replay_buffer,
         "verbose": args.verbose,
         "num_envs": args.num_envs,
         "_init_setup_model": True,
@@ -33,8 +34,27 @@ def get_hyperparameters(args, policy):
         "critic_lr": args.critic_lr,
         "tau": args.tau,
         "gamma": args.gamma,
-        "layer_norm": args.layer_norm,
         "use_huber": args.use_huber,
+        "model_params": {
+            "model_type": getattr(args, "model_params:model_type"),
+            "layer_norm": getattr(args, "model_params:layer_norm"),
+            "ignore_image": getattr(args, "model_params:ignore_image"),
+            "image_height": getattr(args, "model_params:image_height"),
+            "image_width": getattr(args, "model_params:image_width"),
+            "image_channels": getattr(args, "model_params:image_channels"),
+            "ignore_flat_channels":
+                getattr(args, "model_params:ignore_flat_channels") or
+                FEEDFORWARD_PARAMS["model_params"]["ignore_flat_channels"],
+            "filters":
+                getattr(args, "model_params:filters") or
+                FEEDFORWARD_PARAMS["model_params"]["filters"],
+            "kernel_sizes":
+                getattr(args, "model_params:kernel_sizes") or
+                FEEDFORWARD_PARAMS["model_params"]["kernel_sizes"],
+            "strides":
+                getattr(args, "model_params:strides") or
+                FEEDFORWARD_PARAMS["model_params"]["strides"],
+        }
     }
 
     # add TD3 parameters
@@ -138,6 +158,10 @@ def parse_options(description, example_usage, args):
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
+    parser.add_argument(
+        '--dir_name', type=str, default='',
+        help='an optional directory to save the current experiment '
+             'to or load an existing one from')
 
     # algorithm-specific hyperparameters
     parser = create_algorithm_parser(parser)
@@ -172,6 +196,11 @@ def create_algorithm_parser(parser):
     parser.add_argument(
         '--render_eval', action='store_true',
         help='enable rendering of the evaluation environment')
+    parser.add_argument(
+        '--save_replay_buffer', action='store_true',
+        help='whether to save the data from the replay buffer, at the '
+             'frequency that the model is saved. Only the most recent replay '
+             'buffer is stored.')
     parser.add_argument(
         '--num_envs', type=int, default=1,
         help='number of environments used to run simulations in parallel. '
@@ -266,15 +295,61 @@ def create_feedforward_parser(parser):
         default=FEEDFORWARD_PARAMS["gamma"],
         help="the discount rate")
     parser.add_argument(
-        "--layer_norm",
-        action="store_true",
-        help="enable layer normalisation")
-    parser.add_argument(
         "--use_huber",
         action="store_true",
         help="specifies whether to use the huber distance function as the "
              "loss for the critic. If set to False, the mean-squared error "
              "metric is used instead")
+
+    parser.add_argument(
+        "--model_params:model_type",
+        type=str,
+        default=FEEDFORWARD_PARAMS["model_params"]["model_type"],
+        help="the type of model to use. Must be one of {\"fcnet\", \"conv\"}.")
+    parser.add_argument(
+        "--model_params:layer_norm",
+        action="store_true",
+        help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:ignore_flat_channels",
+        type=int,
+        nargs="+",
+        help="specifies which channels of the observation to ignore")
+    parser.add_argument(
+        "--model_params:ignore_image",
+        action="store_true",
+        help="specifies whether the image in the observation "
+             "should be ignored and removed")
+    parser.add_argument(
+        "--model_params:image_height",
+        type=int,
+        default=FEEDFORWARD_PARAMS["model_params"]["image_height"],
+        help="the height of the image observation")
+    parser.add_argument(
+        "--model_params:image_width",
+        type=int,
+        default=FEEDFORWARD_PARAMS["model_params"]["image_width"],
+        help="the width of the image observation")
+    parser.add_argument(
+        "--model_params:image_channels",
+        type=int,
+        default=FEEDFORWARD_PARAMS["model_params"]["image_channels"],
+        help="the number of channels of the image observation")
+    parser.add_argument(
+        "--model_params:filters",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional filters per layer")
+    parser.add_argument(
+        "--model_params:kernel_sizes",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional kernel sizes per layer")
+    parser.add_argument(
+        "--model_params:strides",
+        type=int,
+        nargs="+",
+        help="specifies the convolutional strides per layer")
 
     return parser
 

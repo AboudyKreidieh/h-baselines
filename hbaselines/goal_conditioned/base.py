@@ -114,10 +114,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -161,16 +159,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -238,10 +232,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber
+            use_huber=use_huber,
+            model_params=model_params,
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
@@ -288,6 +280,15 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 if scope is not None:
                     scope_i = "{}/{}".format(scope, scope_i)
 
+                # TODO: description.
+                model_params_i = model_params.copy()
+                model_params_i.update({
+                    "ignore_flat_channels":
+                        model_params["ignore_flat_channels"] if i < 1 else [],
+                    "ignore_image":
+                        model_params["ignore_image"] if i < 1 else True,
+                })
+
                 # Create the next policy.
                 self.policy.append(policy_fn(
                     sess=sess,
@@ -301,10 +302,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     verbose=verbose,
                     tau=tau,
                     gamma=gamma,
-                    layer_norm=layer_norm,
-                    layers=layers,
-                    act_fun=act_fun,
                     use_huber=use_huber,
+                    model_params=model_params_i,
                     scope=scope_i,
                     **(additional_params or {}),
                 ))
@@ -385,7 +384,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     goals=goals / scale,
                     next_states=next_states[self.goal_indices] / scale,
                     relative_context=relative_goals,
-                    offset=0.0
+                    offset=0.0,
                 ) + offset
 
             # Perform the exponential and squashing operations to keep the

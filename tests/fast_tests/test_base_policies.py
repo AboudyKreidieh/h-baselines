@@ -42,11 +42,8 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertEqual(policy.actor_lr, self.policy_params['actor_lr'])
         self.assertEqual(policy.critic_lr, self.policy_params['critic_lr'])
         self.assertEqual(policy.verbose, self.policy_params['verbose'])
-        self.assertEqual(policy.layers, self.policy_params['layers'])
         self.assertEqual(policy.tau, self.policy_params['tau'])
         self.assertEqual(policy.gamma, self.policy_params['gamma'])
-        self.assertEqual(policy.layer_norm, self.policy_params['layer_norm'])
-        self.assertEqual(policy.act_fun, self.policy_params['act_fun'])
         self.assertEqual(policy.use_huber, self.policy_params['use_huber'])
 
         # Check that the abstract class has all the required methods.
@@ -61,6 +58,48 @@ class TestActorCriticPolicy(unittest.TestCase):
                           obs1=None, context1=None, done=None,
                           is_final_step=None, evaluate=False)
         self.assertRaises(NotImplementedError, policy.get_td_map)
+
+    def test_init_assertions(self):
+        """Test the assertions in the __init__ methods.
+
+        This tests the following cases:
+
+        1. the required model_params are not specified
+        2. the required conv-related model_params are not specified
+        3. the model_type is not an applicable one.
+        """
+        # test case 1
+        policy_params = self.policy_params.copy()
+        model_type = policy_params["model_params"]["model_type"]
+        layers = policy_params["model_params"]["layers"]
+        del policy_params["model_params"]["model_type"]
+        del policy_params["model_params"]["layers"]
+        self.assertRaises(AssertionError, ActorCriticPolicy, **policy_params)
+
+        # Undo changes.
+        policy_params["model_params"]["model_type"] = model_type
+        policy_params["model_params"]["layers"] = layers
+
+        # test case 2
+        policy_params = policy_params.copy()
+        policy_params["model_params"]["model_type"] = "conv"
+        strides = policy_params["model_params"]["strides"]
+        filters = policy_params["model_params"]["filters"]
+        del policy_params["model_params"]["strides"]
+        del policy_params["model_params"]["filters"]
+        self.assertRaises(AssertionError, ActorCriticPolicy, **policy_params)
+
+        # Undo changes.
+        policy_params["model_params"]["strides"] = strides
+        policy_params["model_params"]["filters"] = filters
+
+        # test case 3
+        policy_params = self.policy_params.copy()
+        policy_params["model_params"]["model_type"] = "blank"
+        self.assertRaises(AssertionError, ActorCriticPolicy, **policy_params)
+
+        # Undo changes.
+        policy_params["model_params"]["model_type"] = "fcnet"
 
     def test_get_obs(self):
         """Check the functionality of the _get_obs() method.

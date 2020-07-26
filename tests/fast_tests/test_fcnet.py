@@ -29,6 +29,7 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
+        self.policy_params["model_params"]["model_type"] = "fcnet"
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -106,6 +107,93 @@ class TestTD3FeedForwardPolicy(unittest.TestCase):
             tuple(v.__int__() for v in policy.obs1_ph.shape),
             (None, self.policy_params['ob_space'].shape[0] +
              self.policy_params['co_space'].shape[0]))
+
+    def test_init_conv(self):
+        """Check the functionality of the __init__() method with conv policies.
+
+        This method tests that the proper structure graph was generated.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = TD3FeedForwardPolicy(**policy_params)
+
+        print(sorted([var.name for var in get_trainable_vars()]))
+        # test case 1
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/pi/conv0/bias:0',
+             'model/pi/conv0/kernel:0',
+             'model/pi/conv1/bias:0',
+             'model/pi/conv1/kernel:0',
+             'model/pi/conv2/bias:0',
+             'model/pi/conv2/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'model/qf_0/conv0/bias:0',
+             'model/qf_0/conv0/kernel:0',
+             'model/qf_0/conv1/bias:0',
+             'model/qf_0/conv1/kernel:0',
+             'model/qf_0/conv2/bias:0',
+             'model/qf_0/conv2/kernel:0',
+             'model/qf_0/fc0/bias:0',
+             'model/qf_0/fc0/kernel:0',
+             'model/qf_0/fc1/bias:0',
+             'model/qf_0/fc1/kernel:0',
+             'model/qf_0/qf_output/bias:0',
+             'model/qf_0/qf_output/kernel:0',
+             'model/qf_1/conv0/bias:0',
+             'model/qf_1/conv0/kernel:0',
+             'model/qf_1/conv1/bias:0',
+             'model/qf_1/conv1/kernel:0',
+             'model/qf_1/conv2/bias:0',
+             'model/qf_1/conv2/kernel:0',
+             'model/qf_1/fc0/bias:0',
+             'model/qf_1/fc0/kernel:0',
+             'model/qf_1/fc1/bias:0',
+             'model/qf_1/fc1/kernel:0',
+             'model/qf_1/qf_output/bias:0',
+             'model/qf_1/qf_output/kernel:0',
+             'target/pi/conv0/bias:0',
+             'target/pi/conv0/kernel:0',
+             'target/pi/conv1/bias:0',
+             'target/pi/conv1/kernel:0',
+             'target/pi/conv2/bias:0',
+             'target/pi/conv2/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0',
+             'target/qf_0/conv0/bias:0',
+             'target/qf_0/conv0/kernel:0',
+             'target/qf_0/conv1/bias:0',
+             'target/qf_0/conv1/kernel:0',
+             'target/qf_0/conv2/bias:0',
+             'target/qf_0/conv2/kernel:0',
+             'target/qf_0/fc0/bias:0',
+             'target/qf_0/fc0/kernel:0',
+             'target/qf_0/fc1/bias:0',
+             'target/qf_0/fc1/kernel:0',
+             'target/qf_0/qf_output/bias:0',
+             'target/qf_0/qf_output/kernel:0',
+             'target/qf_1/conv0/bias:0',
+             'target/qf_1/conv0/kernel:0',
+             'target/qf_1/conv1/bias:0',
+             'target/qf_1/conv1/kernel:0',
+             'target/qf_1/conv2/bias:0',
+             'target/qf_1/conv2/kernel:0',
+             'target/qf_1/fc0/bias:0',
+             'target/qf_1/fc0/kernel:0',
+             'target/qf_1/fc1/bias:0',
+             'target/qf_1/fc1/kernel:0',
+             'target/qf_1/qf_output/bias:0',
+             'target/qf_1/qf_output/kernel:0']
+        )
 
     def test_initialize(self):
         """Check the functionality of the initialize() method.
@@ -185,6 +273,7 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
+        self.policy_params["model_params"]["model_type"] = "fcnet"
 
     def tearDown(self):
         self.policy_params['sess'].close()
@@ -281,6 +370,83 @@ class TestSACFeedForwardPolicy(unittest.TestCase):
         policy = SACFeedForwardPolicy(**self.policy_params)
         self.assertEqual(policy.target_entropy,
                          self.policy_params['target_entropy'])
+
+    def test_init_conv(self):
+        """Check the functionality of the __init__() method with conv policies.
+
+        This method tests that the proper structure graph was generated.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = SACFeedForwardPolicy(**policy_params)
+
+        print(sorted([var.name for var in get_trainable_vars()]))
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/log_alpha:0',
+             'model/pi/conv0/bias:0',
+             'model/pi/conv0/kernel:0',
+             'model/pi/conv1/bias:0',
+             'model/pi/conv1/kernel:0',
+             'model/pi/conv2/bias:0',
+             'model/pi/conv2/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/log_std/bias:0',
+             'model/pi/log_std/kernel:0',
+             'model/pi/mean/bias:0',
+             'model/pi/mean/kernel:0',
+             'model/value_fns/qf1/conv0/bias:0',
+             'model/value_fns/qf1/conv0/kernel:0',
+             'model/value_fns/qf1/conv1/bias:0',
+             'model/value_fns/qf1/conv1/kernel:0',
+             'model/value_fns/qf1/conv2/bias:0',
+             'model/value_fns/qf1/conv2/kernel:0',
+             'model/value_fns/qf1/fc0/bias:0',
+             'model/value_fns/qf1/fc0/kernel:0',
+             'model/value_fns/qf1/fc1/bias:0',
+             'model/value_fns/qf1/fc1/kernel:0',
+             'model/value_fns/qf1/qf_output/bias:0',
+             'model/value_fns/qf1/qf_output/kernel:0',
+             'model/value_fns/qf2/conv0/bias:0',
+             'model/value_fns/qf2/conv0/kernel:0',
+             'model/value_fns/qf2/conv1/bias:0',
+             'model/value_fns/qf2/conv1/kernel:0',
+             'model/value_fns/qf2/conv2/bias:0',
+             'model/value_fns/qf2/conv2/kernel:0',
+             'model/value_fns/qf2/fc0/bias:0',
+             'model/value_fns/qf2/fc0/kernel:0',
+             'model/value_fns/qf2/fc1/bias:0',
+             'model/value_fns/qf2/fc1/kernel:0',
+             'model/value_fns/qf2/qf_output/bias:0',
+             'model/value_fns/qf2/qf_output/kernel:0',
+             'model/value_fns/vf/conv0/bias:0',
+             'model/value_fns/vf/conv0/kernel:0',
+             'model/value_fns/vf/conv1/bias:0',
+             'model/value_fns/vf/conv1/kernel:0',
+             'model/value_fns/vf/conv2/bias:0',
+             'model/value_fns/vf/conv2/kernel:0',
+             'model/value_fns/vf/fc0/bias:0',
+             'model/value_fns/vf/fc0/kernel:0',
+             'model/value_fns/vf/fc1/bias:0',
+             'model/value_fns/vf/fc1/kernel:0',
+             'model/value_fns/vf/vf_output/bias:0',
+             'model/value_fns/vf/vf_output/kernel:0',
+             'target/value_fns/vf/conv0/bias:0',
+             'target/value_fns/vf/conv0/kernel:0',
+             'target/value_fns/vf/conv1/bias:0',
+             'target/value_fns/vf/conv1/kernel:0',
+             'target/value_fns/vf/conv2/bias:0',
+             'target/value_fns/vf/conv2/kernel:0',
+             'target/value_fns/vf/fc0/bias:0',
+             'target/value_fns/vf/fc0/kernel:0',
+             'target/value_fns/vf/fc1/bias:0',
+             'target/value_fns/vf/fc1/kernel:0',
+             'target/value_fns/vf/vf_output/bias:0',
+             'target/value_fns/vf/vf_output/kernel:0']
+        )
 
     def test_initialize(self):
         """Check the functionality of the initialize() method.

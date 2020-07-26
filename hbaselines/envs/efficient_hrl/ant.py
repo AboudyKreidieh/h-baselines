@@ -17,6 +17,7 @@
 import math
 import numpy as np
 from gym import utils
+from copy import deepcopy
 try:
     import mujoco_py
     from gym.envs.mujoco import mujoco_env
@@ -47,7 +48,6 @@ def q_mult(a, b):
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """Gym representation of the Ant MuJoCo environment."""
 
-    FILE = "ant.xml"
     ORI_IND = 3
 
     def __init__(self,
@@ -133,15 +133,15 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.physics.data.qpos.flat,  # Ensures only ant obs.
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
         else:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[2:],
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[2:15],
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
 
         if self._expose_body_coms is not None:
@@ -159,6 +159,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                     indices = range(len(obs), len(obs) + len(comvel))
                     self._body_comvel_indices[name] = indices
                 obs = np.concatenate([obs, comvel])
+
         return obs
 
     def reset_model(self):
@@ -179,6 +180,10 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.update_cam()
         else:
             self.viewer.cam.distance = self.model.stat.extent * 0.5
+            self.viewer.cam.distance = 75
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = 8
+            self.viewer.cam.lookat[1] = 8
 
     def update_cam(self):
         """Update the position of the camera."""
@@ -213,3 +218,19 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def get_xy(self):
         """Return the x,y position of the agent."""
         return self.physics.data.qpos[:2]
+
+    def set_goal(self, goal, relative):
+        """Set the goal position of the agent.
+
+        Parameters
+        ----------
+        goal : array_like
+            the desired position of the agent
+        relative : bool
+            whether the goal is a relative or absolute position
+        """
+        goal = deepcopy(goal)
+        if relative:
+            goal += self.physics.data.qpos.flat[:15]
+        self.physics.data.qpos.flat[15:] = goal
+        self.physics.data.qpos.flat[17] = 8

@@ -6,10 +6,8 @@ import random
 import numpy as np
 import tensorflow as tf
 import json
-import time
 from copy import deepcopy
-
-from flow.core.util import emission_to_csv
+from skvideo.io import FFmpegWriter
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
@@ -76,6 +74,12 @@ def parse_options(args):
         '--num_rollouts', type=int, default=1,
         help='number of eval episodes')
     parser.add_argument(
+        '--video', type=str, default='output',
+        help='path to the video to render')
+    parser.add_argument(
+        '--save_video', action='store_true',
+        help='whether to save the rendering')
+    parser.add_argument(
         '--no_render', action='store_true',
         help='shuts off rendering')
     parser.add_argument(
@@ -134,6 +138,10 @@ def main(args):
     """Execute multiple training operations."""
     flags = parse_options(args)
 
+    # Run assertions.
+    assert not (flags.no_render and flags.save_video), \
+        "If saving the rendering, no_render cannot be set to True."
+
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
     hp['num_envs'] = 1
@@ -184,49 +192,81 @@ def main(args):
         env.wrapped_env.restart_simulation(
             sim_params, render=not flags.no_render)
 
-    for episode_num in range(flags.num_rollouts):
-        # Run a rollout.
-        obs = env.reset()
-        total_reward = 0
-        while True:
-            context = [env.current_context] \
-                if hasattr(env, "current_context") else None
-            action = policy.get_action(
-                np.asarray([obs]),
-                context=context,
-                apply_noise=False,
-                random_actions=False,
-            )
-            obs, reward, done, _ = env.step(action[0])
-            if not flags.no_render:
-                env.render()
-            total_reward += reward
-            if done:
-                break
+    if not isinstance(env, list):
+        env_list = [env]
+    else:
+        env_list = env
 
-        # Print total returns from a given episode.
-        episode_rewards.append(total_reward)
-        print("Round {}, return: {}".format(episode_num, total_reward))
+    for env_num, env in enumerate(env_list):
+        for episode_num in range(flags.num_rollouts):
+            if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+                out = FFmpegWriter("{}_{}_{}.mp4".format(
+                    flags.video, env_num, episode_num))
+            else:
+                out = None
+
+            obs, total_reward = env.reset(), 0
+
+            while True:
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
+                action = policy.get_action(
+                    obs=np.asarray([obs]),
+                    context=context,
+                    apply_noise=False,
+                    random_actions=False,
+                )
+
+                # Visualize the sub-goals of the hierarchical policy.
+                if hasattr(policy, "_meta_action") \
+                        and policy._meta_action is not None \
+                        and hasattr(env, "set_goal"):
+                    goal = policy._meta_action[0][0] + (
+                        obs[policy.goal_indices]
+                        if policy.relative_goals else 0)
+                    env.set_goal(goal, policy.relative_goals)
+
+                new_obs, reward, done, _ = env.step(action[0])
+                if not flags.no_render:
+                    if flags.save_video:
+                        if alg.env_name == "AntGather":
+                            out.writeFrame(env.render(mode='rgb_array'))
+                        else:
+                            out.writeFrame(env.render(
+                                mode='rgb_array', height=1024, width=1024))
+                    else:
+                        env.render()
+                total_reward += reward
+                if done:
+                    break
+
+                policy.store_transition(
+                    obs0=obs,
+                    context0=context[0] if context is not None else None,
+                    action=action[0],
+                    reward=reward,
+                    obs1=new_obs,
+                    context1=context[0] if context is not None else None,
+                    done=done,
+                    is_final_step=done,
+                    evaluate=True,
+                )
+
+                obs = new_obs
+
+            # Print total returns from a given episode.
+            episode_rewards.append(total_reward)
+            print("Round {}, return: {}".format(episode_num, total_reward))
+
+            # Save the video.
+            if not flags.no_render and env_name not in FLOW_ENV_NAMES \
+                    and flags.save_video:
+                out.close()
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
         np.mean(episode_rewards), np.std(episode_rewards)))
-
-    if env_name in FLOW_ENV_NAMES:
-        # wait a short period of time to ensure the xml file is readable
-        time.sleep(0.1)
-
-        # collect the location of the emission file
-        dir_path = env.wrapped_env.sim_params.emission_path
-        emission_filename = "{0}-emission.xml".format(
-            env.wrapped_env.network.name)
-        emission_path = os.path.join(dir_path, emission_filename)
-
-        # convert the emission file into a csv
-        emission_to_csv(emission_path)
-
-        # Delete the .xml version of the emission file.
-        os.remove(emission_path)
 
 
 if __name__ == '__main__':
