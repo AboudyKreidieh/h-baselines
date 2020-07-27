@@ -2,13 +2,14 @@
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.base_policies.base import Policy
-from hbaselines.utils.tf_util import layer
+from hbaselines.base_policies.actor_critic import ActorCriticPolicy
+from hbaselines.utils.tf_util import create_fcnet
+from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import explained_variance
 
 
-class FeedForwardPolicy(Policy):
+class FeedForwardPolicy(ActorCriticPolicy):
     """Feed-forward neural network policy.
 
     Attributes
@@ -240,32 +241,15 @@ class FeedForwardPolicy(Policy):
         # Create networks and core TF parts that are shared across setup parts.
         with tf.variable_scope("model", reuse=False):
             # Create the policy.
-            self.action, self.pi_mean, self.pi_logstd = self._create_mlp(
-                input_ph=self.obs_ph,
-                num_output=self.ac_space.shape[0],
-                layers=self.model_params["layers"],
-                act_fun=self.model_params["act_fun"],
-                stochastic=True,
-                layer_norm=self.model_params["layer_norm"],
-                reuse=False,
-                scope="pi",
-            )
+            self.action, self.pi_mean, self.pi_logstd = self.make_actor(
+                self.obs_ph, scope="pi")
             self.pi_std = tf.exp(self.pi_logstd)
 
             # Create a method the log-probability of current actions.
             self.neglogp = self._neglogp(self.action)
 
             # Create the value function.
-            self.value_fn = self._create_mlp(
-                input_ph=self.obs_ph,
-                num_output=1,
-                layers=self.model_params["layers"],
-                act_fun=self.model_params["act_fun"],
-                stochastic=False,
-                layer_norm=self.model_params["layer_norm"],
-                reuse=False,
-                scope="vf",
-            )
+            self.value_fn = self.make_critic(self.obs_ph, scope="vf")
             self.value_flat = self.value_fn[:, 0]
 
         # =================================================================== #
@@ -288,33 +272,13 @@ class FeedForwardPolicy(Policy):
 
         self._setup_stats(scope or "Model")
 
-    def _create_mlp(self,
-                    input_ph,
-                    num_output,
-                    layers,
-                    act_fun,
-                    stochastic,
-                    layer_norm,
-                    reuse=False,
-                    scope="pi"):
-        """Create a multi-layer perceptron (MLP) model.
+    def make_actor(self, obs, reuse=False, scope="pi"):
+        """Create an actor tensor.
 
         Parameters
         ----------
-        input_ph : tf.compat.v1.placeholder
-            the input placeholder
-        num_output : int
-            number of output elements from the model
-        layers : list of int
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
-        stochastic : bool
-            whether the output should be stochastic or deterministic. If
-            stochastic, a tuple of two elements is returned (the mean and
-            logstd)
-        layer_norm : bool
-            enable layer normalisation
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -322,56 +286,106 @@ class FeedForwardPolicy(Policy):
 
         Returns
         -------
-        tf.Variable or (tf.Variable, tf.Variable)
-            the output from the model
+        tf.Variable
+            the output from the actor
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            pi_h = input_ph
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            pi_h = create_conv(
+                obs=obs,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
+            pi_h = obs
 
-            # Create the hidden layers.
-            for i, layer_size in enumerate(layers):
-                pi_h = layer(
-                    pi_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=act_fun,
-                    layer_norm=layer_norm
-                )
+        # Create the output mean.
+        policy_mean = create_fcnet(
+            obs=pi_h,
+            layers=self.model_params["layers"],
+            num_output=self.ac_space.shape[0],
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            scope=scope,
+            reuse=reuse,
+        )
 
-            if stochastic:
-                # Create the output mean.
-                policy_mean = layer(
-                    pi_h, num_output, 'mean',
-                    act_fun=None,
-                    kernel_initializer=tf.random_uniform_initializer(
-                        minval=-3e-3, maxval=3e-3)
-                )
+        # Create the output log_std.
+        log_std = tf.get_variable(
+            name='logstd',
+            shape=[1, self.ac_space.shape[0]],
+            initializer=tf.zeros_initializer()
+        )
 
-                # Create the output log_std.
-                log_std = tf.get_variable(
-                    name='logstd',
-                    shape=[1, num_output],
-                    initializer=tf.zeros_initializer()
-                )
+        # Create a method to sample from the distribution.
+        std = tf.exp(log_std)
+        action = policy_mean + std * tf.random_normal(
+            shape=tf.shape(policy_mean),
+            dtype=tf.float32
+        )
 
-                # Create a method to sample from the distribution.
-                std = tf.exp(log_std)
-                action = policy_mean + std * tf.random_normal(
-                    shape=tf.shape(policy_mean),
-                    dtype=tf.float32
-                )
+        return action, policy_mean, log_std
 
-                policy_out = (action, policy_mean, log_std)
-            else:
-                # Create the output layer.
-                policy = layer(
-                    pi_h, num_output, 'output',
-                    act_fun=None,
-                    kernel_initializer=tf.random_uniform_initializer(
-                        minval=-3e-3, maxval=3e-3)
-                )
+    def make_critic(self, obs, reuse=False, scope="qf"):
+        """Create a critic tensor.
 
-                policy_out = policy
+        Parameters
+        ----------
+        obs : tf.compat.v1.placeholder
+            the input observation placeholder
+        action : tf.compat.v1.placeholder
+            the input action placeholder
+        reuse : bool
+            whether or not to reuse parameters
+        scope : str
+            the scope name of the actor
 
-        return policy_out
+        Returns
+        -------
+        tf.Variable
+            the output from the critic
+        """
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            vf_h = create_conv(
+                obs=obs,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
+            vf_h = obs
+
+        return create_fcnet(
+            obs=vf_h,
+            layers=self.model_params["layers"],
+            num_output=1,
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            scope=scope,
+            reuse=reuse,
+        )
 
     def _neglogp(self, x):
         """Compute the negative log-probability of an input action (x)."""
@@ -382,7 +396,7 @@ class FeedForwardPolicy(Policy):
             + tf.reduce_sum(self.pi_logstd, axis=-1)
 
     def _setup_optimizers(self, scope):
-        """Setup the actor and critic optimizers."""
+        """Create the actor and critic optimizers."""
         scope_name = 'model/'
         if scope is not None:
             scope_name = scope + '/' + scope_name

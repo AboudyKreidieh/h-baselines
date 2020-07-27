@@ -2,10 +2,8 @@
 import tensorflow as tf
 import numpy as np
 from copy import deepcopy
-import random
 
 from hbaselines.base_policies import ActorCriticPolicy
-from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.fcnet.ppo import FeedForwardPolicy
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
