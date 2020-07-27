@@ -17,7 +17,6 @@ import tensorflow as tf
 import math
 from collections import deque
 from copy import deepcopy
-from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
@@ -25,6 +24,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.misc import recursive_update
 from hbaselines.utils.env_util import create_env
 
 
@@ -59,12 +59,36 @@ FEEDFORWARD_PARAMS = dict(
     # value function clipping (and recover the original PPO implementation),
     # you have to pass a negative value (e.g. -1).
     cliprange_vf=None,
-    # enable layer normalisation
-    layer_norm=False,
-    # the size of the neural network for the policy
-    layers=[64, 64],
-    # the activation function to use in the neural network
-    act_fun=tf.nn.relu,
+    # dictionary of model-specific parameters
+    model_params=dict(
+        # the type of model to use. Must be one of {"fcnet", "conv"}.
+        model_type="fcnet",
+        # the size of the neural network for the policy
+        layers=[64, 64],
+        # enable layer normalisation
+        layer_norm=False,
+        # the activation function to use in the neural network
+        act_fun=tf.nn.relu,
+
+        # --------------- Model parameters for "conv" models. --------------- #
+
+        # channels of the proprioceptive state to be ignored
+        ignore_flat_channels=[],
+        # observation includes an image but should it be ignored
+        ignore_image=False,
+        # the height of the image in the observation
+        image_height=32,
+        # the width of the image in the observation
+        image_width=32,
+        # the number of channels of the image in the observation
+        image_channels=3,
+        # the channels of the neural network conv layers for the policy
+        filters=[16, 16, 16],
+        # the kernel size of the neural network conv layers for the policy
+        kernel_sizes=[5, 5, 5],
+        # the kernel size of the neural network conv layers for the policy
+        strides=[2, 2, 2],
+    )
 )
 
 
@@ -72,8 +96,7 @@ FEEDFORWARD_PARAMS = dict(
 #                 Policy parameters for GoalConditionedPolicy                 #
 # =========================================================================== #
 
-GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
-GOAL_CONDITIONED_PARAMS.update(dict(
+GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # number of levels within the hierarchy. Must be greater than 1. Two levels
     # correspond to a Manager/Worker paradigm.
     num_levels=2,
@@ -96,20 +119,13 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # rate at which the original (non-hindsight) sample is stored in the
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
-    # whether to use the connected gradient update actor update procedure to
-    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
-    connected_gradients=False,
+    # whether to use the cooperative gradient update procedure for the
+    # higher-level policies. See: https://arxiv.org/abs/1912.02368v1
+    cooperative_gradients=False,
     # weights for the gradients of the loss of the lower-level policies with
     # respect to the parameters of the higher-level policies. Only used if
-    # `connected_gradients` is set to True.
+    # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
-    # specifies whether to add a time-dependent fingerprint to the observations
-    use_fingerprints=False,
-    # the low and high values for each fingerprint element, if they are being
-    # used
-    fingerprint_range=([0, 0], [5, 5]),
-    # specifies whether to use centralized value functions
-    centralized_value_functions=False,
 ))
 
 
@@ -117,8 +133,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 #                Policy parameters for MultiActorCriticPolicy                 #
 # =========================================================================== #
 
-MULTI_FEEDFORWARD_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTI_FEEDFORWARD_PARAMS.update(dict(
+MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
@@ -138,10 +153,15 @@ class OnPolicyRLAlgorithm(object):
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
         policies
+    sampler : list of hbaselines.utils.sampler.Sampler
+        the training environment sampler object. One environment is provided
+        for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
     nb_rollout_steps : int
-        number of steps to sample in between training operations
+        the number of rollout steps
+    nb_eval_episodes : int
+        the number of evaluation episodes
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -152,24 +172,15 @@ class OnPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+    save_replay_buffer : bool
+        whether to save the data from the replay buffer, at the frequency that
+        the model is saved. Only the most recent replay buffer is stored.
     num_envs : int
         number of environments used to run simulations in parallel. Each
         environment is run on a separate CPUS and uses the same policy as the
         rest. Must be less than or equal to nb_rollout_steps.
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    policy_kwargs : dict
-        policy-specific hyperparameters
-    sampler : list of hbaselines.utils.sampler.Sampler
-        the training environment sampler object. One environment is provided
-        for each CPU
-    obs : list of array_like or list of dict < str, array_like >
-        the most recent training observation. If you are using a multi-agent
-        environment, this will be a dictionary of observations for each agent,
-        indexed by the agent ID. One element for each environment.
-    all_obs : list of array_like or list of None
-        additional information, used by MADDPG variants of the multi-agent
-        policy to pass full-state information. One element for each environment
     ac_space : gym.spaces.*
         the action space of the training environment
     ob_space : gym.spaces.*
@@ -177,6 +188,8 @@ class OnPolicyRLAlgorithm(object):
     co_space : gym.spaces.*
         the context space of the training environment (i.e. the same of the
         desired environmental goal)
+    policy_kwargs : dict
+        policy-specific hyperparameters
     horizon : int
         time horizon, which is used to check if an environment terminated early
         and used to compute the done mask as per TD3 implementation (see
@@ -184,12 +197,19 @@ class OnPolicyRLAlgorithm(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.base_policies.Policy
+    policy_tf : hbaselines.base_policies.ActorCriticPolicy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
     summary : tf.Summary
         tensorboard summary object
+    obs : list of array_like or list of dict < str, array_like >
+        the most recent training observation. If you are using a multi-agent
+        environment, this will be a dictionary of observations for each agent,
+        indexed by the agent ID. One element for each environment.
+    all_obs : list of array_like or list of None
+        additional information, used by MADDPG variants of the multi-agent
+        policy to pass full-state information. One element for each environment
     episode_step : list of int
         the number of steps since the most recent rollout began. One for each
         environment.
@@ -197,11 +217,11 @@ class OnPolicyRLAlgorithm(object):
         the total number of rollouts performed since training began
     total_steps : int
         the total number of steps that have been executed since training began
-    epoch_episode_steps : list of int
-        a list of rollout lengths from the most recent training iterations
     epoch_episode_rewards : list of float
         a list of cumulative rollout rewards from the most recent training
         iterations
+    epoch_episode_steps : list of int
+        a list of rollout lengths from the most recent training iterations
     epoch_episodes : int
         the total number of rollouts performed since the most recent training
         iteration began
@@ -212,6 +232,10 @@ class OnPolicyRLAlgorithm(object):
     episode_reward : list of float
         the cumulative reward since the most reward began. One for each
         environment.
+    saver : tf.compat.v1.train.Saver
+        tensorflow saver object
+    trainable_vars : list of str
+        the trainable variables
     rew_ph : tf.compat.v1.placeholder
         a placeholder for the average training return for the last epoch. Used
         for logging purposes.
@@ -224,22 +248,19 @@ class OnPolicyRLAlgorithm(object):
     eval_success_ph : tf.compat.v1.placeholder
         placeholder for the average evaluation success rate from the last time
         evaluations occurred. Used for logging purposes.
-    saver : tf.compat.v1.train.Saver
-        tensorflow saver object
-    trainable_vars : list of str
-        the trainable variables
     """
 
     def __init__(self,
                  policy,
                  env,
                  eval_env=None,
-                 nb_rollout_steps=128,
+                 nb_rollout_steps=1,
                  nb_eval_episodes=50,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
+                 save_replay_buffer=False,
                  num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
@@ -255,7 +276,7 @@ class OnPolicyRLAlgorithm(object):
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_rollout_steps : int
-            number of steps to sample in between training operations
+            the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
         reward_scale : float
@@ -268,6 +289,10 @@ class OnPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
+        save_replay_buffer : bool
+            whether to save the data from the replay buffer, at the frequency
+            that the model is saved. Only the most recent replay buffer is
+            stored.
         num_envs : int
             number of environments used to run simulations in parallel. Each
             environment is run on a separate CPUS and uses the same policy as
@@ -309,6 +334,7 @@ class OnPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
+        self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
@@ -331,7 +357,7 @@ class OnPolicyRLAlgorithm(object):
             self.policy_kwargs['num_envs'] = num_envs
 
         if is_multiagent_policy(policy):
-            self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
+            self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
 
         self.policy_kwargs.update(policy_kwargs or {})
@@ -362,13 +388,6 @@ class OnPolicyRLAlgorithm(object):
         self.eval_rew_ph = None
         self.eval_success_ph = None
         self.saver = None
-
-        if self.policy_kwargs.get("use_fingerprints", False):
-            # Append the fingerprint dimension to the observation dimension.
-            fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
-            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
-            self.ob_space = Box(low, high, dtype=np.float32)
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -631,7 +650,7 @@ class OnPolicyRLAlgorithm(object):
               log_dir=None,
               seed=None,
               eval_interval=50000,
-              save_interval=50000):
+              save_interval=10000):
         """Perform the complete training operation.
 
         Parameters
@@ -681,16 +700,19 @@ class OnPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            n_updates = total_steps // self.nb_rollout_steps
-
-            for update in range(1, n_updates + 1):
+            while True:
                 # Reset epoch-specific variables.
                 self.epoch_episodes = 0
                 self.epoch_episode_steps = []
                 self.epoch_episode_rewards = []
 
+                # If the requirement number of time steps has been met,
+                # terminate training.
+                if self.total_steps >= total_steps:
+                    return
+
                 # Perform rollouts.
-                self._collect_samples(total_steps)
+                self._collect_samples()
 
                 # Train.
                 self._train()
@@ -755,6 +777,11 @@ class OnPolicyRLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
+        # Save data from the replay buffer.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.save(
+                save_path + "-{}.rb".format(self.total_steps))
+
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
@@ -765,10 +792,11 @@ class OnPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self,
-                         total_steps,
-                         run_steps=None,
-                         random_actions=False):
+        # Load pre-existing replay buffers.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.load(load_path + ".rb")
+
+    def _collect_samples(self, run_steps=None, random_actions=False):
         """Perform the sample collection operation over multiple steps.
 
         This method calls collect_sample for a multiple steps, and attempts to
@@ -776,9 +804,6 @@ class OnPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
@@ -819,10 +844,6 @@ class OnPolicyRLAlgorithm(object):
                     self.sampler[env_num].collect_sample.remote(
                         action=action[env_num],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                     for env_num in range(n_steps)
                 ])
@@ -831,10 +852,6 @@ class OnPolicyRLAlgorithm(object):
                     self.sampler[0].collect_sample(
                         action=action[0],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                 ]
 

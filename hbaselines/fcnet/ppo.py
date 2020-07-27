@@ -15,13 +15,13 @@ class FeedForwardPolicy(Policy):
     ----------
     learning_rate : float
         the learning rate
-    n_minibatches : TODO
+    n_minibatches : int
         TODO
-    n_opt_epochs : TODO
+    n_opt_epochs : int
         TODO
-    gamma : TODO
+    gamma : float
         TODO
-    lam : TODO
+    lam : float
         TODO
     ent_coef : float
         entropy coefficient for the loss calculation
@@ -38,14 +38,7 @@ class FeedForwardPolicy(Policy):
         IMPORTANT: this clipping depends on the reward scaling. To deactivate
         value function clipping (and recover the original PPO implementation),
         you have to pass a negative value (e.g. -1).
-    zero_fingerprint : bool
-        whether to zero the last two elements of the observations for the actor
-        and critic computations. Used for the worker policy when fingerprints
-        are being implemented.
-    fingerprint_dim : bool
-        the number of fingerprint elements in the observation. Used when trying
-        to zero the fingerprint elements.
-    num_envs : TODO
+    num_envs : int
         TODO
     mb_rewards : TODO
         TODO
@@ -117,9 +110,6 @@ class FeedForwardPolicy(Policy):
                  ac_space,
                  co_space,
                  verbose,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  learning_rate,
                  n_minibatches,
                  n_opt_epochs,
@@ -130,10 +120,9 @@ class FeedForwardPolicy(Policy):
                  max_grad_norm,
                  cliprange,
                  cliprange_vf,
+                 model_params,
                  scope=None,
-                 num_envs=1,
-                 zero_fingerprint=False,
-                 fingerprint_dim=2):
+                 num_envs=1):
         """Instantiate the policy object.
 
         Parameters
@@ -149,21 +138,15 @@ class FeedForwardPolicy(Policy):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         learning_rate : float
             the learning rate
-        n_minibatches : TODO
+        n_minibatches : int
             TODO
-        n_opt_epochs : TODO
+        n_opt_epochs : int
             TODO
-        gamma : TODO
+        gamma : float
             TODO
-        lam : TODO
+        lam : float
             TODO
         ent_coef : float
             entropy coefficient for the loss calculation
@@ -188,9 +171,7 @@ class FeedForwardPolicy(Policy):
             ac_space=ac_space,
             co_space=co_space,
             verbose=verbose,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
+            model_params=model_params,
         )
 
         self.learning_rate = learning_rate
@@ -203,8 +184,6 @@ class FeedForwardPolicy(Policy):
         self.max_grad_norm = max_grad_norm
         self.cliprange = cliprange
         self.cliprange_vf = cliprange_vf
-        self.zero_fingerprint = zero_fingerprint
-        self.fingerprint_dim = fingerprint_dim
         self.num_envs = num_envs
 
         # Create variables to store on-policy data.
@@ -264,10 +243,10 @@ class FeedForwardPolicy(Policy):
             self.action, self.pi_mean, self.pi_logstd = self._create_mlp(
                 input_ph=self.obs_ph,
                 num_output=self.ac_space.shape[0],
-                layers=self.layers,
-                act_fun=self.act_fun,
+                layers=self.model_params["layers"],
+                act_fun=self.model_params["act_fun"],
                 stochastic=True,
-                layer_norm=self.layer_norm,
+                layer_norm=self.model_params["layer_norm"],
                 reuse=False,
                 scope="pi",
             )
@@ -280,10 +259,10 @@ class FeedForwardPolicy(Policy):
             self.value_fn = self._create_mlp(
                 input_ph=self.obs_ph,
                 num_output=1,
-                layers=self.layers,
-                act_fun=self.act_fun,
+                layers=self.model_params["layers"],
+                act_fun=self.model_params["act_fun"],
                 stochastic=False,
-                layer_norm=self.layer_norm,
+                layer_norm=self.model_params["layer_norm"],
                 reuse=False,
                 scope="vf",
             )
@@ -348,15 +327,6 @@ class FeedForwardPolicy(Policy):
         """
         with tf.compat.v1.variable_scope(scope, reuse=reuse):
             pi_h = input_ph
-
-            # Zero out the fingerprint observations for the worker policy.
-            if self.zero_fingerprint:
-                pi_h = self._remove_fingerprint(
-                    pi_h,
-                    self.ob_space.shape[0],
-                    self.fingerprint_dim,
-                    self.co_space.shape[0]
-                )
 
             # Create the hidden layers.
             for i, layer_size in enumerate(layers):
@@ -576,8 +546,8 @@ class FeedForwardPolicy(Policy):
         """See parent class."""
         n_steps = 0
 
-        # Compute the bootstrapped/discounted returns.
         for env_num in range(self.num_envs):
+            # Convert the data to numpy arrays.
             self.mb_obs[env_num] = \
                 np.concatenate(self.mb_obs[env_num], axis=0)
             self.mb_rewards[env_num] = \
@@ -592,6 +562,7 @@ class FeedForwardPolicy(Policy):
                 np.asarray(self.mb_dones[env_num])
             n_steps += self.mb_obs[env_num].shape[0]
 
+            # Compute the bootstrapped/discounted returns.
             self.mb_returns[env_num] = self._gae_returns(
                 mb_rewards=self.mb_rewards[env_num],
                 mb_values=self.mb_values[env_num],

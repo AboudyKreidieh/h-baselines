@@ -18,12 +18,6 @@ class Policy(object):
         the context space of the environment
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    layer_norm : bool
-        enable layer normalisation
-    layers : list of int or None
-        the size of the Neural network for the policy
-    act_fun : tf.nn.*
-        the activation function to use in the neural network
     """
 
     def __init__(self,
@@ -32,9 +26,7 @@ class Policy(object):
                  ac_space,
                  co_space,
                  verbose,
-                 layer_norm,
-                 layers,
-                 act_fun):
+                 model_params):
         """Instantiate the base policy object.
 
         Parameters
@@ -50,21 +42,38 @@ class Policy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         """
         self.sess = sess
         self.ob_space = ob_space
         self.ac_space = ac_space
         self.co_space = co_space
         self.verbose = verbose
-        self.layers = layers
-        self.layer_norm = layer_norm
-        self.act_fun = act_fun
+        self.model_params = model_params
+
+        # Run assertions.
+        required = ["model_type", "layers", "layer_norm", "act_fun"]
+        not_specified = [s not in model_params.keys() for s in required]
+        if any(not_specified):
+            raise AssertionError("{} missing from model_params".format(
+                ", ".join([param for i, param in enumerate(required)
+                           if not_specified[i]])))
+
+        if model_params["model_type"] == "conv":
+            required = ["ignore_image", "image_height", "image_width",
+                        "image_channels", "kernel_sizes", "strides", "filters"]
+            not_specified = [s not in model_params.keys() for s in required]
+            if any(not_specified):
+                raise AssertionError(
+                    "{} missing from model_params. Required if \"model_type\" "
+                    "in model_params is set to \"conv\"".format(
+                        ", ".join([
+                            param for i, param in enumerate(required)
+                            if not_specified[i]
+                        ])))
+
+        assert model_params["model_type"] in ["conv", "fcnet"], (
+            "\"model_type\" in model_params must be one of {\"conv\", "
+            "\"fcnet\"}.")
 
     def initialize(self):
         """Initialize the policy.
@@ -165,32 +174,3 @@ class Policy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
-
-    @staticmethod
-    def _remove_fingerprint(val, ob_dim, fingerprint_dim, additional_dim):
-        """Remove the fingerprint from the input.
-
-        This is a hacky procedure to remove the fingerprint elements from the
-        computation. The fingerprint elements are the last few elements of the
-        observation dimension, before any additional concatenated observations
-        (e.g. contexts or actions).
-
-        Parameters
-        ----------
-        val : tf.Variable
-            the original input
-        ob_dim : int
-            number of environmental observation elements
-        fingerprint_dim : int
-            number of fingerprint elements
-        additional_dim : int
-            number of additional elements that were added to the input variable
-
-        Returns
-        -------
-        tf.Variable
-            the input with the fingerprints zeroed out
-        """
-        return val * tf.constant([1.0] * (ob_dim - fingerprint_dim) +
-                                 [0.0] * fingerprint_dim +
-                                 [1.0] * additional_dim)

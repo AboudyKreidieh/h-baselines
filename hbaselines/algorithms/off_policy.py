@@ -803,13 +803,13 @@ class OffPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = self._evaluate(total_steps, env)
+                            rew, suc, inf = self._evaluate(env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_steps, self.eval_env)
+                            self._evaluate(self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -974,11 +974,7 @@ class OffPolicyRLAlgorithm(object):
                     self.episodes += 1
 
     def _train(self):
-        """Perform the training operation.
-
-        Through this method, the actor and critic networks are updated within
-        the policy, and the summary information is logged to tensorboard.
-        """
+        """Perform the training operation."""
         # Added to adjust the actor update frequency based on the rate at which
         # training occurs.
         total_steps = int(self.total_steps / self.nb_rollout_steps)
@@ -1004,7 +1000,7 @@ class OffPolicyRLAlgorithm(object):
         for _ in range(self.nb_train_steps):
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_steps, env):
+    def _evaluate(self, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -1012,8 +1008,6 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
 
