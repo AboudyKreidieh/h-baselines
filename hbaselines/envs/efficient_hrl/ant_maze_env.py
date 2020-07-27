@@ -636,14 +636,12 @@ class AntMazeEnv(gym.Env):
         done = False
         return next_obs, inner_reward, done, info
 
-    def set_goal(self, goal, relative):
+    def set_goal(self, goal):
         """Set the goal position of the agent.
 
         Parameters
         ----------
         goal : array_like
             the desired position of the agent
-        relative : bool
-            whether the goal is a relative or absolute position
         """
-        self.wrapped_env.set_goal(goal, relative)
+        self.wrapped_env.set_goal(goal)

@@ -180,7 +180,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.update_cam()
         else:
             self.viewer.cam.distance = self.model.stat.extent * 0.5
-            self.viewer.cam.distance = 75
+            self.viewer.cam.distance = 55
             self.viewer.cam.elevation = -90
             self.viewer.cam.lookat[0] = 8
             self.viewer.cam.lookat[1] = 8
@@ -219,18 +219,14 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         """Return the x,y position of the agent."""
         return self.physics.data.qpos[:2]
 
-    def set_goal(self, goal, relative):
+    def set_goal(self, goal):
         """Set the goal position of the agent.
 
         Parameters
         ----------
         goal : array_like
             the desired position of the agent
-        relative : bool
-            whether the goal is a relative or absolute position
         """
         goal = deepcopy(goal)
-        if relative:
-            goal += self.physics.data.qpos.flat[:15]
         self.physics.data.qpos.flat[15:] = goal
         self.physics.data.qpos.flat[17] = 8

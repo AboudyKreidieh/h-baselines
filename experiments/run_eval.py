@@ -225,7 +225,7 @@ def main(args):
                     goal = policy._meta_action[0][0] + (
                         obs[policy.goal_indices]
                         if policy.relative_goals else 0)
-                    env.set_goal(goal, policy.relative_goals)
+                    env.set_goal(goal)
 
                 new_obs, reward, done, _ = env.step(action[0])
                 if not flags.no_render:
