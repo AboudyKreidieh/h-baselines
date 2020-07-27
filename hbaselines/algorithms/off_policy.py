@@ -19,16 +19,15 @@ import tensorflow as tf
 import math
 from collections import deque
 from copy import deepcopy
-from gym.spaces import Box
 
 from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
-from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.misc import recursive_update
 from hbaselines.utils.env_util import create_env
 
 
@@ -77,15 +76,39 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # enable layer normalisation
-    layer_norm=False,
-    # the size of the neural network for the policy
-    layers=[256, 256],
-    # the activation function to use in the neural network
-    act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    # dictionary of model-specific parameters
+    model_params=dict(
+        # the type of model to use. Must be one of {"fcnet", "conv"}.
+        model_type="fcnet",
+        # the size of the neural network for the policy
+        layers=[256, 256],
+        # enable layer normalisation
+        layer_norm=False,
+        # the activation function to use in the neural network
+        act_fun=tf.nn.relu,
+
+        # --------------- Model parameters for "conv" models. --------------- #
+
+        # channels of the proprioceptive state to be ignored
+        ignore_flat_channels=[],
+        # observation includes an image but should it be ignored
+        ignore_image=False,
+        # the height of the image in the observation
+        image_height=32,
+        # the width of the image in the observation
+        image_width=32,
+        # the number of channels of the image in the observation
+        image_channels=3,
+        # the channels of the neural network conv layers for the policy
+        filters=[16, 16, 16],
+        # the kernel size of the neural network conv layers for the policy
+        kernel_sizes=[5, 5, 5],
+        # the kernel size of the neural network conv layers for the policy
+        strides=[2, 2, 2],
+    )
 )
 
 
@@ -93,8 +116,7 @@ FEEDFORWARD_PARAMS = dict(
 #     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
-GOAL_CONDITIONED_PARAMS.update(dict(
+GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # number of levels within the hierarchy. Must be greater than 1. Two levels
     # correspond to a Manager/Worker paradigm.
     num_levels=2,
@@ -117,20 +139,13 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # rate at which the original (non-hindsight) sample is stored in the
     # replay buffer as well. Used only if `hindsight` is set to True.
     subgoal_testing_rate=0.3,
-    # whether to use the connected gradient update actor update procedure to
-    # the higher-level policies. See: https://arxiv.org/abs/1912.02368v1
-    connected_gradients=False,
+    # whether to use the cooperative gradient update procedure for the
+    # higher-level policies. See: https://arxiv.org/abs/1912.02368v1
+    cooperative_gradients=False,
     # weights for the gradients of the loss of the lower-level policies with
     # respect to the parameters of the higher-level policies. Only used if
-    # `connected_gradients` is set to True.
+    # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
-    # specifies whether to add a time-dependent fingerprint to the observations
-    use_fingerprints=False,
-    # the low and high values for each fingerprint element, if they are being
-    # used
-    fingerprint_range=([0, 0], [5, 5]),
-    # specifies whether to use centralized value functions
-    centralized_value_functions=False,
 ))
 
 
@@ -138,8 +153,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 #    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-MULTI_FEEDFORWARD_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTI_FEEDFORWARD_PARAMS.update(dict(
+MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
@@ -188,6 +202,9 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+    save_replay_buffer : bool
+        whether to save the data from the replay buffer, at the frequency that
+        the model is saved. Only the most recent replay buffer is stored.
     num_envs : int
         number of environments used to run simulations in parallel. Each
         environment is run on a separate CPUS and uses the same policy as the
@@ -276,6 +293,7 @@ class OffPolicyRLAlgorithm(object):
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
+                 save_replay_buffer=False,
                  num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
@@ -314,6 +332,10 @@ class OffPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
+        save_replay_buffer : bool
+            whether to save the data from the replay buffer, at the frequency
+            that the model is saved. Only the most recent replay buffer is
+            stored.
         num_envs : int
             number of environments used to run simulations in parallel. Each
             environment is run on a separate CPUS and uses the same policy as
@@ -358,6 +380,7 @@ class OffPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
+        self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
@@ -380,7 +403,7 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs['num_envs'] = num_envs
 
         if is_multiagent_policy(policy):
-            self.policy_kwargs.update(MULTI_FEEDFORWARD_PARAMS.copy())
+            self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
 
         if is_td3_policy(policy):
@@ -388,7 +411,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
 
-        self.policy_kwargs.update(policy_kwargs or {})
+        self.policy_kwargs = recursive_update(
+            self.policy_kwargs, policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
@@ -416,16 +440,6 @@ class OffPolicyRLAlgorithm(object):
         self.eval_rew_ph = None
         self.eval_success_ph = None
         self.saver = None
-
-        if self.policy_kwargs.get("use_fingerprints", False):
-            # Append the fingerprint dimension to the observation dimension.
-            fingerprint_range = self.policy_kwargs["fingerprint_range"]
-            low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
-            high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
-            self.ob_space = Box(low, high, dtype=np.float32)
-
-            # Add the fingerprint term to the first observation.
-            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -747,8 +761,7 @@ class OffPolicyRLAlgorithm(object):
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
             print("Collecting initial exploration samples...")
-            self._collect_samples(total_steps,
-                                  run_steps=initial_exploration_steps,
+            self._collect_samples(run_steps=initial_exploration_steps,
                                   random_actions=True)
             print("Done!")
 
@@ -770,7 +783,7 @@ class OffPolicyRLAlgorithm(object):
                         return
 
                     # Perform rollouts.
-                    self._collect_samples(total_steps)
+                    self._collect_samples()
 
                     # Train.
                     self._train()
@@ -835,6 +848,11 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
+        # Save data from the replay buffer.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.save(
+                save_path + "-{}.rb".format(self.total_steps))
+
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
@@ -845,10 +863,11 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _collect_samples(self,
-                         total_steps,
-                         run_steps=None,
-                         random_actions=False):
+        # Load pre-existing replay buffers.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.load(load_path + ".rb")
+
+    def _collect_samples(self, run_steps=None, random_actions=False):
         """Perform the sample collection operation over multiple steps.
 
         This method calls collect_sample for a multiple steps, and attempts to
@@ -856,9 +875,6 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
         run_steps : int, optional
             number of steps to collect samples from. If not provided, the value
             defaults to `self.nb_rollout_steps`.
@@ -899,10 +915,6 @@ class OffPolicyRLAlgorithm(object):
                     self.sampler[env_num].collect_sample.remote(
                         action=action[env_num],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                     for env_num in range(n_steps)
                 ])
@@ -911,10 +923,6 @@ class OffPolicyRLAlgorithm(object):
                     self.sampler[0].collect_sample(
                         action=action[0],
                         multiagent=is_multiagent_policy(self.policy),
-                        steps=self.total_steps,
-                        total_steps=total_steps,
-                        use_fingerprints=self.policy_kwargs.get(
-                            "use_fingerprints", False)
                     )
                 ]
 
@@ -1043,15 +1051,6 @@ class OffPolicyRLAlgorithm(object):
             eval_obs = env.reset()
             eval_obs, eval_all_obs = get_obs(eval_obs)
 
-            # Add the fingerprint term, if needed.
-            eval_obs = add_fingerprint(
-                obs=eval_obs,
-                steps=self.total_steps,
-                total_steps=total_steps,
-                use_fingerprints=self.policy_kwargs.get(
-                    "use_fingerprints", False),
-            )
-
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
             eval_episode_step = 0
@@ -1108,15 +1107,6 @@ class OffPolicyRLAlgorithm(object):
                 # Update the previous step observation.
                 eval_obs = obs.copy()
                 eval_all_obs = all_obs
-
-                # Add the fingerprint term, if needed.
-                eval_obs = add_fingerprint(
-                    obs=eval_obs,
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False),
-                )
 
                 # Increment the reward and step count.
                 num_steps += 1

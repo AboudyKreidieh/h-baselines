@@ -93,6 +93,40 @@ class HierReplayBuffer(object):
         """
         return len(self) >= self.batch_size
 
+    def save(self, save_path):
+        """Save parameters for the replay buffer."""
+        np.save(save_path + '.obs_t.npy', self._obs_t)
+        np.save(save_path + '.context_t.npy', self._context_t)
+        np.save(save_path + '.action_t.npy', self._action_t)
+        np.save(save_path + '.reward_t.npy', self._reward_t)
+        np.save(save_path + '.done_t.npy', self._done_t)
+        np.save(save_path + '.config.npy', np.array([
+            self.buffer_size,
+            self.batch_size,
+            self.meta_period,
+            self.obs_dim,
+            self.ac_dim,
+            self.co_dim,
+            self.goal_dim,
+            self.num_levels,
+        ]))
+
+    def load(self, save_path):
+        """Load parameters for the replay buffer."""
+        self._obs_t = np.load(save_path + '.obs_t.npy')
+        self._context_t = np.load(save_path + '.context_t.npy')
+        self._action_t = np.load(save_path + '.action_t.npy')
+        self._reward_t = np.load(save_path + '.reward_t.npy')
+        self._done_t = np.load(save_path + '.done_t.npy')
+        (self.buffer_size,
+         self.batch_size,
+         self.meta_period,
+         self.obs_dim,
+         self.ac_dim,
+         self.co_dim,
+         self.goal_dim,
+         self.num_levels) = np.load(save_path + '.config.npy')
+
     def is_full(self):
         """Check whether the replay buffer is full or not.
 

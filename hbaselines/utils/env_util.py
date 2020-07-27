@@ -77,20 +77,24 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntMaze(
                 use_contexts=True,
-                context_range=[16, 0]
+                context_range=[16, 0],
+                evaluate=True,
             ),
             AntMaze(
                 use_contexts=True,
-                context_range=[16, 16]
+                context_range=[16, 16],
+                evaluate=True,
             ),
             AntMaze(
                 use_contexts=True,
-                context_range=[0, 16]
+                context_range=[0, 16],
+                evaluate=True,
             )
         ] if evaluate else AntMaze(
             use_contexts=True,
             random_contexts=True,
-            context_range=[(-4, 20), (-4, 20)]
+            context_range=[(-4, 20), (-4, 20)],
+            evaluate=False,
         ),
     },
 
@@ -184,22 +188,26 @@ ENV_ATTRIBUTES = {
                 use_contexts=True,
                 context_range=[16, 0],
                 image_size=32,
+                evaluate=True,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[16, 16],
                 image_size=32,
+                evaluate=True,
             ),
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[0, 16],
                 image_size=32,
+                evaluate=True,
             )
         ] if evaluate else ImageAntMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)],
             image_size=32,
+            evaluate=False,
         ),
     },
 
@@ -214,12 +222,14 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntPush(
             use_contexts=True,
-            context_range=[0, 19]
+            context_range=[0, 19],
+            evaluate=True,
         ) if evaluate else AntPush(
             use_contexts=True,
-            context_range=[0, 19]
+            context_range=[0, 19],
             # random_contexts=True,
             # context_range=[(-16, 16), (-4, 20)])
+            evaluate=False,
         ),
     },
 
@@ -234,12 +244,14 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntFall(
             use_contexts=True,
-            context_range=[0, 27, 4.5]
+            context_range=[0, 27, 4.5],
+            evaluate=True,
         ) if evaluate else AntFall(
             use_contexts=True,
-            context_range=[0, 27, 4.5]
+            context_range=[0, 27, 4.5],
             # random_contexts=True,
             # context_range=[(-4, 12), (-4, 28), (0, 5)])
+            evaluate=False,
         ),
     },
 
@@ -268,20 +280,24 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 0]
+                context_range=[30, 0],
+                evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[0, 30]
+                context_range=[0, 30],
+                evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 30]
+                context_range=[30, 30],
+                evaluate=True,
             )
         ] if evaluate else AntFourRooms(
             use_contexts=True,
             random_contexts=False,
-            context_range=[[30, 0], [0, 30], [30, 30]]
+            context_range=[[30, 0], [0, 30], [30, 30]],
+            evaluate=False,
         ),
     },
 
@@ -764,15 +780,8 @@ ENV_ATTRIBUTES = {
 }
 
 
-def get_meta_ac_space(ob_space,
-                      relative_goals,
-                      env_name,
-                      use_fingerprints,
-                      fingerprint_dim):
+def get_meta_ac_space(ob_space, relative_goals, env_name):
     """Compute the action space for the higher level policies.
-
-    If the fingerprint terms are being appended onto the observations, this
-    should be removed from the action space.
 
     Parameters
     ----------
@@ -785,11 +794,6 @@ def get_meta_ac_space(ob_space,
         the name of the environment. Used for special cases to assign the
         meta-level policies' action space to only ego observations in the
         observation space.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
 
     Returns
     -------
@@ -800,20 +804,12 @@ def get_meta_ac_space(ob_space,
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
             relative_goals)
     else:
-        if use_fingerprints:
-            low = np.array(ob_space.low)[:-fingerprint_dim[0]]
-            high = ob_space.high[:-fingerprint_dim[0]]
-            meta_ac_space = Box(low=low, high=high, dtype=np.float32)
-        else:
-            meta_ac_space = ob_space
+        meta_ac_space = ob_space
 
     return meta_ac_space
 
 
-def get_state_indices(ob_space,
-                      env_name,
-                      use_fingerprints,
-                      fingerprint_dim):
+def get_state_indices(ob_space, env_name):
     """Return the state indices for the intrinsic rewards.
 
     This assigns the indices of the state that are assigned goals, and
@@ -827,11 +823,6 @@ def get_state_indices(ob_space,
         the name of the environment. Used for special cases to assign the
         meta-level policies' action space to only ego observations in the
         observation space.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
 
     Returns
     -------
@@ -840,10 +831,6 @@ def get_state_indices(ob_space,
     """
     if env_name in ENV_ATTRIBUTES.keys():
         state_indices = ENV_ATTRIBUTES[env_name]["state_indices"]
-    elif use_fingerprints:
-        # Remove the last element to compute the reward.
-        state_indices = list(np.arange(
-            0, ob_space.shape[0] - fingerprint_dim[0]))
     else:
         # All observations are presented in the goal.
         state_indices = list(np.arange(0, ob_space.shape[0]))

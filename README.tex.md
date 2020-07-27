@@ -25,13 +25,13 @@ available [here]().
     2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
-    2.3. [Goal-Conditioned HRL](#24-goal-conditioned-hrl)  
+    2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.1. [Meta Period](#231-meta-period)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.2. [Intrinsic Rewards](#232-intrinsic-rewards)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#233-hiro-data-efficient-hierarchical-reinforcement-learning)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.3.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#234-hac-learning-multi-level-hierarchies-with-hindsight)  
-        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
-    2.4. [Multi-Agent Fully Connected Networks](#24-multi-agent-fully-connected-networks)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-cher-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
+    2.4. [Multi-Agent Policies](#24-multi-agent-policies)  
 3. [Environments](#3-environments)  
     3.1. [MuJoCo Environments](#31-mujoco-environments)  
     3.2. [Flow Environments](#32-flow-environments)  
@@ -310,13 +310,30 @@ The modifiable parameters of this policy are as follows:
   information, 2 tensorflow debug
 * **tau** (float) : target update rate
 * **gamma** (float) : discount factor
-* **layer_norm** (bool) : enable layer normalisation
-* **layers** (list of int) :the size of the Neural network for the policy
-* **act_fun** (tf.nn.*) : the activation function to use in the neural 
-  network
 * **use_huber** (bool) : specifies whether to use the huber distance 
   function as the loss for the critic. If set to False, the mean-squared 
   error metric is used instead
+* **model_params** (dict) : dictionary of model-specific parameters, including:
+  * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
+    "conv"}.
+  * **layers** (list of int) :the size of the Neural network for the policy
+  * **layer_norm** (bool) : enable layer normalisation
+  * **act_fun** (tf.nn.*) : the activation function to use in the neural 
+    network
+  * **ignore_image** (bool) : observation includes an image but should it be 
+    ignored. Required if "model_type" is set to "conv".
+  * **image_height** (int) : the height of the image in the observation. 
+    Required if "model_type" is set to "conv".
+  * **image_width** (int) : the width of the image in the observation. Required
+    if "model_type" is set to "conv".
+  * **image_channels** (int) : the number of channels of the image in the
+    observation. Required if "model_type" is set to "conv".
+  * **kernel_sizes** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **strides** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **filters** (list of int) : the channels of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
 
 Additionally, TD3 policy parameters are:
 
@@ -732,11 +749,11 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### 2.3.5 HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
+### 2.3.5 CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+The CHER algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
-weighted *connected gradient* term to the Manager's gradient update 
+weighted *cooperative gradient* term to the Manager's gradient update 
 procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
@@ -748,8 +765,8 @@ Under this formulation, the Manager's update step is defined as:
     & + \lambda \mathbb{E}_{s\sim p_\pi} \bigg[ \nabla_{\theta_m} g_t \nabla_g \big(r(g,s_t,\pi_w(g_t,s_t)) + \pi_w (g,s_t) \nabla_a Q_w(g_t,s_t,a)|_{a=\pi_w(g_t,s_t)}\vphantom{\int} \big) \bigg\rvert_{g=g_t} \bigg]
 \end{aligned}
 
-To use the connected gradient update procedure, set the 
-`connected_gradients` term in `policy_kwargs` to True. The weighting 
+To use the cooperative gradient update procedure, set the 
+`cooperative_gradients` term in `policy_kwargs` to True. The weighting 
 term ($\lambda$ in the above equation), can be modified via the 
 `cg_weights` term (see the example below).
 
@@ -761,31 +778,41 @@ alg = OffPolicyRLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
-        # add this line to include the connected gradient actor update 
-        # procedure to the higher-level policies
-        "connected_gradients": True,
-        # specify the connected gradient (lambda) weight
+        # add this line to include the cooperative gradient update procedure
+        # for the higher-level policies
+        "cooperative_gradients": True,
+        # specify the cooperative gradient (lambda) weight
         "cg_weights": 0.01
     }
 )
 ```
 
-## 2.4 Multi-Agent Fully Connected Networks
+## 2.4 Multi-Agent Policies
 
-In order to train multiple workers in a triangular hierarchical structure, this
-repository also supports the training of multi-agent policies as well. These 
-policies are import via the following commands:
+This repository also supports the training of multi-agent variant of both the 
+fully connected and goal-conditioned policies. The fully-connected policies are
+import via the following commands:
 
 ```python
 # for TD3
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 
 # for SAC
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy
 ```
 
-These policy supports training off-policy variants of three popular multi-agent
-algorithms:
+Moreover, the hierarchical variants are import via the following commands:
+
+```python
+# for TD3
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy
+
+# for SAC
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy
+```
+
+These policies supports training off-policy variants of three popular 
+multi-agent algorithms:
 
 * **Independent learners**: Independent (or Naive) learners provide a separate
   policy with independent parameters to each agent in an environment.
@@ -799,7 +826,7 @@ algorithms:
 
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -820,7 +847,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -839,7 +866,7 @@ algorithms:
   
   ```python
   from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy  # for TD3
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = OffPolicyRLAlgorithm(
       policy=MultiFeedForwardPolicy,
@@ -854,6 +881,9 @@ algorithms:
   This works for both shared and non-shared policies. For shared policies,
   we use a single centralized value function instead of a value function
   for each agent.
+
+  *Note:* MADDPG variants of the goal-conditioned hierarchies are currently not
+  supported.
 
 # 3. Environments
 

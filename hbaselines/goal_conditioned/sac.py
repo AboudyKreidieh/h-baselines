@@ -21,10 +21,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  target_entropy,
                  num_levels,
                  meta_period,
@@ -34,10 +32,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  off_policy_corrections,
                  hindsight,
                  subgoal_testing_rate,
-                 connected_gradients,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
+                 cooperative_gradients,
                  cg_weights,
                  scope=None,
                  env_name="",
@@ -69,16 +64,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -105,21 +96,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         subgoal_testing_rate : float
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
-        connected_gradients : bool
-            whether to use the connected gradient update actor update procedure
-            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+        cooperative_gradients : bool
+            whether to use the cooperative gradient update procedure for the
+            higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
-            used if `connected_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
+            used if `cooperative_gradients` is set to True.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -133,10 +116,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,
@@ -145,11 +126,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,
             subgoal_testing_rate=subgoal_testing_rate,
-            connected_gradients=connected_gradients,
+            cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
-            use_fingerprints=use_fingerprints,
-            fingerprint_range=fingerprint_range,
-            centralized_value_functions=centralized_value_functions,
             scope=scope,
             env_name=env_name,
             num_envs=num_envs,
@@ -259,21 +237,21 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         return np.array(fitness)
 
     # ======================================================================= #
-    #                      Auxiliary methods for HRL-CG                       #
+    #                       Auxiliary methods for CHER                        #
     # ======================================================================= #
 
-    def _setup_connected_gradients(self):
-        """Create the connected gradients meta-policy optimizer."""
+    def _setup_cooperative_gradients(self):
+        """Create the cooperative gradients meta-policy optimizer."""
         raise NotImplementedError  # TODO
 
-    def _connected_gradients_update(self,
-                                    obs0,
-                                    actions,
-                                    rewards,
-                                    obs1,
-                                    terminals1,
-                                    update_actor=True):
-        """Perform the gradient update procedure for the HRL-CG algorithm.
+    def _cooperative_gradients_update(self,
+                                      obs0,
+                                      actions,
+                                      rewards,
+                                      obs1,
+                                      terminals1,
+                                      update_actor=True):
+        """Perform the gradient update procedure for the CHER algorithm.
 
         This procedure is similar to update_from_batch, expect it runs the
         self.cg_optimizer operation instead of the policy object's optimizer,
