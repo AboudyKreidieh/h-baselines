@@ -22,7 +22,6 @@ from gym.spaces import Box
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
-from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
@@ -141,7 +140,7 @@ class OnPolicyRLAlgorithm(object):
         policies
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
-    n_steps : int
+    nb_rollout_steps : int
         number of steps to sample in between training operations
     reward_scale : float
         the value the reward should be scaled by
@@ -235,8 +234,8 @@ class OnPolicyRLAlgorithm(object):
                  policy,
                  env,
                  eval_env=None,
-                 n_steps=128,
-                 n_eval_episodes=50,
+                 nb_rollout_steps=128,
+                 nb_eval_episodes=50,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -255,9 +254,9 @@ class OnPolicyRLAlgorithm(object):
             the environment to learn from (if registered in Gym, can be str)
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
-        n_steps : int
+        nb_rollout_steps : int
             number of steps to sample in between training operations
-        n_eval_episodes : int
+        nb_eval_episodes : int
             the number of evaluation episodes
         reward_scale : float
             the value the reward should be scaled by
@@ -292,7 +291,7 @@ class OnPolicyRLAlgorithm(object):
             policy_kwargs.get("maddpg", False)
 
         # Run assertions.
-        assert num_envs <= n_steps, \
+        assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
         # Instantiate the ray instance.
@@ -304,8 +303,8 @@ class OnPolicyRLAlgorithm(object):
             else env.__str__()
         self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
-        self.n_steps = n_steps
-        self.n_eval_episodes = n_eval_episodes
+        self.nb_rollout_steps = nb_rollout_steps
+        self.nb_eval_episodes = nb_eval_episodes
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -370,9 +369,6 @@ class OnPolicyRLAlgorithm(object):
             low = np.concatenate((self.ob_space.low, fingerprint_range[0]))
             high = np.concatenate((self.ob_space.high, fingerprint_range[1]))
             self.ob_space = Box(low, high, dtype=np.float32)
-
-            # Add the fingerprint term to the first observation.
-            self.obs = [add_fingerprint(obs, 0, 1, True) for obs in self.obs]
 
         # Create the model variables and operations.
         if _init_setup_model:
@@ -509,6 +505,66 @@ class OnPolicyRLAlgorithm(object):
             return tf.compat.v1.get_collection(
                 tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
 
+    def _policy(self,
+                obs,
+                context,
+                apply_noise=True,
+                random_actions=False,
+                env_num=0):
+        """Get the actions from a given observation.
+
+        Parameters
+        ----------
+        obs : array_like
+            the observation
+        context : array_like or None
+            the contextual term. Set to None if no context is provided by the
+            environment.
+        apply_noise : bool
+            enable the noise
+        random_actions : bool
+            if set to True, actions are sampled randomly from the action space
+            instead of being computed by the policy. This is used for
+            exploration purposes.
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
+
+        Returns
+        -------
+        list of float
+            the action value
+        """
+        # Reshape the observation to match the input structure of the policy.
+        if isinstance(obs, dict):
+            # In multi-agent environments, observations come in dict form
+            for key in obs.keys():
+                # Shared policies with have one observation space, while
+                # independent policies have a different observation space based
+                # on their agent ID.
+                if isinstance(self.ob_space, dict):
+                    ob_shape = self.ob_space[key].shape
+                else:
+                    ob_shape = self.ob_space.shape
+                obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
+        else:
+            obs = np.array(obs).reshape((-1,) + self.ob_space.shape)
+
+        action = self.policy_tf.get_action(
+            obs, context,
+            apply_noise=apply_noise,
+            random_actions=random_actions,
+            env_num=env_num,
+        )
+
+        # Flatten the actions. Dictionaries correspond to multi-agent policies.
+        if isinstance(action, dict):
+            action = {key: action[key].flatten() for key in action.keys()}
+        else:
+            action = action.flatten()
+
+        return action
+
     def _store_transition(self,
                           obs0,
                           context0,
@@ -625,7 +681,7 @@ class OnPolicyRLAlgorithm(object):
         start_time = time.time()
 
         with self.sess.as_default(), self.graph.as_default():
-            n_updates = total_steps // self.n_steps
+            n_updates = total_steps // self.nb_rollout_steps
 
             for update in range(1, n_updates + 1):
                 # Reset epoch-specific variables.
@@ -654,13 +710,13 @@ class OnPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = self._evaluate(total_steps, env)
+                            rew, suc, inf = self._evaluate(env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_steps, self.eval_env)
+                            self._evaluate(self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -709,66 +765,6 @@ class OnPolicyRLAlgorithm(object):
         """
         self.saver.restore(self.sess, load_path)
 
-    def _policy(self,
-                obs,
-                context,
-                apply_noise=True,
-                random_actions=False,
-                env_num=0):
-        """Get the actions from a given observation.
-
-        Parameters
-        ----------
-        obs : array_like
-            the observation
-        context : array_like or None
-            the contextual term. Set to None if no context is provided by the
-            environment.
-        apply_noise : bool
-            enable the noise
-        random_actions : bool
-            if set to True, actions are sampled randomly from the action space
-            instead of being computed by the policy. This is used for
-            exploration purposes.
-        env_num : int
-            the environment number. Used to handle situations when multiple
-            parallel environments are being used.
-
-        Returns
-        -------
-        list of float
-            the action value
-        """
-        # Reshape the observation to match the input structure of the policy.
-        if isinstance(obs, dict):
-            # In multi-agent environments, observations come in dict form
-            for key in obs.keys():
-                # Shared policies with have one observation space, while
-                # independent policies have a different observation space based
-                # on their agent ID.
-                if isinstance(self.ob_space, dict):
-                    ob_shape = self.ob_space[key].shape
-                else:
-                    ob_shape = self.ob_space.shape
-                obs[key] = np.array(obs[key]).reshape((-1,) + ob_shape)
-        else:
-            obs = np.array(obs).reshape((-1,) + self.ob_space.shape)
-
-        action = self.policy_tf.get_action(
-            obs, context,
-            apply_noise=apply_noise,
-            random_actions=random_actions,
-            env_num=env_num,
-        )
-
-        # Flatten the actions. Dictionaries correspond to multi-agent policies.
-        if isinstance(action, dict):
-            action = {key: action[key].flatten() for key in action.keys()}
-        else:
-            action = action.flatten()
-
-        return action
-
     def _collect_samples(self,
                          total_steps,
                          run_steps=None,
@@ -794,7 +790,7 @@ class OnPolicyRLAlgorithm(object):
         # Loop through the sampling procedure the number of times it would
         # require to run through each environment in parallel until the number
         # of required steps have been collected.
-        run_steps = run_steps or self.n_steps
+        run_steps = run_steps or self.nb_rollout_steps
         n_itr = math.ceil(run_steps / self.num_envs)
         for itr in range(n_itr):
             n_steps = self.num_envs if itr < n_itr - 1 \
@@ -893,7 +889,7 @@ class OnPolicyRLAlgorithm(object):
         """Perform the training operation."""
         self.policy_tf.update()
 
-    def _evaluate(self, total_steps, env):
+    def _evaluate(self, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -901,8 +897,6 @@ class OnPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
 
@@ -928,26 +922,17 @@ class OnPolicyRLAlgorithm(object):
             for _ in range(3):
                 print("-------------------")
             print("Running evaluation for {} episodes:".format(
-                self.n_eval_episodes))
+                self.nb_eval_episodes))
 
         # Clear replay buffer-related memory in the policy to allow for the
         # meta-actions to properly updated.
         if is_goal_conditioned_policy(self.policy):
             self.policy_tf.clear_memory(0)
 
-        for i in range(self.n_eval_episodes):
+        for i in range(self.nb_eval_episodes):
             # Reset the environment.
             eval_obs = env.reset()
             eval_obs, eval_all_obs = get_obs(eval_obs)
-
-            # Add the fingerprint term, if needed.
-            eval_obs = add_fingerprint(
-                obs=eval_obs,
-                steps=self.total_steps,
-                total_steps=total_steps,
-                use_fingerprints=self.policy_kwargs.get(
-                    "use_fingerprints", False),
-            )
 
             # Reset rollout-specific variables.
             eval_episode_reward = 0.
@@ -1006,15 +991,6 @@ class OnPolicyRLAlgorithm(object):
                 eval_obs = obs.copy()
                 eval_all_obs = all_obs
 
-                # Add the fingerprint term, if needed.
-                eval_obs = add_fingerprint(
-                    obs=eval_obs,
-                    steps=self.total_steps,
-                    total_steps=total_steps,
-                    use_fingerprints=self.policy_kwargs.get(
-                        "use_fingerprints", False),
-                )
-
                 # Increment the reward and step count.
                 num_steps += 1
                 eval_episode_reward += eval_r
@@ -1030,11 +1006,11 @@ class OnPolicyRLAlgorithm(object):
                         if rets.shape[0] > 0:
                             print("%d/%d: initial: %.3f, final: %.3f, average:"
                                   " %.3f, success: %d"
-                                  % (i + 1, self.n_eval_episodes, rets[0],
+                                  % (i + 1, self.nb_eval_episodes, rets[0],
                                      rets[-1], float(rets.mean()),
                                      int(info.get('is_success'))))
                         else:
-                            print("%d/%d" % (i + 1, self.n_eval_episodes))
+                            print("%d/%d" % (i + 1, self.nb_eval_episodes))
 
                     if hasattr(env, "current_context"):
                         ret_info['initial'].append(rets[0])
