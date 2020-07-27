@@ -6,6 +6,7 @@ from copy import deepcopy
 import random
 
 from flow.envs.multiagent import MultiEnv
+from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 
 
@@ -45,6 +46,9 @@ OPEN_ENV_PARAMS.update(dict(
     rl_penetration=0.1,
     # maximum number of controllable vehicles in the network
     num_rl=5,
+    # the interval (in meters) in which automated vehicles are controlled. If
+    # set to None, the entire region is controllable.
+    control_range=[500, 2500],
 ))
 
 
@@ -145,7 +149,18 @@ class AVMultiAgentEnv(MultiEnv):
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
         for key in rl_actions.keys():
-            self.k.vehicle.apply_acceleration(key, rl_actions[key])
+            # Get the acceleration for the given agent.
+            acceleration = deepcopy(rl_actions[key])
+
+            # Redefine if below a speed threshold so that all actions result in
+            # non-negative desired speeds.
+            ac_range = self.action_space.high - self.action_space.low
+            speed = self.k.vehicle.get_speed(key)
+            if speed < 0.5 * ac_range * self.sim_step:
+                acceleration += 0.5 * ac_range - speed / self.sim_step
+
+            # Apply the action via the simulator.
+            self.k.vehicle.apply_acceleration(key, acceleration)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -217,8 +232,8 @@ class AVMultiAgentEnv(MultiEnv):
 
                 if stopping_penalty:
                     for veh_id in rl_ids:
-                        speed = self.k.vehicle.get_speed(veh_id)
-                        reward -= 5 * max(1 - speed, 0) ** 2
+                        if self.k.vehicle.get_speed(veh_id) < 1:
+                            reward -= 5
 
                 # =========================================================== #
                 # Penalize the sum of squares of the AV accelerations.        #
@@ -452,6 +467,15 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
                 lane_change_params=params["rl_0"]["lane_change_params"],
                 num_vehicles=n_rl)
 
+        # Update the network.
+        self.network = self._network_cls(
+            self._network_name,
+            net_params=self._network_net_params,
+            vehicles=new_vehicles,
+            initial_config=self._network_initial_config,
+            traffic_lights=self._network_traffic_lights,
+        )
+
         # Perform the reset operation.
         _ = super(AVClosedMultiAgentEnv, self).reset()
 
@@ -519,6 +543,14 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         for p in OPEN_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
 
         super(AVOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
@@ -625,7 +657,53 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
-            pass  # TODO
+            # Make sure restart instance is set to True when resetting.
+            self.sim_params.restart_instance = True
+
+            # New inflow rate for human and automated vehicles.
+            penetration = self.env_params.additional_params["rl_penetration"]
+            inflow_range = self.env_params.additional_params["inflows"]
+            inflow_low = inflow_range[0]
+            inflow_high = inflow_range[1]
+            inflow_rate = random.randint(inflow_low, inflow_high)
+
+            # Create a new inflow object.
+            new_inflow = InFlows()
+
+            for inflow_i in self._network_net_params.inflows.get():
+                veh_type = inflow_i["vtype"]
+                edge = inflow_i["edge"]
+                depart_lane = inflow_i["departLane"]
+                depart_speed = inflow_i["departSpeed"]
+
+                # Get the inflow rate of the lane/edge based on whether the
+                # vehicle types are human-driven or automated.
+                if veh_type == "human":
+                    vehs_per_hour = inflow_rate * (1 - penetration)
+                else:
+                    vehs_per_hour = inflow_rate * penetration
+
+                new_inflow.add(
+                    veh_type=veh_type,
+                    edge=edge,
+                    vehs_per_hour=vehs_per_hour,
+                    depart_lane=depart_lane,
+                    depart_speed=depart_speed,
+                )
+
+            # Add the new inflows to NetParams.
+            new_net_params = deepcopy(self._network_net_params)
+            new_net_params.inflows = new_inflow
+
+            # Update the network.
+            self.network = self._network_cls(
+                self._network_name,
+                net_params=new_net_params,
+                vehicles=self._network_vehicles,
+                initial_config=self._network_initial_config,
+                traffic_lights=self._network_traffic_lights,
+            )
+            self.net_params = new_net_params
 
         self.leader = []
         self.follower = []
@@ -666,6 +744,14 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         for p in OPEN_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
 
         super(LaneOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
@@ -723,6 +809,41 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             high=float('inf'),
             shape=(5 * self.num_rl,),
             dtype=np.float32)
+
+    def _apply_rl_actions(self, rl_actions):
+        """See class definition."""
+        for key in rl_actions.keys():
+            # Get the lane ID.
+            lane = int(key.split("_")[-1])
+
+            # Get the acceleration for the given lane.
+            acceleration = deepcopy(rl_actions[key])
+
+            # Apply the actions to the given lane.
+            self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])
+
+    def _apply_per_lane_actions(self, rl_actions, veh_ids):
+        """Apply accelerations to RL vehicles on a given lane.
+
+        Parameters
+        ----------
+        rl_actions : array_like
+            the actions to be performed on the given lane
+        veh_ids : list of str
+            the names of the RL vehicles on the given lane
+        """
+        accelerations = deepcopy(rl_actions)
+
+        # Redefine the accelerations if below a speed threshold so that all
+        # actions result in non-negative desired speeds.
+        for i, veh_id in enumerate(veh_ids):
+            ac_range = self.action_space.high[i] - self.action_space.low[i]
+            speed = self.k.vehicle.get_speed(veh_id)
+            if speed < 0.5 * ac_range * self.sim_step:
+                accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+        # Apply the actions via the simulator.
+        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
 
     def get_state(self):
         """See class definition."""
@@ -883,7 +1004,53 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         if self.env_params.additional_params["inflows"] is not None:
-            pass  # TODO
+            # Make sure restart instance is set to True when resetting.
+            self.sim_params.restart_instance = True
+
+            # New inflow rate for human and automated vehicles.
+            penetration = self.env_params.additional_params["rl_penetration"]
+            inflow_range = self.env_params.additional_params["inflows"]
+            inflow_low = inflow_range[0]
+            inflow_high = inflow_range[1]
+            inflow_rate = random.randint(inflow_low, inflow_high)
+
+            # Create a new inflow object.
+            new_inflow = InFlows()
+
+            for inflow_i in self._network_net_params.inflows.get():
+                veh_type = inflow_i["vtype"]
+                edge = inflow_i["edge"]
+                depart_lane = inflow_i["departLane"]
+                depart_speed = inflow_i["departSpeed"]
+
+                # Get the inflow rate of the lane/edge based on whether the
+                # vehicle types are human-driven or automated.
+                if veh_type == "human":
+                    vehs_per_hour = inflow_rate * (1 - penetration)
+                else:
+                    vehs_per_hour = inflow_rate * penetration
+
+                new_inflow.add(
+                    veh_type=veh_type,
+                    edge=edge,
+                    vehs_per_hour=vehs_per_hour,
+                    depart_lane=depart_lane,
+                    depart_speed=depart_speed,
+                )
+
+            # Add the new inflows to NetParams.
+            new_net_params = deepcopy(self._network_net_params)
+            new_net_params.inflows = new_inflow
+
+            # Update the network.
+            self.network = self._network_cls(
+                self._network_name,
+                net_params=new_net_params,
+                vehicles=self._network_vehicles,
+                initial_config=self._network_initial_config,
+                traffic_lights=self._network_traffic_lights,
+            )
+            self.net_params = new_net_params
 
         self.leader = []
         self.follower = []

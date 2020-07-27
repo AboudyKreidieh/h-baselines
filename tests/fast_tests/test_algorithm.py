@@ -5,6 +5,7 @@ import random
 import shutil
 import os
 import csv
+import tensorflow as tf
 
 from hbaselines.algorithms import OffPolicyRLAlgorithm
 from hbaselines.utils.tf_util import get_trainable_vars
@@ -221,7 +222,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['_init_setup_model'] = True
         alg = OffPolicyRLAlgorithm(**policy_params)
 
-        # Run the learn operation for zero timesteps.
+        # Run the learn operation for zero steps.
         alg.learn(0, log_dir='results', initial_exploration_steps=0)
         self.assertEqual(alg.episodes, 0)
         self.assertEqual(alg.total_steps, 0)
@@ -239,76 +240,113 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         shutil.rmtree('results')
 
     def test_learn_initial_exploration_steps(self):
-        """TODO"""
-        pass
+        """Test the initial_exploration_steps parameter in the learn method.
 
-    def test_collect_samples(self):
-        """Validate the functionality of the _collect_samples method."""
-        pass
+        This is done for the following cases:
 
-    def test_evaluate(self):
-        """Validate the functionality of the _evaluate method."""
-        pass
-
-    def test_fingerprints(self):
-        """Validate the functionality of the fingerprints.
-
-        When the fingerprint functionality is turned on, the observation within
-        the algorithm (stored under self.obs) should always include the
-        fingerprint element.
-
-        Policy-specific features of the fingerprint implementation are also
-        tested here. This feature should add a fingerprint dimension to the
-        observation spaces, but NOT the context space of the lower-level or the
-        action space of the higher-level. The intrinsic reward function should
-        also be ignoring the fingerprint elements during its computation. The
-        fingerprint elements are passed by the algorithm, and tested under
-        test_algorithm.py
+        1. initial_exploration_steps= = 0
+        2. initial_exploration_steps= = 100
         """
-        # Create the algorithm.
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
         policy_params = self.init_parameters.copy()
-        policy_params['policy'] = GoalConditionedPolicy
-        policy_params['nb_rollout_steps'] = 1
-        policy_params['policy_kwargs'] = {'use_fingerprints': True}
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
         alg = OffPolicyRLAlgorithm(**policy_params)
 
-        # Test the observation spaces of the policies, as well as the context
-        # space of the lower-level policy and action space of the higher-level
-        # policy.
-        self.assertTupleEqual(alg.policy_tf.policy[0].ob_space.shape, (4,))
-        self.assertTupleEqual(alg.policy_tf.policy[0].ac_space.shape, (2,))
-        self.assertTupleEqual(alg.policy_tf.policy[-1].ob_space.shape, (4,))
-        self.assertTupleEqual(alg.policy_tf.policy[-1].co_space.shape, (2,))
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=0)
 
-        # Test intrinsic_reward method within the policy.
-        self.assertAlmostEqual(
-            alg.policy_tf.intrinsic_reward_fn(
-                states=np.array([1, 2, 3]),
-                goals=np.array([0, 0]),
-                next_states=np.array([1, 2, 3])),
-            -np.sqrt(1**2 + 2**2)
-        )
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 1)
 
-        # Validate that observations include the fingerprints elements upon
-        # initializing the `learn` procedure and  during a step in the
-        # `_collect_samples` method.
-        alg.learn(1, log_dir='results', log_interval=1,
-                  initial_exploration_steps=0)
-        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
-        np.testing.assert_almost_equal(
-            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:], np.array([0, 5]))
-
-        # Validate that observations include the fingerprints elements during
-        # a reset in the `_collect_samples` method.
-        alg.learn(500, log_dir='results', log_interval=500,
-                  initial_exploration_steps=0)
-        self.assertEqual(len(alg.obs[0]), alg.ob_space.shape[0])
-        np.testing.assert_almost_equal(
-            alg.obs[0][-alg.policy_tf.fingerprint_dim[0]:],
-            np.array([4.99, 0.01]))
-
-        # Delete generated files.
+        # Clear memory.
+        del alg
         shutil.rmtree('results')
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the learn operation for zero exploration steps.
+        alg.learn(0, log_dir='results', initial_exploration_steps=100)
+
+        # Check the size of the replay buffer
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 100)
+
+        # Clear memory.
+        del alg
+        shutil.rmtree('results')
+
+    def test_evaluate(self):
+        """Validate the functionality of the _evaluate method.
+
+        This is done for the following cases:
+
+        1. policy = FeedForwardPolicy
+        2. policy = GoalConditionedPolicy
+        """
+        # Set the random seeds.
+        random.seed(0)
+        np.random.seed(0)
+        tf.compat.v1.set_random_seed(0)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = FeedForwardPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the algorithm object.
+        policy_params = self.init_parameters.copy()
+        policy_params['policy'] = GoalConditionedPolicy
+        policy_params['eval_env'] = 'MountainCarContinuous-v0'
+        policy_params['nb_eval_episodes'] = 1
+        policy_params['verbose'] = 2
+        policy_params['_init_setup_model'] = True
+        alg = OffPolicyRLAlgorithm(**policy_params)
+
+        # Run the _evaluate operation.
+        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+
+        # Test the output from the operation.
+        self.assertEqual(len(ep_rewards), 1)
+        self.assertEqual(len(ep_successes), 0)
+        self.assertEqual(list(info.keys()), ['initial', 'final', 'average'])
+
+        # Clear memory.
+        del alg
 
     def test_log_eval(self):
         # Create the algorithm object.

@@ -89,9 +89,9 @@ def main(args, base_dir):
 
         # Get the policy class.
         if args.alg == "TD3":
-            from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
+            from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
         elif args.alg == "SAC":
-            from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
+            from hbaselines.multiagent.sac import MultiFeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 

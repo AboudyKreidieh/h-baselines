@@ -23,7 +23,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
@@ -948,7 +947,6 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
@@ -974,12 +972,8 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
                          self.policy_params['relative_goals'])
         self.assertEqual(policy.off_policy_corrections,
                          self.policy_params['off_policy_corrections'])
-        self.assertEqual(policy.use_fingerprints,
-                         self.policy_params['use_fingerprints'])
-        self.assertEqual(policy.centralized_value_functions,
-                         self.policy_params['centralized_value_functions'])
-        self.assertEqual(policy.connected_gradients,
-                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cooperative_gradients,
+                         self.policy_params['cooperative_gradients'])
         self.assertEqual(policy.cg_weights,
                          self.policy_params['cg_weights'])
 
@@ -1074,12 +1068,8 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
                          self.policy_params['relative_goals'])
         self.assertEqual(policy.off_policy_corrections,
                          self.policy_params['off_policy_corrections'])
-        self.assertEqual(policy.use_fingerprints,
-                         self.policy_params['use_fingerprints'])
-        self.assertEqual(policy.centralized_value_functions,
-                         self.policy_params['centralized_value_functions'])
-        self.assertEqual(policy.connected_gradients,
-                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cooperative_gradients,
+                         self.policy_params['cooperative_gradients'])
         self.assertEqual(policy.cg_weights,
                          self.policy_params['cg_weights'])
 
@@ -1302,8 +1292,8 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
         """Check the functionality of the log_probs() method."""
         pass  # TODO
 
-    def test_connected_gradients(self):
-        """Check the functionality of the connected-gradients feature."""
+    def test_cooperative_gradients(self):
+        """Check the functionality of the cooperative-gradients feature."""
         pass  # TODO
 
 
@@ -1316,7 +1306,6 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())
@@ -1342,12 +1331,8 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
                          self.policy_params['relative_goals'])
         self.assertEqual(policy.off_policy_corrections,
                          self.policy_params['off_policy_corrections'])
-        self.assertEqual(policy.use_fingerprints,
-                         self.policy_params['use_fingerprints'])
-        self.assertEqual(policy.centralized_value_functions,
-                         self.policy_params['centralized_value_functions'])
-        self.assertEqual(policy.connected_gradients,
-                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cooperative_gradients,
+                         self.policy_params['cooperative_gradients'])
         self.assertEqual(policy.cg_weights,
                          self.policy_params['cg_weights'])
 
@@ -1435,12 +1420,8 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
                          self.policy_params['relative_goals'])
         self.assertEqual(policy.off_policy_corrections,
                          self.policy_params['off_policy_corrections'])
-        self.assertEqual(policy.use_fingerprints,
-                         self.policy_params['use_fingerprints'])
-        self.assertEqual(policy.centralized_value_functions,
-                         self.policy_params['centralized_value_functions'])
-        self.assertEqual(policy.connected_gradients,
-                         self.policy_params['connected_gradients'])
+        self.assertEqual(policy.cooperative_gradients,
+                         self.policy_params['cooperative_gradients'])
         self.assertEqual(policy.cg_weights,
                          self.policy_params['cg_weights'])
 
@@ -1604,8 +1585,8 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         """Check the functionality of the log_probs() method."""
         pass  # TODO
 
-    def test_connected_gradients(self):
-        """Check the functionality of the connected-gradients feature."""
+    def test_cooperative_gradients(self):
+        """Check the functionality of the cooperative-gradients feature."""
         pass  # TODO
 
 

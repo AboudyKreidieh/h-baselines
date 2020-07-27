@@ -4,8 +4,8 @@ import numpy as np
 
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
-from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
-from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
+from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):

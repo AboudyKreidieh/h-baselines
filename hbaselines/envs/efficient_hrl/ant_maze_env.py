@@ -48,8 +48,10 @@ class AntMazeEnv(gym.Env):
                  observe_blocks=False,
                  put_spin_near_agent=False,
                  top_down_view=False,
+                 image_size=64,
                  manual_collision=False,
                  ant_fall=False,
+                 evaluate=False,
                  *args,
                  **kwargs):
         """Instantiate the environment.
@@ -76,6 +78,8 @@ class AntMazeEnv(gym.Env):
             specifies whether the agent can spin blocks
         top_down_view : bool, optional
             if set to True, the top-down view is provided via the observations
+        image_size: int
+            determines the width and height of the rendered image
         manual_collision : bool, optional
             if set to True, collisions cause the agent to return to its prior
             position
@@ -83,13 +87,17 @@ class AntMazeEnv(gym.Env):
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
             conditions for the agent need to be accordingly offset.
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
         """
         self._maze_id = maze_id
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
             raise AssertionError("MODEL_CLASS unspecified!")
-        xml_path = os.path.join(MODEL_DIR, model_cls.FILE)
+        xml_path = os.path.join(
+            MODEL_DIR, "double_ant.xml" if evaluate else "ant.xml")
         tree = ET.parse(xml_path)
         worldbody = tree.find(".//worldbody")
 
@@ -123,6 +131,7 @@ class AntMazeEnv(gym.Env):
             2 + (y + size_scaling / 2) / size_scaling,
             2 + (x + size_scaling / 2) / size_scaling)
         # walls (immovable), chasms (fall), movable blocks
+        self.image_size = image_size
         self._view = np.zeros([5, 5, 3])
 
         height_offset = 0.
@@ -177,7 +186,9 @@ class AntMazeEnv(gym.Env):
                         material="",
                         contype="1",
                         conaffinity="1",
-                        rgba="0.4 0.4 0.4 1",
+                        rgba="{} {} 0.4 1".format(
+                            i / len(structure), j / len(structure[0])
+                        ) if top_down_view else "0.4 0.4 0.4 1",
                     )
                 elif maze_env_utils.can_move(struct):  # Movable block.
                     # The "falling" blocks are shrunk slightly and increased in
@@ -280,6 +291,7 @@ class AntMazeEnv(gym.Env):
             self.wrapped_env = model_cls(
                 *args,
                 ant_fall=ant_fall,
+                top_down_view=top_down_view,
                 file_path=file_path,
                 **kwargs
             )
@@ -473,7 +485,11 @@ class AntMazeEnv(gym.Env):
         """Return the current step observation."""
         wrapped_obs = self.wrapped_env._get_obs()
         if self._top_down_view:
-            view = [self.get_top_down_view().flat]
+            img = self.render(mode='rgb_array',
+                              width=self.image_size,
+                              height=self.image_size)
+            img = img.astype(np.float32) / 255.0
+            view = [img.flat]
         else:
             view = []
 
@@ -486,9 +502,10 @@ class AntMazeEnv(gym.Env):
                                          [wrapped_obs[3:]])
 
         range_sensor_obs = self.get_range_sensor_obs()
-        return np.concatenate([wrapped_obs,
+        return np.concatenate(view +
+                              [wrapped_obs,
                                range_sensor_obs.flat] +
-                              view + [[self.t * 0.001]])
+                              [[self.t * 0.001]])
 
     def reset(self):
         """Reset the environment."""
@@ -602,6 +619,8 @@ class AntMazeEnv(gym.Env):
         dict
             extra information dictionary
         """
+        if self._top_down_view:
+            self.wrapped_env.update_cam()
         self.t += 1
         if self._manual_collision:
             old_pos = self.wrapped_env.get_xy()
@@ -616,3 +635,13 @@ class AntMazeEnv(gym.Env):
         next_obs = self._get_obs()
         done = False
         return next_obs, inner_reward, done, info
+
+    def set_goal(self, goal):
+        """Set the goal position of the agent.
+
+        Parameters
+        ----------
+        goal : array_like
+            the desired position of the agent
+        """
+        self.wrapped_env.set_goal(goal)

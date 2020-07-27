@@ -1,4 +1,4 @@
-ray==0.8.5
+ray==0.8.0
 numpy==1.18.4
 tensorflow==1.15.2
 tensorflow-probability==0.8.0
@@ -8,4 +8,5 @@ pygame
 opencv-python
 dm-tree
 ray[tune]
+pandas
 # mujoco-py==1.50.1.68
