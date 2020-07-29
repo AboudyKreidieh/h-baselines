@@ -11,11 +11,12 @@ from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
-import flow.config as config
+import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import I210OpenEnv
 from hbaselines.envs.mixed_autonomy.envs import I210LaneMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+import hbaselines.config as hbaselines_config
 
 # the inflow rate of vehicles (in veh/hr)
 INFLOW_RATE = 2050
@@ -171,6 +172,10 @@ def get_flow_params(fixed_boundary,
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "warmup_path": os.path.join(
+                    hbaselines_config.PROJECT_PATH,
+                    "experiments/warmup/i210/v2/fixed/initial_states"
+                ),
             }
         ),
 
@@ -179,7 +184,7 @@ def get_flow_params(fixed_boundary,
         net=NetParams(
             inflows=inflow,
             template=os.path.join(
-                config.PROJECT_PATH,
+                flow_config.PROJECT_PATH,
                 "examples/exp_configs/templates/sumo/i210_with_ghost_cell_"
                 "with_downstream.xml"
             ),

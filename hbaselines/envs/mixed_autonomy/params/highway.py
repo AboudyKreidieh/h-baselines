@@ -17,6 +17,7 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import HighwayOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+import hbaselines.config as hbaselines_config
 
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
@@ -192,7 +193,10 @@ def get_flow_params(fixed_boundary,
                     "a": 1.3,
                     "b": 2.0,
                 }),
-                "warmup_path": None,  # TODO
+                "warmup_path": os.path.join(
+                    hbaselines_config.PROJECT_PATH,
+                    "experiments/warmup/highway/v2/fixed/initial_states"
+                ),
             }
         ),
 
