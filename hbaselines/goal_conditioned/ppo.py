@@ -57,21 +57,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         weights for the gradients of the loss of the lower-level policies with
         respect to the parameters of the higher-level policies. Only used if
         `connected_gradients` is set to True.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_range : (list of float, list of float)
-        the low and high values for each fingerprint element, if they are being
-        used
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
-    centralized_value_functions : bool
-        specifies whether to use centralized value functions
     policy : list of hbaselines.base_policies.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
-    replay_buffer : hbaselines.goal_conditioned.replay_buffer.HierReplayBuffer
-        the replay buffer object
     goal_indices : list of int
         the state indices for the intrinsic rewards
     intrinsic_reward_fn : function
@@ -83,17 +71,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 buffer_size,
-                 batch_size,
-                 actor_lr,
-                 critic_lr,
                  verbose,
-                 tau,
-                 gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
-                 use_huber,
+                 model_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -104,14 +83,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  subgoal_testing_rate,
                  connected_gradients,
                  cg_weights,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
                  scope=None,
                  env_name="",
                  num_envs=1,
-                 # meta_policy=None,
-                 # worker_policy=None,
                  additional_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
@@ -125,31 +99,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
-        buffer_size : int
-            the max number of transitions to store
-        batch_size : int
-            SGD batch size
-        actor_lr : float
-            actor learning rate
-        critic_lr : float
-            critic learning rate
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        tau : float
-            target update rate
-        gamma : float
-            discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
-        use_huber : bool
-            specifies whether to use the huber distance function as the loss
-            for the critic. If set to False, the mean-squared error metric is
-            used instead
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -197,18 +149,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `connected_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
-        meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
-            the policy model to use for the meta policies
-        worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
-            the policy model to use for the worker policy
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
@@ -221,17 +161,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber
+            model_params=model_params,
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
@@ -246,18 +177,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.subgoal_testing_rate = subgoal_testing_rate
         self.connected_gradients = connected_gradients
         self.cg_weights = cg_weights
-        self.use_fingerprints = use_fingerprints
-        self.fingerprint_range = fingerprint_range
-        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
-        self.centralized_value_functions = centralized_value_functions
 
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
             ob_space=ob_space,
             relative_goals=relative_goals,
             env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
         )
 
         # =================================================================== #
@@ -275,7 +200,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ac_space_i = meta_ac_space if i < (num_levels - 1) else ac_space
             co_space_i = co_space if i == 0 else meta_ac_space
             ob_space_i = ob_space
-            zero_fingerprint_i = i == (num_levels - 1)
 
             # The policies are ordered from the highest level to lowest level
             # policies in the hierarchy.
@@ -292,13 +216,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     ac_space=ac_space_i,
                     co_space=co_space_i,
                     verbose=verbose,
-                    gamma=gamma,
-                    layer_norm=layer_norm,
-                    layers=layers,
-                    act_fun=act_fun,
+                    model_params=model_params,
                     scope=scope_i,
-                    zero_fingerprint=zero_fingerprint_i,
-                    fingerprint_dim=self.fingerprint_dim[0],
                     **(additional_params or {}),
                 ))
 
@@ -336,12 +255,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._dones = [[] for _ in range(num_envs)]
 
         # Collect the state indices for the intrinsic rewards.
-        self.goal_indices = get_state_indices(
-            ob_space=ob_space,
-            env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
-        )
+        self.goal_indices = get_state_indices(ob_space, env_name)
 
         # Define the intrinsic reward function.
         if intrinsic_reward_type in ["negative_distance",
@@ -401,13 +315,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             def goal_transition_fn(obs0, goal, obs1):
                 return goal
         self.goal_transition_fn = goal_transition_fn
-
-        # Utility method for indexing the goal out of an observation variable.
-        self.crop_to_goal = lambda g: tf.gather(
-            g,
-            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
-                    [self.batch_size, 1]),
-            batch_dims=1, axis=1)
 
         if self.connected_gradients:
             with tf.compat.v1.variable_scope(scope):
