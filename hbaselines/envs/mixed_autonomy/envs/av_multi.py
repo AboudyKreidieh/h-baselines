@@ -235,7 +235,7 @@ class AVMultiAgentEnv(MultiEnv):
 
                 if stopping_penalty:
                     for veh_id in rl_ids:
-                        if self.k.vehicle.get_speed(veh_id) < 1:
+                        if self.k.vehicle.get_speed(veh_id) <= 1:
                             reward -= 5
 
                 # =========================================================== #
@@ -243,7 +243,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions))
+                    reward -= sum(np.square(rl_actions[:self.num_rl]))
 
         return reward
 
@@ -836,7 +836,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
 
             # Get the acceleration for the given lane.
             acceleration = deepcopy(rl_actions[key])
-            print(acceleration, self.rl_ids()[lane])
 
             # Apply the actions to the given lane.
             self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])
@@ -939,15 +938,11 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             # Collect the names of all vehicles on the given lane, while
             # tacking into account edges with an extra lane.
             veh_ids_lane = [
-                veh for veh in veh_ids
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
-            ]
+                veh for veh in veh_ids if self._get_lane(veh) == lane]
 
             # Collect the names of the RL vehicles on the lane.
-            rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
+            rl_ids_lane = [
+                veh for veh in self.rl_ids()[lane] if veh in veh_ids_lane]
 
             # Collect the actions that just correspond to this lane.
             rl_actions_lane = rl_actions["lane_{}".format(lane)]
@@ -956,7 +951,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             reward["lane_{}".format(lane)] = self._compute_reward_util(
                 rl_actions=rl_actions_lane,
                 veh_ids=veh_ids_lane,
-                rl_ids=rl_ids,
+                rl_ids=rl_ids_lane,
                 **kwargs
             )
 
