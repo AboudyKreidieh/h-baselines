@@ -1032,7 +1032,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
 
         if self.env_params.additional_params["inflows"] is not None:
-
             # New inflow rate for human and automated vehicles.
             inflow_range = self.env_params.additional_params["inflows"]
             inflow_low = inflow_range[0]
@@ -1084,6 +1083,21 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         self.rl_queue = [collections.deque() for _ in range(5)]
         _ = super(AVOpenMultiAgentEnv, self).reset()
 
+        # Add automated vehicles.
+        self._add_automated_vehicles()
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return obs
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
         # Sort the initial vehicles by their positions.
         sorted_vehicles = sorted(
             self.k.vehicle.get_ids(),
@@ -1096,20 +1110,15 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
                 if self._get_lane(veh_id) == lane]
 
             for i, veh_id in enumerate(sorted_vehicles_lane):
-                if (i+1) % int(1 / penetration) == 0:
+                if (i + 1) % int(1 / penetration) == 0:
                     # Don't add vehicles past the control range.
                     if self.k.vehicle.get_x_by_id(veh_id) > \
                             self._control_range[1]:
                         continue
                     self.k.vehicle.set_vehicle_type(veh_id, "rl")
 
-        # Recompute the initial observation.
-        obs = self.get_state()
-
-        return obs
-
     def _get_lane(self, veh_id):
-        """Pass."""
+        """Return a processed lane number."""
         lane = self.k.vehicle.get_lane(veh_id)
         edge = self.k.vehicle.get_edge(veh_id)
         return lane if edge not in self._extra_lane_edges else lane - 1

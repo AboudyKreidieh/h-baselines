@@ -725,8 +725,12 @@ class HighwayOpenEnv(AVEnv):
         # Add automated vehicles.
         self._add_automated_vehicles()
 
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
         # Recompute the initial observation.
         obs = self.get_state()
+        print(obs)
 
         return obs
 
@@ -748,7 +752,7 @@ class HighwayOpenEnv(AVEnv):
                 self.k.vehicle.set_vehicle_type(veh_id, "rl")
 
 
-class I210OpenEnv(AVEnv):
+class I210OpenEnv(HighwayOpenEnv):
     """Variant of HighwayAVEnv that is compatible with I-210 networks.
 
     See parent class for a further description.
@@ -770,6 +774,37 @@ class I210OpenEnv(AVEnv):
       controlled. If set to None, the entire region is controllable.
     * warmup_path: path to the initialized vehicle states
     """
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        """See parent class."""
+        for p in OPEN_ENV_PARAMS.keys():
+            if p not in env_params.additional_params:
+                raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        super(I210OpenEnv, self).__init__(
+            env_params=env_params,
+            sim_params=sim_params,
+            network=network,
+            simulator=simulator,
+        )
+
+        # These edges have an extra edge that RL vehicles do not traverse
+        # (since they do not change lanes). We as a result ignore their first
+        # lane computing per-lane states.
+        self._extra_lane_edges = [
+            "119257908#1-AddedOnRampEdge",
+            "119257908#1-AddedOffRampEdge",
+            ":119257908#1-AddedOnRampNode_0",
+            ":119257908#1-AddedOffRampNode_0",
+        ]
 
     def _add_automated_vehicles(self):
         """Replace a portion of vehicles with automated vehicles."""
@@ -795,7 +830,7 @@ class I210OpenEnv(AVEnv):
                     self.k.vehicle.set_vehicle_type(veh_id, "rl")
 
     def _get_lane(self, veh_id):
-        """Pass."""
+        """Return a processed lane number."""
         lane = self.k.vehicle.get_lane(veh_id)
         edge = self.k.vehicle.get_edge(veh_id)
         return lane if edge not in self._extra_lane_edges else lane - 1
