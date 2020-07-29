@@ -4,6 +4,7 @@ import numpy as np
 from gym.spaces import Box
 from copy import deepcopy
 import random
+import os
 
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
@@ -760,6 +761,13 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             simulator=simulator,
         )
 
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        self.warmup_paths = [
+            os.path.join(warmup_path, f)
+            for f in os.listdir(warmup_path) if f.endswith(".xml")
+        ]
+
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
 
@@ -792,6 +800,16 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             ":119257908#1-AddedOffRampNode_0",
         ]
 
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
+
     @property
     def action_space(self):
         """See class definition."""
@@ -818,6 +836,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
 
             # Get the acceleration for the given lane.
             acceleration = deepcopy(rl_actions[key])
+            print(acceleration, self.rl_ids()[lane])
 
             # Apply the actions to the given lane.
             self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])
@@ -843,7 +862,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
                 accelerations[i] += 0.5 * ac_range - speed / self.sim_step
 
         # Apply the actions via the simulator.
-        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
+        self.k.vehicle.apply_acceleration(veh_ids, accelerations)
 
     def get_state(self):
         """See class definition."""
@@ -1000,6 +1019,13 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             for veh_id in self.leader + self.follower:
                 self.k.vehicle.set_observed(veh_id)
 
+            # specify actions for the uncontrolled RL vehicles based on human-
+            # driven dynamics
+            for veh_id in list(set(rl_ids) - set(self.rl_veh[lane])):
+                self._rl_controller.veh_id = veh_id
+                acceleration = self._rl_controller.get_action(self)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
     def reset(self, new_inflow_rate=None):
         """See class definition."""
         penetration = self.env_params.additional_params["rl_penetration"]
@@ -1008,7 +1034,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         self.sim_params.restart_instance = True
 
         # Update the choice of initial conditions.
-        self.sim_params.load_state = random.sample(self.warmup_paths)
+        self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
 
         if self.env_params.additional_params["inflows"] is not None:
 

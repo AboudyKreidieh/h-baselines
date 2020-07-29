@@ -8,7 +8,6 @@ from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
-from hbaselines.exploration_strategies import EpsilonGreedy
 
 
 class GoalConditionedPolicy(ActorCriticPolicy):
@@ -268,9 +267,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # =================================================================== #
         # Step 1: Create the policies for the individual levels.              #
         # =================================================================== #
-
-        # Create the exploration strategy.
-        self.exp_strategy = EpsilonGreedy(meta_ac_space)
 
         self.policy = []
 
@@ -562,15 +558,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 # Update the meta action based on the output from the policy if
                 # the time period requires is.
-                meta_action = self.policy[i].get_action(
+                self._meta_action = self.policy[i].get_action(
                     obs, context_i, apply_noise, random_actions)
-
-                # Apply exploration noise to the action.
-                if not random_actions:
-                    meta_action = self.exp_strategy.apply_noise(meta_action)
-
-                # Add to the internal list of meta-actions.
-                self._meta_action[env_num][i] = meta_action
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
