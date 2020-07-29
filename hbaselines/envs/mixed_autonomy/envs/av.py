@@ -730,7 +730,6 @@ class HighwayOpenEnv(AVEnv):
 
         # Recompute the initial observation.
         obs = self.get_state()
-        print(obs)
 
         return obs
 

@@ -975,10 +975,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             # tacking into account edges with an extra lane.
             rl_ids = [
                 veh for veh in self.k.vehicle.get_rl_ids()
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
+                if self._get_lane(veh) == lane
             ]
 
             # add rl vehicles that just entered the network into the rl queue
