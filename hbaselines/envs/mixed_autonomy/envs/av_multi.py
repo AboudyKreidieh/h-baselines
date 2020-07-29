@@ -49,6 +49,8 @@ OPEN_ENV_PARAMS.update(dict(
     # the interval (in meters) in which automated vehicles are controlled. If
     # set to None, the entire region is controllable.
     control_range=[500, 2500],
+    # path to the initialized vehicle states
+    warmup_path="/path/to/initial_states",
 ))
 
 
@@ -171,7 +173,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         # Compute the reward.
         reward = self._compute_reward_util(
-            rl_actions=rl_actions,
+            rl_actions=list(rl_actions.values()),
             veh_ids=self.k.vehicle.get_ids(),
             rl_ids=self.rl_ids(),
             **kwargs
@@ -240,8 +242,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    accel = [rl_actions[key][0] for key in rl_actions.keys()]
-                    reward -= sum(np.square(accel))
+                    reward -= sum(np.square(rl_actions))
 
         return reward
 
@@ -713,14 +714,13 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         return super(AVOpenMultiAgentEnv, self).reset()
 
 
-class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
+class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
     """Lane-level network variant of AVOpenMultiAgentEnv.
 
     Unlike previous environments in this file, this environment treats every
     lane as a separate agent, with the automated vehicles in any given lane
     being control by a single centralized policy. This environment is designed
-    specifically for the I-210 subnetwork, but is applicable to any similarly
-    structured network.
+    specifically for the I-210 subnetwork.
 
     Additional descriptions to this task can be founded in its parent classes.
 
@@ -753,7 +753,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
-        super(LaneOpenMultiAgentEnv, self).__init__(
+        super(I210LaneMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
@@ -931,8 +931,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
 
             # Collect the actions that just correspond to this lane.
-            rl_actions_lane = {key: rl_actions[key]
-                               for key in rl_actions.keys() if key in rl_ids}
+            rl_actions_lane = rl_actions["lane_{}".format(lane)]
 
             # Compute the reward for a given lane.
             reward["lane_{}".format(lane)] = self._compute_reward_util(
@@ -1003,12 +1002,17 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Make sure restart instance is set to True when resetting.
+        self.sim_params.restart_instance = True
+
+        # Update the choice of initial conditions.
+        self.sim_params.load_state = random.sample(self.warmup_paths)
+
         if self.env_params.additional_params["inflows"] is not None:
-            # Make sure restart instance is set to True when resetting.
-            self.sim_params.restart_instance = True
 
             # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
             inflow_range = self.env_params.additional_params["inflows"]
             inflow_low = inflow_range[0]
             inflow_high = inflow_range[1]
@@ -1057,4 +1061,34 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self.rl_veh = [[] for _ in range(5)]
         self.removed_veh = []
         self.rl_queue = [collections.deque() for _ in range(5)]
-        return super(AVOpenMultiAgentEnv, self).reset()
+        _ = super(AVOpenMultiAgentEnv, self).reset()
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(5):
+            sorted_vehicles_lane = [
+                veh_id for veh_id in sorted_vehicles
+                if self._get_lane(veh_id) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                if (i+1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    if self.k.vehicle.get_x_by_id(veh_id) > \
+                            self._control_range[1]:
+                        continue
+                    self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return obs
+
+    def _get_lane(self, veh_id):
+        """Pass."""
+        lane = self.k.vehicle.get_lane(veh_id)
+        edge = self.k.vehicle.get_edge(veh_id)
+        return lane if edge not in self._extra_lane_edges else lane - 1

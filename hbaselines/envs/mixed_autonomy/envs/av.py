@@ -4,6 +4,7 @@ import numpy as np
 from gym.spaces import Box
 from copy import deepcopy
 import random
+import os
 
 from flow.envs import Env
 from flow.core.params import InFlows
@@ -49,6 +50,8 @@ OPEN_ENV_PARAMS.update(dict(
     # the interval (in meters) in which automated vehicles are controlled. If
     # set to None, the entire region is controllable.
     control_range=[500, 2500],
+    # path to the initialized vehicle states
+    warmup_path="/path/to/initial_states",
 ))
 
 
@@ -482,11 +485,10 @@ class AVClosedEnv(AVEnv):
         return obs
 
 
-class AVOpenEnv(AVEnv):
-    """Open network variant of AVEnv.
+class HighwayOpenEnv(AVEnv):
+    """Variant of AVEnv that is compatible with highway networks.
 
-    This environment is suitable for training policies on a merge or highway
-    network.
+    This environment is suitable for training policies on a highway network.
 
     We attempt to train a control policy in this setting that is robust to
     changes in density by altering the inflow rate of vehicles within the
@@ -529,6 +531,7 @@ class AVOpenEnv(AVEnv):
     * num_rl: maximum number of controllable vehicles in the network
     * control_range: the interval (in meters) in which automated vehicles are
       controlled. If set to None, the entire region is controllable.
+    * warmup_path: path to the initialized vehicle states
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -545,12 +548,19 @@ class AVOpenEnv(AVEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
-        super(AVOpenEnv, self).__init__(
+        super(HighwayOpenEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        self.warmup_paths = [
+            os.path.join(warmup_path, f)
+            for f in os.listdir(warmup_path) if f.endswith(".xml")
+        ]
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -573,6 +583,16 @@ class AVOpenEnv(AVEnv):
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
             [0, self.k.network.length()]
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
 
     def rl_ids(self):
         """See parent class."""
@@ -633,12 +653,22 @@ class AVOpenEnv(AVEnv):
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
+        # specify actions for the uncontrolled RL vehicles based on human-
+        # driven dynamics
+        for veh_id in list(set(self.k.vehicle.get_ids()) - set(self.rl_veh)):
+            self._rl_controller.veh_id = veh_id
+            acceleration = self._rl_controller.get_action(self)
+            self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
     def reset(self):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
-            # Make sure restart instance is set to True when resetting.
-            self.sim_params.restart_instance = True
+        # Make sure restart instance is set to True when resetting.
+        self.sim_params.restart_instance = True
 
+        # Update the choice of initial conditions.
+        self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
+
+        if self.env_params.additional_params["inflows"] is not None:
             # New inflow rate for human and automated vehicles.
             penetration = self.env_params.additional_params["rl_penetration"]
             inflow_range = self.env_params.additional_params["inflows"]
@@ -689,4 +719,82 @@ class AVOpenEnv(AVEnv):
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        return super(AVOpenEnv, self).reset()
+        _ = super(HighwayOpenEnv, self).reset()
+
+        # Add automated vehicles.
+        self._add_automated_vehicles()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return obs
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for i, veh_id in enumerate(sorted_vehicles):
+            if (i+1) % int(1 / penetration) == 0:
+                # Don't add vehicles past the control range.
+                if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1]:
+                    continue
+                self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+
+class I210OpenEnv(AVEnv):
+    """Variant of HighwayAVEnv that is compatible with I-210 networks.
+
+    See parent class for a further description.
+
+    Required from env_params:
+
+    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
+    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * stopping_penalty: whether to include a stopping penalty
+    * acceleration_penalty: whether to include a regularizing penalty for
+      accelerations by the AVs
+    * inflows: range for the inflows allowed in the network. If set to None,
+      the inflows are not modified from their initial value.
+    * rl_penetration: the AV penetration rate, defining the portion of inflow
+      vehicles that will be automated. If "inflows" is set to None, this is
+      irrelevant.
+    * num_rl: maximum number of controllable vehicles in the network
+    * control_range: the interval (in meters) in which automated vehicles are
+      controlled. If set to None, the entire region is controllable.
+    * warmup_path: path to the initialized vehicle states
+    """
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(5):
+            sorted_vehicles_lane = [
+                veh_id for veh_id in sorted_vehicles
+                if self._get_lane(veh_id) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    if self.k.vehicle.get_x_by_id(veh_id) > \
+                            self._control_range[1]:
+                        continue
+                    self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+    def _get_lane(self, veh_id):
+        """Pass."""
+        lane = self.k.vehicle.get_lane(veh_id)
+        edge = self.k.vehicle.get_edge(veh_id)
+        return lane if edge not in self._extra_lane_edges else lane - 1

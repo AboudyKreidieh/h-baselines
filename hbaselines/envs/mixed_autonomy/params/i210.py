@@ -13,8 +13,8 @@ from flow.core.params import SumoLaneChangeParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as config
 
-from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import I210OpenEnv
+from hbaselines.envs.mixed_autonomy.envs import I210LaneMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 
 # the inflow rate of vehicles (in veh/hr)
@@ -76,10 +76,6 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
-    # steps to run before the agent is allowed to take control (set to lower
-    # value during testing)
-    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
-
     # Create the base vehicle types that will be used for inflows.
     vehicles = VehicleParams()
     vehicles.add(
@@ -126,12 +122,12 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = None  # to be added later
         else:
-            env_name = LaneOpenMultiAgentEnv
+            env_name = I210LaneMultiAgentEnv
     else:
         if imitation:
             env_name = AVOpenImitationEnv
         else:
-            env_name = AVOpenEnv
+            env_name = I210OpenEnv
 
     return dict(
         # name of the experiment
@@ -158,7 +154,8 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=warmup_steps,
+            warmup_steps=0,
+            done_at_exit=False,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
