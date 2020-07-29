@@ -39,7 +39,7 @@ install:
   - popd
 
   # Download additional files.
-  - pushd $HOME/h-baselines/experiments
+  - pushd experiments
   - wget https://s3.us-east-2.amazonaws.com/aboudy.experiments/h-baselines/warmup.zip
   - unzip warmup.zip
   - popd
