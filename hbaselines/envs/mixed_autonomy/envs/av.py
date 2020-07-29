@@ -655,7 +655,8 @@ class HighwayOpenEnv(AVEnv):
 
         # specify actions for the uncontrolled RL vehicles based on human-
         # driven dynamics
-        for veh_id in list(set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
+        for veh_id in list(
+                set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
