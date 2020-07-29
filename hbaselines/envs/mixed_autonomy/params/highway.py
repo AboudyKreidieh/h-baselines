@@ -187,7 +187,7 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 7,
+                "num_rl": 10,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
