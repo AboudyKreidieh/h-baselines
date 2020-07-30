@@ -20,7 +20,9 @@ import math
 from collections import deque
 from copy import deepcopy
 
-from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
+from hbaselines.algorithms.utils import is_td3_policy
+from hbaselines.algorithms.utils import is_sac_policy
+from hbaselines.algorithms.utils import is_ppo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -36,6 +38,21 @@ from hbaselines.utils.env_util import create_env
 # =========================================================================== #
 
 TD3_PARAMS = dict(
+    # the max number of transitions to store
+    buffer_size=200000,
+    # the size of the batch for learning the policy
+    batch_size=128,
+    # the actor learning rate
+    actor_lr=3e-4,
+    # the critic learning rate
+    critic_lr=3e-4,
+    # the soft update coefficient (keep old values, between 0 and 1)
+    tau=0.005,
+    # the discount rate
+    gamma=0.99,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=False,
     # scaling term to the range of the action space, that is subsequently used
     # as the standard deviation of Gaussian noise added to the action if
     # `apply_noise` is set to True in `get_action`
@@ -53,17 +70,6 @@ TD3_PARAMS = dict(
 # =========================================================================== #
 
 SAC_PARAMS = dict(
-    # target entropy used when learning the entropy coefficient. If set to
-    # None, a heuristic value is used.
-    target_entropy=None,
-)
-
-
-# =========================================================================== #
-#       Policy parameters for FeedForwardPolicy (shared by TD3 and SAC)       #
-# =========================================================================== #
-
-FEEDFORWARD_PARAMS = dict(
     # the max number of transitions to store
     buffer_size=200000,
     # the size of the batch for learning the policy
@@ -79,6 +85,48 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    # target entropy used when learning the entropy coefficient. If set to
+    # None, a heuristic value is used.
+    target_entropy=None,
+)
+
+# =========================================================================== #
+#                          Policy parameters for PPO                          #
+# =========================================================================== #
+
+PPO_PARAMS = dict(
+    # the learning rate
+    learning_rate=3e-4,
+    # number of training minibatches per update
+    n_minibatches=10,
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
+    # entropy coefficient for the loss calculation
+    ent_coef=0.01,
+    # value function coefficient for the loss calculation
+    vf_coef=0.5,
+    # the maximum value for the gradient clipping
+    max_grad_norm=0.5,
+    # clipping parameter, it can be a function
+    cliprange=0.2,
+    # clipping parameter for the value function, it can be a function. This is
+    # a parameter specific to the OpenAI implementation. If None is passed
+    # (default), then `cliprange` (that is used for the policy) will be used.
+    # IMPORTANT: this clipping depends on the reward scaling. To deactivate
+    # value function clipping (and recover the original PPO implementation),
+    # you have to pass a negative value (e.g. -1).
+    cliprange_vf=None,
+)
+
+
+# =========================================================================== #
+#                   Policy parameters for FeedForwardPolicy                   #
+# =========================================================================== #
+
+FEEDFORWARD_PARAMS = dict(
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -113,7 +161,7 @@ FEEDFORWARD_PARAMS = dict(
 
 
 # =========================================================================== #
-#     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
+#                 Policy parameters for GoalConditionedPolicy                 #
 # =========================================================================== #
 
 GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
@@ -150,7 +198,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 
 
 # =========================================================================== #
-#    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
+#                Policy parameters for MultiActorCriticPolicy                 #
 # =========================================================================== #
 
 MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
@@ -361,6 +409,15 @@ class OffPolicyRLAlgorithm(object):
         # Run assertions.
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
+
+        # Include warnings if using PPO.
+        if is_ppo_policy(policy):
+            if actor_update_freq is not None:
+                print("WARNING: actor_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+            if meta_update_freq is not None:
+                print("WARNING: meta_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
 
         # Instantiate the ray instance.
         if num_envs > 1:
