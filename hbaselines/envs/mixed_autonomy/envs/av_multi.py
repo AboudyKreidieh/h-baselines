@@ -1089,7 +1089,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         # Recompute the initial observation.
         obs = self.get_state()
 
-        return obs
+        return np.copy(obs)
 
     def _add_automated_vehicles(self):
         """Replace a portion of vehicles with automated vehicles."""
