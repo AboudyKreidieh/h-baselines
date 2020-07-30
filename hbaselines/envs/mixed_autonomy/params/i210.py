@@ -11,18 +11,19 @@ from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
-import flow.config as config
+import flow.config as flow_config
 
-from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import I210OpenEnv
+from hbaselines.envs.mixed_autonomy.envs import I210LaneMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+import hbaselines.config as hbaselines_config
 
 # the inflow rate of vehicles (in veh/hr)
 INFLOW_RATE = 2050
 # the speed of inflowing vehicles from the main edge (in m/s)
 INFLOW_SPEED = 25.5
 # fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
-PENETRATION_RATE = 1/15
+PENETRATION_RATE = 1/12
 # horizon over which to run the env
 HORIZON = 1500
 # range for the inflows allowed in the network. If set to None, the inflows are
@@ -76,10 +77,6 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
-    # steps to run before the agent is allowed to take control (set to lower
-    # value during testing)
-    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
-
     # Create the base vehicle types that will be used for inflows.
     vehicles = VehicleParams()
     vehicles.add(
@@ -126,12 +123,12 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = None  # to be added later
         else:
-            env_name = LaneOpenMultiAgentEnv
+            env_name = I210LaneMultiAgentEnv
     else:
         if imitation:
             env_name = AVOpenImitationEnv
         else:
-            env_name = AVOpenEnv
+            env_name = I210OpenEnv
 
     return dict(
         # name of the experiment
@@ -158,7 +155,8 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=warmup_steps,
+            warmup_steps=0,
+            done_at_exit=False,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
@@ -174,6 +172,10 @@ def get_flow_params(fixed_boundary,
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "warmup_path": os.path.join(
+                    hbaselines_config.PROJECT_PATH,
+                    "experiments/warmup/i210/v2/fixed/initial_states"
+                ),
             }
         ),
 
@@ -182,7 +184,7 @@ def get_flow_params(fixed_boundary,
         net=NetParams(
             inflows=inflow,
             template=os.path.join(
-                config.PROJECT_PATH,
+                flow_config.PROJECT_PATH,
                 "examples/exp_configs/templates/sumo/i210_with_ghost_cell_"
                 "with_downstream.xml"
             ),

@@ -4,6 +4,7 @@ import numpy as np
 from gym.spaces import Box
 from copy import deepcopy
 import random
+import os
 
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
@@ -49,6 +50,8 @@ OPEN_ENV_PARAMS.update(dict(
     # the interval (in meters) in which automated vehicles are controlled. If
     # set to None, the entire region is controllable.
     control_range=[500, 2500],
+    # path to the initialized vehicle states
+    warmup_path="/path/to/initial_states",
 ))
 
 
@@ -171,7 +174,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         # Compute the reward.
         reward = self._compute_reward_util(
-            rl_actions=rl_actions,
+            rl_actions=list(rl_actions.values()),
             veh_ids=self.k.vehicle.get_ids(),
             rl_ids=self.rl_ids(),
             **kwargs
@@ -232,7 +235,7 @@ class AVMultiAgentEnv(MultiEnv):
 
                 if stopping_penalty:
                     for veh_id in rl_ids:
-                        if self.k.vehicle.get_speed(veh_id) < 1:
+                        if self.k.vehicle.get_speed(veh_id) <= 1:
                             reward -= 5
 
                 # =========================================================== #
@@ -240,8 +243,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    accel = [rl_actions[key][0] for key in rl_actions.keys()]
-                    reward -= sum(np.square(accel))
+                    reward -= sum(np.square(rl_actions[:self.num_rl]))
 
         return reward
 
@@ -713,14 +715,13 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         return super(AVOpenMultiAgentEnv, self).reset()
 
 
-class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
+class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
     """Lane-level network variant of AVOpenMultiAgentEnv.
 
     Unlike previous environments in this file, this environment treats every
     lane as a separate agent, with the automated vehicles in any given lane
     being control by a single centralized policy. This environment is designed
-    specifically for the I-210 subnetwork, but is applicable to any similarly
-    structured network.
+    specifically for the I-210 subnetwork.
 
     Additional descriptions to this task can be founded in its parent classes.
 
@@ -753,12 +754,19 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
-        super(LaneOpenMultiAgentEnv, self).__init__(
+        super(I210LaneMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        self.warmup_paths = [
+            os.path.join(warmup_path, f)
+            for f in os.listdir(warmup_path) if f.endswith(".xml")
+        ]
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -791,6 +799,16 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             ":119257908#1-AddedOnRampNode_0",
             ":119257908#1-AddedOffRampNode_0",
         ]
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
 
     @property
     def action_space(self):
@@ -843,7 +861,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 accelerations[i] += 0.5 * ac_range - speed / self.sim_step
 
         # Apply the actions via the simulator.
-        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
+        self.k.vehicle.apply_acceleration(veh_ids, accelerations)
 
     def get_state(self):
         """See class definition."""
@@ -920,25 +938,20 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             # Collect the names of all vehicles on the given lane, while
             # tacking into account edges with an extra lane.
             veh_ids_lane = [
-                veh for veh in veh_ids
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
-            ]
+                veh for veh in veh_ids if self._get_lane(veh) == lane]
 
             # Collect the names of the RL vehicles on the lane.
-            rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
+            rl_ids_lane = [
+                veh for veh in self.rl_ids()[lane] if veh in veh_ids_lane]
 
             # Collect the actions that just correspond to this lane.
-            rl_actions_lane = {key: rl_actions[key]
-                               for key in rl_actions.keys() if key in rl_ids}
+            rl_actions_lane = rl_actions["lane_{}".format(lane)]
 
             # Compute the reward for a given lane.
             reward["lane_{}".format(lane)] = self._compute_reward_util(
                 rl_actions=rl_actions_lane,
                 veh_ids=veh_ids_lane,
-                rl_ids=rl_ids,
+                rl_ids=rl_ids_lane,
                 **kwargs
             )
 
@@ -962,10 +975,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             # tacking into account edges with an extra lane.
             rl_ids = [
                 veh for veh in self.k.vehicle.get_rl_ids()
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
+                if self._get_lane(veh) == lane
             ]
 
             # add rl vehicles that just entered the network into the rl queue
@@ -1001,14 +1011,25 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             for veh_id in self.leader + self.follower:
                 self.k.vehicle.set_observed(veh_id)
 
+            # specify actions for the uncontrolled RL vehicles based on human-
+            # driven dynamics
+            for veh_id in list(set(rl_ids) - set(self.rl_veh[lane])):
+                self._rl_controller.veh_id = veh_id
+                acceleration = self._rl_controller.get_action(self)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
     def reset(self, new_inflow_rate=None):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
-            # Make sure restart instance is set to True when resetting.
-            self.sim_params.restart_instance = True
+        penetration = self.env_params.additional_params["rl_penetration"]
 
+        # Make sure restart instance is set to True when resetting.
+        self.sim_params.restart_instance = True
+
+        # Update the choice of initial conditions.
+        self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
+
+        if self.env_params.additional_params["inflows"] is not None:
             # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
             inflow_range = self.env_params.additional_params["inflows"]
             inflow_low = inflow_range[0]
             inflow_high = inflow_range[1]
@@ -1057,4 +1078,44 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self.rl_veh = [[] for _ in range(5)]
         self.removed_veh = []
         self.rl_queue = [collections.deque() for _ in range(5)]
-        return super(AVOpenMultiAgentEnv, self).reset()
+        _ = super(AVOpenMultiAgentEnv, self).reset()
+
+        # Add automated vehicles.
+        self._add_automated_vehicles()
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return obs
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(5):
+            sorted_vehicles_lane = [
+                veh_id for veh_id in sorted_vehicles
+                if self._get_lane(veh_id) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    if self.k.vehicle.get_x_by_id(veh_id) > \
+                            self._control_range[1]:
+                        continue
+                    self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+    def _get_lane(self, veh_id):
+        """Return a processed lane number."""
+        lane = self.k.vehicle.get_lane(veh_id)
+        edge = self.k.vehicle.get_edge(veh_id)
+        return lane if edge not in self._extra_lane_edges else lane - 1
