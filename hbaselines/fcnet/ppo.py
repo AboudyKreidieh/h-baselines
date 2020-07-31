@@ -556,7 +556,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # expected returns).
         self.last_obs[env_num] = self._get_obs([obs1], context1)
 
-    def update(self):
+    def update(self, nb_train_steps):
         """See parent class."""
         n_steps = 0
 
@@ -610,7 +610,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         batch_size = n_steps // self.n_minibatches
 
         inds = np.arange(n_steps)
-        for epoch_num in range(self.n_opt_epochs):
+        for _ in range(nb_train_steps):
             np.random.shuffle(inds)
             for start in range(0, n_steps, batch_size):
                 end = start + batch_size

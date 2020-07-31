@@ -1,8 +1,10 @@
-"""Script algorithm contain the base on-policy RL algorithm class.
+"""Script algorithm contain the base off-policy RL algorithm class.
 
 Supported algorithms through this class:
 
-* Proximal Policy Optimization (PPO): see https://arxiv.org/pdf/1707.06347.pdf
+* Twin Delayed Deep Deterministic Policy Gradient (TD3): see
+  https://arxiv.org/pdf/1802.09477.pdf
+* Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
@@ -18,6 +20,9 @@ import math
 from collections import deque
 from copy import deepcopy
 
+from hbaselines.algorithms.utils import is_td3_policy
+from hbaselines.algorithms.utils import is_sac_policy
+from hbaselines.algorithms.utils import is_ppo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -29,16 +34,71 @@ from hbaselines.utils.env_util import create_env
 
 
 # =========================================================================== #
-#                   Policy parameters for FeedForwardPolicy                   #
+#                          Policy parameters for TD3                          #
 # =========================================================================== #
 
-FEEDFORWARD_PARAMS = dict(
+TD3_PARAMS = dict(
+    # the max number of transitions to store
+    buffer_size=200000,
+    # the size of the batch for learning the policy
+    batch_size=128,
+    # the actor learning rate
+    actor_lr=3e-4,
+    # the critic learning rate
+    critic_lr=3e-4,
+    # the soft update coefficient (keep old values, between 0 and 1)
+    tau=0.005,
+    # the discount rate
+    gamma=0.99,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=False,
+    # scaling term to the range of the action space, that is subsequently used
+    # as the standard deviation of Gaussian noise added to the action if
+    # `apply_noise` is set to True in `get_action`
+    noise=0.1,
+    # standard deviation term to the noise from the output of the target actor
+    # policy. See TD3 paper for more.
+    target_policy_noise=0.2,
+    # clipping term for the noise injected in the target actor policy
+    target_noise_clip=0.5,
+)
+
+
+# =========================================================================== #
+#                          Policy parameters for SAC                          #
+# =========================================================================== #
+
+SAC_PARAMS = dict(
+    # the max number of transitions to store
+    buffer_size=200000,
+    # the size of the batch for learning the policy
+    batch_size=128,
+    # the actor learning rate
+    actor_lr=3e-4,
+    # the critic learning rate
+    critic_lr=3e-4,
+    # the soft update coefficient (keep old values, between 0 and 1)
+    tau=0.005,
+    # the discount rate
+    gamma=0.99,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=False,
+    # target entropy used when learning the entropy coefficient. If set to
+    # None, a heuristic value is used.
+    target_entropy=None,
+)
+
+# =========================================================================== #
+#                          Policy parameters for PPO                          #
+# =========================================================================== #
+
+PPO_PARAMS = dict(
     # the learning rate
     learning_rate=3e-4,
     # number of training minibatches per update
-    n_minibatches=4,
-    # number of epoch when optimizing the surrogate
-    n_opt_epochs=4,
+    n_minibatches=10,
     # the discount factor
     gamma=0.99,
     # factor for trade-off of bias vs variance for Generalized Advantage
@@ -59,12 +119,20 @@ FEEDFORWARD_PARAMS = dict(
     # value function clipping (and recover the original PPO implementation),
     # you have to pass a negative value (e.g. -1).
     cliprange_vf=None,
+)
+
+
+# =========================================================================== #
+#                   Policy parameters for FeedForwardPolicy                   #
+# =========================================================================== #
+
+FEEDFORWARD_PARAMS = dict(
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
         model_type="fcnet",
         # the size of the neural network for the policy
-        layers=[64, 64],
+        layers=[256, 256],
         # enable layer normalisation
         layer_norm=False,
         # the activation function to use in the neural network
@@ -141,14 +209,14 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 ))
 
 
-class OnPolicyRLAlgorithm(object):
-    """On-policy RL algorithm class.
+class OffPolicyRLAlgorithm(object):
+    """Off-policy RL algorithm class.
 
-    Supports the training of PPO policies.
+    Supports the training of TD3 and SAC policies.
 
     Attributes
     ----------
-    policy : type [ hbaselines.base_policies.Policy ]
+    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
@@ -158,10 +226,20 @@ class OnPolicyRLAlgorithm(object):
         for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
+    nb_train_steps : int
+        the number of training steps
     nb_rollout_steps : int
         the number of rollout steps
     nb_eval_episodes : int
         the number of evaluation episodes
+    actor_update_freq : int
+        number of training steps per actor policy update step. The critic
+        policy is updated every training step.
+    meta_update_freq : int
+        number of training steps per meta policy update step. The actor policy
+        of the meta-policy is further updated at the frequency provided by the
+        actor_update_freq variable. Note that this value is only relevant when
+        using the GoalConditionedPolicy policy.
     reward_scale : float
         the value the reward should be scaled by
     render : bool
@@ -254,8 +332,11 @@ class OnPolicyRLAlgorithm(object):
                  policy,
                  env,
                  eval_env=None,
+                 nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
+                 actor_update_freq=2,
+                 meta_update_freq=10,
                  reward_scale=1.,
                  render=False,
                  render_eval=False,
@@ -269,16 +350,26 @@ class OnPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.base_policies.Policy ]
+        policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
+        nb_train_steps : int
+            the number of training steps
         nb_rollout_steps : int
             the number of rollout steps
         nb_eval_episodes : int
             the number of evaluation episodes
+        actor_update_freq : int
+            number of training steps per actor policy update step. The critic
+            policy is updated every training step.
+        meta_update_freq : int
+            number of training steps per meta policy update step. The actor
+            policy of the meta-policy is further updated at the frequency
+            provided by the actor_update_freq variable. Note that this value is
+            only relevant when using the GoalConditionedPolicy policy.
         reward_scale : float
             the value the reward should be scaled by
         render : bool
@@ -319,6 +410,15 @@ class OnPolicyRLAlgorithm(object):
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
+        # Include warnings if using PPO.
+        if is_ppo_policy(policy):
+            if actor_update_freq is not None:
+                print("WARNING: actor_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+            if meta_update_freq is not None:
+                print("WARNING: meta_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+
         # Instantiate the ray instance.
         if num_envs > 1:
             ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
@@ -328,8 +428,11 @@ class OnPolicyRLAlgorithm(object):
             else env.__str__()
         self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
+        self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
+        self.actor_update_freq = actor_update_freq
+        self.meta_update_freq = meta_update_freq
         self.reward_scale = reward_scale
         self.render = render
         self.render_eval = render_eval
@@ -360,7 +463,15 @@ class OnPolicyRLAlgorithm(object):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
 
-        self.policy_kwargs.update(policy_kwargs or {})
+        if is_td3_policy(policy):
+            self.policy_kwargs.update(TD3_PARAMS.copy())
+        elif is_sac_policy(policy):
+            self.policy_kwargs.update(SAC_PARAMS.copy())
+        elif is_ppo_policy(policy):
+            self.policy_kwargs.update(PPO_PARAMS.copy())
+
+        self.policy_kwargs = recursive_update(
+            self.policy_kwargs, policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
@@ -649,8 +760,10 @@ class OnPolicyRLAlgorithm(object):
               total_steps,
               log_dir=None,
               seed=None,
+              log_interval=2000,
               eval_interval=50000,
-              save_interval=10000):
+              save_interval=10000,
+              initial_exploration_steps=10000):
         """Perform the complete training operation.
 
         Parameters
@@ -662,13 +775,27 @@ class OnPolicyRLAlgorithm(object):
             as the tensorboard log, should be stored
         seed : int or None
             the initial seed for training, if None: keep current seed
+        log_interval : int
+            the number of training steps before logging training results
         eval_interval : int
             number of simulation steps in the training environment before an
             evaluation is performed
         save_interval : int
             number of simulation steps in the training environment before the
             model is saved
+        initial_exploration_steps : int
+            number of timesteps that the policy is run before training to
+            initialize the replay buffer with samples
         """
+        # Include warnings if using PPO.
+        if is_ppo_policy(self.policy):
+            if log_interval is not None:
+                print("WARNING: log_interval for PPO policies set to after "
+                      "every training iteration.")
+            if initial_exploration_steps > 0:
+                print("WARNING: initial_exploration_steps set to 0 for PPO "
+                      "policies.")
+
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
@@ -698,24 +825,38 @@ class OnPolicyRLAlgorithm(object):
         eval_steps_incr = 0
         save_steps_incr = 0
         start_time = time.time()
+        trains_per_log = 1 if is_ppo_policy(self.policy) else \
+            round(log_interval / self.nb_rollout_steps)
 
         with self.sess.as_default(), self.graph.as_default():
+            # Collect preliminary random samples.
+            print("Collecting initial exploration samples...")
+            self._collect_samples(run_steps=initial_exploration_steps,
+                                  random_actions=True)
+            print("Done!")
+
+            # Reset total statistics variables.
+            self.episodes = 0
+            self.total_steps = 0
+            self.episode_rew_history = deque(maxlen=100)
+
             while True:
                 # Reset epoch-specific variables.
                 self.epoch_episodes = 0
                 self.epoch_episode_steps = []
                 self.epoch_episode_rewards = []
 
-                # If the requirement number of time steps has been met,
-                # terminate training.
-                if self.total_steps >= total_steps:
-                    return
+                for _ in range(trains_per_log):
+                    # If the requirement number of time steps has been met,
+                    # terminate training.
+                    if self.total_steps >= total_steps:
+                        return
 
-                # Perform rollouts.
-                self._collect_samples()
+                    # Perform rollouts.
+                    self._collect_samples()
 
-                # Train.
-                self._train()
+                    # Train.
+                    self._train()
 
                 # Log statistics.
                 self._log_training(train_filepath, start_time)
@@ -904,7 +1045,34 @@ class OnPolicyRLAlgorithm(object):
 
     def _train(self):
         """Perform the training operation."""
-        self.policy_tf.update()
+        if is_td3_policy(self.policy) or is_sac_policy(self.policy):
+            # Added to adjust the actor update frequency based on the rate at
+            # which training occurs.
+            total_steps = int(self.total_steps / self.nb_rollout_steps)
+
+            if is_goal_conditioned_policy(self.policy):
+                # specifies whether to update the meta actor and critic
+                # policies based on the meta and actor update frequencies
+                kwargs = {
+                    "update_meta":
+                        total_steps % self.meta_update_freq == 0,
+                    "update_meta_actor":
+                        total_steps %
+                        (self.meta_update_freq * self.actor_update_freq) == 0
+                }
+            else:
+                kwargs = {}
+
+            # Specifies whether to update the actor policy, base on the actor
+            # update frequency.
+            update = total_steps % self.actor_update_freq == 0
+
+            # Run a step of training from batch.
+            for _ in range(self.nb_train_steps):
+                _ = self.policy_tf.update(update_actor=update, **kwargs)
+        else:
+            # for PPO policies
+            self.policy_tf.update(self.nb_train_steps)
 
     def _evaluate(self, env):
         """Perform the evaluation operation.
