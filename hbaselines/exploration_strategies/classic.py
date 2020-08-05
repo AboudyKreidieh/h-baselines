@@ -8,6 +8,7 @@ import numpy as np
 import random
 
 from hbaselines.exploration_strategies.base import ExplorationStrategy
+from hbaselines.exploration_strategies.utils import argmax_random
 
 
 class EpsilonGreedy(ExplorationStrategy):
@@ -73,7 +74,7 @@ class EpsilonGreedy(ExplorationStrategy):
             # Apply original action.
             return action
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
         pass
 
@@ -92,14 +93,20 @@ class UpperConfidenceBounds(ExplorationStrategy):
             the action space of the agent
         """
         super(UpperConfidenceBounds, self).__init__(ac_space)
+        self.action_counts = np.ones(self.ac_space.n)
+        self.reward_average = np.zeros(self.ac_space.n)
+        self.time_steps = 1
 
     def apply_noise(self, action):
         """See parent class."""
-        return action  # TODO
+        ucb_reward = self.reward_average + np.sqrt(np.divide(2*np.log(self.time_steps), self.action_counts))
+        return argmax_random(ucb_reward)
 
-    def update(self):
-        """Do nothing."""
-        return 0
+    def update(self, obs0, actions, rewards, obs1, terminals1):
+        """Update the action counts and the sampled reward averages."""
+        self.reward_average[actions] += rewards / self.action_counts[actions]
+        self.action_counts[actions] += 1
+        self.time_steps += 1
 
 
 class BoltzmannExploration(ExplorationStrategy):
@@ -121,7 +128,7 @@ class BoltzmannExploration(ExplorationStrategy):
         """See parent class."""
         return action  # TODO
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
         return 0
 
@@ -131,23 +138,40 @@ class ThompsonSampling(ExplorationStrategy):
 
     """
 
-    def __init__(self, ac_space):
+    def __init__(self, ac_space, prior='beta'):
         """Instantiate the exploration strategy object.
 
         Parameters
         ----------
         ac_space : gym.space.*
             the action space of the agent
+        prior : str
+            the name of the prior distribution
         """
         super(ThompsonSampling, self).__init__(ac_space)
+        self.prior = prior
+        if self.prior == 'beta':
+            self.alpha = np.ones(self.ac_space)
+            self.beta = np.ones(self.ac_space)
+        else:
+            raise NotImplementedError("the prior distribution you choose is not yet implemented")
 
     def apply_noise(self, action):
         """See parent class."""
-        return action  # TODO
+        if self.prior == 'beta':
+            thompson_reward = np.random.beta(self.alpha, self.beta)
+            return argmax_random(thompson_reward)
+        else:
+            raise NotImplementedError("the prior distribution you choose is not yet implemented")
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
-        return 0
+        # TODO: assumed rewards is normalized here
+        if self.prior == 'beta':
+            self.alpha[actions] += rewards
+            self.beta[actions] += (1 - rewards)
+        else:
+            raise NotImplementedError("the prior distribution you choose is not yet implemented")
 
 
 class OutputNoise(ExplorationStrategy):
@@ -186,7 +210,7 @@ class OutputNoise(ExplorationStrategy):
         """See parent class."""
         return action + np.random.normal(0, self.noise, action.shape)
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
         return 0
 
@@ -213,6 +237,6 @@ class ParameterNoise(ExplorationStrategy):
         """See parent class."""
         return action  # TODO
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
         return 0

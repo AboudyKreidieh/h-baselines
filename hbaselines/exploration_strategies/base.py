@@ -35,7 +35,7 @@ class ExplorationStrategy(object):
         """
         raise NotImplementedError
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """
 
         :return:

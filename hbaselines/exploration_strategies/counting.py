@@ -26,7 +26,7 @@ class DensityCountingExploration(ExplorationStrategy):
         """See parent class."""
         return action  # TODO
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """See parent class."""
         pass  # TODO
 
@@ -53,6 +53,6 @@ class HashCountingExploration(ExplorationStrategy):
         """See parent class."""
         return action  # TODO
 
-    def update(self):
+    def update(self, obs0, actions, rewards, obs1, terminals1):
         """See parent class."""
         pass  # TODO
