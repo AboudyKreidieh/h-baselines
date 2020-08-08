@@ -560,7 +560,14 @@ class HighwayOpenEnv(AVEnv):
         self.warmup_paths = [
             os.path.join(warmup_path, f)
             for f in os.listdir(warmup_path) if f.endswith(".xml")
-        ]
+        ] if warmup_path is not None else None
+
+        if os.path.isfile(os.path.join(warmup_path, "description.csv")):
+            self.warmup_description = np.genfromtxt(
+                os.path.join(warmup_path, "description.csv"),
+                delimiter=",", names=True)
+        else:
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -667,16 +674,32 @@ class HighwayOpenEnv(AVEnv):
         self.sim_params.restart_instance = True
 
         # Update the choice of initial conditions.
-        self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
+        if self.warmup_paths is not None:
+            self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
 
+        # Check for new inflow rate for human and automated vehicles.
         if self.env_params.additional_params["inflows"] is not None:
-            # New inflow rate for human and automated vehicles.
             penetration = self.env_params.additional_params["rl_penetration"]
             inflow_range = self.env_params.additional_params["inflows"]
             inflow_low = inflow_range[0]
             inflow_high = inflow_range[1]
             inflow_rate = random.randint(inflow_low, inflow_high)
 
+            # Does not change for now.
+            end_speed = None
+
+        elif self.warmup_description is not None:
+            # Choose the inflow/end_speed to match the initial state.
+            xml_num = int(self.sim_params.load_state.split("/")[-1][:-4])
+            inflow_rate = self.warmup_description["inflow"][xml_num]
+            end_speed = self.warmup_description["end_speed"][xml_num]
+
+        else:
+            # Do not modify anything.
+            inflow_rate = None
+            end_speed = None
+
+        if inflow_rate is not None:
             # Create a new inflow object.
             new_inflow = InFlows()
 
@@ -705,6 +728,11 @@ class HighwayOpenEnv(AVEnv):
             new_net_params = deepcopy(self._network_net_params)
             new_net_params.inflows = new_inflow
 
+            # Update the end speed (if needed).
+            if end_speed is not None:
+                new_net_params.additional_params["ghost_speed_limit"] = \
+                    end_speed
+
             # Update the network.
             self.network = self._network_cls(
                 self._network_name,
@@ -722,11 +750,12 @@ class HighwayOpenEnv(AVEnv):
         self.rl_queue = collections.deque()
         _ = super(HighwayOpenEnv, self).reset()
 
-        # Add automated vehicles.
-        self._add_automated_vehicles()
+        if self.sim_params.load_state is not None:
+            # Add automated vehicles.
+            self._add_automated_vehicles()
 
-        # Add the vehicles to their respective attributes.
-        self.additional_command()
+            # Add the vehicles to their respective attributes.
+            self.additional_command()
 
         # Recompute the initial observation.
         obs = self.get_state()
