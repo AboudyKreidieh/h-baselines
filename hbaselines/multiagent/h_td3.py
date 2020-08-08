@@ -33,12 +33,15 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  shared,
                  maddpg,
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=1,
+                 n_agents=5,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -178,6 +181,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                pretrain_worker=pretrain_worker,
+                pretrain_path=pretrain_path,
+                pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
                 num_envs=n_agents * num_envs,
             ),

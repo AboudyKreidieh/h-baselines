@@ -264,29 +264,29 @@ class AVMultiAgentEnv(MultiEnv):
             obs[veh_id][0] = self.k.vehicle.get_speed(veh_id)
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
-            lead_id = self.k.vehicle.get_leader(veh_id)
-            if lead_id in ["", None]:
+            leader = self.k.vehicle.get_leader(veh_id)
+            if leader not in self.k.vehicle.get_ids():
                 # in case leader is not visible
                 lead_speed = max_speed
                 lead_head = max_length
             else:
-                lead_speed = self.k.vehicle.get_speed(lead_id)
-                lead_head = self.k.vehicle.get_headway(veh_id)
-                self.leader.append(lead_id)
+                lead_speed = self.k.vehicle.get_speed(leader, error=0)
+                lead_head = self.k.vehicle.get_headway(veh_id, error=0)
+                self.leader.append(leader)
 
             obs[veh_id][1] = lead_speed
             obs[veh_id][2] = lead_head
 
             # Add the speed and bumper-to-bumper headway of following vehicles.
-            follow_id = self.k.vehicle.get_follower(veh_id)
-            if follow_id in ["", None]:
+            follower = self._get_follower(veh_id)
+            if follower not in self.k.vehicle.get_ids():
                 # in case follower is not visible
                 follow_speed = max_speed
                 follow_head = max_length
             else:
-                follow_speed = self.k.vehicle.get_speed(follow_id)
-                follow_head = self.k.vehicle.get_headway(follow_id)
-                self.follower.append(follow_id)
+                follow_speed = self.k.vehicle.get_speed(follower, error=0)
+                follow_head = self.k.vehicle.get_headway(follower, error=0)
+                self.follower.append(follower)
 
             obs[veh_id][3] = follow_speed
             obs[veh_id][4] = follow_head
@@ -888,7 +888,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
                 # Add the speed and bumper-to-bumper headway of leading
                 # vehicles.
                 leader = self.k.vehicle.get_leader(veh_id)
-                if leader in ["", None]:
+                if leader not in self.k.vehicle.get_ids():
                     # in case leader is not visible
                     lead_speed = max_speed
                     lead_head = max_length
@@ -903,7 +903,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
                 # Add the speed and bumper-to-bumper headway of following
                 # vehicles.
                 follower = self.k.vehicle.get_follower(veh_id)
-                if follower in ["", None]:
+                if follower not in self.k.vehicle.get_ids():
                     # in case follower is not visible
                     follow_speed = max_speed
                     follow_head = max_length

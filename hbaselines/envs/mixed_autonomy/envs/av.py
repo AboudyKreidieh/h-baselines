@@ -252,7 +252,7 @@ class AVEnv(Env):
 
             # Add the speed and bumper-to-bumper headway of leading vehicles.
             leader = self.k.vehicle.get_leader(veh_id)
-            if leader in ["", None]:
+            if leader not in self.k.vehicle.get_ids():
                 # in case leader is not visible
                 lead_speed = max_speed
                 lead_head = max_length
@@ -266,7 +266,7 @@ class AVEnv(Env):
 
             # Add the speed and bumper-to-bumper headway of following vehicles.
             follower = self.k.vehicle.get_follower(veh_id)
-            if follower in ["", None]:
+            if follower not in self.k.vehicle.get_ids():
                 # in case follower is not visible
                 follow_speed = max_speed
                 follow_head = max_length

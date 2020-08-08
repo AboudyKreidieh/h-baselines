@@ -446,7 +446,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """See get_action."""
         actions = {}
 
-        for i, key in enumerate(self._sorted_list(obs.keys())):
+        for i, key in enumerate(self._sorted_list(obs[0].keys())):
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
@@ -458,7 +458,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs=obs[key],
+                obs=[obs[0][key]],
                 context=context_i,
                 apply_noise=apply_noise,
                 random_actions=random_actions,
