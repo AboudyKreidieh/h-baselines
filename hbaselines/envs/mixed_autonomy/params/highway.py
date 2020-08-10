@@ -22,9 +22,9 @@ import hbaselines.config as hbaselines_config
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
 # the speed limit in the ghost edge
-END_SPEED = 6.0
+END_SPEED = 5.0
 # inflow rate on the highway in vehicles per hour
-TRAFFIC_FLOW = 2215
+TRAFFIC_FLOW = 2050
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
@@ -195,7 +195,7 @@ def get_flow_params(fixed_boundary,
                 }),
                 "warmup_path": os.path.join(
                     hbaselines_config.PROJECT_PATH,
-                    "experiments/warmup/highway/v2/fixed/initial_states"
+                    "experiments/initial_states"
                 ),
             }
         ),

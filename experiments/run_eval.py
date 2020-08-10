@@ -252,7 +252,7 @@ def main(args):
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
 
-                new_obs, reward, done, _ = env.step(action[0])
+                new_obs, reward, done, _ = env.step(action)
                 if not flags.no_render:
                     if flags.save_video:
                         if alg.env_name == "AntGather":

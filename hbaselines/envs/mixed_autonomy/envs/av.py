@@ -562,7 +562,8 @@ class HighwayOpenEnv(AVEnv):
             for f in os.listdir(warmup_path) if f.endswith(".xml")
         ] if warmup_path is not None else None
 
-        if os.path.isfile(os.path.join(warmup_path, "description.csv")):
+        if self.warmup_paths is not None and os.path.isfile(os.path.join(
+                warmup_path, "description.csv")):
             self.warmup_description = np.genfromtxt(
                 os.path.join(warmup_path, "description.csv"),
                 delimiter=",", names=True)
