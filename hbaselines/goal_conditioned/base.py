@@ -513,6 +513,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         rewards=rew,
                         obs1=obs1,
                         terminals1=done,
+                        level_num=i,
                         update_actor=kwargs['update_meta_actor'],
                     )
                 else:
@@ -970,6 +971,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                                       rewards,
                                       obs1,
                                       terminals1,
+                                      level_num,
                                       update_actor=True):
         """Perform the gradient update procedure for the CHER algorithm.
 
@@ -992,6 +994,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             (batch_size,) vector of rewards for every level in the hierarchy
         terminals1 : list of numpy bool
             (batch_size,) vector of done masks for every level in the hierarchy
+        level_num : int
+            the hierarchy level number of the policy to optimize
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.
