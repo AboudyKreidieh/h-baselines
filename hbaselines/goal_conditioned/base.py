@@ -491,20 +491,21 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         actor_loss = []
         critic_loss = []
 
-        if kwargs['update_meta']:
-            # Replace the goals with the most likely goals.
-            if self.off_policy_corrections:
-                meta_act = self._sample_best_meta_action(
-                    meta_obs0=obs0[0],
-                    meta_obs1=obs1[0],
-                    meta_action=act[0],
-                    worker_obses=additional["worker_obses"],
-                    worker_actions=additional["worker_actions"],
-                    k=8
-                )
-                act[0] = meta_act
+        # Loop through all meta-policies.
+        for i in range(self.num_levels - 1):
+            if kwargs['update_meta'][i]:
+                # Replace the goals with the most likely goals.
+                if self.off_policy_corrections and i == 0:  # FIXME
+                    meta_act = self._sample_best_meta_action(
+                        meta_obs0=obs0[i],
+                        meta_obs1=obs1[i],
+                        meta_action=act[i],
+                        worker_obses=additional["worker_obses"],
+                        worker_actions=additional["worker_actions"],
+                        k=8
+                    )
+                    act[i] = meta_act
 
-            for i in range(self.num_levels - 1):
                 if self.cooperative_gradients:
                     # Perform the cooperative gradients update procedure.
                     vf_loss, pi_loss = self._cooperative_gradients_update(
@@ -529,8 +530,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 actor_loss.append(pi_loss)
                 critic_loss.append(vf_loss)
-        else:
-            for i in range(self.num_levels - 1):
+            else:
                 actor_loss.append(0)
                 critic_loss.append([0, 0])
 

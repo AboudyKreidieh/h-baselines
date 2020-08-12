@@ -982,16 +982,21 @@ class OffPolicyRLAlgorithm(object):
         # Added to adjust the actor update frequency based on the rate at which
         # training occurs.
         total_steps = int(self.total_steps / self.nb_rollout_steps)
+        num_levels = getattr(self.policy_tf, "num_levels", 2)
 
         if is_goal_conditioned_policy(self.policy):
             # specifies whether to update the meta actor and critic
             # policies based on the meta and actor update frequencies
             kwargs = {
-                "update_meta":
-                    total_steps % self.meta_update_freq == 0,
-                "update_meta_actor":
+                "update_meta": [
+                    total_steps % self.meta_update_freq ** i == 0
+                    for i in range(1, num_levels)
+                ],
+                "update_meta_actor": [
                     total_steps %
-                    (self.meta_update_freq * self.actor_update_freq) == 0
+                    (self.meta_update_freq ** i * self.actor_update_freq) == 0
+                    for i in range(1, num_levels)
+                ]
             }
         else:
             kwargs = {}
