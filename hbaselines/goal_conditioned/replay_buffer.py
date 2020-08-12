@@ -353,29 +353,23 @@ class HierReplayBuffer(object):
                 # lowest (worker) policy.
                 level_num = self.num_levels - i - 1
 
-                # TODO
                 obses[i].append(candidate_obs[sample_time])
                 dones[i].append(candidate_done[sample_time])
 
-                # TODO
-                indx_next_obs = max(
+                indx_next_obs = min(
                     sample_time + meta_period ** level_num, total_time)
                 next_obses[i].append(candidate_obs[indx_next_obs])
 
-                # TODO
                 indx_context = int(sample_time / meta_period ** level_num)
                 contexts[i].append(candidate_action[i - 1][indx_context])
 
-                # TODO
                 indx_actions = int(
                     sample_time / meta_period ** max(level_num - 1, 0))
                 actions[i].append(candidate_action[i][indx_actions])
 
-                # TODO
                 indx_context = int(sample_time / meta_period ** level_num) + 1
                 next_contexts[i].append(candidate_action[i - 1][indx_context])
 
-                # TODO
                 indx_rewards = int(sample_time / meta_period ** level_num)
                 rewards[i].append(candidate_reward[i][indx_rewards])
 
