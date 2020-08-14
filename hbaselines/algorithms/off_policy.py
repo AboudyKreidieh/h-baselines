@@ -803,13 +803,13 @@ class OffPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = self._evaluate(total_steps, env)
+                            rew, suc, inf = self._evaluate(env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_steps, self.eval_env)
+                            self._evaluate(self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -981,30 +981,35 @@ class OffPolicyRLAlgorithm(object):
         """
         # Added to adjust the actor update frequency based on the rate at which
         # training occurs.
-        total_steps = int(self.total_steps / self.nb_rollout_steps)
+        train_itr = int(self.total_steps / self.nb_rollout_steps)
+        num_levels = getattr(self.policy_tf, "num_levels", 2)
 
         if is_goal_conditioned_policy(self.policy):
             # specifies whether to update the meta actor and critic
             # policies based on the meta and actor update frequencies
             kwargs = {
-                "update_meta":
-                    total_steps % self.meta_update_freq == 0,
-                "update_meta_actor":
-                    total_steps %
-                    (self.meta_update_freq * self.actor_update_freq) == 0
+                "update_meta": [
+                    train_itr % self.meta_update_freq ** i == 0
+                    for i in range(1, num_levels)
+                ],
+                "update_meta_actor": [
+                    train_itr %
+                    (self.meta_update_freq ** i * self.actor_update_freq) == 0
+                    for i in range(1, num_levels)
+                ]
             }
         else:
             kwargs = {}
 
         # Specifies whether to update the actor policy, base on the actor
         # update frequency.
-        update = total_steps % self.actor_update_freq == 0
+        update = train_itr % self.actor_update_freq == 0
 
         # Run a step of training from batch.
         for _ in range(self.nb_train_steps):
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_steps, env):
+    def _evaluate(self, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -1012,8 +1017,6 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
 
