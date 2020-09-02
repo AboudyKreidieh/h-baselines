@@ -22,7 +22,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
@@ -694,7 +693,6 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(TD3_PARAMS.copy())
@@ -1054,7 +1052,6 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ac_space': Box(low=-1, high=1, shape=(1,)),
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
-            'layers': None,
             'verbose': 0,
         }
         self.policy_params.update(SAC_PARAMS.copy())

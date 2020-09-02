@@ -12,6 +12,7 @@ from hbaselines.utils.env_util import get_meta_ac_space
 from hbaselines.utils.env_util import get_state_indices
 from hbaselines.utils.env_util import import_flow_env
 from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import conv_layer
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
@@ -61,7 +62,7 @@ class TestTrain(unittest.TestCase):
             'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
             'tau': FEEDFORWARD_PARAMS['tau'],
             'gamma': FEEDFORWARD_PARAMS['gamma'],
-            'layer_norm': False,
+            'model_params:layer_norm': False,
             'use_huber': False,
             'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
             'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
@@ -78,6 +79,21 @@ class TestTrain(unittest.TestCase):
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
             'shared': False,
             'maddpg': False,
+            'model_params:model_type':
+                FEEDFORWARD_PARAMS['model_params']['model_type'],
+            'model_params:strides': None,
+            'model_params:kernel_sizes': None,
+            'dir_name': '',
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels':
+                FEEDFORWARD_PARAMS['model_params']['image_channels'],
+            'model_params:image_height':
+                FEEDFORWARD_PARAMS['model_params']['image_height'],
+            'model_params:image_width':
+                FEEDFORWARD_PARAMS['model_params']['image_width'],
+            'save_replay_buffer': False,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -85,6 +101,7 @@ class TestTrain(unittest.TestCase):
         args = parse_options("", "", args=[
             "AntMaze",
             '--evaluate',
+            '--save_replay_buffer',
             '--n_training', '1',
             '--total_steps', '2',
             '--seed', '3',
@@ -110,7 +127,6 @@ class TestTrain(unittest.TestCase):
             '--num_envs', '21',
             '--target_policy_noise', '22',
             '--target_noise_clip', '23',
-            '--layer_norm',
             '--use_huber',
             '--num_levels', '24',
             '--meta_period', '25',
@@ -124,6 +140,8 @@ class TestTrain(unittest.TestCase):
             '--cg_weights', '28',
             '--shared',
             '--maddpg',
+            '--model_params:model_type', 'model_type',
+            '--model_params:layer_norm',
         ])
         hp = get_hyperparameters(args, GoalConditionedPolicy)
         expected_hp = {
@@ -137,6 +155,7 @@ class TestTrain(unittest.TestCase):
             'actor_update_freq': 12,
             'meta_update_freq': 13,
             'num_envs': 21,
+            'save_replay_buffer': True,
             '_init_setup_model': True,
             'policy_kwargs': {
                 'buffer_size': 14,
@@ -148,7 +167,6 @@ class TestTrain(unittest.TestCase):
                 'noise': 20.0,
                 'target_policy_noise': 22.0,
                 'target_noise_clip': 23.0,
-                'layer_norm': True,
                 'use_huber': True,
                 'num_levels': 24,
                 'meta_period': 25,
@@ -160,6 +178,18 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate': 27.0,
                 'cooperative_gradients': True,
                 'cg_weights': 28.0,
+                'model_params': {
+                    'model_type': 'model_type',
+                    'layer_norm': True,
+                    'filters': [16, 16, 16],
+                    'ignore_flat_channels': [],
+                    'ignore_image': False,
+                    'image_channels': 3,
+                    'image_height': 32,
+                    'image_width': 32,
+                    'kernel_sizes': [5, 5, 5],
+                    'strides': [2, 2, 2],
+                },
             }
         }
         self.assertDictEqual(hp, expected_hp)
@@ -178,6 +208,7 @@ class TestTrain(unittest.TestCase):
             'render_eval': True,
             'verbose': 11,
             'num_envs': 21,
+            'save_replay_buffer': True,
             '_init_setup_model': True,
             'policy_kwargs': {
                 'buffer_size': 14,
@@ -186,13 +217,24 @@ class TestTrain(unittest.TestCase):
                 'critic_lr': 17.0,
                 'tau': 18.0,
                 'gamma': 19.0,
-                'layer_norm': True,
                 'use_huber': True,
                 'noise': 20.0,
                 'target_policy_noise': 22.0,
                 'target_noise_clip': 23.0,
                 'shared': True,
                 'maddpg': True,
+                'model_params': {
+                    'model_type': 'model_type',
+                    'layer_norm': True,
+                    'filters': [16, 16, 16],
+                    'ignore_flat_channels': [],
+                    'ignore_image': False,
+                    'image_channels': 3,
+                    'image_height': 32,
+                    'image_width': 32,
+                    'kernel_sizes': [5, 5, 5],
+                    'strides': [2, 2, 2],
+                },
             }
         }
         self.assertDictEqual(hp, expected_hp)
@@ -819,11 +861,11 @@ class TestTFUtil(unittest.TestCase):
             val=tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None, 1),
-                name='input_test5',
+                name='input_test4',
             ),
             layer_norm=True,
             num_outputs=num_outputs,
-            name="test5",
+            name="test4",
         )
 
         # Test that the LayerNorm layer was added.
@@ -831,8 +873,138 @@ class TestTFUtil(unittest.TestCase):
             sorted([var.name for var in get_trainable_vars()]),
             ['LayerNorm/beta:0',
              'LayerNorm/gamma:0',
-             'test5/bias:0',
-             'test5/kernel:0']
+             'test4/bias:0',
+             'test4/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_conv_layer(self):
+        """Check the functionality of the conv_layer() method.
+
+        This method is tested for the following features:
+
+        1. that the filters, kernel_size, and strides features work as expected
+        2. the name is properly used
+        3. the proper activation function applied if requested
+        4. layer_norm is applied if requested
+        """
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test2',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test2",
+            act_fun=None,
+            layer_norm=False,
+        )
+
+        # Test the shape of the output.
+        self.assertEqual(out_val.shape[-1], 16)
+        self.assertEqual(out_val.shape[-2], 16)
+        self.assertEqual(out_val.shape[-3], 16)
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test2',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test2",
+            act_fun=None,
+            layer_norm=False,
+        )
+
+        # Test the name matches what is expected.
+        self.assertEqual(out_val.name, "test2/BiasAdd:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test3',
+        )
+
+        # Create the layer.
+        out_val = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test3",
+            act_fun=tf.nn.tanh,
+            layer_norm=False,
+        )
+
+        # Test that the name matches the activation function that was added.
+        self.assertEqual(out_val.name, "Tanh:0")
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test4',
+        )
+
+        # Create the layer.
+        _ = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test4",
+            act_fun=None,
+            layer_norm=True,
+        )
+
+        # Test that the LayerNorm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['LayerNorm/beta:0',
+             'LayerNorm/gamma:0',
+             'test4/bias:0',
+             'test4/kernel:0']
         )
 
         # Clear the graph.

@@ -32,16 +32,40 @@ class ActorCriticPolicy(object):
         target update rate
     gamma : float
         discount factor
-    layer_norm : bool
-        enable layer normalisation
-    layers : list of int or None
-        the size of the Neural network for the policy
-    act_fun : tf.nn.*
-        the activation function to use in the neural network
     use_huber : bool
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    model_params : dict
+        dictionary of model-specific parameters. The following must be
+        specified:
+
+        * model_type (str): the type of model to use. Must be one of {"fcnet",
+          "conv"}.
+        * layers (list of int or None): the size of the Neural network for the
+          policy
+        * layer_norm (bool): enable layer normalisation
+        * act_fun (tf.nn.*): the activation function to use in the neural
+          network
+
+        In addition, the following parameters may be required dependent on
+        your choice of model type:
+
+        * ignore_image (bool): observation includes an image but should it be
+          ignored. Required if "model_type" is set to "conv".
+        * image_height (int): the height of the image in the observation.
+          Required if "model_type" is set to "conv".
+        * image_width (int): the width of the image in the observation.
+          Required if "model_type" is set to "conv".
+        * image_channels (int): the number of channels of the image in the
+          observation. Required if "model_type" is set to "conv".
+        * kernel_sizes (list of int): the kernel size of the neural network
+          conv layers for the policy. Required if "model_type" is set to
+          "conv".
+        * strides (list of int): the kernel size of the neural network conv
+          layers for the policy. Required if "model_type" is set to "conv".
+        * filters (list of int): the channels of the neural network conv
+          layers for the policy. Required if "model_type" is set to "conv".
     """
 
     def __init__(self,
@@ -56,10 +80,8 @@ class ActorCriticPolicy(object):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
-                 use_huber):
+                 use_huber,
+                 model_params):
         """Instantiate the base policy object.
 
         Parameters
@@ -87,16 +109,40 @@ class ActorCriticPolicy(object):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. The following must be
+            specified:
+
+            * model_type (str): the type of model to use. Must be one of
+              {"fcnet", "conv"}.
+            * layers (list of int or None): the size of the Neural network for
+              the policy
+            * layer_norm (bool): enable layer normalisation
+            * act_fun (tf.nn.*): the activation function to use in the neural
+              network
+
+            In addition, the following parameters may be required dependent on
+            your choice of model type:
+
+            * ignore_image (bool): observation includes an image but should it
+              be ignored. Required if "model_type" is set to "conv".
+            * image_height (int): the height of the image in the observation.
+              Required if "model_type" is set to "conv".
+            * image_width (int): the width of the image in the observation.
+              Required if "model_type" is set to "conv".
+            * image_channels (int): the number of channels of the image in the
+              observation. Required if "model_type" is set to "conv".
+            * kernel_sizes (list of int): the kernel size of the neural network
+              conv layers for the policy. Required if "model_type" is set to
+              "conv".
+            * strides (list of int): the kernel size of the neural network conv
+              layers for the policy. Required if "model_type" is set to "conv".
+            * filters (list of int): the channels of the neural network conv
+              layers for the policy. Required if "model_type" is set to "conv".
         """
         self.sess = sess
         self.ob_space = ob_space
@@ -107,12 +153,35 @@ class ActorCriticPolicy(object):
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.verbose = verbose
-        self.layers = layers
         self.tau = tau
         self.gamma = gamma
-        self.layer_norm = layer_norm
-        self.act_fun = act_fun
         self.use_huber = use_huber
+        self.model_params = model_params
+
+        # Run assertions.
+        required = ["model_type", "layers", "layer_norm", "act_fun"]
+        not_specified = [s not in model_params.keys() for s in required]
+        if any(not_specified):
+            raise AssertionError("{} missing from model_params".format(
+                ", ".join([param for i, param in enumerate(required)
+                           if not_specified[i]])))
+
+        if model_params["model_type"] == "conv":
+            required = ["ignore_image", "image_height", "image_width",
+                        "image_channels", "kernel_sizes", "strides", "filters"]
+            not_specified = [s not in model_params.keys() for s in required]
+            if any(not_specified):
+                raise AssertionError(
+                    "{} missing from model_params. Required if \"model_type\" "
+                    "in model_params is set to \"conv\"".format(
+                        ", ".join([
+                            param for i, param in enumerate(required)
+                            if not_specified[i]
+                        ])))
+
+        assert model_params["model_type"] in ["conv", "fcnet"], (
+            "\"model_type\" in model_params must be one of {\"conv\", "
+            "\"fcnet\"}.")
 
     def initialize(self):
         """Initialize the policy.

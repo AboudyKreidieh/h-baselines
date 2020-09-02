@@ -32,6 +32,33 @@ class ReplayBuffer(object):
         self.obs_tp1 = np.zeros((buffer_size, obs_dim), dtype=np.float32)
         self.done = np.zeros(buffer_size, dtype=np.float32)
 
+    def save(self, save_path):
+        """Save parameters for the replay buffer."""
+        np.save(save_path + '.obs_t.npy', self.obs_t)
+        np.save(save_path + '.action_t.npy', self.action_t)
+        np.save(save_path + '.reward.npy', self.reward)
+        np.save(save_path + '.obs_tp1.npy', self.obs_tp1)
+        np.save(save_path + '.done.npy', self.done)
+        np.save(save_path + '.config.npy', np.array([
+            self._maxsize,
+            self._size,
+            self._current_idx,
+            self._next_idx,
+            self._batch_size]))
+
+    def load(self, save_path):
+        """Load parameters for the replay buffer."""
+        self.obs_t = np.load(save_path + '.obs_t.npy')
+        self.action_t = np.load(save_path + '.action_t.npy')
+        self.reward = np.load(save_path + '.reward.npy')
+        self.obs_tp1 = np.load(save_path + '.obs_tp1.npy')
+        self.done = np.load(save_path + '.done.npy')
+        (self._maxsize,
+         self._size,
+         self._current_idx,
+         self._next_idx,
+         self._batch_size) = np.load(save_path + '.config.npy')
+
     def __len__(self):
         """Return the number of elements stored."""
         return self._size

@@ -27,6 +27,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 from hbaselines.algorithms.utils import get_obs
 from hbaselines.utils.tf_util import make_session
 from hbaselines.utils.misc import ensure_dir
+from hbaselines.utils.misc import recursive_update
 from hbaselines.utils.env_util import create_env
 
 
@@ -75,15 +76,39 @@ FEEDFORWARD_PARAMS = dict(
     tau=0.005,
     # the discount rate
     gamma=0.99,
-    # enable layer normalisation
-    layer_norm=False,
-    # the size of the neural network for the policy
-    layers=[256, 256],
-    # the activation function to use in the neural network
-    act_fun=tf.nn.relu,
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    # dictionary of model-specific parameters
+    model_params=dict(
+        # the type of model to use. Must be one of {"fcnet", "conv"}.
+        model_type="fcnet",
+        # the size of the neural network for the policy
+        layers=[256, 256],
+        # enable layer normalisation
+        layer_norm=False,
+        # the activation function to use in the neural network
+        act_fun=tf.nn.relu,
+
+        # --------------- Model parameters for "conv" models. --------------- #
+
+        # channels of the proprioceptive state to be ignored
+        ignore_flat_channels=[],
+        # observation includes an image but should it be ignored
+        ignore_image=False,
+        # the height of the image in the observation
+        image_height=32,
+        # the width of the image in the observation
+        image_width=32,
+        # the number of channels of the image in the observation
+        image_channels=3,
+        # the channels of the neural network conv layers for the policy
+        filters=[16, 16, 16],
+        # the kernel size of the neural network conv layers for the policy
+        kernel_sizes=[5, 5, 5],
+        # the kernel size of the neural network conv layers for the policy
+        strides=[2, 2, 2],
+    )
 )
 
 
@@ -91,8 +116,7 @@ FEEDFORWARD_PARAMS = dict(
 #     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-GOAL_CONDITIONED_PARAMS = FEEDFORWARD_PARAMS.copy()
-GOAL_CONDITIONED_PARAMS.update(dict(
+GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # number of levels within the hierarchy. Must be greater than 1. Two levels
     # correspond to a Manager/Worker paradigm.
     num_levels=2,
@@ -129,8 +153,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
 #    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
 # =========================================================================== #
 
-MULTIAGENT_PARAMS = FEEDFORWARD_PARAMS.copy()
-MULTIAGENT_PARAMS.update(dict(
+MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # whether to use a shared policy for all agents
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
@@ -179,6 +202,9 @@ class OffPolicyRLAlgorithm(object):
         if set to True, the policy provides deterministic actions to the
         evaluation environment. Otherwise, stochastic or noisy actions are
         returned.
+    save_replay_buffer : bool
+        whether to save the data from the replay buffer, at the frequency that
+        the model is saved. Only the most recent replay buffer is stored.
     num_envs : int
         number of environments used to run simulations in parallel. Each
         environment is run on a separate CPUS and uses the same policy as the
@@ -267,6 +293,7 @@ class OffPolicyRLAlgorithm(object):
                  render=False,
                  render_eval=False,
                  eval_deterministic=True,
+                 save_replay_buffer=False,
                  num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
@@ -305,6 +332,10 @@ class OffPolicyRLAlgorithm(object):
             if set to True, the policy provides deterministic actions to the
             evaluation environment. Otherwise, stochastic or noisy actions are
             returned.
+        save_replay_buffer : bool
+            whether to save the data from the replay buffer, at the frequency
+            that the model is saved. Only the most recent replay buffer is
+            stored.
         num_envs : int
             number of environments used to run simulations in parallel. Each
             environment is run on a separate CPUS and uses the same policy as
@@ -349,6 +380,7 @@ class OffPolicyRLAlgorithm(object):
         self.render = render
         self.render_eval = render_eval
         self.eval_deterministic = eval_deterministic
+        self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose}
@@ -379,7 +411,8 @@ class OffPolicyRLAlgorithm(object):
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
 
-        self.policy_kwargs.update(policy_kwargs or {})
+        self.policy_kwargs = recursive_update(
+            self.policy_kwargs, policy_kwargs or {})
 
         # Compute the time horizon, which is used to check if an environment
         # terminated early and used to compute the done mask for TD3.
@@ -770,13 +803,13 @@ class OffPolicyRLAlgorithm(object):
                         eval_successes = []
                         eval_info = []
                         for env in self.eval_env:
-                            rew, suc, inf = self._evaluate(total_steps, env)
+                            rew, suc, inf = self._evaluate(env)
                             eval_rewards.append(rew)
                             eval_successes.append(suc)
                             eval_info.append(inf)
                     else:
                         eval_rewards, eval_successes, eval_info = \
-                            self._evaluate(total_steps, self.eval_env)
+                            self._evaluate(self.eval_env)
 
                     # Log the evaluation statistics.
                     self._log_eval(eval_filepath, start_time, eval_rewards,
@@ -815,6 +848,11 @@ class OffPolicyRLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.total_steps)
 
+        # Save data from the replay buffer.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.save(
+                save_path + "-{}.rb".format(self.total_steps))
+
     def load(self, load_path):
         """Load model parameters from a checkpoint.
 
@@ -824,6 +862,10 @@ class OffPolicyRLAlgorithm(object):
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
+
+        # Load pre-existing replay buffers.
+        if self.save_replay_buffer:
+            self.policy_tf.replay_buffer.load(load_path + ".rb")
 
     def _collect_samples(self, run_steps=None, random_actions=False):
         """Perform the sample collection operation over multiple steps.
@@ -939,30 +981,35 @@ class OffPolicyRLAlgorithm(object):
         """
         # Added to adjust the actor update frequency based on the rate at which
         # training occurs.
-        total_steps = int(self.total_steps / self.nb_rollout_steps)
+        train_itr = int(self.total_steps / self.nb_rollout_steps)
+        num_levels = getattr(self.policy_tf, "num_levels", 2)
 
         if is_goal_conditioned_policy(self.policy):
             # specifies whether to update the meta actor and critic
             # policies based on the meta and actor update frequencies
             kwargs = {
-                "update_meta":
-                    total_steps % self.meta_update_freq == 0,
-                "update_meta_actor":
-                    total_steps %
-                    (self.meta_update_freq * self.actor_update_freq) == 0
+                "update_meta": [
+                    train_itr % self.meta_update_freq ** i == 0
+                    for i in range(1, num_levels)
+                ],
+                "update_meta_actor": [
+                    train_itr %
+                    (self.meta_update_freq ** i * self.actor_update_freq) == 0
+                    for i in range(1, num_levels)
+                ]
             }
         else:
             kwargs = {}
 
         # Specifies whether to update the actor policy, base on the actor
         # update frequency.
-        update = total_steps % self.actor_update_freq == 0
+        update = train_itr % self.actor_update_freq == 0
 
         # Run a step of training from batch.
         for _ in range(self.nb_train_steps):
             _ = self.policy_tf.update(update_actor=update, **kwargs)
 
-    def _evaluate(self, total_steps, env):
+    def _evaluate(self, env):
         """Perform the evaluation operation.
 
         This method runs the evaluation environment for a number of episodes
@@ -970,8 +1017,6 @@ class OffPolicyRLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         env : gym.Env
             the evaluation environment that the policy is meant to be tested on
 

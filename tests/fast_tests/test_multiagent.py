@@ -32,7 +32,6 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -55,7 +54,6 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -265,12 +263,12 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
+        self.policy_params_shared["model_params"]["model_type"] = "fcnet"
 
         # Independent policy parameters
         self.policy_params_independent = {
@@ -288,12 +286,12 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
+        self.policy_params_independent["model_params"]["model_type"] = "fcnet"
 
     def tearDown(self):
         self.sess.close()
@@ -325,10 +323,12 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
 
         This is done for the following cases:
 
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
+        1. maddpg = False, shared = False, model_type = "fcnet"
+        2. maddpg = False, shared = True,  model_type = "fcnet"
+        3. maddpg = True,  shared = False, model_type = "fcnet"
+        4. maddpg = True,  shared = True,  model_type = "fcnet"
+        5. maddpg = True,  shared = False, model_type = "conv"
+        6. maddpg = True,  shared = True,  model_type = "conv"
         """
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
@@ -653,6 +653,242 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
         # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(policy.maddpg)
+
+    def test_init_5(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = TD3MultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_qf_0/conv0/bias:0',
+             'a/model/centralized_qf_0/conv0/kernel:0',
+             'a/model/centralized_qf_0/conv1/bias:0',
+             'a/model/centralized_qf_0/conv1/kernel:0',
+             'a/model/centralized_qf_0/conv2/bias:0',
+             'a/model/centralized_qf_0/conv2/kernel:0',
+             'a/model/centralized_qf_0/fc0/bias:0',
+             'a/model/centralized_qf_0/fc0/kernel:0',
+             'a/model/centralized_qf_0/fc1/bias:0',
+             'a/model/centralized_qf_0/fc1/kernel:0',
+             'a/model/centralized_qf_0/qf_output/bias:0',
+             'a/model/centralized_qf_0/qf_output/kernel:0',
+             'a/model/centralized_qf_1/conv0/bias:0',
+             'a/model/centralized_qf_1/conv0/kernel:0',
+             'a/model/centralized_qf_1/conv1/bias:0',
+             'a/model/centralized_qf_1/conv1/kernel:0',
+             'a/model/centralized_qf_1/conv2/bias:0',
+             'a/model/centralized_qf_1/conv2/kernel:0',
+             'a/model/centralized_qf_1/fc0/bias:0',
+             'a/model/centralized_qf_1/fc0/kernel:0',
+             'a/model/centralized_qf_1/fc1/bias:0',
+             'a/model/centralized_qf_1/fc1/kernel:0',
+             'a/model/centralized_qf_1/qf_output/bias:0',
+             'a/model/centralized_qf_1/qf_output/kernel:0',
+             'a/model/pi/conv0/bias:0',
+             'a/model/pi/conv0/kernel:0',
+             'a/model/pi/conv1/bias:0',
+             'a/model/pi/conv1/kernel:0',
+             'a/model/pi/conv2/bias:0',
+             'a/model/pi/conv2/kernel:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/output/bias:0',
+             'a/model/pi/output/kernel:0',
+             'a/target/centralized_qf_0/conv0/bias:0',
+             'a/target/centralized_qf_0/conv0/kernel:0',
+             'a/target/centralized_qf_0/conv1/bias:0',
+             'a/target/centralized_qf_0/conv1/kernel:0',
+             'a/target/centralized_qf_0/conv2/bias:0',
+             'a/target/centralized_qf_0/conv2/kernel:0',
+             'a/target/centralized_qf_0/fc0/bias:0',
+             'a/target/centralized_qf_0/fc0/kernel:0',
+             'a/target/centralized_qf_0/fc1/bias:0',
+             'a/target/centralized_qf_0/fc1/kernel:0',
+             'a/target/centralized_qf_0/qf_output/bias:0',
+             'a/target/centralized_qf_0/qf_output/kernel:0',
+             'a/target/centralized_qf_1/conv0/bias:0',
+             'a/target/centralized_qf_1/conv0/kernel:0',
+             'a/target/centralized_qf_1/conv1/bias:0',
+             'a/target/centralized_qf_1/conv1/kernel:0',
+             'a/target/centralized_qf_1/conv2/bias:0',
+             'a/target/centralized_qf_1/conv2/kernel:0',
+             'a/target/centralized_qf_1/fc0/bias:0',
+             'a/target/centralized_qf_1/fc0/kernel:0',
+             'a/target/centralized_qf_1/fc1/bias:0',
+             'a/target/centralized_qf_1/fc1/kernel:0',
+             'a/target/centralized_qf_1/qf_output/bias:0',
+             'a/target/centralized_qf_1/qf_output/kernel:0',
+             'a/target/pi/conv0/bias:0',
+             'a/target/pi/conv0/kernel:0',
+             'a/target/pi/conv1/bias:0',
+             'a/target/pi/conv1/kernel:0',
+             'a/target/pi/conv2/bias:0',
+             'a/target/pi/conv2/kernel:0',
+             'a/target/pi/fc0/bias:0',
+             'a/target/pi/fc0/kernel:0',
+             'a/target/pi/fc1/bias:0',
+             'a/target/pi/fc1/kernel:0',
+             'a/target/pi/output/bias:0',
+             'a/target/pi/output/kernel:0',
+             'b/model/centralized_qf_0/conv0/bias:0',
+             'b/model/centralized_qf_0/conv0/kernel:0',
+             'b/model/centralized_qf_0/conv1/bias:0',
+             'b/model/centralized_qf_0/conv1/kernel:0',
+             'b/model/centralized_qf_0/conv2/bias:0',
+             'b/model/centralized_qf_0/conv2/kernel:0',
+             'b/model/centralized_qf_0/fc0/bias:0',
+             'b/model/centralized_qf_0/fc0/kernel:0',
+             'b/model/centralized_qf_0/fc1/bias:0',
+             'b/model/centralized_qf_0/fc1/kernel:0',
+             'b/model/centralized_qf_0/qf_output/bias:0',
+             'b/model/centralized_qf_0/qf_output/kernel:0',
+             'b/model/centralized_qf_1/conv0/bias:0',
+             'b/model/centralized_qf_1/conv0/kernel:0',
+             'b/model/centralized_qf_1/conv1/bias:0',
+             'b/model/centralized_qf_1/conv1/kernel:0',
+             'b/model/centralized_qf_1/conv2/bias:0',
+             'b/model/centralized_qf_1/conv2/kernel:0',
+             'b/model/centralized_qf_1/fc0/bias:0',
+             'b/model/centralized_qf_1/fc0/kernel:0',
+             'b/model/centralized_qf_1/fc1/bias:0',
+             'b/model/centralized_qf_1/fc1/kernel:0',
+             'b/model/centralized_qf_1/qf_output/bias:0',
+             'b/model/centralized_qf_1/qf_output/kernel:0',
+             'b/model/pi/conv0/bias:0',
+             'b/model/pi/conv0/kernel:0',
+             'b/model/pi/conv1/bias:0',
+             'b/model/pi/conv1/kernel:0',
+             'b/model/pi/conv2/bias:0',
+             'b/model/pi/conv2/kernel:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/output/bias:0',
+             'b/model/pi/output/kernel:0',
+             'b/target/centralized_qf_0/conv0/bias:0',
+             'b/target/centralized_qf_0/conv0/kernel:0',
+             'b/target/centralized_qf_0/conv1/bias:0',
+             'b/target/centralized_qf_0/conv1/kernel:0',
+             'b/target/centralized_qf_0/conv2/bias:0',
+             'b/target/centralized_qf_0/conv2/kernel:0',
+             'b/target/centralized_qf_0/fc0/bias:0',
+             'b/target/centralized_qf_0/fc0/kernel:0',
+             'b/target/centralized_qf_0/fc1/bias:0',
+             'b/target/centralized_qf_0/fc1/kernel:0',
+             'b/target/centralized_qf_0/qf_output/bias:0',
+             'b/target/centralized_qf_0/qf_output/kernel:0',
+             'b/target/centralized_qf_1/conv0/bias:0',
+             'b/target/centralized_qf_1/conv0/kernel:0',
+             'b/target/centralized_qf_1/conv1/bias:0',
+             'b/target/centralized_qf_1/conv1/kernel:0',
+             'b/target/centralized_qf_1/conv2/bias:0',
+             'b/target/centralized_qf_1/conv2/kernel:0',
+             'b/target/centralized_qf_1/fc0/bias:0',
+             'b/target/centralized_qf_1/fc0/kernel:0',
+             'b/target/centralized_qf_1/fc1/bias:0',
+             'b/target/centralized_qf_1/fc1/kernel:0',
+             'b/target/centralized_qf_1/qf_output/bias:0',
+             'b/target/centralized_qf_1/qf_output/kernel:0',
+             'b/target/pi/conv0/bias:0',
+             'b/target/pi/conv0/kernel:0',
+             'b/target/pi/conv1/bias:0',
+             'b/target/pi/conv1/kernel:0',
+             'b/target/pi/conv2/bias:0',
+             'b/target/pi/conv2/kernel:0',
+             'b/target/pi/fc0/bias:0',
+             'b/target/pi/fc0/kernel:0',
+             'b/target/pi/fc1/bias:0',
+             'b/target/pi/fc1/kernel:0',
+             'b/target/pi/output/bias:0',
+             'b/target/pi/output/kernel:0']
+        )
+
+    def test_init_6(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = TD3MultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_qf_0/conv0/bias:0',
+             'model/centralized_qf_0/conv0/kernel:0',
+             'model/centralized_qf_0/conv1/bias:0',
+             'model/centralized_qf_0/conv1/kernel:0',
+             'model/centralized_qf_0/conv2/bias:0',
+             'model/centralized_qf_0/conv2/kernel:0',
+             'model/centralized_qf_0/fc0/bias:0',
+             'model/centralized_qf_0/fc0/kernel:0',
+             'model/centralized_qf_0/fc1/bias:0',
+             'model/centralized_qf_0/fc1/kernel:0',
+             'model/centralized_qf_0/qf_output/bias:0',
+             'model/centralized_qf_0/qf_output/kernel:0',
+             'model/centralized_qf_1/conv0/bias:0',
+             'model/centralized_qf_1/conv0/kernel:0',
+             'model/centralized_qf_1/conv1/bias:0',
+             'model/centralized_qf_1/conv1/kernel:0',
+             'model/centralized_qf_1/conv2/bias:0',
+             'model/centralized_qf_1/conv2/kernel:0',
+             'model/centralized_qf_1/fc0/bias:0',
+             'model/centralized_qf_1/fc0/kernel:0',
+             'model/centralized_qf_1/fc1/bias:0',
+             'model/centralized_qf_1/fc1/kernel:0',
+             'model/centralized_qf_1/qf_output/bias:0',
+             'model/centralized_qf_1/qf_output/kernel:0',
+             'model/pi/conv0/bias:0',
+             'model/pi/conv0/kernel:0',
+             'model/pi/conv1/bias:0',
+             'model/pi/conv1/kernel:0',
+             'model/pi/conv2/bias:0',
+             'model/pi/conv2/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'target/centralized_qf_0/conv0/bias:0',
+             'target/centralized_qf_0/conv0/kernel:0',
+             'target/centralized_qf_0/conv1/bias:0',
+             'target/centralized_qf_0/conv1/kernel:0',
+             'target/centralized_qf_0/conv2/bias:0',
+             'target/centralized_qf_0/conv2/kernel:0',
+             'target/centralized_qf_0/fc0/bias:0',
+             'target/centralized_qf_0/fc0/kernel:0',
+             'target/centralized_qf_0/fc1/bias:0',
+             'target/centralized_qf_0/fc1/kernel:0',
+             'target/centralized_qf_0/qf_output/bias:0',
+             'target/centralized_qf_0/qf_output/kernel:0',
+             'target/centralized_qf_1/conv0/bias:0',
+             'target/centralized_qf_1/conv0/kernel:0',
+             'target/centralized_qf_1/conv1/bias:0',
+             'target/centralized_qf_1/conv1/kernel:0',
+             'target/centralized_qf_1/conv2/bias:0',
+             'target/centralized_qf_1/conv2/kernel:0',
+             'target/centralized_qf_1/fc0/bias:0',
+             'target/centralized_qf_1/fc0/kernel:0',
+             'target/centralized_qf_1/fc1/bias:0',
+             'target/centralized_qf_1/fc1/kernel:0',
+             'target/centralized_qf_1/qf_output/bias:0',
+             'target/centralized_qf_1/qf_output/kernel:0',
+             'target/pi/conv0/bias:0',
+             'target/pi/conv0/kernel:0',
+             'target/pi/conv1/bias:0',
+             'target/pi/conv1/kernel:0',
+             'target/pi/conv2/bias:0',
+             'target/pi/conv2/kernel:0',
+             'target/pi/fc0/bias:0',
+             'target/pi/fc0/kernel:0',
+             'target/pi/fc1/bias:0',
+             'target/pi/fc1/kernel:0',
+             'target/pi/output/bias:0',
+             'target/pi/output/kernel:0']
+        )
 
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
@@ -1213,12 +1449,12 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
         self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_shared['shared'] = True
+        self.policy_params_shared['model_params']['model_type'] = 'fcnet'
 
         # Independent policy parameters
         self.policy_params_independent = {
@@ -1236,12 +1472,12 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
         self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
         self.policy_params_independent['shared'] = False
+        self.policy_params_independent['model_params']['model_type'] = 'fcnet'
 
     def tearDown(self):
         self.sess.close()
@@ -1273,10 +1509,12 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
 
         This is done for the following cases:
 
-        1. maddpg = False, shared = False
-        2. maddpg = False, shared = True
-        3. maddpg = True,  shared = False
-        4. maddpg = True,  shared = True
+        1. maddpg = False, shared = False, model_type = "fcnet"
+        2. maddpg = False, shared = True,  model_type = "fcnet"
+        3. maddpg = True,  shared = False, model_type = "fcnet"
+        4. maddpg = True,  shared = True,  model_type = "fcnet"
+        5. maddpg = True,  shared = False, model_type = "conv"
+        6. maddpg = True,  shared = True,  model_type = "conv"
         """
         policy_params = self.policy_params_independent.copy()
         policy_params["maddpg"] = False
@@ -1583,6 +1821,215 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
         # Check the instantiation of the class attributes.
         self.assertTrue(policy.shared)
         self.assertTrue(policy.maddpg)
+
+    def test_init_5(self):
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = True
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = SACMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/centralized_value_fns/qf1/conv0/bias:0',
+             'a/model/centralized_value_fns/qf1/conv0/kernel:0',
+             'a/model/centralized_value_fns/qf1/conv1/bias:0',
+             'a/model/centralized_value_fns/qf1/conv1/kernel:0',
+             'a/model/centralized_value_fns/qf1/conv2/bias:0',
+             'a/model/centralized_value_fns/qf1/conv2/kernel:0',
+             'a/model/centralized_value_fns/qf1/fc0/bias:0',
+             'a/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf1/fc1/bias:0',
+             'a/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'a/model/centralized_value_fns/qf2/conv0/bias:0',
+             'a/model/centralized_value_fns/qf2/conv0/kernel:0',
+             'a/model/centralized_value_fns/qf2/conv1/bias:0',
+             'a/model/centralized_value_fns/qf2/conv1/kernel:0',
+             'a/model/centralized_value_fns/qf2/conv2/bias:0',
+             'a/model/centralized_value_fns/qf2/conv2/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc0/bias:0',
+             'a/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'a/model/centralized_value_fns/qf2/fc1/bias:0',
+             'a/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'a/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'a/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'a/model/centralized_value_fns/vf/conv0/bias:0',
+             'a/model/centralized_value_fns/vf/conv0/kernel:0',
+             'a/model/centralized_value_fns/vf/conv1/bias:0',
+             'a/model/centralized_value_fns/vf/conv1/kernel:0',
+             'a/model/centralized_value_fns/vf/conv2/bias:0',
+             'a/model/centralized_value_fns/vf/conv2/kernel:0',
+             'a/model/centralized_value_fns/vf/fc0/bias:0',
+             'a/model/centralized_value_fns/vf/fc0/kernel:0',
+             'a/model/centralized_value_fns/vf/fc1/bias:0',
+             'a/model/centralized_value_fns/vf/fc1/kernel:0',
+             'a/model/centralized_value_fns/vf/vf_output/bias:0',
+             'a/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'a/model/log_alpha:0',
+             'a/model/pi/conv0/bias:0',
+             'a/model/pi/conv0/kernel:0',
+             'a/model/pi/conv1/bias:0',
+             'a/model/pi/conv1/kernel:0',
+             'a/model/pi/conv2/bias:0',
+             'a/model/pi/conv2/kernel:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/log_std/bias:0',
+             'a/model/pi/log_std/kernel:0',
+             'a/model/pi/mean/bias:0',
+             'a/model/pi/mean/kernel:0',
+             'a/target/centralized_value_fns/vf/conv0/bias:0',
+             'a/target/centralized_value_fns/vf/conv0/kernel:0',
+             'a/target/centralized_value_fns/vf/conv1/bias:0',
+             'a/target/centralized_value_fns/vf/conv1/kernel:0',
+             'a/target/centralized_value_fns/vf/conv2/bias:0',
+             'a/target/centralized_value_fns/vf/conv2/kernel:0',
+             'a/target/centralized_value_fns/vf/fc0/bias:0',
+             'a/target/centralized_value_fns/vf/fc0/kernel:0',
+             'a/target/centralized_value_fns/vf/fc1/bias:0',
+             'a/target/centralized_value_fns/vf/fc1/kernel:0',
+             'a/target/centralized_value_fns/vf/vf_output/bias:0',
+             'a/target/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/centralized_value_fns/qf1/conv0/bias:0',
+             'b/model/centralized_value_fns/qf1/conv0/kernel:0',
+             'b/model/centralized_value_fns/qf1/conv1/bias:0',
+             'b/model/centralized_value_fns/qf1/conv1/kernel:0',
+             'b/model/centralized_value_fns/qf1/conv2/bias:0',
+             'b/model/centralized_value_fns/qf1/conv2/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc0/bias:0',
+             'b/model/centralized_value_fns/qf1/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf1/fc1/bias:0',
+             'b/model/centralized_value_fns/qf1/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf1/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'b/model/centralized_value_fns/qf2/conv0/bias:0',
+             'b/model/centralized_value_fns/qf2/conv0/kernel:0',
+             'b/model/centralized_value_fns/qf2/conv1/bias:0',
+             'b/model/centralized_value_fns/qf2/conv1/kernel:0',
+             'b/model/centralized_value_fns/qf2/conv2/bias:0',
+             'b/model/centralized_value_fns/qf2/conv2/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc0/bias:0',
+             'b/model/centralized_value_fns/qf2/fc0/kernel:0',
+             'b/model/centralized_value_fns/qf2/fc1/bias:0',
+             'b/model/centralized_value_fns/qf2/fc1/kernel:0',
+             'b/model/centralized_value_fns/qf2/qf_output/bias:0',
+             'b/model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'b/model/centralized_value_fns/vf/conv0/bias:0',
+             'b/model/centralized_value_fns/vf/conv0/kernel:0',
+             'b/model/centralized_value_fns/vf/conv1/bias:0',
+             'b/model/centralized_value_fns/vf/conv1/kernel:0',
+             'b/model/centralized_value_fns/vf/conv2/bias:0',
+             'b/model/centralized_value_fns/vf/conv2/kernel:0',
+             'b/model/centralized_value_fns/vf/fc0/bias:0',
+             'b/model/centralized_value_fns/vf/fc0/kernel:0',
+             'b/model/centralized_value_fns/vf/fc1/bias:0',
+             'b/model/centralized_value_fns/vf/fc1/kernel:0',
+             'b/model/centralized_value_fns/vf/vf_output/bias:0',
+             'b/model/centralized_value_fns/vf/vf_output/kernel:0',
+             'b/model/log_alpha:0',
+             'b/model/pi/conv0/bias:0',
+             'b/model/pi/conv0/kernel:0',
+             'b/model/pi/conv1/bias:0',
+             'b/model/pi/conv1/kernel:0',
+             'b/model/pi/conv2/bias:0',
+             'b/model/pi/conv2/kernel:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/log_std/bias:0',
+             'b/model/pi/log_std/kernel:0',
+             'b/model/pi/mean/bias:0',
+             'b/model/pi/mean/kernel:0',
+             'b/target/centralized_value_fns/vf/conv0/bias:0',
+             'b/target/centralized_value_fns/vf/conv0/kernel:0',
+             'b/target/centralized_value_fns/vf/conv1/bias:0',
+             'b/target/centralized_value_fns/vf/conv1/kernel:0',
+             'b/target/centralized_value_fns/vf/conv2/bias:0',
+             'b/target/centralized_value_fns/vf/conv2/kernel:0',
+             'b/target/centralized_value_fns/vf/fc0/bias:0',
+             'b/target/centralized_value_fns/vf/fc0/kernel:0',
+             'b/target/centralized_value_fns/vf/fc1/bias:0',
+             'b/target/centralized_value_fns/vf/fc1/kernel:0',
+             'b/target/centralized_value_fns/vf/vf_output/bias:0',
+             'b/target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
+
+    def test_init_6(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = True
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = SACMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/centralized_value_fns/qf1/conv0/bias:0',
+             'model/centralized_value_fns/qf1/conv0/kernel:0',
+             'model/centralized_value_fns/qf1/conv1/bias:0',
+             'model/centralized_value_fns/qf1/conv1/kernel:0',
+             'model/centralized_value_fns/qf1/conv2/bias:0',
+             'model/centralized_value_fns/qf1/conv2/kernel:0',
+             'model/centralized_value_fns/qf1/fc0/bias:0',
+             'model/centralized_value_fns/qf1/fc0/kernel:0',
+             'model/centralized_value_fns/qf1/fc1/bias:0',
+             'model/centralized_value_fns/qf1/fc1/kernel:0',
+             'model/centralized_value_fns/qf1/qf_output/bias:0',
+             'model/centralized_value_fns/qf1/qf_output/kernel:0',
+             'model/centralized_value_fns/qf2/conv0/bias:0',
+             'model/centralized_value_fns/qf2/conv0/kernel:0',
+             'model/centralized_value_fns/qf2/conv1/bias:0',
+             'model/centralized_value_fns/qf2/conv1/kernel:0',
+             'model/centralized_value_fns/qf2/conv2/bias:0',
+             'model/centralized_value_fns/qf2/conv2/kernel:0',
+             'model/centralized_value_fns/qf2/fc0/bias:0',
+             'model/centralized_value_fns/qf2/fc0/kernel:0',
+             'model/centralized_value_fns/qf2/fc1/bias:0',
+             'model/centralized_value_fns/qf2/fc1/kernel:0',
+             'model/centralized_value_fns/qf2/qf_output/bias:0',
+             'model/centralized_value_fns/qf2/qf_output/kernel:0',
+             'model/centralized_value_fns/vf/conv0/bias:0',
+             'model/centralized_value_fns/vf/conv0/kernel:0',
+             'model/centralized_value_fns/vf/conv1/bias:0',
+             'model/centralized_value_fns/vf/conv1/kernel:0',
+             'model/centralized_value_fns/vf/conv2/bias:0',
+             'model/centralized_value_fns/vf/conv2/kernel:0',
+             'model/centralized_value_fns/vf/fc0/bias:0',
+             'model/centralized_value_fns/vf/fc0/kernel:0',
+             'model/centralized_value_fns/vf/fc1/bias:0',
+             'model/centralized_value_fns/vf/fc1/kernel:0',
+             'model/centralized_value_fns/vf/vf_output/bias:0',
+             'model/centralized_value_fns/vf/vf_output/kernel:0',
+             'model/log_alpha:0',
+             'model/pi/conv0/bias:0',
+             'model/pi/conv0/kernel:0',
+             'model/pi/conv1/bias:0',
+             'model/pi/conv1/kernel:0',
+             'model/pi/conv2/bias:0',
+             'model/pi/conv2/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/log_std/bias:0',
+             'model/pi/log_std/kernel:0',
+             'model/pi/mean/bias:0',
+             'model/pi/mean/kernel:0',
+             'target/centralized_value_fns/vf/conv0/bias:0',
+             'target/centralized_value_fns/vf/conv0/kernel:0',
+             'target/centralized_value_fns/vf/conv1/bias:0',
+             'target/centralized_value_fns/vf/conv1/kernel:0',
+             'target/centralized_value_fns/vf/conv2/bias:0',
+             'target/centralized_value_fns/vf/conv2/kernel:0',
+             'target/centralized_value_fns/vf/fc0/bias:0',
+             'target/centralized_value_fns/vf/fc0/kernel:0',
+             'target/centralized_value_fns/vf/fc1/bias:0',
+             'target/centralized_value_fns/vf/fc1/kernel:0',
+             'target/centralized_value_fns/vf/vf_output/bias:0',
+             'target/centralized_value_fns/vf/vf_output/kernel:0']
+        )
 
     def test_initialize_1(self):
         """Check the functionality of the initialize() method.
@@ -1999,7 +2446,6 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
@@ -2023,7 +2469,6 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
@@ -2669,7 +3114,6 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'co_space': Box(low=-2, high=2, shape=(2,)),
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
@@ -2693,7 +3137,6 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
                 'b': Box(low=-6, high=6, shape=(6,)),
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
-            'layers': [256, 256],
             'verbose': 0,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())

@@ -314,7 +314,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Run the _evaluate operation.
-        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+        ep_rewards, ep_successes, info = alg._evaluate(alg.eval_env)
 
         # Test the output from the operation.
         self.assertEqual(len(ep_rewards), 1)
@@ -338,7 +338,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         alg = OffPolicyRLAlgorithm(**policy_params)
 
         # Run the _evaluate operation.
-        ep_rewards, ep_successes, info = alg._evaluate(0, alg.eval_env)
+        ep_rewards, ep_successes, info = alg._evaluate(alg.eval_env)
 
         # Test the output from the operation.
         self.assertEqual(len(ep_rewards), 1)
