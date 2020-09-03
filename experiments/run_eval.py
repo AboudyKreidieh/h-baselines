@@ -87,9 +87,7 @@ def parse_options(args):
         help='whether to run the simulation on a random seed. If not added, '
              'the original seed is used.')
 
-    flags, _ = parser.parse_known_args(args)
-
-    return flags
+    return parser.parse_args(args)
 
 
 def get_hyperparameters_from_dir(ckpt_path):

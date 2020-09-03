@@ -126,14 +126,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_fcent_td3(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--num_envs", "2",  # to test RaySampler
-            "--nb_rollout_steps", "2",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--num_envs", "2",  # to test RaySampler
+                "--nb_rollout_steps", "2",
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
         run_fcnet(args, 'data/fcnet')
 
         # Check that the folders were generated.
@@ -146,13 +151,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_fcent_sac(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
         run_fcnet(args, 'data/fcnet')
 
         # Check that the folders were generated.
@@ -164,13 +174,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_fcent_failure(self):
         # Run the script; verify it fails.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
         self.assertRaises(ValueError, run_fcnet,
                           args=args, base_dir='data/fcnet')
 
@@ -179,14 +194,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_hrl_td3(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--batch_size", "32",
-            "--meta_period", "5",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--batch_size", "32",
+                "--meta_period", "5",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
         run_hrl(args, 'data/goal-conditioned')
 
         # Check that the folders were generated.
@@ -200,15 +220,20 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_hrl_sac(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--batch_size", "32",
-            "--meta_period", "5",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--batch_size", "32",
+                "--meta_period", "5",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
         run_hrl(args, 'data/goal-conditioned')
 
         # Check that the folders were generated.
@@ -222,15 +247,20 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_hrl_failure(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--initial_exploration_steps", "1",
-            "--batch_size", "32",
-            "--meta_period", "5",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--batch_size", "32",
+                "--meta_period", "5",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
 
         self.assertRaises(ValueError, run_hrl,
                           args=args, base_dir='data/goal-conditioned')
@@ -240,12 +270,17 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_td3_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -259,13 +294,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_sac_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -279,13 +319,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_failure_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
 
         self.assertRaises(ValueError, run_multi_fcnet,
                           args=args, base_dir='data/multi-fcnet')
@@ -295,13 +340,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_td3_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -315,14 +365,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_sac_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -336,14 +391,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_failure_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
 
         self.assertRaises(ValueError, run_multi_fcnet,
                           args=args, base_dir='data/multi-fcnet')
@@ -353,13 +413,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_td3_maddpg_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -373,14 +438,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_sac_maddpg_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -394,14 +464,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_failure_maddpg_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
 
         self.assertRaises(ValueError, run_multi_fcnet,
                           args=args, base_dir='data/multi-fcnet')
@@ -411,14 +486,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_td3_maddpg_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -432,15 +512,20 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_sac_maddpg_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
         run_multi_fcnet(args, 'data/multi-fcnet')
 
         # Check that the folders were generated.
@@ -454,15 +539,20 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_fcnet_failure_maddpg_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--shared",
-            "--maddpg",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--shared",
+                "--maddpg",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=False,
+        )
 
         self.assertRaises(ValueError, run_multi_fcnet,
                           args=args, base_dir='data/multi-fcnet')
@@ -472,12 +562,17 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_td3_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
         run_multi_hrl(args, 'data/multi-goal-conditioned')
 
         # Check that the folders were generated.
@@ -491,13 +586,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_sac_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
         run_multi_hrl(args, 'data/multi-goal-conditioned')
 
         # Check that the folders were generated.
@@ -511,13 +611,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_failure_independent(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
 
         self.assertRaises(ValueError, run_multi_hrl,
                           args=args, base_dir='data/multi-goal-conditioned')
@@ -527,13 +632,18 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_td3_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
         run_multi_hrl(args, 'data/multi-goal-conditioned')
 
         # Check that the folders were generated.
@@ -547,14 +657,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_sac_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "multiagent-ring_small",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "SAC"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "multiagent-ring_small",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "SAC"
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
         run_multi_hrl(args, 'data/multi-goal-conditioned')
 
         # Check that the folders were generated.
@@ -568,14 +683,19 @@ class TestExperimentRunnerScripts(unittest.TestCase):
 
     def test_run_multi_hrl_failure_shared(self):
         # Run the script; verify it executes without failure.
-        args = parse_train_options('', '', args=[
-            "MountainCarContinuous-v0",
-            "--shared",
-            "--initial_exploration_steps", "1",
-            "--total_steps", "500",
-            "--log_interval", "500",
-            "--alg", "woops"
-        ])
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--shared",
+                "--initial_exploration_steps", "1",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "woops"
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
 
         self.assertRaises(ValueError, run_multi_hrl,
                           args=args, base_dir='data/multi-goal-conditioned')

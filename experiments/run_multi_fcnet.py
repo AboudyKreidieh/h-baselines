@@ -131,7 +131,9 @@ if __name__ == '__main__':
             description='Test the performance of multi-agent fully connected '
                         'network models on various environments.',
             example_usage=EXAMPLE_USAGE,
-            args=sys.argv[1:]
+            args=sys.argv[1:],
+            hierarchical=False,
+            multiagent=True,
         ),
         'data/multi-fcnet'
     )
