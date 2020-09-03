@@ -22,6 +22,7 @@ from copy import deepcopy
 
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_sac_policy
+from hbaselines.algorithms.utils import is_ppo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -87,6 +88,38 @@ SAC_PARAMS = dict(
     # target entropy used when learning the entropy coefficient. If set to
     # None, a heuristic value is used.
     target_entropy=None,
+)
+
+
+# =========================================================================== #
+#                          Policy parameters for PPO                          #
+# =========================================================================== #
+
+PPO_PARAMS = dict(
+    # the learning rate
+    learning_rate=3e-4,
+    # number of training minibatches per update
+    n_minibatches=10,
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
+    # entropy coefficient for the loss calculation
+    ent_coef=0.01,
+    # value function coefficient for the loss calculation
+    vf_coef=0.5,
+    # the maximum value for the gradient clipping
+    max_grad_norm=0.5,
+    # clipping parameter, it can be a function
+    cliprange=0.2,
+    # clipping parameter for the value function, it can be a function. This is
+    # a parameter specific to the OpenAI implementation. If None is passed
+    # (default), then `cliprange` (that is used for the policy) will be used.
+    # IMPORTANT: this clipping depends on the reward scaling. To deactivate
+    # value function clipping (and recover the original PPO implementation),
+    # you have to pass a negative value (e.g. -1).
+    cliprange_vf=None,
 )
 
 
@@ -378,6 +411,15 @@ class OffPolicyRLAlgorithm(object):
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
+        # Include warnings if using PPO.
+        if is_ppo_policy(policy):
+            if actor_update_freq is not None:
+                print("WARNING: actor_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+            if meta_update_freq is not None:
+                print("WARNING: meta_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+
         # Instantiate the ray instance.
         if num_envs > 1:
             ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
@@ -426,6 +468,8 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs.update(TD3_PARAMS.copy())
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
+        elif is_ppo_policy(policy):
+            self.policy_kwargs.update(PPO_PARAMS.copy())
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -744,6 +788,18 @@ class OffPolicyRLAlgorithm(object):
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
+        # Include warnings if using PPO.
+        if is_ppo_policy(self.policy):
+            if log_interval is not None:
+                print("WARNING: log_interval for PPO policies set to after "
+                      "every training iteration.")
+            log_interval = self.nb_rollout_steps
+
+            if initial_exploration_steps > 0:
+                print("WARNING: initial_exploration_steps set to 0 for PPO "
+                      "policies.")
+                initial_exploration_steps = 0
+
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
@@ -776,10 +832,11 @@ class OffPolicyRLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
-            print("Collecting initial exploration samples...")
-            self._collect_samples(run_steps=initial_exploration_steps,
-                                  random_actions=True)
-            print("Done!")
+            if initial_exploration_steps > 0:
+                print("Collecting initial exploration samples...")
+                self._collect_samples(run_steps=initial_exploration_steps,
+                                      random_actions=True)
+                print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0
@@ -991,35 +1048,39 @@ class OffPolicyRLAlgorithm(object):
 
     def _train(self):
         """Perform the training operation."""
-        # Added to adjust the actor update frequency based on the rate at which
-        # training occurs.
-        train_itr = int(self.total_steps / self.nb_rollout_steps)
-        num_levels = getattr(self.policy_tf, "num_levels", 2)
+        if is_td3_policy(self.policy) or is_sac_policy(self.policy):
+            # Added to adjust the actor update frequency based on the rate at
+            # which training occurs.
+            train_itr = int(self.total_steps / self.nb_rollout_steps)
+            num_levels = getattr(self.policy_tf, "num_levels", 2)
 
-        if is_goal_conditioned_policy(self.policy):
-            # specifies whether to update the meta actor and critic
-            # policies based on the meta and actor update frequencies
-            kwargs = {
-                "update_meta": [
-                    train_itr % self.meta_update_freq ** i == 0
-                    for i in range(1, num_levels)
-                ],
-                "update_meta_actor": [
-                    train_itr %
-                    (self.meta_update_freq ** i * self.actor_update_freq) == 0
-                    for i in range(1, num_levels)
-                ]
-            }
+            if is_goal_conditioned_policy(self.policy):
+                # specifies whether to update the meta actor and critic
+                # policies based on the meta and actor update frequencies
+                kwargs = {
+                    "update_meta": [
+                        train_itr % self.meta_update_freq ** i == 0
+                        for i in range(1, num_levels)
+                    ],
+                    "update_meta_actor": [
+                        train_itr % (self.meta_update_freq ** i *
+                                     self.actor_update_freq) == 0
+                        for i in range(1, num_levels)
+                    ]
+                }
+            else:
+                kwargs = {}
+
+            # Specifies whether to update the actor policy, base on the actor
+            # update frequency.
+            update = train_itr % self.actor_update_freq == 0
+
+            # Run a step of training from batch.
+            for _ in range(self.nb_train_steps):
+                _ = self.policy_tf.update(update_actor=update, **kwargs)
         else:
-            kwargs = {}
-
-        # Specifies whether to update the actor policy, base on the actor
-        # update frequency.
-        update = train_itr % self.actor_update_freq == 0
-
-        # Run a step of training from batch.
-        for _ in range(self.nb_train_steps):
-            _ = self.policy_tf.update(update_actor=update, **kwargs)
+            # for PPO policies
+            self.policy_tf.update()
 
     def _evaluate(self, env):
         """Perform the evaluation operation.
