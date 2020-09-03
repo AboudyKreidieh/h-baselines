@@ -792,9 +792,12 @@ class OffPolicyRLAlgorithm(object):
             if log_interval is not None:
                 print("WARNING: log_interval for PPO policies set to after "
                       "every training iteration.")
+            log_interval = self.nb_rollout_steps
+
             if initial_exploration_steps > 0:
                 print("WARNING: initial_exploration_steps set to 0 for PPO "
                       "policies.")
+                initial_exploration_steps = 0
 
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
@@ -825,15 +828,15 @@ class OffPolicyRLAlgorithm(object):
         eval_steps_incr = 0
         save_steps_incr = 0
         start_time = time.time()
-        trains_per_log = 1 if is_ppo_policy(self.policy) else round(
-            log_interval / self.nb_rollout_steps)
+        trains_per_log = round(log_interval / self.nb_rollout_steps)
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
-            print("Collecting initial exploration samples...")
-            self._collect_samples(run_steps=initial_exploration_steps,
-                                  random_actions=True)
-            print("Done!")
+            if initial_exploration_steps > 0:
+                print("Collecting initial exploration samples...")
+                self._collect_samples(run_steps=initial_exploration_steps,
+                                      random_actions=True)
+                print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0
