@@ -467,6 +467,8 @@ class OffPolicyRLAlgorithm(object):
             self.policy_kwargs.update(TD3_PARAMS.copy())
         elif is_sac_policy(policy):
             self.policy_kwargs.update(SAC_PARAMS.copy())
+        elif is_ppo_policy(policy):
+            self.policy_kwargs.update(PPO_PARAMS.copy())
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -785,6 +787,15 @@ class OffPolicyRLAlgorithm(object):
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
+        # Include warnings if using PPO.
+        if is_ppo_policy(self.policy):
+            if log_interval is not None:
+                print("WARNING: log_interval for PPO policies set to after "
+                      "every training iteration.")
+            if initial_exploration_steps > 0:
+                print("WARNING: initial_exploration_steps set to 0 for PPO "
+                      "policies.")
+
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
@@ -814,6 +825,8 @@ class OffPolicyRLAlgorithm(object):
         eval_steps_incr = 0
         save_steps_incr = 0
         start_time = time.time()
+        trains_per_log = 1 if is_ppo_policy(self.policy) else round(
+            log_interval / self.nb_rollout_steps)
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
@@ -833,7 +846,7 @@ class OffPolicyRLAlgorithm(object):
                 self.epoch_episode_steps = []
                 self.epoch_episode_rewards = []
 
-                for _ in range(round(log_interval / self.nb_rollout_steps)):
+                for _ in range(trains_per_log):
                     # If the requirement number of time steps has been met,
                     # terminate training.
                     if self.total_steps >= total_steps:
@@ -1032,35 +1045,39 @@ class OffPolicyRLAlgorithm(object):
 
     def _train(self):
         """Perform the training operation."""
-        # Added to adjust the actor update frequency based on the rate at which
-        # training occurs.
-        train_itr = int(self.total_steps / self.nb_rollout_steps)
-        num_levels = getattr(self.policy_tf, "num_levels", 2)
+        if is_td3_policy(self.policy) or is_sac_policy(self.policy):
+            # Added to adjust the actor update frequency based on the rate at
+            # which training occurs.
+            train_itr = int(self.total_steps / self.nb_rollout_steps)
+            num_levels = getattr(self.policy_tf, "num_levels", 2)
 
-        if is_goal_conditioned_policy(self.policy):
-            # specifies whether to update the meta actor and critic
-            # policies based on the meta and actor update frequencies
-            kwargs = {
-                "update_meta": [
-                    train_itr % self.meta_update_freq ** i == 0
-                    for i in range(1, num_levels)
-                ],
-                "update_meta_actor": [
-                    train_itr %
-                    (self.meta_update_freq ** i * self.actor_update_freq) == 0
-                    for i in range(1, num_levels)
-                ]
-            }
+            if is_goal_conditioned_policy(self.policy):
+                # specifies whether to update the meta actor and critic
+                # policies based on the meta and actor update frequencies
+                kwargs = {
+                    "update_meta": [
+                        train_itr % self.meta_update_freq ** i == 0
+                        for i in range(1, num_levels)
+                    ],
+                    "update_meta_actor": [
+                        train_itr % (self.meta_update_freq ** i *
+                                     self.actor_update_freq) == 0
+                        for i in range(1, num_levels)
+                    ]
+                }
+            else:
+                kwargs = {}
+
+            # Specifies whether to update the actor policy, base on the actor
+            # update frequency.
+            update = train_itr % self.actor_update_freq == 0
+
+            # Run a step of training from batch.
+            for _ in range(self.nb_train_steps):
+                _ = self.policy_tf.update(update_actor=update, **kwargs)
         else:
-            kwargs = {}
-
-        # Specifies whether to update the actor policy, base on the actor
-        # update frequency.
-        update = train_itr % self.actor_update_freq == 0
-
-        # Run a step of training from batch.
-        for _ in range(self.nb_train_steps):
-            _ = self.policy_tf.update(update_actor=update, **kwargs)
+            # for PPO policies
+            self.policy_tf.update(self.nb_train_steps)
 
     def _evaluate(self, env):
         """Perform the evaluation operation.
