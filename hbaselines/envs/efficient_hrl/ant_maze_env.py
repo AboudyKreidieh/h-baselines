@@ -66,7 +66,7 @@ class AntMazeEnv(gym.Env):
         maze_size_scaling : float, optional
             scaling factor for the maze. Specifies the size of one block.
         n_bins : int, optional
-            number of vieable objects
+            number of viable objects
         sensor_range : float, optional
             distance whereby objects can be perceived. Must be within the span
             as well.
