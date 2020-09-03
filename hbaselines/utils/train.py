@@ -106,7 +106,11 @@ def get_hyperparameters(args, policy):
     return algorithm_params
 
 
-def parse_options(description, example_usage, args, multiagent, hierarchical):
+def parse_options(description,
+                  example_usage,
+                  args,
+                  multiagent=True,
+                  hierarchical=True):
     """Parse training options user can specify in command line.
 
     Parameters
