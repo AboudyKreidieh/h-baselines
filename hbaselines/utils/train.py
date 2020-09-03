@@ -28,13 +28,6 @@ def get_hyperparameters(args, policy):
 
     # add FeedForwardPolicy parameters
     policy_kwargs = {
-        "buffer_size": args.buffer_size,
-        "batch_size": args.batch_size,
-        "actor_lr": args.actor_lr,
-        "critic_lr": args.critic_lr,
-        "tau": args.tau,
-        "gamma": args.gamma,
-        "use_huber": args.use_huber,
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
@@ -60,6 +53,13 @@ def get_hyperparameters(args, policy):
     # add TD3 parameters
     if is_td3_policy(policy):
         policy_kwargs.update({
+            "buffer_size": args.buffer_size,
+            "batch_size": args.batch_size,
+            "actor_lr": args.actor_lr,
+            "critic_lr": args.critic_lr,
+            "tau": args.tau,
+            "gamma": args.gamma,
+            "use_huber": args.use_huber,
             "noise": args.noise,
             "target_policy_noise": args.target_policy_noise,
             "target_noise_clip": args.target_noise_clip,
@@ -68,6 +68,13 @@ def get_hyperparameters(args, policy):
     # add SAC parameters
     if is_sac_policy(policy):
         policy_kwargs.update({
+            "buffer_size": args.buffer_size,
+            "batch_size": args.batch_size,
+            "actor_lr": args.actor_lr,
+            "critic_lr": args.critic_lr,
+            "tau": args.tau,
+            "gamma": args.gamma,
+            "use_huber": args.use_huber,
             "target_entropy": args.target_entropy,
         })
 

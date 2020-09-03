@@ -104,7 +104,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             the current TensorFlow session
         ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.spaces.*
+        ac_space : gym.spaces.* or dict < gym.spaces.* >
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
@@ -153,6 +153,14 @@ class MultiFeedForwardPolicy(BasePolicy):
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         # Instantiate a few terms (needed if MADDPG is used).
         if shared:
             # action magnitudes
@@ -200,14 +208,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             model_params=model_params,
             shared=shared,
             maddpg=maddpg,
@@ -216,6 +217,13 @@ class MultiFeedForwardPolicy(BasePolicy):
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
