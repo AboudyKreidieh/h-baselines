@@ -7,7 +7,7 @@ Supported algorithms through this class:
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 
 This algorithm class also contains modifications to support contextual
-environments and hierarchical policies.
+environments as well as multi-agent and hierarchical policies.
 """
 import ray
 import os
@@ -20,7 +20,8 @@ import math
 from collections import deque
 from copy import deepcopy
 
-from hbaselines.algorithms.utils import is_td3_policy, is_sac_policy
+from hbaselines.algorithms.utils import is_td3_policy
+from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -466,7 +467,7 @@ class OffPolicyRLAlgorithm(object):
         list of Sampler or list of RaySampler
             the sampler objects
         list of array_like or list of dict < str, array_like >
-            the initila observation. If the environment is multi-agent, this
+            the initial observation. If the environment is multi-agent, this
             will be a dictionary of observations for each agent, indexed by the
             agent ID. One element for each environment.
         list of array_like or list of None
@@ -582,7 +583,7 @@ class OffPolicyRLAlgorithm(object):
                 apply_noise=True,
                 random_actions=False,
                 env_num=0):
-        """Get the actions and critic output, from a given observation.
+        """Get the actions from a given observation.
 
         Parameters
         ----------
@@ -974,11 +975,7 @@ class OffPolicyRLAlgorithm(object):
                     self.episodes += 1
 
     def _train(self):
-        """Perform the training operation.
-
-        Through this method, the actor and critic networks are updated within
-        the policy, and the summary information is logged to tensorboard.
-        """
+        """Perform the training operation."""
         # Added to adjust the actor update frequency based on the rate at which
         # training occurs.
         train_itr = int(self.total_steps / self.nb_rollout_steps)

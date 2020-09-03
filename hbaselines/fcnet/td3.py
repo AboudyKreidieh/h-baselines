@@ -215,10 +215,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 shape=(None,) + ob_dim,
                 name='obs1')
 
-        # logging of rewards to tensorboard
-        with tf.compat.v1.variable_scope("input_info", reuse=False):
-            tf.compat.v1.summary.scalar('rewards', tf.reduce_mean(self.rew_ph))
-
         # =================================================================== #
         # Step 3: Create actor and critic variables.                          #
         # =================================================================== #
@@ -274,9 +270,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
             self._setup_actor_optimizer(scope)
             self._setup_critic_optimizer(critic_target, scope)
-            tf.compat.v1.summary.scalar('actor_loss', self.actor_loss)
-            tf.compat.v1.summary.scalar('Q1_loss', self.critic_loss[0])
-            tf.compat.v1.summary.scalar('Q2_loss', self.critic_loss[1])
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
@@ -623,6 +616,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
         names += ['{}/reference_action_mean'.format(base)]
         ops += [reduce_std(self.actor_tf)]
         names += ['{}/reference_action_std'.format(base)]
+
+        ops += [tf.reduce_mean(self.rew_ph)]
+        names += ['{}/rewards'.format(base)]
+
+        ops += [self.actor_loss]
+        names += ['{}/actor_loss'.format(base)]
+
+        ops += [self.critic_loss[0]]
+        names += ['{}/Q1_loss'.format(base)]
+
+        ops += [self.critic_loss[1]]
+        names += ['{}/Q2_loss'.format(base)]
 
         # Add all names and ops to the tensorboard summary.
         for op, name in zip(ops, names):
