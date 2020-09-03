@@ -1081,7 +1081,7 @@ class OffPolicyRLAlgorithm(object):
                 _ = self.policy_tf.update(update_actor=update, **kwargs)
         else:
             # for PPO policies
-            self.policy_tf.update(self.nb_train_steps)
+            self.policy_tf.update()
 
     def _evaluate(self, env):
         """Perform the evaluation operation.

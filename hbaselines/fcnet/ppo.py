@@ -41,28 +41,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
         you have to pass a negative value (e.g. -1).
     num_envs : int
         TODO
-    mb_rewards : TODO
+    mb_rewards : array_like
         TODO
-    mb_obs : TODO
+    mb_obs : array_like
+        a minibatch of observations
+    mb_contexts : array_like
+        a minibatch of contextual terms
+    mb_actions : array_like
+        a minibatch of actions
+    mb_values : array_like
+        a minibatch of estimated values by the policy
+    mb_neglogpacs : array_like
+        a minibatch of the negative log-likelihood of performed actions
+    mb_dones : array_like
         TODO
-    mb_contexts : TODO
+    mb_all_obs : array_like
         TODO
-    mb_actions : TODO
+    mb_returns : array_like
+        a minibatch of expected discounted returns
+    last_obs : array_like
         TODO
-    mb_values : TODO
-        TODO
-    mb_neglogpacs : TODO
-        TODO
-    mb_dones : TODO
-        TODO
-    mb_all_obs : TODO
-        TODO
-    mb_returns : TODO
-        TODO
-    last_obs : TODO
-        TODO
-    mb_advs : TODO
-        TODO
+    mb_advs : array_like
+        a minibatch of estimated advantages
     rew_ph : tf.compat.v1.placeholder
         placeholder for the rewards / discounted returns
     action_ph : tf.compat.v1.placeholder
@@ -344,8 +344,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         ----------
         obs : tf.compat.v1.placeholder
             the input observation placeholder
-        action : tf.compat.v1.placeholder
-            the input action placeholder
         reuse : bool
             whether or not to reuse parameters
         scope : str
@@ -556,7 +554,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # expected returns).
         self.last_obs[env_num] = self._get_obs([obs1], context1)
 
-    def update(self, nb_train_steps):
+    def update(self, **kwargs):
         """See parent class."""
         n_steps = 0
 
@@ -610,7 +608,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         batch_size = n_steps // self.n_minibatches
 
         inds = np.arange(n_steps)
-        for _ in range(nb_train_steps):
+        for _ in range(self.n_opt_epochs):
             np.random.shuffle(inds)
             for start in range(0, n_steps, batch_size):
                 end = start + batch_size
@@ -643,13 +641,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         context : array_like
             a minibatch of contextual terms
         returns : array_like
-            a minibatch of contextual expected discounted retuns
+            a minibatch of contextual expected discounted returns
         actions : array_like
             a minibatch of actions
         values : array_like
             a minibatch of estimated values by the policy
         advs : array_like
-            TODO
+            a minibatch of estimated advantages
         neglogpacs : array_like
             a minibatch of the negative log-likelihood of performed actions
         """
