@@ -252,7 +252,6 @@ class TestExperimentRunnerScripts(unittest.TestCase):
             args=[
                 "MountainCarContinuous-v0",
                 "--initial_exploration_steps", "1",
-                "--batch_size", "32",
                 "--meta_period", "5",
                 "--total_steps", "500",
                 "--log_interval", "500",
