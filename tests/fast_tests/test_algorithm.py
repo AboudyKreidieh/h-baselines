@@ -7,17 +7,17 @@ import os
 import csv
 import tensorflow as tf
 
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
-from hbaselines.algorithms.off_policy import TD3_PARAMS
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
-class TestOffPolicyRLAlgorithm(unittest.TestCase):
-    """Test the components of the OffPolicyRLAlgorithm algorithm."""
+class TestRLAlgorithm(unittest.TestCase):
+    """Test the components of the RLAlgorithm algorithm."""
 
     def setUp(self):
         self.env = 'MountainCarContinuous-v0'
@@ -43,7 +43,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         # Create the algorithm object.
         policy_params = self.init_parameters.copy()
         policy_params['_init_setup_model'] = False
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Test the attribute values.
         self.assertEqual(alg.policy, self.init_parameters['policy'])
@@ -65,7 +65,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
@@ -123,7 +123,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # check the policy_kwargs term
         policy_kwargs = GOAL_CONDITIONED_PARAMS.copy()
@@ -220,7 +220,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero steps.
         alg.learn(0, log_dir='results', initial_exploration_steps=0)
@@ -255,13 +255,13 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero exploration steps.
         alg.learn(0, log_dir='results', initial_exploration_steps=0)
 
         # Check the size of the replay buffer
-        self.assertEqual(len(alg.policy_tf.replay_buffer), 1)
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 0)
 
         # Clear memory.
         del alg
@@ -275,7 +275,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = FeedForwardPolicy
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero exploration steps.
         alg.learn(0, log_dir='results', initial_exploration_steps=100)
@@ -311,7 +311,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['nb_eval_episodes'] = 1
         policy_params['verbose'] = 2
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Run the _evaluate operation.
         ep_rewards, ep_successes, info = alg._evaluate(alg.eval_env)
@@ -335,7 +335,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params['nb_eval_episodes'] = 1
         policy_params['verbose'] = 2
         policy_params['_init_setup_model'] = True
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # Run the _evaluate operation.
         ep_rewards, ep_successes, info = alg._evaluate(alg.eval_env)
@@ -353,7 +353,7 @@ class TestOffPolicyRLAlgorithm(unittest.TestCase):
         policy_params = self.init_parameters.copy()
         policy_params['policy'] = GoalConditionedPolicy
         policy_params['_init_setup_model'] = False
-        alg = OffPolicyRLAlgorithm(**policy_params)
+        alg = RLAlgorithm(**policy_params)
 
         # test for one evaluation environment
         rewards = [0, 1, 2]

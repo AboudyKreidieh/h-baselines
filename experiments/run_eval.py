@@ -9,7 +9,7 @@ import json
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
@@ -147,7 +147,7 @@ def main(args):
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,
