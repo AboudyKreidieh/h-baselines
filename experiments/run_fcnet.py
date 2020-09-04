@@ -91,6 +91,8 @@ def main(args, base_dir):
             from hbaselines.fcnet.td3 import FeedForwardPolicy
         elif args.alg == "SAC":
             from hbaselines.fcnet.sac import FeedForwardPolicy
+        elif args.alg == "PPO":
+            from hbaselines.fcnet.ppo import FeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 

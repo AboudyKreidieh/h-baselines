@@ -100,6 +100,8 @@ PPO_PARAMS = dict(
     learning_rate=3e-4,
     # number of training minibatches per update
     n_minibatches=10,
+    # number of training epochs per update procedure
+    n_opt_epochs=10,
     # the discount factor
     gamma=0.99,
     # factor for trade-off of bias vs variance for Generalized Advantage
@@ -418,6 +420,9 @@ class OffPolicyRLAlgorithm(object):
                       " PPO. Ignoring.")
             if meta_update_freq is not None:
                 print("WARNING: meta_update_freq is not utilized when running"
+                      " PPO. Ignoring.")
+            if nb_train_steps is not None:
+                print("WARNING: nb_train_steps is not utilized when running"
                       " PPO. Ignoring.")
 
         # Instantiate the ray instance.

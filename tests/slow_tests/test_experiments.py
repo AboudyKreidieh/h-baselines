@@ -172,6 +172,30 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
+    def test_run_fcent_ppo(self):
+        # Run the script; verify it executes without failure.
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--nb_rollout_steps", "500",
+                "--total_steps", "500",
+                "--log_interval", "500",
+                "--alg", "PPO"
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
+        run_fcnet(args, 'data/fcnet')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(os.getcwd(), "data/fcnet/MountainCarContinuous-v0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
     def test_run_fcent_failure(self):
         # Run the script; verify it fails.
         args = parse_train_options(

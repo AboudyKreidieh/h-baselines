@@ -17,13 +17,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
     learning_rate : float
         the learning rate
     n_minibatches : int
-        TODO
+        number of training minibatches per update
     n_opt_epochs : int
-        TODO
+        number of training epochs per update procedure
     gamma : float
-        TODO
+        the discount factor
     lam : float
-        TODO
+        factor for trade-off of bias vs variance for Generalized Advantage
+        Estimator
     ent_coef : float
         entropy coefficient for the loss calculation
     vf_coef : float
@@ -40,9 +41,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         value function clipping (and recover the original PPO implementation),
         you have to pass a negative value (e.g. -1).
     num_envs : int
-        TODO
+        number of environments used to run simulations in parallel.
     mb_rewards : array_like
-        TODO
+        a minibatch of environment rewards
     mb_obs : array_like
         a minibatch of observations
     mb_contexts : array_like
@@ -54,13 +55,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
     mb_neglogpacs : array_like
         a minibatch of the negative log-likelihood of performed actions
     mb_dones : array_like
-        TODO
+        a minibatch of done masks
     mb_all_obs : array_like
-        TODO
+        a minibatch of full-state observations
     mb_returns : array_like
         a minibatch of expected discounted returns
     last_obs : array_like
-        TODO
+        the most recent observation from each environment. Used to compute the
+        GAE terms.
     mb_advs : array_like
         a minibatch of estimated advantages
     rew_ph : tf.compat.v1.placeholder
@@ -142,13 +144,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
         learning_rate : float
             the learning rate
         n_minibatches : int
-            TODO
+            number of training minibatches per update
         n_opt_epochs : int
-            TODO
+            number of training epochs per update procedure
         gamma : float
-            TODO
+            the discount factor
         lam : float
-            TODO
+            factor for trade-off of bias vs variance for Generalized Advantage
+            Estimator
         ent_coef : float
             entropy coefficient for the loss calculation
         vf_coef : float
