@@ -320,8 +320,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn *= self.intrinsic_reward_scale
 
             # Compute the worker loss with respect to the meta policy actions.
-            cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
-            self.cg_loss.append(self.vf_ratio_ph * cg_loss)
+            cg_loss = - self.vf_ratio_ph * (
+                tf.reduce_mean(worker_with_meta_obs) + reward_fn)
+            self.cg_loss.append(cg_loss)
 
             # Create the optimizer object.
             optimizer = tf.compat.v1.train.AdamOptimizer(
