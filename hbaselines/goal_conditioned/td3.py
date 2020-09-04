@@ -320,10 +320,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn *= self.intrinsic_reward_scale
 
             # Compute the worker loss with respect to the meta policy actions.
-            cg_loss = \
-                - tf.reduce_mean(self.vf_ratio_ph * worker_with_meta_obs) \
-                - self.vf_ratio_ph * reward_fn
-            self.cg_loss.append(cg_loss)
+            cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
+            self.cg_loss.append(self.vf_ratio_ph * cg_loss)
 
             # Create the optimizer object.
             optimizer = tf.compat.v1.train.AdamOptimizer(
@@ -381,8 +379,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         terminals1[level_num] = terminals1[level_num].reshape(-1, 1)
 
         # Compute the standard deviations of the manager and worker rewards.
-        std_manager = np.sqrt(self._running_std[0]/self._n[0])
-        std_worker = np.sqrt(self._running_std[1]/self._n[1])
+        std_meta = np.sqrt(
+            self._running_std[level_num] / self._n[level_num])
+        std_worker = np.sqrt(
+            self._running_std[level_num + 1] / self._n[level_num + 1])
 
         # Update operations for the critic networks.
         step_ops = [
@@ -397,7 +397,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].rew_ph: rewards[level_num],
             self.policy[level_num].obs1_ph: obs1[level_num],
             self.policy[level_num].terminals1: terminals1[level_num],
-            self.vf_ratio_ph: std_manager / std_worker,
+            self.vf_ratio_ph: std_meta / std_worker,
         }
 
         if update_actor:
