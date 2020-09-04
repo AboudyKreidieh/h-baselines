@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.base_policies import ImitationLearningPolicy
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):

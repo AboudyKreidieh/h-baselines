@@ -6,7 +6,7 @@ import sys
 
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 
 EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 
@@ -54,7 +54,7 @@ def run_exp(env,
     """
     eval_env = env if evaluate else None
 
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env,
         eval_env=eval_env,

@@ -34,11 +34,11 @@ from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy \
     as PPOFeedForwardPolicy
-from hbaselines.algorithms.off_policy import TD3_PARAMS
-from hbaselines.algorithms.off_policy import SAC_PARAMS
-from hbaselines.algorithms.off_policy import PPO_PARAMS
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestTrain(unittest.TestCase):
