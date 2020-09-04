@@ -47,6 +47,9 @@ def get_hyperparameters(args, policy):
             "strides":
                 getattr(args, "model_params:strides") or
                 FEEDFORWARD_PARAMS["model_params"]["strides"],
+            "layers":
+                getattr(args, "model_params:layers") or
+                FEEDFORWARD_PARAMS["model_params"]["layers"],
         }
     }
 
@@ -364,6 +367,11 @@ def create_feedforward_parser(parser):
         "--model_params:layer_norm",
         action="store_true",
         help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:layers",
+        type=int,
+        nargs="+",
+        help="the size of the neural network for the policy")
     parser.add_argument(
         "--model_params:ignore_flat_channels",
         type=int,

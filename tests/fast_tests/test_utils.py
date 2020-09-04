@@ -90,6 +90,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -139,6 +140,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -190,6 +192,7 @@ class TestTrain(unittest.TestCase):
                 '--target_noise_clip', '23',
                 '--use_huber',
                 '--model_params:model_type', 'model_type',
+                '--model_params:layers', '24', '25',
                 '--model_params:layer_norm',
             ],
             multiagent=False,
@@ -209,6 +212,7 @@ class TestTrain(unittest.TestCase):
             'initial_exploration_steps': 10000,
             'log_interval': 4,
             'meta_update_freq': 13,
+            'model_params:layers': [24, 25],
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -260,6 +264,7 @@ class TestTrain(unittest.TestCase):
                 'critic_lr': 17.0,
                 'gamma': 19.0,
                 'model_params': {
+                    'layers': [24, 25],
                     'filters': [16, 16, 16],
                     'ignore_flat_channels': [],
                     'ignore_image': False,
@@ -307,6 +312,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -369,6 +375,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -441,6 +448,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -500,6 +508,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -552,6 +561,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -603,6 +613,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -652,6 +663,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -703,6 +715,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -747,6 +760,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -811,6 +825,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -874,6 +889,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -935,6 +951,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1011,6 +1028,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1056,6 +1074,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1107,6 +1126,7 @@ class TestTrain(unittest.TestCase):
                 '--use_huber',
                 '--model_params:model_type', 'model_type',
                 '--model_params:layer_norm',
+                '--model_params:layers', '22', '23',
             ],
             multiagent=False,
             hierarchical=False,
@@ -1125,6 +1145,7 @@ class TestTrain(unittest.TestCase):
             'initial_exploration_steps': 10000,
             'log_interval': 4,
             'meta_update_freq': 13,
+            'model_params:layers': [22, 23],
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1174,6 +1195,7 @@ class TestTrain(unittest.TestCase):
                 'critic_lr': 17.0,
                 'gamma': 19.0,
                 'model_params': {
+                    'layers': [22, 23],
                     'filters': [16, 16, 16],
                     'ignore_flat_channels': [],
                     'ignore_image': False,
@@ -1220,6 +1242,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1278,6 +1301,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1351,6 +1375,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1406,6 +1431,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1460,6 +1486,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1507,6 +1534,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1556,6 +1584,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1603,6 +1632,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1651,6 +1681,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1711,6 +1742,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
@@ -1775,6 +1807,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -1832,6 +1865,7 @@ class TestTrain(unittest.TestCase):
                 'use_huber': SAC_PARAMS['use_huber'],
                 'model_params': {
                     'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
