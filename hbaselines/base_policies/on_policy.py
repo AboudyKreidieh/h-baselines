@@ -282,7 +282,7 @@ class OnPolicyPolicy(Policy):
                 mb_rewards=mb_rewards[env_num],
                 mb_values=mb_values[env_num],
                 mb_dones=mb_dones[env_num],
-                last_values=last_values,
+                last_values=last_values[env_num],
             )
 
         # Concatenate the stored data.
