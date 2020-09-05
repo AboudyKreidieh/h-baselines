@@ -475,6 +475,7 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
+            self.policy_kwargs['num_envs'] = num_envs
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})

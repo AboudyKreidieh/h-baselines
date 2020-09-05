@@ -7,6 +7,7 @@ from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import explained_variance
+from hbaselines.utils.tf_util import print_params_shape
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
@@ -401,6 +402,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
         scope_name = 'model/'
         if scope is not None:
             scope_name = scope + '/' + scope_name
+
+        if self.verbose >= 2:
+            print('setting up actor optimizer')
+            print_params_shape("{}pi/".format(scope_name), "actor")
+            print('setting up critic optimizer')
+            print_params_shape("{}vf/".format(scope_name), "critic")
 
         neglogpac = self._neglogp(self.action_ph)
         self.entropy = tf.reduce_sum(
