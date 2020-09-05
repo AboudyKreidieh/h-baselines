@@ -221,48 +221,54 @@ class OnPolicyPolicy(Policy):
 
         Parameters
         ----------
-        mb_obs : TODO
-            TODO
-        mb_contexts : TODO
-            TODO
-        mb_actions : TODO
-            TODO
-        mb_values : TODO
-            TODO
-        mb_neglogpacs : TODO
-            TODO
-        mb_all_obs : TODO
-            TODO
-        mb_rewards : TODO
-            TODO
-        mb_returns : TODO
-            TODO
-        mb_dones : TODO
-            TODO
+        mb_obs : array_like
+            a minibatch of observations
+        mb_contexts : array_like
+            a minibatch of contextual terms
+        mb_actions : array_like
+            a minibatch of actions
+        mb_values : array_like
+            a minibatch of estimated values by the policy
+        mb_neglogpacs : array_like
+            a minibatch of the negative log-likelihood of performed actions
+        mb_all_obs : array_like
+            a minibatch of full state observations (for multiagent envs)
+        mb_rewards : array_like
+            a minibatch of environment rewards
+        mb_returns : array_like
+            a minibatch of expected discounted returns
+        mb_dones : array_like
+            a minibatch of done masks
         last_values : array_like
             the value associated with the current observation within the
             environment
 
         Returns
         -------
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
-        TODO
-            TODO
+        array_like
+            the reformatted minibatch of observations
+        array_like
+            the reformatted minibatch of contextual terms
+        array_like
+            the reformatted minibatch of actions
+        array_like
+            the reformatted minibatch of estimated values by the policy
+        array_like
+            the reformatted minibatch of the negative log-likelihood of
+            performed actions
+        array_like
+            the reformatted minibatch of full state observations (for
+            multiagent envs)
+        array_like
+            the reformatted minibatch of environment rewards
+        array_like
+            the reformatted minibatch of expected discounted returns
+        array_like
+            the reformatted minibatch of done masks
+        array_like
+            a minibatch of estimated advantages
         int
-            TODO
+            the number of sampled steps in the minibatch
         """
         n_steps = 0
 
