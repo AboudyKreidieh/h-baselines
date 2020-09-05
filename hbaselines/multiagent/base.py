@@ -129,9 +129,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         co_space : gym.spaces.* or dict <str, gym.spaces.*>
             the context space of individual agents in the environment. If
             not a dictionary, the context space is shared across all agents.
-        verbose : int
-            the verbosity level: 0 none, 1 training information, 2 tensorflow
-            debug
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -140,8 +137,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
-        model_params : dict
-            dictionary of model-specific parameters. See parent class.
+        verbose : int
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
         tau : float
             target update rate
         gamma : float
@@ -150,6 +148,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -174,7 +174,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         if co_space is None and not shared:
             co_space = {key: None for key in ob_space.keys()}
 
-
         super(MultiActorCriticPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -190,6 +189,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             model_params=model_params,
         )
+
         self.shared = shared
         self.maddpg = maddpg
         self.all_ob_space = all_ob_space
