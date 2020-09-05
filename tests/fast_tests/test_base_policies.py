@@ -21,6 +21,13 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(3,)),
             'verbose': 0,
+            'buffer_size': 200000,
+            'batch_size': 128,
+            'actor_lr': 3e-4,
+            'critic_lr': 3e-4,
+            'tau': 0.005,
+            'gamma': 0.99,
+            'use_huber': False,
         }
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 
@@ -37,7 +44,14 @@ class TestActorCriticPolicy(unittest.TestCase):
         self.assertEqual(policy.ac_space, self.policy_params['ac_space'])
         self.assertEqual(policy.ob_space, self.policy_params['ob_space'])
         self.assertEqual(policy.co_space, self.policy_params['co_space'])
+        self.assertEqual(policy.buffer_size, self.policy_params['buffer_size'])
+        self.assertEqual(policy.batch_size, self.policy_params['batch_size'])
+        self.assertEqual(policy.actor_lr, self.policy_params['actor_lr'])
+        self.assertEqual(policy.critic_lr, self.policy_params['critic_lr'])
         self.assertEqual(policy.verbose, self.policy_params['verbose'])
+        self.assertEqual(policy.tau, self.policy_params['tau'])
+        self.assertEqual(policy.gamma, self.policy_params['gamma'])
+        self.assertEqual(policy.use_huber, self.policy_params['use_huber'])
 
         # Check that the abstract class has all the required methods.
         self.assertRaises(NotImplementedError, policy.initialize)

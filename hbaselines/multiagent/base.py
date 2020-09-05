@@ -98,7 +98,14 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
+                 buffer_size,
+                 batch_size,
+                 actor_lr,
+                 critic_lr,
                  verbose,
+                 tau,
+                 gamma,
+                 use_huber,
                  model_params,
                  shared,
                  maddpg,
@@ -122,9 +129,25 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         co_space : gym.spaces.* or dict <str, gym.spaces.*>
             the context space of individual agents in the environment. If
             not a dictionary, the context space is shared across all agents.
+        buffer_size : int
+            the max number of transitions to store
+        batch_size : int
+            SGD batch size
+        actor_lr : float
+            actor learning rate
+        critic_lr : float
+            critic learning rate
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        tau : float
+            target update rate
+        gamma : float
+            discount factor
+        use_huber : bool
+            specifies whether to use the huber distance function as the loss
+            for the critic. If set to False, the mean-squared error metric is
+            used instead
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         shared : bool
@@ -156,7 +179,14 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
             verbose=verbose,
+            tau=tau,
+            gamma=gamma,
+            use_huber=use_huber,
             model_params=model_params,
         )
 
@@ -351,7 +381,14 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         operations are created.
         """
         policy_parameters = dict(
+            buffer_size=self.buffer_size,
+            batch_size=self.batch_size,
+            actor_lr=self.actor_lr,
+            critic_lr=self.critic_lr,
             verbose=self.verbose,
+            tau=self.tau,
+            gamma=self.gamma,
+            use_huber=self.use_huber,
             model_params=self.model_params,
             **self.additional_params
         )

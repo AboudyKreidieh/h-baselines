@@ -31,10 +31,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         the action space of the environment
     co_space : gym.spaces.*
         the context space of the environment
-    verbose : int
-        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    model_params : dict
-        dictionary of model-specific parameters. See parent class.
     buffer_size : int
         the max number of transitions to store
     batch_size : int
@@ -43,6 +39,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         actor learning rate
     critic_lr : float
         critic learning rate
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     tau : float
         target update rate
     gamma : float
@@ -51,6 +49,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    model_params : dict
+        dictionary of model-specific parameters. See parent class.
     target_entropy : float
         target entropy used when learning the entropy coefficient
     replay_buffer : hbaselines.fcnet.replay_buffer.ReplayBuffer
@@ -118,15 +118,15 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 verbose,
-                 model_params,
                  buffer_size,
                  batch_size,
                  actor_lr,
                  critic_lr,
+                 verbose,
                  tau,
                  gamma,
                  use_huber,
+                 model_params,
                  target_entropy,
                  scope=None):
         """Instantiate the feed-forward neural network policy.
@@ -141,11 +141,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
-        verbose : int
-            the verbosity level: 0 none, 1 training information, 2 tensorflow
-            debug
-        model_params : dict
-            dictionary of model-specific parameters. See parent class.
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -154,6 +149,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             actor learning rate
         critic_lr : float
             critic learning rate
+        verbose : int
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
         tau : float
             target update rate
         gamma : float
@@ -162,6 +160,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -173,17 +173,16 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
             verbose=verbose,
+            tau=tau,
+            gamma=gamma,
+            use_huber=use_huber,
             model_params=model_params,
         )
-
-        self.buffer_size = buffer_size
-        self.batch_size = batch_size
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.tau = tau
-        self.gamma = gamma
-        self.use_huber = use_huber
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
