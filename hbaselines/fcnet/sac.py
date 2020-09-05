@@ -175,15 +175,14 @@ class FeedForwardPolicy(ActorCriticPolicy):
             co_space=co_space,
             verbose=verbose,
             model_params=model_params,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            tau=tau,
+            gamma=gamma,
+            use_huber=use_huber,
         )
-
-        self.buffer_size = buffer_size
-        self.batch_size = batch_size
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.tau = tau
-        self.gamma = gamma
-        self.use_huber = use_huber
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
