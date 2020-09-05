@@ -1,10 +1,10 @@
 """Multi-agent base actor critic policy."""
 import tensorflow as tf
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 
 
-class MultiActorCriticPolicy(ActorCriticPolicy):
+class MultiAgentPolicy(Policy):
     """Multi-agent base actor critic policy.
 
     This policy supports training off-policy variants of three popular
@@ -23,7 +23,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={}
       >>> )
@@ -41,7 +41,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
@@ -57,7 +57,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "maddpg": True,
@@ -151,7 +151,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         if co_space is None and not shared:
             co_space = {key: None for key in ob_space.keys()}
 
-        super(MultiActorCriticPolicy, self).__init__(
+        Policy.__init__(
+            self,
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,

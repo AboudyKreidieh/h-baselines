@@ -239,24 +239,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
         """
-        super(GoalConditionedPolicy, self).__init__(
+        ActorCriticPolicy.__init__(
+            self,
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
             verbose=verbose,
             model_params=model_params,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            actor_lr=actor_lr,
+            critic_lr=critic_lr,
+            tau=tau,
+            gamma=gamma,
+            use_huber=use_huber,
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
 
-        self.buffer_size = buffer_size
-        self.batch_size = batch_size
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
-        self.tau = tau
-        self.gamma = gamma
-        self.use_huber = use_huber
         self.num_levels = num_levels
         self.meta_period = meta_period
         self.intrinsic_reward_type = intrinsic_reward_type

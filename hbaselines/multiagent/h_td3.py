@@ -1,5 +1,5 @@
 """TD3-compatible multi-agent goal-conditioned hierarchical policy."""
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 

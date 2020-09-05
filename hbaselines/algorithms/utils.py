@@ -6,6 +6,8 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
+from hbaselines.goal_conditioned.ppo import GoalConditionedPolicy as \
+    PPOGoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicyOld
 from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
@@ -14,6 +16,8 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy as \
+    PPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
     TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
@@ -67,6 +71,7 @@ def is_goal_conditioned_policy(policy):
     return policy in [
         TD3GoalConditionedPolicy,
         SACGoalConditionedPolicy,
+        PPOGoalConditionedPolicy,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]
@@ -79,6 +84,7 @@ def is_multiagent_policy(policy):
         TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
         SACMultiFeedForwardPolicyOld,
+        PPOMultiFeedForwardPolicy,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]

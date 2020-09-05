@@ -201,7 +201,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 
 
 # =========================================================================== #
-#                Policy parameters for MultiActorCriticPolicy                 #
+#                   Policy parameters for MultiAgentPolicy                    #
 # =========================================================================== #
 
 MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(

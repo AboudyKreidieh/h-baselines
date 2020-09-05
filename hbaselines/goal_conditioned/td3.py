@@ -114,7 +114,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
         """
-        super(GoalConditionedPolicy, self).__init__(
+        print(model_params)
+        BaseGoalConditionedPolicy.__init__(
+            self,
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,

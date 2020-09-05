@@ -2,7 +2,8 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
+from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
@@ -21,7 +22,7 @@ LOG_STD_MAX = 2
 LOG_STD_MIN = -20
 
 
-class MultiFeedForwardPolicy(BasePolicy):
+class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
     """SAC-compatible multi-agent feedforward neural.
 
     The attributes described in this docstring are only used if the `maddpg`
@@ -244,7 +245,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.actor_loss = None
         self.actor_optimizer = None
 
-        super(MultiFeedForwardPolicy, self).__init__(
+        BasePolicy.__init__(
+            self=self,
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,

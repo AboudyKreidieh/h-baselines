@@ -1,5 +1,5 @@
 """SAC-compatible multi-agent goal-conditioned hierarchical policy."""
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy
 
 

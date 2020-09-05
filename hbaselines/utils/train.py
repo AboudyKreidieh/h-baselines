@@ -114,7 +114,7 @@ def get_hyperparameters(args, policy):
             "cg_weights": args.cg_weights,
         })
 
-    # add MultiActorCriticPolicy parameters
+    # add MultiAgentPolicy parameters
     if is_multiagent_policy(policy):
         policy_kwargs.update({
             "shared": args.shared,
