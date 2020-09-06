@@ -1,6 +1,5 @@
 """Script containing the abstract actor-critic policy class."""
 from hbaselines.base_policies.policy import Policy
-
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import get_target_updates
 
@@ -21,8 +20,24 @@ class ActorCriticPolicy(Policy):
         the action space of the environment
     co_space : gym.spaces.*
         the context space of the environment
+    buffer_size : int
+        the max number of transitions to store
+    batch_size : int
+        SGD batch size
+    actor_lr : float
+        actor learning rate
+    critic_lr : float
+        critic learning rate
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    tau : float
+        target update rate
+    gamma : float
+        discount factor
+    use_huber : bool
+        specifies whether to use the huber distance function as the loss for
+        the critic. If set to False, the mean-squared error metric is used
+        instead
     model_params : dict
         dictionary of model-specific parameters. See parent class.
     buffer_size : int
@@ -48,15 +63,15 @@ class ActorCriticPolicy(Policy):
                  ob_space,
                  ac_space,
                  co_space,
-                 verbose,
-                 model_params,
                  buffer_size,
                  batch_size,
                  actor_lr,
                  critic_lr,
+                 verbose,
                  tau,
                  gamma,
-                 use_huber):
+                 use_huber,
+                 model_params):
         """Instantiate the base policy object.
 
         Parameters
@@ -69,11 +84,6 @@ class ActorCriticPolicy(Policy):
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
-        verbose : int
-            the verbosity level: 0 none, 1 training information, 2 tensorflow
-            debug
-        model_params : dict
-            dictionary of model-specific parameters. See parent class.
         buffer_size : int
             the max number of transitions to store
         batch_size : int
@@ -82,6 +92,9 @@ class ActorCriticPolicy(Policy):
             actor learning rate
         critic_lr : float
             critic learning rate
+        verbose : int
+            the verbosity level: 0 none, 1 training information, 2 tensorflow
+            debug
         tau : float
             target update rate
         gamma : float
@@ -90,6 +103,8 @@ class ActorCriticPolicy(Policy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         """
         super(ActorCriticPolicy, self).__init__(
             sess=sess,
