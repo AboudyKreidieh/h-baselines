@@ -131,7 +131,9 @@ if __name__ == '__main__':
             description='Test the performance of multi-agent goal-conditioned '
                         'hierarchical models on various environments.',
             example_usage=EXAMPLE_USAGE,
-            args=sys.argv[1:]
+            args=sys.argv[1:],
+            hierarchical=True,
+            multiagent=True,
         ),
         'data/multi-goal-conditioned'
     )

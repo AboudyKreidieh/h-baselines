@@ -37,6 +37,21 @@ from hbaselines.utils.env_util import create_env
 # =========================================================================== #
 
 TD3_PARAMS = dict(
+    # the max number of transitions to store
+    buffer_size=200000,
+    # the size of the batch for learning the policy
+    batch_size=128,
+    # the actor learning rate
+    actor_lr=3e-4,
+    # the critic learning rate
+    critic_lr=3e-4,
+    # the soft update coefficient (keep old values, between 0 and 1)
+    tau=0.005,
+    # the discount rate
+    gamma=0.99,
+    # specifies whether to use the huber distance function as the loss for the
+    # critic. If set to False, the mean-squared error metric is used instead
+    use_huber=False,
     # scaling term to the range of the action space, that is subsequently used
     # as the standard deviation of Gaussian noise added to the action if
     # `apply_noise` is set to True in `get_action`
@@ -54,17 +69,6 @@ TD3_PARAMS = dict(
 # =========================================================================== #
 
 SAC_PARAMS = dict(
-    # target entropy used when learning the entropy coefficient. If set to
-    # None, a heuristic value is used.
-    target_entropy=None,
-)
-
-
-# =========================================================================== #
-#       Policy parameters for FeedForwardPolicy (shared by TD3 and SAC)       #
-# =========================================================================== #
-
-FEEDFORWARD_PARAMS = dict(
     # the max number of transitions to store
     buffer_size=200000,
     # the size of the batch for learning the policy
@@ -80,6 +84,17 @@ FEEDFORWARD_PARAMS = dict(
     # specifies whether to use the huber distance function as the loss for the
     # critic. If set to False, the mean-squared error metric is used instead
     use_huber=False,
+    # target entropy used when learning the entropy coefficient. If set to
+    # None, a heuristic value is used.
+    target_entropy=None,
+)
+
+
+# =========================================================================== #
+#                   Policy parameters for FeedForwardPolicy                   #
+# =========================================================================== #
+
+FEEDFORWARD_PARAMS = dict(
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -114,7 +129,7 @@ FEEDFORWARD_PARAMS = dict(
 
 
 # =========================================================================== #
-#     Policy parameters for GoalConditionedPolicy (shared by TD3 and SAC)     #
+#                 Policy parameters for GoalConditionedPolicy                 #
 # =========================================================================== #
 
 GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
@@ -151,7 +166,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 
 
 # =========================================================================== #
-#    Policy parameters for MultiActorCriticPolicy (shared by TD3 and SAC)     #
+#                Policy parameters for MultiActorCriticPolicy                 #
 # =========================================================================== #
 
 MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(

@@ -16,8 +16,22 @@ from hbaselines.utils.tf_util import conv_layer
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
-from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import FeedForwardPolicy \
+    as TD3FeedForwardPolicy
+from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
+    as TD3GoalConditionedPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
+    as TD3MultiFeedForwardPolicy
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
+    as TD3MultiGoalConditionedPolicy
+from hbaselines.goal_conditioned.sac import FeedForwardPolicy \
+    as SACFeedForwardPolicy
+from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
+    as SACGoalConditionedPolicy
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
+    as SACMultiFeedForwardPolicy
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
+    as SACMultiGoalConditionedPolicy
 from hbaselines.algorithms.off_policy import TD3_PARAMS
 from hbaselines.algorithms.off_policy import SAC_PARAMS
 from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
@@ -27,11 +41,34 @@ from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
 class TestTrain(unittest.TestCase):
     """A simple test to get Travis running."""
 
-    def test_parse_options(self):
+    def test_parse_options_td3(self):
+        """Test the parse_options and get_hyperparameters methods for TD3.
+
+        This is done for the following cases:
+
+        1. hierarchical = False, multiagent = False
+           a. default arguments
+           b. custom  arguments
+        2. hierarchical = True,  multiagent = False
+           a. default arguments
+           b. custom  arguments
+        3. hierarchical = False, multiagent = True
+           a. default arguments
+           b. custom  arguments
+        4. hierarchical = True,  multiagent = True
+           a. default arguments
+           b. custom  arguments
+        """
         self.maxDiff = None
-        # Test the default case.
-        args = parse_options("", "", args=["AntMaze"])
-        expected_args = {
+        model_params = FEEDFORWARD_PARAMS["model_params"]
+
+        # =================================================================== #
+        # test case 1.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze"], multiagent=False, hierarchical=False)
+        self.assertDictEqual(vars(args), {
             'env_name': 'AntMaze',
             'alg': 'TD3',
             'evaluate': False,
@@ -51,136 +88,183 @@ class TestTrain(unittest.TestCase):
             'verbose': 2,
             'actor_update_freq': 2,
             'meta_update_freq': 10,
-            'noise': TD3_PARAMS['noise'],
+            'save_replay_buffer': False,
             'num_envs': 1,
-            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
-            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': FEEDFORWARD_PARAMS['buffer_size'],
-            'batch_size': FEEDFORWARD_PARAMS['batch_size'],
-            'actor_lr': FEEDFORWARD_PARAMS['actor_lr'],
-            'critic_lr': FEEDFORWARD_PARAMS['critic_lr'],
-            'tau': FEEDFORWARD_PARAMS['tau'],
-            'gamma': FEEDFORWARD_PARAMS['gamma'],
-            'model_params:layer_norm': False,
-            'use_huber': False,
-            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
-            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'intrinsic_reward_scale':
-                GOAL_CONDITIONED_PARAMS['intrinsic_reward_scale'],
-            'intrinsic_reward_type':
-                GOAL_CONDITIONED_PARAMS['intrinsic_reward_type'],
-            'relative_goals': False,
-            'off_policy_corrections': False,
-            'hindsight': False,
-            'subgoal_testing_rate':
-                GOAL_CONDITIONED_PARAMS['subgoal_testing_rate'],
-            'cooperative_gradients': False,
-            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
-            'shared': False,
-            'maddpg': False,
-            'model_params:model_type':
-                FEEDFORWARD_PARAMS['model_params']['model_type'],
-            'model_params:strides': None,
-            'model_params:kernel_sizes': None,
-            'dir_name': '',
+            'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
-            'model_params:image_channels':
-                FEEDFORWARD_PARAMS['model_params']['image_channels'],
-            'model_params:image_height':
-                FEEDFORWARD_PARAMS['model_params']['image_height'],
-            'model_params:image_width':
-                FEEDFORWARD_PARAMS['model_params']['image_width'],
-            'save_replay_buffer': False,
-        }
-        self.assertDictEqual(vars(args), expected_args)
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+        })
 
-        # Test custom cases.
-        args = parse_options("", "", args=[
-            "AntMaze",
-            '--evaluate',
-            '--save_replay_buffer',
-            '--n_training', '1',
-            '--total_steps', '2',
-            '--seed', '3',
-            '--log_interval', '4',
-            '--eval_interval', '5',
-            '--save_interval', '6',
-            '--nb_train_steps', '7',
-            '--nb_rollout_steps', '8',
-            '--nb_eval_episodes', '9',
-            '--reward_scale', '10',
-            '--render',
-            '--render_eval',
-            '--verbose', '11',
-            '--actor_update_freq', '12',
-            '--meta_update_freq', '13',
-            '--buffer_size', '14',
-            '--batch_size', '15',
-            '--actor_lr', '16',
-            '--critic_lr', '17',
-            '--tau', '18',
-            '--gamma', '19',
-            '--noise', '20',
-            '--num_envs', '21',
-            '--target_policy_noise', '22',
-            '--target_noise_clip', '23',
-            '--use_huber',
-            '--num_levels', '24',
-            '--meta_period', '25',
-            '--intrinsic_reward_scale', '26',
-            '--intrinsic_reward_type', 'woop',
-            '--relative_goals',
-            '--off_policy_corrections',
-            '--hindsight',
-            '--subgoal_testing_rate', '27',
-            '--cooperative_gradients',
-            '--cg_weights', '28',
-            '--shared',
-            '--maddpg',
-            '--model_params:model_type', 'model_type',
-            '--model_params:layer_norm',
-        ])
-        hp = get_hyperparameters(args, GoalConditionedPolicy)
-        expected_hp = {
-            'nb_train_steps': 7,
-            'nb_rollout_steps': 8,
+        hp = get_hyperparameters(args, TD3FeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+            }
+        })
+
+        # =================================================================== #
+        # test case 1.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                '--evaluate',
+                '--save_replay_buffer',
+                '--n_training', '1',
+                '--total_steps', '2',
+                '--seed', '3',
+                '--log_interval', '4',
+                '--eval_interval', '5',
+                '--save_interval', '6',
+                '--nb_train_steps', '7',
+                '--nb_rollout_steps', '8',
+                '--nb_eval_episodes', '9',
+                '--reward_scale', '10',
+                '--render',
+                '--render_eval',
+                '--verbose', '11',
+                '--actor_update_freq', '12',
+                '--meta_update_freq', '13',
+                '--buffer_size', '14',
+                '--batch_size', '15',
+                '--actor_lr', '16',
+                '--critic_lr', '17',
+                '--tau', '18',
+                '--gamma', '19',
+                '--noise', '20',
+                '--num_envs', '21',
+                '--target_policy_noise', '22',
+                '--target_noise_clip', '23',
+                '--use_huber',
+                '--model_params:model_type', 'model_type',
+                '--model_params:layers', '24', '25',
+                '--model_params:layer_norm',
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
+        self.assertDictEqual(vars(args), {
+            'actor_lr': 16.0,
+            'actor_update_freq': 12,
+            'alg': 'TD3',
+            'batch_size': 15,
+            'buffer_size': 14,
+            'critic_lr': 17.0,
+            'env_name': 'AntMaze',
+            'eval_interval': 5,
+            'evaluate': True,
+            'gamma': 19.0,
+            'initial_exploration_steps': 10000,
+            'log_interval': 4,
+            'meta_update_freq': 13,
+            'model_params:layers': [24, 25],
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': True,
+            'model_params:model_type': 'model_type',
+            'model_params:strides': None,
+            'n_training': 1,
             'nb_eval_episodes': 9,
-            'reward_scale': 10.0,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'noise': 20.0,
+            'num_envs': 21,
             'render': True,
             'render_eval': True,
+            'reward_scale': 10.0,
+            'save_interval': 6,
+            'save_replay_buffer': True,
+            'seed': 3,
+            'target_noise_clip': 23.0,
+            'target_policy_noise': 22.0,
+            'tau': 18.0,
+            'total_steps': 2,
+            'use_huber': True,
+            'verbose': 11,
+        })
+
+        hp = get_hyperparameters(args, TD3FeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            '_init_setup_model': True,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_replay_buffer': True,
             'verbose': 11,
             'actor_update_freq': 12,
             'meta_update_freq': 13,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
             'num_envs': 21,
-            'save_replay_buffer': True,
-            '_init_setup_model': True,
             'policy_kwargs': {
-                'buffer_size': 14,
-                'batch_size': 15,
                 'actor_lr': 16.0,
+                'batch_size': 15,
+                'buffer_size': 14,
                 'critic_lr': 17.0,
-                'tau': 18.0,
                 'gamma': 19.0,
-                'noise': 20.0,
-                'target_policy_noise': 22.0,
-                'target_noise_clip': 23.0,
-                'use_huber': True,
-                'num_levels': 24,
-                'meta_period': 25,
-                'intrinsic_reward_scale': 26.0,
-                'intrinsic_reward_type': 'woop',
-                'relative_goals': True,
-                'off_policy_corrections': True,
-                'hindsight': True,
-                'subgoal_testing_rate': 27.0,
-                'cooperative_gradients': True,
-                'cg_weights': 28.0,
                 'model_params': {
-                    'model_type': 'model_type',
-                    'layer_norm': True,
+                    'layers': [24, 25],
                     'filters': [16, 16, 16],
                     'ignore_flat_channels': [],
                     'ignore_image': False,
@@ -188,44 +272,930 @@ class TestTrain(unittest.TestCase):
                     'image_height': 32,
                     'image_width': 32,
                     'kernel_sizes': [5, 5, 5],
-                    'strides': [2, 2, 2],
+                    'layer_norm': True,
+                    'model_type': 'model_type',
+                    'strides': [2, 2, 2]
                 },
-            }
-        }
-        self.assertDictEqual(hp, expected_hp)
-        self.assertEqual(args.log_interval, 4)
-        self.assertEqual(args.eval_interval, 5)
+                'noise': 20.0,
+                'target_noise_clip': 23.0,
+                'target_policy_noise': 22.0,
+                'tau': 18.0,
+                'use_huber': True
+            },
+        })
 
-        hp = get_hyperparameters(args, MultiFeedForwardPolicy)
-        expected_hp = {
-            'nb_train_steps': 7,
-            'nb_rollout_steps': 8,
-            'nb_eval_episodes': 9,
-            'actor_update_freq': 12,
-            'meta_update_freq': 13,
-            'reward_scale': 10.0,
-            'render': True,
-            'render_eval': True,
-            'verbose': 11,
-            'num_envs': 21,
-            'save_replay_buffer': True,
+        # =================================================================== #
+        # test case 2.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze"], multiagent=False, hierarchical=True)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cooperative_gradients': False,
+            'hindsight': False,
+            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_type'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+            'off_policy_corrections': False,
+            'relative_goals': False,
+            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                'subgoal_testing_rate'],
+        })
+
+        hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
             '_init_setup_model': True,
             'policy_kwargs': {
-                'buffer_size': 14,
-                'batch_size': 15,
-                'actor_lr': 16.0,
-                'critic_lr': 17.0,
-                'tau': 18.0,
-                'gamma': 19.0,
-                'use_huber': True,
-                'noise': 20.0,
-                'target_policy_noise': 22.0,
-                'target_noise_clip': 23.0,
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+                'cooperative_gradients': False,
+                'hindsight': False,
+                'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_scale'],
+                'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_type'],
+                'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+                'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+                'off_policy_corrections': False,
+                'relative_goals': False,
+                'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                    'subgoal_testing_rate'],
+            }
+        })
+
+        # =================================================================== #
+        # test case 2.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--num_levels", "1",
+                "--meta_period", "2",
+                "--intrinsic_reward_type", "3",
+                "--intrinsic_reward_scale", "4",
+                "--relative_goals",
+                "--off_policy_corrections",
+                "--hindsight",
+                "--subgoal_testing_rate", "6",
+                "--cooperative_gradients",
+                "--cg_weights", "7",
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'cg_weights': 7,
+            'cooperative_gradients': True,
+            'hindsight': True,
+            'intrinsic_reward_scale': 4,
+            'intrinsic_reward_type': "3",
+            'meta_period': 2,
+            'num_levels': 1,
+            'off_policy_corrections': True,
+            'relative_goals': True,
+            'subgoal_testing_rate': 6,
+        })
+
+        hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': 7,
+                'cooperative_gradients': True,
+                'hindsight': True,
+                'intrinsic_reward_scale': 4,
+                'intrinsic_reward_type': "3",
+                'meta_period': 2,
+                'num_levels': 1,
+                'off_policy_corrections': True,
+                'relative_goals': True,
+                'subgoal_testing_rate': 6,
+            }
+        })
+
+        # =================================================================== #
+        # test case 3.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze"], multiagent=True, hierarchical=False)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'shared': False,
+            'maddpg': False,
+        })
+
+        hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'shared': False,
+                'maddpg': False,
+            }
+        })
+
+        # =================================================================== #
+        # test case 3.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=["AntMaze", "--shared", "--maddpg"],
+            multiagent=True,
+            hierarchical=False,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'shared': True,
+            'maddpg': True,
+        })
+
+        hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
                 'shared': True,
                 'maddpg': True,
+            }
+        })
+
+        # =================================================================== #
+        # test case 4.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze"], multiagent=True, hierarchical=True)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cooperative_gradients': False,
+            'hindsight': False,
+            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_type'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+            'off_policy_corrections': False,
+            'relative_goals': False,
+            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                'subgoal_testing_rate'],
+            'shared': False,
+            'maddpg': False,
+        })
+
+        hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
                 'model_params': {
-                    'model_type': 'model_type',
-                    'layer_norm': True,
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'shared': False,
+                'maddpg': False,
+            }
+        })
+
+        # =================================================================== #
+        # test case 4.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--num_levels", "1",
+                "--meta_period", "2",
+                "--intrinsic_reward_type", "3",
+                "--intrinsic_reward_scale", "4",
+                "--relative_goals",
+                "--off_policy_corrections",
+                "--hindsight",
+                "--subgoal_testing_rate", "6",
+                "--cooperative_gradients",
+                "--cg_weights", "7",
+                "--shared",
+                "--maddpg",
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TD3',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'cg_weights': 7,
+            'cooperative_gradients': True,
+            'hindsight': True,
+            'intrinsic_reward_scale': 4,
+            'intrinsic_reward_type': "3",
+            'meta_period': 2,
+            'num_levels': 1,
+            'off_policy_corrections': True,
+            'relative_goals': True,
+            'subgoal_testing_rate': 6,
+            'shared': True,
+            'maddpg': True,
+        })
+
+        hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': TD3_PARAMS['buffer_size'],
+                'batch_size': TD3_PARAMS['batch_size'],
+                'actor_lr': TD3_PARAMS['actor_lr'],
+                'critic_lr': TD3_PARAMS['critic_lr'],
+                'tau': TD3_PARAMS['tau'],
+                'gamma': TD3_PARAMS['gamma'],
+                'noise': TD3_PARAMS['noise'],
+                'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+                'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+                'use_huber': TD3_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': 7,
+                'cooperative_gradients': True,
+                'hindsight': True,
+                'intrinsic_reward_scale': 4,
+                'intrinsic_reward_type': "3",
+                'meta_period': 2,
+                'num_levels': 1,
+                'off_policy_corrections': True,
+                'relative_goals': True,
+                'subgoal_testing_rate': 6,
+                'shared': True,
+                'maddpg': True,
+            }
+        })
+
+    def test_parse_options_sac(self):
+        """Test the parse_options and get_hyperparameters methods for SAC.
+
+        This is done for the following cases:
+
+        1. hierarchical = False, multiagent = False
+           a. default arguments
+           b. custom  arguments
+        2. hierarchical = True,  multiagent = False
+           a. default arguments
+           b. custom  arguments
+        3. hierarchical = False, multiagent = True
+           a. default arguments
+           b. custom  arguments
+        4. hierarchical = True,  multiagent = True
+           a. default arguments
+           b. custom  arguments
+        """
+        self.maxDiff = None
+        model_params = FEEDFORWARD_PARAMS["model_params"]
+
+        # =================================================================== #
+        # test case 1.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze", "--alg", "SAC"],
+            multiagent=False, hierarchical=False)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+        })
+
+        hp = get_hyperparameters(args, SACFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+            }
+        })
+
+        # =================================================================== #
+        # test case 1.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--alg", "SAC",
+                '--evaluate',
+                '--save_replay_buffer',
+                '--n_training', '1',
+                '--total_steps', '2',
+                '--seed', '3',
+                '--log_interval', '4',
+                '--eval_interval', '5',
+                '--save_interval', '6',
+                '--nb_train_steps', '7',
+                '--nb_rollout_steps', '8',
+                '--nb_eval_episodes', '9',
+                '--reward_scale', '10',
+                '--render',
+                '--render_eval',
+                '--verbose', '11',
+                '--actor_update_freq', '12',
+                '--meta_update_freq', '13',
+                '--buffer_size', '14',
+                '--batch_size', '15',
+                '--actor_lr', '16',
+                '--critic_lr', '17',
+                '--tau', '18',
+                '--gamma', '19',
+                '--target_entropy', '20',
+                '--num_envs', '21',
+                '--use_huber',
+                '--model_params:model_type', 'model_type',
+                '--model_params:layer_norm',
+                '--model_params:layers', '22', '23',
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
+        self.assertDictEqual(vars(args), {
+            'actor_lr': 16.0,
+            'actor_update_freq': 12,
+            'alg': 'SAC',
+            'batch_size': 15,
+            'buffer_size': 14,
+            'critic_lr': 17.0,
+            'env_name': 'AntMaze',
+            'eval_interval': 5,
+            'evaluate': True,
+            'gamma': 19.0,
+            'initial_exploration_steps': 10000,
+            'log_interval': 4,
+            'meta_update_freq': 13,
+            'model_params:layers': [22, 23],
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': True,
+            'model_params:model_type': 'model_type',
+            'model_params:strides': None,
+            'n_training': 1,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'target_entropy': 20.0,
+            'num_envs': 21,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_interval': 6,
+            'save_replay_buffer': True,
+            'seed': 3,
+            'tau': 18.0,
+            'total_steps': 2,
+            'use_huber': True,
+            'verbose': 11,
+        })
+
+        hp = get_hyperparameters(args, SACFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            '_init_setup_model': True,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_replay_buffer': True,
+            'verbose': 11,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'num_envs': 21,
+            'policy_kwargs': {
+                'actor_lr': 16.0,
+                'batch_size': 15,
+                'buffer_size': 14,
+                'critic_lr': 17.0,
+                'gamma': 19.0,
+                'model_params': {
+                    'layers': [22, 23],
                     'filters': [16, 16, 16],
                     'ignore_flat_channels': [],
                     'ignore_image': False,
@@ -233,13 +1203,694 @@ class TestTrain(unittest.TestCase):
                     'image_height': 32,
                     'image_width': 32,
                     'kernel_sizes': [5, 5, 5],
-                    'strides': [2, 2, 2],
+                    'layer_norm': True,
+                    'model_type': 'model_type',
+                    'strides': [2, 2, 2]
                 },
+                'target_entropy': 20.0,
+                'tau': 18.0,
+                'use_huber': True
+            },
+        })
+
+        # =================================================================== #
+        # test case 2.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze", "--alg", "SAC"],
+            multiagent=False, hierarchical=True)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cooperative_gradients': False,
+            'hindsight': False,
+            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_type'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+            'off_policy_corrections': False,
+            'relative_goals': False,
+            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                'subgoal_testing_rate'],
+        })
+
+        hp = get_hyperparameters(args, SACGoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+                'cooperative_gradients': False,
+                'hindsight': False,
+                'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_scale'],
+                'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_type'],
+                'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+                'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+                'off_policy_corrections': False,
+                'relative_goals': False,
+                'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                    'subgoal_testing_rate'],
             }
-        }
-        self.assertDictEqual(hp, expected_hp)
-        self.assertEqual(args.log_interval, 4)
-        self.assertEqual(args.eval_interval, 5)
+        })
+
+        # =================================================================== #
+        # test case 2.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--alg", "SAC",
+                "--num_levels", "1",
+                "--meta_period", "2",
+                "--intrinsic_reward_type", "3",
+                "--intrinsic_reward_scale", "4",
+                "--relative_goals",
+                "--off_policy_corrections",
+                "--hindsight",
+                "--subgoal_testing_rate", "6",
+                "--cooperative_gradients",
+                "--cg_weights", "7",
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'cg_weights': 7,
+            'cooperative_gradients': True,
+            'hindsight': True,
+            'intrinsic_reward_scale': 4,
+            'intrinsic_reward_type': "3",
+            'meta_period': 2,
+            'num_levels': 1,
+            'off_policy_corrections': True,
+            'relative_goals': True,
+            'subgoal_testing_rate': 6,
+        })
+
+        hp = get_hyperparameters(args, SACGoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': 7,
+                'cooperative_gradients': True,
+                'hindsight': True,
+                'intrinsic_reward_scale': 4,
+                'intrinsic_reward_type': "3",
+                'meta_period': 2,
+                'num_levels': 1,
+                'off_policy_corrections': True,
+                'relative_goals': True,
+                'subgoal_testing_rate': 6,
+            }
+        })
+
+        # =================================================================== #
+        # test case 3.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=["AntMaze", "--alg", "SAC"],
+            multiagent=True, hierarchical=False)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'shared': False,
+            'maddpg': False,
+        })
+
+        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'shared': False,
+                'maddpg': False,
+            }
+        })
+
+        # =================================================================== #
+        # test case 3.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=["AntMaze", "--alg", "SAC", "--shared", "--maddpg"],
+            multiagent=True,
+            hierarchical=False,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'shared': True,
+            'maddpg': True,
+        })
+
+        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'shared': True,
+                'maddpg': True,
+            }
+        })
+
+        # =================================================================== #
+        # test case 4.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=["AntMaze", "--alg", "SAC"],
+            multiagent=True,
+            hierarchical=True,
+        )
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cooperative_gradients': False,
+            'hindsight': False,
+            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_type'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+            'off_policy_corrections': False,
+            'relative_goals': False,
+            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                'subgoal_testing_rate'],
+            'shared': False,
+            'maddpg': False,
+        })
+
+        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'shared': False,
+                'maddpg': False,
+            }
+        })
+
+        # =================================================================== #
+        # test case 4.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--alg", "SAC",
+                "--num_levels", "1",
+                "--meta_period", "2",
+                "--intrinsic_reward_type", "3",
+                "--intrinsic_reward_scale", "4",
+                "--relative_goals",
+                "--off_policy_corrections",
+                "--hindsight",
+                "--subgoal_testing_rate", "6",
+                "--cooperative_gradients",
+                "--cg_weights", "7",
+                "--shared",
+                "--maddpg",
+            ],
+            multiagent=True,
+            hierarchical=True,
+        )
+
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'SAC',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'use_huber': False,
+            'target_entropy': SAC_PARAMS['target_entropy'],
+            'buffer_size': SAC_PARAMS['buffer_size'],
+            'batch_size': SAC_PARAMS['batch_size'],
+            'actor_lr': SAC_PARAMS['actor_lr'],
+            'critic_lr': SAC_PARAMS['critic_lr'],
+            'tau': SAC_PARAMS['tau'],
+            'gamma': SAC_PARAMS['gamma'],
+            'cg_weights': 7,
+            'cooperative_gradients': True,
+            'hindsight': True,
+            'intrinsic_reward_scale': 4,
+            'intrinsic_reward_type': "3",
+            'meta_period': 2,
+            'num_levels': 1,
+            'off_policy_corrections': True,
+            'relative_goals': True,
+            'subgoal_testing_rate': 6,
+            'shared': True,
+            'maddpg': True,
+        })
+
+        hp = get_hyperparameters(args, SACMultiGoalConditionedPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'buffer_size': SAC_PARAMS['buffer_size'],
+                'batch_size': SAC_PARAMS['batch_size'],
+                'actor_lr': SAC_PARAMS['actor_lr'],
+                'critic_lr': SAC_PARAMS['critic_lr'],
+                'tau': SAC_PARAMS['tau'],
+                'gamma': SAC_PARAMS['gamma'],
+                'target_entropy': SAC_PARAMS['target_entropy'],
+                'use_huber': SAC_PARAMS['use_huber'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+                'cg_weights': 7,
+                'cooperative_gradients': True,
+                'hindsight': True,
+                'intrinsic_reward_scale': 4,
+                'intrinsic_reward_type': "3",
+                'meta_period': 2,
+                'num_levels': 1,
+                'off_policy_corrections': True,
+                'relative_goals': True,
+                'subgoal_testing_rate': 6,
+                'shared': True,
+                'maddpg': True,
+            }
+        })
 
 
 class TestRewardFns(unittest.TestCase):

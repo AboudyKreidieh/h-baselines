@@ -48,6 +48,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
+    num_levels : int
+        number of levels within the hierarchy. Must be greater than 1. Two
+        levels correspond to a Manager/Worker paradigm.
     meta_period : int
         meta-policy action period
     intrinsic_reward_type : str

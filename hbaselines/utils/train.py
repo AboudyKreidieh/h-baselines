@@ -28,13 +28,6 @@ def get_hyperparameters(args, policy):
 
     # add FeedForwardPolicy parameters
     policy_kwargs = {
-        "buffer_size": args.buffer_size,
-        "batch_size": args.batch_size,
-        "actor_lr": args.actor_lr,
-        "critic_lr": args.critic_lr,
-        "tau": args.tau,
-        "gamma": args.gamma,
-        "use_huber": args.use_huber,
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
@@ -54,12 +47,22 @@ def get_hyperparameters(args, policy):
             "strides":
                 getattr(args, "model_params:strides") or
                 FEEDFORWARD_PARAMS["model_params"]["strides"],
+            "layers":
+                getattr(args, "model_params:layers") or
+                FEEDFORWARD_PARAMS["model_params"]["layers"],
         }
     }
 
     # add TD3 parameters
     if is_td3_policy(policy):
         policy_kwargs.update({
+            "buffer_size": args.buffer_size,
+            "batch_size": args.batch_size,
+            "actor_lr": args.actor_lr,
+            "critic_lr": args.critic_lr,
+            "tau": args.tau,
+            "gamma": args.gamma,
+            "use_huber": args.use_huber,
             "noise": args.noise,
             "target_policy_noise": args.target_policy_noise,
             "target_noise_clip": args.target_noise_clip,
@@ -68,6 +71,13 @@ def get_hyperparameters(args, policy):
     # add SAC parameters
     if is_sac_policy(policy):
         policy_kwargs.update({
+            "buffer_size": args.buffer_size,
+            "batch_size": args.batch_size,
+            "actor_lr": args.actor_lr,
+            "critic_lr": args.critic_lr,
+            "tau": args.tau,
+            "gamma": args.gamma,
+            "use_huber": args.use_huber,
             "target_entropy": args.target_entropy,
         })
 
@@ -99,7 +109,11 @@ def get_hyperparameters(args, policy):
     return algorithm_params
 
 
-def parse_options(description, example_usage, args):
+def parse_options(description,
+                  example_usage,
+                  args,
+                  multiagent=True,
+                  hierarchical=True):
     """Parse training options user can specify in command line.
 
     Parameters
@@ -110,70 +124,78 @@ def parse_options(description, example_usage, args):
         an example of the runner script being used
     args : list of str
         command-line arguments
+    multiagent : bool
+        whether the policy is supposed to be multiagent
+    hierarchical : bool
+        whether the policy is supposed to be hierarchical
 
     Returns
     -------
     argparse.Namespace
         the output parser object
     """
-    parser = argparse.ArgumentParser(
+    parser_algorithm = argparse.ArgumentParser(
         description=description, epilog=example_usage)
 
     # required input parameters
-    parser.add_argument(
+    parser_algorithm.add_argument(
         'env_name', type=str,
         help='Name of the gym environment. This environment must either be '
              'registered in gym, be available in the computation framework '
              'Flow, or be available within the hbaselines/envs folder.')
 
     # optional input parameters
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--alg', type=str, default='TD3',
         help='The algorithm to use. Must be one of [TD3, SAC].')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--evaluate', action='store_true',
         help='add an evaluation environment')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--n_training', type=int, default=1,
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--total_steps',  type=int, default=1000000,
         help='Total number of timesteps used during training.')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--log_interval', type=int, default=2000,
         help='the number of training steps before logging training results')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--eval_interval', type=int, default=50000,
         help='number of simulation steps in the training environment before '
              'an evaluation is performed')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--save_interval', type=int, default=50000,
         help='number of simulation steps in the training environment before '
              'the model is saved')
-    parser.add_argument(
+    parser_algorithm.add_argument(
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
-    parser.add_argument(
-        '--dir_name', type=str, default='',
-        help='an optional directory to save the current experiment '
-             'to or load an existing one from')
 
-    # algorithm-specific hyperparameters
-    parser = create_algorithm_parser(parser)
-    parser = create_td3_parser(parser)
-    parser = create_sac_parser(parser)
-    parser = create_feedforward_parser(parser)
-    parser = create_goal_conditioned_parser(parser)
-    parser = create_multi_feedforward_parser(parser)
+    parser_algorithm = create_algorithm_parser(parser_algorithm)
+    [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
 
-    flags, _ = parser.parse_known_args(args)
+    # policy-specific hyperparameters
+    parser_policy = argparse.ArgumentParser(
+        description=description, epilog=example_usage)
+    if args_alg.alg == "TD3":
+        parser_policy = create_td3_parser(parser_policy)
+    elif args_alg.alg == "SAC":
+        parser_policy = create_sac_parser(parser_policy)
 
-    return flags
+    # arguments for different model architectures
+    parser_policy = create_feedforward_parser(parser_policy)
+    if hierarchical:
+        parser_policy = create_goal_conditioned_parser(parser_policy)
+    if multiagent:
+        parser_policy = create_multi_feedforward_parser(parser_policy)
+
+    return parser_policy.parse_args(extras_alg, namespace=args_alg)
 
 
 def create_algorithm_parser(parser):
@@ -228,6 +250,42 @@ def create_algorithm_parser(parser):
 def create_td3_parser(parser):
     """Add the TD3 hyperparameters to the parser."""
     parser.add_argument(
+        "--buffer_size",
+        type=int,
+        default=TD3_PARAMS["buffer_size"],
+        help="the max number of transitions to store")
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=TD3_PARAMS["batch_size"],
+        help="the size of the batch for learning the policy")
+    parser.add_argument(
+        "--actor_lr",
+        type=float,
+        default=TD3_PARAMS["actor_lr"],
+        help="the actor learning rate")
+    parser.add_argument(
+        "--critic_lr",
+        type=float,
+        default=TD3_PARAMS["critic_lr"],
+        help="the critic learning rate")
+    parser.add_argument(
+        "--tau",
+        type=float,
+        default=TD3_PARAMS["tau"],
+        help="the soft update coefficient (keep old values, between 0 and 1)")
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=TD3_PARAMS["gamma"],
+        help="the discount rate")
+    parser.add_argument(
+        "--use_huber",
+        action="store_true",
+        help="specifies whether to use the huber distance function as the "
+             "loss for the critic. If set to False, the mean-squared error "
+             "metric is used instead")
+    parser.add_argument(
         "--noise",
         type=float,
         default=TD3_PARAMS["noise"],
@@ -253,6 +311,42 @@ def create_td3_parser(parser):
 def create_sac_parser(parser):
     """Add the SAC hyperparameters to the parser."""
     parser.add_argument(
+        "--buffer_size",
+        type=int,
+        default=SAC_PARAMS["buffer_size"],
+        help="the max number of transitions to store")
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=SAC_PARAMS["batch_size"],
+        help="the size of the batch for learning the policy")
+    parser.add_argument(
+        "--actor_lr",
+        type=float,
+        default=SAC_PARAMS["actor_lr"],
+        help="the actor learning rate")
+    parser.add_argument(
+        "--critic_lr",
+        type=float,
+        default=SAC_PARAMS["critic_lr"],
+        help="the critic learning rate")
+    parser.add_argument(
+        "--tau",
+        type=float,
+        default=SAC_PARAMS["tau"],
+        help="the soft update coefficient (keep old values, between 0 and 1)")
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=SAC_PARAMS["gamma"],
+        help="the discount rate")
+    parser.add_argument(
+        "--use_huber",
+        action="store_true",
+        help="specifies whether to use the huber distance function as the "
+             "loss for the critic. If set to False, the mean-squared error "
+             "metric is used instead")
+    parser.add_argument(
         "--target_entropy",
         type=float,
         default=SAC_PARAMS["target_entropy"],
@@ -265,43 +359,6 @@ def create_sac_parser(parser):
 def create_feedforward_parser(parser):
     """Add the feedforward policy hyperparameters to the parser."""
     parser.add_argument(
-        "--buffer_size",
-        type=int,
-        default=FEEDFORWARD_PARAMS["buffer_size"],
-        help="the max number of transitions to store")
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=FEEDFORWARD_PARAMS["batch_size"],
-        help="the size of the batch for learning the policy")
-    parser.add_argument(
-        "--actor_lr",
-        type=float,
-        default=FEEDFORWARD_PARAMS["actor_lr"],
-        help="the actor learning rate")
-    parser.add_argument(
-        "--critic_lr",
-        type=float,
-        default=FEEDFORWARD_PARAMS["critic_lr"],
-        help="the critic learning rate")
-    parser.add_argument(
-        "--tau",
-        type=float,
-        default=FEEDFORWARD_PARAMS["tau"],
-        help="the soft update coefficient (keep old values, between 0 and 1)")
-    parser.add_argument(
-        "--gamma",
-        type=float,
-        default=FEEDFORWARD_PARAMS["gamma"],
-        help="the discount rate")
-    parser.add_argument(
-        "--use_huber",
-        action="store_true",
-        help="specifies whether to use the huber distance function as the "
-             "loss for the critic. If set to False, the mean-squared error "
-             "metric is used instead")
-
-    parser.add_argument(
         "--model_params:model_type",
         type=str,
         default=FEEDFORWARD_PARAMS["model_params"]["model_type"],
@@ -310,6 +367,11 @@ def create_feedforward_parser(parser):
         "--model_params:layer_norm",
         action="store_true",
         help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:layers",
+        type=int,
+        nargs="+",
+        help="the size of the neural network for the policy")
     parser.add_argument(
         "--model_params:ignore_flat_channels",
         type=int,
