@@ -249,7 +249,9 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    reward -= sum(np.square(
+                        [self.k.vehicle.get_accel(veh_id, True, True)
+                         for veh_id in rl_ids]))
 
         return reward
 
@@ -543,7 +545,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             for record in DictReader(
                     open(os.path.join(warmup_path, 'description.csv'))):
                 for key, val in record.items():  # or iteritems in Python 2
-                    self.warmup_description[key].append(val)
+                    self.warmup_description[key].append(float(val))
         else:
             self.warmup_paths = None
             self.warmup_description = None
@@ -762,9 +764,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self.additional_command()
 
         # Recompute the initial observation.
-        obs = self.get_state()
-
-        return np.copy(obs)
+        return self.get_state()
 
     def _clear_attributes(self):
         """Clear all AV-related attributes."""
@@ -990,12 +990,12 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
                       if self._get_lane(veh) == lane]
 
             # Update the RL lists.
-            self.rl_queue[lane], self.rl_veh[lane], self.removed_veh[lane] = \
+            self.rl_queue[lane], self.rl_veh[lane], self.removed_veh = \
                 update_rl_veh(
                     self,
                     rl_queue=self.rl_queue[lane],
                     rl_veh=self.rl_veh[lane],
-                    removed_veh=self.removed_veh[lane],
+                    removed_veh=self.removed_veh,
                     control_range=self._control_range,
                     num_rl=self.num_rl,
                     rl_ids=reversed(sorted(
@@ -1017,6 +1017,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         """See parent class."""
         self.leader = []
         self.follower = []
-        self.rl_veh = [[] for _ in range(5)]
+        self.rl_veh = [[] for _ in range(self._num_lanes)]
         self.removed_veh = []
-        self.rl_queue = [collections.deque() for _ in range(5)]
+        self.rl_queue = [collections.deque() for _ in range(self._num_lanes)]

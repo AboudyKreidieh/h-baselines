@@ -111,10 +111,15 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0
+            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0.5
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
             model="SL2015",
@@ -182,7 +187,7 @@ def get_flow_params(fixed_boundary,
             additional_params={
                 "max_accel": 0.5,
                 "max_decel": 0.5,
-                "target_velocity": 10,
+                "target_velocity": 12,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,

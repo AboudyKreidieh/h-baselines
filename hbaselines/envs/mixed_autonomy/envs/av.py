@@ -11,6 +11,8 @@ from csv import DictReader
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.core.params import SumoCarFollowingParams
+from flow.controllers import FollowerStopper
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
@@ -236,7 +238,9 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    reward -= sum(np.square(
+                        [self.k.vehicle.get_accel(veh_id, True, True)
+                         for veh_id in self.rl_ids()]))
 
             return reward
 
@@ -579,6 +583,18 @@ class HighwayOpenEnv(AVEnv):
             **controller[1]
         )
 
+        # dynamics controller for controlled RL vehicles
+        self._av_controller = FollowerStopper(
+            veh_id="av",
+            v_des=30,
+            max_accel=1,
+            max_decel=2,
+            display_warnings=False,
+            fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+        )
+
         # this is stored to be reused during the reset procedure
         self._network_cls = network.__class__
         self._network_name = deepcopy(network.orig_name)
@@ -597,6 +613,26 @@ class HighwayOpenEnv(AVEnv):
 
         # maximum number of lanes to add vehicles across
         self._num_lanes = 1
+
+    @property
+    def action_space(self):
+        """See class definition."""
+        return Box(
+            low=0,
+            high=30,
+            shape=(self.num_rl,),
+            dtype=np.float32)
+
+    def _apply_rl_actions(self, rl_actions):
+        """See class definition."""
+        accelerations = []
+        for i, veh_id in enumerate(self.rl_ids()):
+            self._av_controller.veh_id = veh_id
+            self._av_controller.v_des = rl_actions[i]
+            accelerations.append(self._av_controller.get_action(self))
+
+        # Apply the actions via the simulator.
+        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
 
     def rl_ids(self):
         """See parent class."""
