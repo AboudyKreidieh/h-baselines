@@ -166,7 +166,7 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10 if multiagent else 50,
+                "num_rl": 7 if multiagent else 35,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
@@ -174,7 +174,7 @@ def get_flow_params(fixed_boundary,
                 }),
                 "warmup_path": os.path.join(
                     hbaselines_config.PROJECT_PATH,
-                    "experiments/warmup/i210/v2/fixed/initial_states"
+                    "experiments/warmup/i210"
                 ),
             }
         ),

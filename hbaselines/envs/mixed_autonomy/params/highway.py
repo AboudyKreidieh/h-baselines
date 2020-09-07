@@ -28,7 +28,7 @@ TRAFFIC_FLOW = 2215
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 1/12
+PENETRATION_RATE = 1/20
 # whether to include noise in the environment
 INCLUDE_NOISE = True
 # range for the inflows allowed in the network. If set to None, the inflows are
@@ -177,7 +177,7 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=0,
+            warmup_steps=0,  # 500,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
@@ -187,7 +187,7 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10,
+                "num_rl": float("inf") if multiagent else 7,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
@@ -195,7 +195,7 @@ def get_flow_params(fixed_boundary,
                 }),
                 "warmup_path": os.path.join(
                     hbaselines_config.PROJECT_PATH,
-                    "experiments/warmup/highway/v2/fixed/initial_states"
+                    "experiments/warmup/highway"
                 ),
             }
         ),

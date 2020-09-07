@@ -1,14 +1,20 @@
 """Environment for training automated vehicles in a mixed-autonomy setting."""
 import collections
 import numpy as np
-from gym.spaces import Box
-from copy import deepcopy
 import random
 import os
+from gym.spaces import Box
+from copy import deepcopy
+from collections import defaultdict
+from csv import DictReader
 
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.networks import I210SubNetwork
+
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
+from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 
 
 BASE_ENV_PARAMS = dict(
@@ -252,44 +258,18 @@ class AVMultiAgentEnv(MultiEnv):
         self.leader = []
         self.follower = []
 
-        # used to handle missing observations of adjacent vehicles
-        max_speed = self.k.network.max_speed()
-        max_length = self.k.network.length()
-
         # Initialize a set on empty observations
         obs = {key: [0 for _ in range(5)] for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Add the speed of the ego vehicle.
-            obs[veh_id][0] = self.k.vehicle.get_speed(veh_id)
+            # Add relative observation of each vehicle.
+            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
 
-            # Add the speed and bumper-to-bumper headway of leading vehicles.
-            lead_id = self.k.vehicle.get_leader(veh_id)
-            if lead_id in ["", None]:
-                # in case leader is not visible
-                lead_speed = max_speed
-                lead_head = max_length
-            else:
-                lead_speed = self.k.vehicle.get_speed(lead_id)
-                lead_head = self.k.vehicle.get_headway(veh_id)
-                self.leader.append(lead_id)
-
-            obs[veh_id][1] = lead_speed
-            obs[veh_id][2] = lead_head
-
-            # Add the speed and bumper-to-bumper headway of following vehicles.
-            follow_id = self.k.vehicle.get_follower(veh_id)
-            if follow_id in ["", None]:
-                # in case follower is not visible
-                follow_speed = max_speed
-                follow_head = max_length
-            else:
-                follow_speed = self.k.vehicle.get_speed(follow_id)
-                follow_head = self.k.vehicle.get_headway(follow_id)
-                self.follower.append(follow_id)
-
-            obs[veh_id][3] = follow_speed
-            obs[veh_id][4] = follow_head
+            # Append to the leader/follower lists.
+            if leader not in ["", None]:
+                self.leader.append(leader)
+            if follower not in ["", None]:
+                self.follower.append(follower)
 
         return obs
 
@@ -546,20 +526,27 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
         super(AVOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(val)
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -582,6 +569,46 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
             [0, self.k.network.length()]
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
+
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
+
+        # These edges have an extra lane that RL vehicles do not traverse
+        # (since they do not change lanes). We as a result ignore their first
+        # lane computing per-lane states.
+        self._extra_lane_edges = [
+            "119257908#1-AddedOnRampEdge",
+            "119257908#1-AddedOffRampEdge",
+            ":119257908#1-AddedOnRampNode_0",
+            ":119257908#1-AddedOffRampNode_0",
+            "119257908#3",
+        ]
 
     def rl_ids(self):
         """See parent class."""
@@ -625,49 +652,59 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
-        # add rl vehicles that just entered the network into the rl queue
-        for veh_id in self.k.vehicle.get_rl_ids():
-            if veh_id not in \
-                    list(self.rl_queue) + self.rl_veh + self.removed_veh:
-                self.rl_queue.append(veh_id)
+        # Update the RL lists.
+        self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
+            self,
+            rl_queue=self.rl_queue,
+            rl_veh=self.rl_veh,
+            removed_veh=self.removed_veh,
+            control_range=self._control_range,
+            num_rl=self.num_rl,
+            rl_ids=reversed(sorted(
+                self.k.vehicle.get_rl_ids(), key=self.k.vehicle.get_x_by_id)),
+        )
 
-        # remove rl vehicles that exited the controllable range of the network
-        for veh_id in self.rl_veh:
-            if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1] \
-                    or veh_id not in self.k.vehicle.get_rl_ids():
-                self.removed_veh.append(veh_id)
-                self.rl_veh.remove(veh_id)
+        # Specify actions for the uncontrolled RL vehicles based on human-
+        # driven dynamics.
+        for veh_id in list(
+                set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
+            self._rl_controller.veh_id = veh_id
+            acceleration = self._rl_controller.get_action(self)
+            self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
-        # fill up rl_veh until they are enough controlled vehicles
-        while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
-            # ignore vehicles that are in the ghost edges
-            if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
-                    self._control_range[0]:
-                break
-
-            rl_id = self.rl_queue.popleft()
-            veh_pos = self.k.vehicle.get_x_by_id(rl_id)
-
-            # add the vehicle if it is within the control range
-            if veh_pos < self._control_range[1]:
-                self.rl_veh.append(rl_id)
-
-        # specify observed vehicles
+        # Specify observed vehicles.
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
+        end_speed = None
+        params = self.env_params.additional_params
+        if params["inflows"] is not None or params["warmup_path"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
+            if self.warmup_paths is not None:
+                # Choose a random available xml file.
+                xml_file = random.sample(self.warmup_paths, 1)[0]
+                xml_num = int(xml_file.split(".")[0])
+
+                # Update the choice of initial conditions.
+                self.sim_params.load_state = os.path.join(
+                    params["warmup_path"], xml_file)
+
+                # Assign the inflow rate to match the xml number.
+                inflow_rate = self.warmup_description["inflow"][xml_num]
+                end_speed = self.warmup_description["end_speed"][xml_num]
+                print("inflow: {}, end_speed: {}".format(
+                    inflow_rate, end_speed))
+            else:
+                # New inflow rate for human and automated vehicles, randomly
+                # assigned based on the inflows variable
+                inflow_range = self.env_params.additional_params["inflows"]
+                inflow_low = inflow_range[0]
+                inflow_high = inflow_range[1]
+                inflow_rate = random.randint(inflow_low, inflow_high)
 
             # Create a new inflow object.
             new_inflow = InFlows()
@@ -680,6 +717,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
                 # Get the inflow rate of the lane/edge based on whether the
                 # vehicle types are human-driven or automated.
+                penetration = params["rl_penetration"]
                 if veh_type == "human":
                     vehs_per_hour = inflow_rate * (1 - penetration)
                 else:
@@ -707,12 +745,62 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             )
             self.net_params = new_net_params
 
+        # Clear all AV-related attributes.
+        self._clear_attributes()
+
+        _ = super(AVOpenMultiAgentEnv, self).reset()
+
+        # Add automated vehicles.
+        if self.warmup_paths is not None:
+            self._add_automated_vehicles()
+
+        # Update the end speed, if specified.
+        if end_speed is not None:
+            self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return np.copy(obs)
+
+    def _clear_attributes(self):
+        """Clear all AV-related attributes."""
         self.leader = []
         self.follower = []
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        return super(AVOpenMultiAgentEnv, self).reset()
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(self._num_lanes):
+            sorted_vehicles_lane = [
+                veh_id for veh_id in sorted_vehicles
+                if self._get_lane(veh_id) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    pos = self.k.vehicle.get_x_by_id(veh_id)
+                    if pos < self._control_range[1]:
+                        self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+    def _get_lane(self, veh_id):
+        """Return a processed lane number."""
+        lane = self.k.vehicle.get_lane(veh_id)
+        edge = self.k.vehicle.get_edge(veh_id)
+        return lane if edge not in self._extra_lane_edges else lane - 1
 
 
 class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
@@ -742,9 +830,18 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
         """See parent class."""
-        for p in OPEN_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError('Env parameter "{}" not supplied'.format(p))
+        super(I210LaneMultiAgentEnv, self).__init__(
+            env_params=env_params,
+            sim_params=sim_params,
+            network=network,
+            simulator=simulator,
+        )
+
+        # queue of rl vehicles in each lane that are waiting to be controlled
+        self.rl_queue = [collections.deque() for _ in range(5)]
+
+        # names of the rl vehicles in each lane that are controlled at any step
+        self.rl_veh = [[] for _ in range(5)]
 
         # this is stored to be reused during the reset procedure
         self._network_cls = network.__class__
@@ -753,62 +850,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         self._network_initial_config = deepcopy(network.initial_config)
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
-
-        super(I210LaneMultiAgentEnv, self).__init__(
-            env_params=env_params,
-            sim_params=sim_params,
-            network=network,
-            simulator=simulator,
-        )
-
-        # Get the paths to all the initial state xml files
-        warmup_path = env_params.additional_params["warmup_path"]
-        self.warmup_paths = [
-            os.path.join(warmup_path, f)
-            for f in os.listdir(warmup_path) if f.endswith(".xml")
-        ]
-
-        # maximum number of controlled vehicles
-        self.num_rl = env_params.additional_params["num_rl"]
-
-        # queue of rl vehicles in each lane that are waiting to be controlled
-        self.rl_queue = [collections.deque() for _ in range(5)]
-
-        # names of the rl vehicles in each lane that are controlled at any step
-        self.rl_veh = [[] for _ in range(5)]
-
-        # names of the rl vehicles past the control range
-        self.removed_veh = []
-
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
-
-        # control range, updated to be entire network if not specified
-        self._control_range = \
-            self.env_params.additional_params["control_range"] or \
-            [0, self.k.network.length()]
-
-        # These edges have an extra edge that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = [
-            "119257908#1-AddedOnRampEdge",
-            "119257908#1-AddedOffRampEdge",
-            ":119257908#1-AddedOnRampNode_0",
-            ":119257908#1-AddedOffRampNode_0",
-        ]
-
-        # dynamics controller for uncontrolled RL vehicles (mimics humans)
-        controller = self.k.vehicle.type_parameters["human"][
-            "acceleration_controller"]
-        self._rl_controller = controller[0](
-            veh_id="rl",
-            car_following_params=self.k.vehicle.type_parameters["human"][
-                "car_following_params"],
-            **controller[1]
-        )
 
     @property
     def action_space(self):
@@ -868,10 +909,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         self.leader = []
         self.follower = []
 
-        # used to handle missing observations of adjacent vehicles
-        max_speed = self.k.network.max_speed()
-        max_length = self.k.network.length()
-
         # Initialize a set on empty observations
         obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
                for i in range(5)}
@@ -880,40 +917,16 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
-            key = "lane_{}".format(lane)
             for i, veh_id in enumerate(rl_ids):
-                # Add the speed of the ego vehicle.
-                obs[key][5 * i] = self.k.vehicle.get_speed(veh_id, error=0)
+                # Add relative observation of each vehicle.
+                obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
+                    leader, follower = get_relative_obs(self, veh_id)
 
-                # Add the speed and bumper-to-bumper headway of leading
-                # vehicles.
-                leader = self.k.vehicle.get_leader(veh_id)
-                if leader in ["", None]:
-                    # in case leader is not visible
-                    lead_speed = max_speed
-                    lead_head = max_length
-                else:
-                    lead_speed = self.k.vehicle.get_speed(leader, error=0)
-                    lead_head = self.k.vehicle.get_headway(veh_id, error=0)
+                # Append to the leader/follower lists.
+                if leader not in ["", None]:
                     self.leader.append(leader)
-
-                obs[key][5 * i + 1] = lead_speed
-                obs[key][5 * i + 2] = lead_head
-
-                # Add the speed and bumper-to-bumper headway of following
-                # vehicles.
-                follower = self.k.vehicle.get_follower(veh_id)
-                if follower in ["", None]:
-                    # in case follower is not visible
-                    follow_speed = max_speed
-                    follow_head = max_length
-                else:
-                    follow_speed = self.k.vehicle.get_speed(follower, error=0)
-                    follow_head = self.k.vehicle.get_headway(follower, error=0)
+                if follower not in ["", None]:
                     self.follower.append(follower)
-
-                obs[key][5 * i + 3] = follow_speed
-                obs[key][5 * i + 4] = follow_head
 
         return obs
 
@@ -973,149 +986,37 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         for lane in range(5):
             # Collect the names of the RL vehicles on the given lane, while
             # tacking into account edges with an extra lane.
-            rl_ids = [
-                veh for veh in self.k.vehicle.get_rl_ids()
-                if self._get_lane(veh) == lane
-            ]
+            rl_ids = [veh for veh in self.k.vehicle.get_rl_ids()
+                      if self._get_lane(veh) == lane]
 
-            # add rl vehicles that just entered the network into the rl queue
-            for veh_id in rl_ids:
-                if veh_id not in (list(self.rl_queue[lane]) +
-                                  self.rl_veh[lane] + self.removed_veh):
-                    self.rl_queue[lane].append(veh_id)
+            # Update the RL lists.
+            self.rl_queue[lane], self.rl_veh[lane], self.removed_veh[lane] = \
+                update_rl_veh(
+                    self,
+                    rl_queue=self.rl_queue[lane],
+                    rl_veh=self.rl_veh[lane],
+                    removed_veh=self.removed_veh[lane],
+                    control_range=self._control_range,
+                    num_rl=self.num_rl,
+                    rl_ids=reversed(sorted(
+                        rl_ids, key=self.k.vehicle.get_x_by_id)),
+                )
 
-            # remove rl vehicles that exited the controllable range of the
-            # network
-            for veh_id in self.rl_veh[lane]:
-                if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1]\
-                        or veh_id not in self.k.vehicle.get_rl_ids():
-                    self.removed_veh.append(veh_id)
-                    self.rl_veh[lane].remove(veh_id)
-
-            # fill up rl_veh until they are enough controlled vehicles
-            while len(self.rl_queue[lane]) > 0 \
-                    and len(self.rl_veh[lane]) < self.num_rl:
-                # ignore vehicles that are in the ghost edges
-                if self.k.vehicle.get_x_by_id(self.rl_queue[lane][0]) < \
-                        self._control_range[0]:
-                    break
-
-                rl_id = self.rl_queue[lane].popleft()
-                veh_pos = self.k.vehicle.get_x_by_id(rl_id)
-
-                # add the vehicle if it is within the control range
-                if veh_pos < self._control_range[1]:
-                    self.rl_veh[lane].append(rl_id)
-
-            # specify observed vehicles
-            for veh_id in self.leader + self.follower:
-                self.k.vehicle.set_observed(veh_id)
-
-            # specify actions for the uncontrolled RL vehicles based on human-
-            # driven dynamics
+            # Specify actions for the uncontrolled RL vehicles based on human-
+            # driven dynamics.
             for veh_id in list(set(rl_ids) - set(self.rl_veh[lane])):
                 self._rl_controller.veh_id = veh_id
                 acceleration = self._rl_controller.get_action(self)
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
-    def reset(self, new_inflow_rate=None):
-        """See class definition."""
-        penetration = self.env_params.additional_params["rl_penetration"]
+        # Specify observed vehicles.
+        for veh_id in self.leader + self.follower:
+            self.k.vehicle.set_observed(veh_id)
 
-        # Make sure restart instance is set to True when resetting.
-        self.sim_params.restart_instance = True
-
-        # Update the choice of initial conditions.
-        self.sim_params.load_state = random.sample(self.warmup_paths, 1)[0]
-
-        if self.env_params.additional_params["inflows"] is not None:
-            # New inflow rate for human and automated vehicles.
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
-
-            # Create a new inflow object.
-            new_inflow = InFlows()
-
-            for inflow_i in self._network_net_params.inflows.get():
-                veh_type = inflow_i["vtype"]
-                edge = inflow_i["edge"]
-                depart_lane = inflow_i["departLane"]
-                depart_speed = inflow_i["departSpeed"]
-
-                # Get the inflow rate of the lane/edge based on whether the
-                # vehicle types are human-driven or automated.
-                if veh_type == "human":
-                    vehs_per_hour = inflow_rate * (1 - penetration)
-                else:
-                    vehs_per_hour = inflow_rate * penetration
-
-                new_inflow.add(
-                    veh_type=veh_type,
-                    edge=edge,
-                    vehs_per_hour=vehs_per_hour,
-                    depart_lane=depart_lane,
-                    depart_speed=depart_speed,
-                )
-
-            # Add the new inflows to NetParams.
-            new_net_params = deepcopy(self._network_net_params)
-            new_net_params.inflows = new_inflow
-
-            # Update the network.
-            self.network = self._network_cls(
-                self._network_name,
-                net_params=new_net_params,
-                vehicles=self._network_vehicles,
-                initial_config=self._network_initial_config,
-                traffic_lights=self._network_traffic_lights,
-            )
-            self.net_params = new_net_params
-
+    def _clear_attributes(self):
+        """See parent class."""
         self.leader = []
         self.follower = []
         self.rl_veh = [[] for _ in range(5)]
         self.removed_veh = []
         self.rl_queue = [collections.deque() for _ in range(5)]
-        _ = super(AVOpenMultiAgentEnv, self).reset()
-
-        # Add automated vehicles.
-        self._add_automated_vehicles()
-
-        # Add the vehicles to their respective attributes.
-        self.additional_command()
-
-        # Recompute the initial observation.
-        obs = self.get_state()
-
-        return np.copy(obs)
-
-    def _add_automated_vehicles(self):
-        """Replace a portion of vehicles with automated vehicles."""
-        penetration = self.env_params.additional_params["rl_penetration"]
-
-        # Sort the initial vehicles by their positions.
-        sorted_vehicles = sorted(
-            self.k.vehicle.get_ids(),
-            key=lambda x: self.k.vehicle.get_x_by_id(x))
-
-        # Replace every nth vehicle with an RL vehicle.
-        for lane in range(5):
-            sorted_vehicles_lane = [
-                veh_id for veh_id in sorted_vehicles
-                if self._get_lane(veh_id) == lane]
-
-            for i, veh_id in enumerate(sorted_vehicles_lane):
-                if (i + 1) % int(1 / penetration) == 0:
-                    # Don't add vehicles past the control range.
-                    if self.k.vehicle.get_x_by_id(veh_id) > \
-                            self._control_range[1]:
-                        continue
-                    self.k.vehicle.set_vehicle_type(veh_id, "rl")
-
-    def _get_lane(self, veh_id):
-        """Return a processed lane number."""
-        lane = self.k.vehicle.get_lane(veh_id)
-        edge = self.k.vehicle.get_edge(veh_id)
-        return lane if edge not in self._extra_lane_edges else lane - 1
