@@ -84,7 +84,6 @@ class UniversalAntMazeEnv(AntMazeEnv):
             n_bins=0,
             sensor_range=3.,
             sensor_span=2 * np.pi,
-            observe_blocks=False,
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
@@ -312,7 +311,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
-            manual_collision=False
+            manual_collision=False,
         )
 
         self.horizon = horizon
@@ -412,11 +411,11 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
 
         if self.use_contexts:
             # Add success to the info dict
-            dist = self.contextual_reward(
+            dist = 7.2 * np.log(self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
                 goals=self.current_context,
-            )
+            ))
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
@@ -580,7 +579,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=(2.0 / 11.313708499),
+                reward_scales=1/7.2,
                 output_activation=np.exp)
 
         super(HumanoidMaze, self).__init__(
