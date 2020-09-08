@@ -99,7 +99,8 @@ class UpperConfidenceBounds(ExplorationStrategy):
 
     def apply_noise(self, action):
         """See parent class."""
-        ucb_reward = self.reward_average + np.sqrt(np.divide(2*np.log(self.time_steps), self.action_counts))
+        ucb_reward = self.reward_average + np.sqrt(np.divide(
+                     2*np.log(self.time_steps), self.action_counts))
         return argmax_random(ucb_reward)
 
     def update(self, obs0, actions, rewards, obs1, terminals1):
@@ -154,7 +155,8 @@ class ThompsonSampling(ExplorationStrategy):
             self.alpha = np.ones(self.ac_space)
             self.beta = np.ones(self.ac_space)
         else:
-            raise NotImplementedError("the prior distribution you choose is not yet implemented")
+            raise NotImplementedError("the prior distribution you choose "
+                                      "is not yet implemented")
 
     def apply_noise(self, action):
         """See parent class."""
@@ -162,7 +164,8 @@ class ThompsonSampling(ExplorationStrategy):
             thompson_reward = np.random.beta(self.alpha, self.beta)
             return argmax_random(thompson_reward)
         else:
-            raise NotImplementedError("the prior distribution you choose is not yet implemented")
+            raise NotImplementedError("the prior distribution you choose "
+                                      "is not yet implemented")
 
     def update(self, obs0, actions, rewards, obs1, terminals1):
         """Do nothing."""
@@ -171,7 +174,8 @@ class ThompsonSampling(ExplorationStrategy):
             self.alpha[actions] += rewards
             self.beta[actions] += (1 - rewards)
         else:
-            raise NotImplementedError("the prior distribution you choose is not yet implemented")
+            raise NotImplementedError("the prior distribution you choose "
+                                      "is not yet implemented")
 
 
 class OutputNoise(ExplorationStrategy):

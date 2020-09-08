@@ -522,6 +522,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     )
                 else:
                     # Perform the regular meta update procedure.
+                    # TODO: update the rewards
+                    # exploration_strategy.update_reward(rew[i])
                     vf_loss, pi_loss = self.policy[i].update_from_batch(
                         obs0=obs0[i],
                         actions=act[i],
