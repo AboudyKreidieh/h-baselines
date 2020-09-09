@@ -1,10 +1,11 @@
-"""Script algorithm contain the base off-policy RL algorithm class.
+"""Script algorithm contain the base RL algorithm class.
 
 Supported algorithms through this class:
 
 * Twin Delayed Deep Deterministic Policy Gradient (TD3): see
   https://arxiv.org/pdf/1802.09477.pdf
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
+* Proximal Policy Optimization (PPO): see https://arxiv.org/pdf/1707.06347.pdf
 
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
@@ -219,7 +220,7 @@ class RLAlgorithm(object):
 
     Attributes
     ----------
-    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.Policy ]
         the policy model to use
     env_name : str
         name of the environment. Affects the action bounds of the higher-level
@@ -353,7 +354,7 @@ class RLAlgorithm(object):
 
         Parameters
         ----------
-        policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+        policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
