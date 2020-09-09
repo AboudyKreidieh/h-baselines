@@ -1089,6 +1089,9 @@ class RLAlgorithm(object):
                 obs, eval_r, done, info = env.step(eval_action)
                 obs, all_obs = get_obs(obs)
 
+                if self.env_name == "HumanoidMaze":
+                    eval_r = 0.72 * np.log(eval_r)
+
                 # Visualize the current step.
                 if self.render_eval:
                     self.eval_env.render()  # pragma: no cover
@@ -1099,6 +1102,8 @@ class RLAlgorithm(object):
                     context = getattr(env, "current_context")
                     reward_fn = getattr(env, "contextual_reward")
                     rets = np.append(rets, reward_fn(eval_obs, context, obs))
+                    if self.env_name == "HumanoidMaze":
+                        rets[-1] = 0.72 * np.log(rets[-1])
 
                 # Get the contextual term.
                 context0 = context1 = getattr(env, "current_context", None)
