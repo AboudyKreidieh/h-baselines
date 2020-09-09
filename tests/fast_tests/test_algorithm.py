@@ -261,7 +261,7 @@ class TestRLAlgorithm(unittest.TestCase):
         alg.learn(0, log_dir='results', initial_exploration_steps=0)
 
         # Check the size of the replay buffer
-        self.assertEqual(len(alg.policy_tf.replay_buffer), 1)
+        self.assertEqual(len(alg.policy_tf.replay_buffer), 0)
 
         # Clear memory.
         del alg
