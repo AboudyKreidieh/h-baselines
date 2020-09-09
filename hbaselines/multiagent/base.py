@@ -20,7 +20,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using independent learners, do not modify any
       policy-specific attributes:
 
-      >>> from hbaselines.algorithms.off_policy import RLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
@@ -38,7 +38,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using the shared policy feature, set the `shared`
       attribute to True:
 
-      >>> from hbaselines.algorithms.off_policy import RLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
@@ -54,7 +54,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using their MADDPG variants as opposed to independent
       learners, algorithm, set the `maddpg` attribute to True:
 
-      >>> from hbaselines.algorithms.off_policy import RLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
