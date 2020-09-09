@@ -222,7 +222,7 @@ class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            0.7788007830667997
+            0.8216682531742017
         )
 
     def test_context_space(self):
