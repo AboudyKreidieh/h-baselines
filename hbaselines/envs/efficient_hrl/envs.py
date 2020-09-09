@@ -84,6 +84,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             n_bins=0,
             sensor_range=3.,
             sensor_span=2 * np.pi,
+            observe_blocks=False,
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
