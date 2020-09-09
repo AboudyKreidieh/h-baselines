@@ -1,9 +1,9 @@
 """Utility methods when performing training."""
 import argparse
-from hbaselines.algorithms.off_policy import TD3_PARAMS
-from hbaselines.algorithms.off_policy import SAC_PARAMS
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy, is_td3_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
