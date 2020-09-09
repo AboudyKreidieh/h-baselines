@@ -105,6 +105,7 @@ class AntGatherEnv(GatherEnv):
 
 
 class SwimmerGatherEnv(AntGatherEnv):
+    """Swimmer Gather environment."""
 
     MODEL_CLASS = SwimmerEnv
     ORI_IND = 2
