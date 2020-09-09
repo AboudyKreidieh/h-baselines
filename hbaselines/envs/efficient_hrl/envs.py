@@ -416,7 +416,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
                 next_states=obs,
                 goals=self.current_context,
             ))
-            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
+            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
 
             # Replace the reward with the contextual reward.
             rew = dist
