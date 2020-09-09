@@ -585,7 +585,8 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         #
         # # test case 6
         # policy_params = self.policy_params.copy()
-        # policy_params["intrinsic_reward_type"] = "scaled_exp_negative_distance"
+        # policy_params["intrinsic_reward_type"] =
+        # "scaled_exp_negative_distance"
         # policy = TD3GoalConditionedPolicy(**policy_params)
         #
         # self.assertAlmostEqual(
