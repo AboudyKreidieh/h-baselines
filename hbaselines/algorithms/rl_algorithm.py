@@ -1,4 +1,4 @@
-"""Script algorithm contain the base off-policy RL algorithm class.
+"""Script algorithm contain the base RL algorithm class.
 
 Supported algorithms through this class:
 
@@ -178,7 +178,7 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 
 
 class RLAlgorithm(object):
-    """Off-policy RL algorithm class.
+    """RL algorithm class.
 
     Supports the training of TD3 and SAC policies.
 
@@ -776,10 +776,11 @@ class RLAlgorithm(object):
 
         with self.sess.as_default(), self.graph.as_default():
             # Collect preliminary random samples.
-            print("Collecting initial exploration samples...")
-            self._collect_samples(run_steps=initial_exploration_steps,
-                                  random_actions=True)
-            print("Done!")
+            if initial_exploration_steps > 0:
+                print("Collecting initial exploration samples...")
+                self._collect_samples(run_steps=initial_exploration_steps,
+                                      random_actions=True)
+                print("Done!")
 
             # Reset total statistics variables.
             self.episodes = 0

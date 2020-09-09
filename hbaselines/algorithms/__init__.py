@@ -1,4 +1,5 @@
 """Init script for the algorithms submodule."""
-from hbaselines.algorithms.off_policy import RLAlgorithm
+from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+from hbaselines.algorithms.rl_algorithm import RLAlgorithm
 
-__all__ = ["RLAlgorithm"]
+__all__ = ["OffPolicyRLAlgorithm", "RLAlgorithm"]

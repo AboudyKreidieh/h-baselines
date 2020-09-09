@@ -377,7 +377,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -386,11 +386,11 @@ following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
@@ -431,7 +431,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -440,11 +440,11 @@ default policy parameters can be found via the following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
@@ -825,7 +825,7 @@ multi-agent algorithms:
   policy-specific attributes:
 
   ```python
-  from hbaselines.algorithms.off_policy import RLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = RLAlgorithm(
@@ -846,7 +846,7 @@ multi-agent algorithms:
   attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import RLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = RLAlgorithm(
@@ -865,7 +865,7 @@ multi-agent algorithms:
   learners, algorithm, set the `maddpg` attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import RLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
   alg = RLAlgorithm(
