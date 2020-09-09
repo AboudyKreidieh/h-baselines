@@ -177,7 +177,7 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 ))
 
 
-class OffPolicyRLAlgorithm(object):
+class RLAlgorithm(object):
     """Off-policy RL algorithm class.
 
     Supports the training of TD3 and SAC policies.
