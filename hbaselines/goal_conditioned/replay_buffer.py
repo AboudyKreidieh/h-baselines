@@ -298,7 +298,6 @@ class HierReplayBuffer(object):
             corrections or centralized value functions
         """
         meta_period = self.meta_period
-        num_levels = self.num_levels
         obses = [[] for _ in range(self.num_levels)]
         contexts = [[] for _ in range(self.num_levels)]
         actions = [[] for _ in range(self.num_levels)]
@@ -333,6 +332,9 @@ class HierReplayBuffer(object):
             candidate_reward = self._reward_t[indx]
             candidate_done = self._done_t[indx]
 
+            # Collect the sample information for the highest level policy. This
+            # will be the first or last element in the list, depended on if the
+            # element represents the start of end of a sample (e.g. next_obs).
             obses[0].append(candidate_obs[0])
             contexts[0].append(candidate_context[0])
             actions[0].append(candidate_action[0][0])
@@ -341,25 +343,40 @@ class HierReplayBuffer(object):
             rewards[0].append(candidate_reward[0][0])
             dones[0].append(candidate_done[-1])
 
-            idx_val = random.randint(0, len(candidate_obs) - 2)
+            # Choose a subsample taking a specific point in time.
+            total_time = len(candidate_obs) - 1
+            sample_time = random.randint(0, total_time - 1)
 
+            # Collect samples for each level.
             for i in reversed(range(1, self.num_levels)):
-                obses[i].append(
-                    candidate_obs[idx_val])
-                contexts[i].append(candidate_action[i - 1][
-                    int(idx_val / meta_period ** (num_levels - i - 1))])
-                actions[i].append(candidate_action[i][
-                    int(idx_val / meta_period ** max(num_levels - i - 2, 0))])
-                next_obses[i].append(candidate_obs[
-                    idx_val + meta_period ** (num_levels-i-1)])
-                next_contexts[i].append(candidate_action[i - 1][
-                    int(idx_val / meta_period ** (num_levels - i - 1)) + 1])
-                rewards[i].append(candidate_reward[i][
-                    int(idx_val / meta_period ** (num_levels-i-1))])
-                dones[i].append(
-                    candidate_done[idx_val])
+                # Compute the level number, with zero corresponding to the
+                # lowest (worker) policy.
+                level_num = self.num_levels - i - 1
 
-                idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
+                obses[i].append(candidate_obs[sample_time])
+                dones[i].append(candidate_done[sample_time])
+
+                indx_next_obs = min(
+                    sample_time + meta_period ** level_num, total_time)
+                next_obses[i].append(candidate_obs[indx_next_obs])
+
+                indx_context = int(sample_time / meta_period ** level_num)
+                contexts[i].append(candidate_action[i - 1][indx_context])
+
+                indx_actions = int(
+                    sample_time / meta_period ** max(level_num - 1, 0))
+                actions[i].append(candidate_action[i][indx_actions])
+
+                indx_context = int(sample_time / meta_period ** level_num) + 1
+                next_contexts[i].append(candidate_action[i - 1][indx_context])
+
+                indx_rewards = int(sample_time / meta_period ** level_num)
+                rewards[i].append(candidate_reward[i][indx_rewards])
+
+                # Update the sample time to match the start of the meta period
+                # for the next higher-level.
+                sample_time -= sample_time % self.meta_period ** (
+                    self.num_levels - i)
 
             # TODO: only works for two level hierarchies.
             if with_additional:

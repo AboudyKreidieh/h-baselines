@@ -19,7 +19,7 @@ LOG_STD_MIN = -20
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
-    """Feed-forward neural network actor-critic policy.
+    """SAC-compatible feedforward policy.
 
     Attributes
     ----------

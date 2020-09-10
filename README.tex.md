@@ -22,7 +22,7 @@ available [here]().
     1.3. [Importing AntGather](#13-importing-antgather)  
     1.4. [Installing Flow](#14-installing-flow)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
-    2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
+    2.1. [RL Algorithms](#21-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
     2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
@@ -186,22 +186,22 @@ python experiments/run_fcnet.py "flow:singleagent_ring"
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-## 2.1 Off-Policy RL Algorithms
+## 2.1 RL Algorithms
 
 This repository supports the training of policies via two state-of-the-art 
 off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
 [SAC](https://arxiv.org/pdf/1801.01290.pdf).
 
-To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
+To train a policy using this algorithm, create a `RLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
 along the process:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
+alg = RLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -262,9 +262,9 @@ To assign multiple CPUs/environments for a given training algorithm, set the
 `num_envs` term as seen below:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     # set num_envs as seen in the above figure
     num_envs=3,
@@ -356,11 +356,11 @@ like to train a fully connected network using the TD3 algorithm with a hidden
 size of [64, 64], this could be done as such:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
     policy_kwargs={
@@ -377,7 +377,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -386,11 +386,11 @@ following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
@@ -431,7 +431,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -440,11 +440,11 @@ default policy parameters can be found via the following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
 ```
 
@@ -455,10 +455,10 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -535,10 +535,10 @@ set the `intrinsic_reward_type` attribute to the type of intrinsic reward you
 would like to use:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -578,10 +578,10 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -605,10 +605,10 @@ when training a hierarchical policy, set the `off_policy_corrections` parameter
 to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -734,10 +734,10 @@ In order to use hindsight action and goal transitions when training a
 hierarchical policy, set the `hindsight` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -771,10 +771,10 @@ term ($\lambda$ in the above equation), can be modified via the
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -825,10 +825,10 @@ multi-agent algorithms:
   policy-specific attributes:
 
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={}
@@ -846,10 +846,10 @@ multi-agent algorithms:
   attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={
@@ -865,10 +865,10 @@ multi-agent algorithms:
   learners, algorithm, set the `maddpg` attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={
