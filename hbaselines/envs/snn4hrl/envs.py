@@ -3,9 +3,7 @@ import math
 from rllab.envs.mujoco.gather.gather_env import GatherEnv
 from sandbox.snn4hrl.envs.mujoco.ant_env import AntEnv
 from sandbox.snn4hrl.envs.mujoco.swimmer_env import SwimmerEnv
-
-# environment time horizon
-HORIZON = 500
+from hbaselines.envs.snn4hrl.snake_gather import SnakeEnv
 
 
 class AntGatherEnv(GatherEnv):
@@ -16,6 +14,7 @@ class AntGatherEnv(GatherEnv):
 
     MODEL_CLASS = AntEnv
     ORI_IND = 3
+    HORIZON = 500
 
     def __init__(self,
                  n_apples=8,
@@ -37,7 +36,7 @@ class AntGatherEnv(GatherEnv):
 
         * activity_range: 6 -> 10
         * sensor_span: pi -> 2*pi
-        * dying_cost: 0 -> -10
+        * dying_cost: -10 -> 0
 
         We also add a horizon attribute which is set to 500.
 
@@ -101,7 +100,7 @@ class AntGatherEnv(GatherEnv):
     @property
     def horizon(self):
         """Return the environment time horizon."""
-        return HORIZON
+        return self.HORIZON
 
 
 class SwimmerGatherEnv(AntGatherEnv):
@@ -109,3 +108,12 @@ class SwimmerGatherEnv(AntGatherEnv):
 
     MODEL_CLASS = SwimmerEnv
     ORI_IND = 2
+    HORIZON = 500
+
+
+class SnakeGatherEnv(AntGatherEnv):
+    """Snake Gather environment."""
+
+    MODEL_CLASS = SnakeEnv
+    ORI_IND = 2
+    HORIZON = 800
