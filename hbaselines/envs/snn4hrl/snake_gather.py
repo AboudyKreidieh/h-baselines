@@ -1,6 +1,8 @@
+"""Snake Mujoco environment."""
 from rllab.envs.base import Step
 from rllab.misc.overrides import overrides
-from sandbox.snn4hrl.envs.mujoco.mujoco_env import MujocoEnv_ObsInit as MujocoEnv
+from sandbox.snn4hrl.envs.mujoco.mujoco_env import MujocoEnv_ObsInit \
+    as MujocoEnv
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.misc import autoargs
@@ -10,6 +12,8 @@ BIG = 1e6
 
 
 class SnakeEnv(MujocoEnv, Serializable):
+    """Snake Mujoco environment."""
+
     FILE = 'snake.xml'
     ORI_IND = 2
 
@@ -28,6 +32,7 @@ class SnakeEnv(MujocoEnv, Serializable):
         Serializable.quick_init(self, locals())
 
     def get_current_obs(self):
+        """Return the current position."""
         if self.ego_obs:
             return np.concatenate([
                 self.model.data.qpos.flat[2:],
@@ -41,16 +46,19 @@ class SnakeEnv(MujocoEnv, Serializable):
             ]).reshape(-1)
 
     def get_ori(self):
+        """Return the orientation."""
         return self.model.data.qpos[self.__class__.ORI_IND]
 
     def step(self, action):
+        """Advance the simulation by one step."""
         self.forward_dynamics(action)
         next_obs = self.get_current_obs()
         lb, ub = self.action_bounds
         scaling = (ub - lb) * 0.5
         ctrl_cost = 0.5 * self.ctrl_cost_coeff * np.sum(
             np.square(action / scaling))
-        forward_reward = np.linalg.norm(self.get_body_comvel("torso"))  # swimmer has no problem of jumping reward
+        # swimmer has no problem of jumping reward
+        forward_reward = np.linalg.norm(self.get_body_comvel("torso"))
         reward = forward_reward - ctrl_cost
         done = False
         if self.sparse_rew:
@@ -65,9 +73,11 @@ class SnakeEnv(MujocoEnv, Serializable):
 
     @overrides
     def log_diagnostics(self, paths, prefix=''):
+        """Log statistics."""
         progs = [
-            np.linalg.norm(path["env_infos"]["com"][-1] - path["env_infos"]["com"][0])
+            np.linalg.norm(
+                path["env_infos"]["com"][-1] - path["env_infos"]["com"][0])
             for path in paths
-            ]
+        ]
         logger.record_tabular_misc_stat('Progress', progs, 'front')
         self.plot_visitations(paths, visit_prefix=prefix)
