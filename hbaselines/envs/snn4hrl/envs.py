@@ -2,6 +2,7 @@
 import math
 from rllab.envs.mujoco.gather.gather_env import GatherEnv
 from sandbox.snn4hrl.envs.mujoco.ant_env import AntEnv
+from sandbox.snn4hrl.envs.mujoco.swimmer_env import SwimmerEnv
 
 # environment time horizon
 HORIZON = 500
@@ -101,3 +102,10 @@ class AntGatherEnv(GatherEnv):
     def horizon(self):
         """Return the environment time horizon."""
         return HORIZON
+
+
+class SwimmerGatherEnv(AntGatherEnv):
+    """Swimmer Gather environment."""
+
+    MODEL_CLASS = SwimmerEnv
+    ORI_IND = 2

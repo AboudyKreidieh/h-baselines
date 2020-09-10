@@ -18,6 +18,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+    from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -100,13 +101,13 @@ ENV_ATTRIBUTES = {
 
     "HumanoidMaze": {
         "meta_ac_space": lambda relative_goals: gym.spaces.Box(
-            low=np.array([-3.0, -3.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+            low=np.array([-10.0, -10.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                           0.785398, -0.9162995, -0.610865,
                           -0.26179925, -0.8290325, -1.134463, -1.3788117,
                           -0.26179925, -0.8290325, -1.134463, -1.3788117,
                           -1.265365, -1.265365, -1.2217325,
                           -1.265365, -1.265365, -1.2217325]),
-            high=np.array([3.0, 3.0, 1.0, 1.0, 1.0, 1.0,
+            high=np.array([10.0, 10.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 0.785398, 0.9162995, 0.610865,
                            0.26179925, 0.8290325, 1.134463, 1.3788117,
                            0.26179925, 0.8290325, 1.134463, 1.3788117,
@@ -255,19 +256,6 @@ ENV_ATTRIBUTES = {
         ),
     },
 
-    "AntGather": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                          -0.3, -0.5, -0.3, -0.5, -0.3]),
-            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
-                           0.3, 0.5, 0.3]),
-            dtype=np.float32,
-        ),
-        "state_indices": [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
-        AntGatherEnv(),
-    },
-
     "AntFourRooms": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
@@ -299,6 +287,34 @@ ENV_ATTRIBUTES = {
             context_range=[[30, 0], [0, 30], [30, 30]],
             evaluate=False,
         ),
+    },
+
+    # ======================================================================= #
+    # Gather environments.                                                    #
+    # ======================================================================= #
+
+    "SwimmerGather": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -np.pi/2, -np.pi/2, -np.pi/2]),
+            high=np.array([10, 10, np.pi/2, np.pi/2, np.pi/2]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        SwimmerGatherEnv(),
+    },
+
+    "AntGather": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(15)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        AntGatherEnv(),
     },
 
     # ======================================================================= #
