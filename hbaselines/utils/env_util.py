@@ -18,6 +18,7 @@ from hbaselines.envs.hac.envs import UR5, Pendulum
 
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+    from hbaselines.envs.snn4hrl.envs import SnakeGatherEnv
     from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
 except (ImportError, ModuleNotFoundError):
     pass
@@ -302,6 +303,19 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         SwimmerGatherEnv(),
+    },
+
+    "SnakeGather": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([
+                -10, -10, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2]),
+            high=np.array(
+                [10, 10, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(7)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        SnakeGatherEnv(),
     },
 
     "AntGather": {
