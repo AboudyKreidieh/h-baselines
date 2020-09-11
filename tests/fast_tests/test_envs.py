@@ -1900,7 +1900,7 @@ class TestAVMulti(unittest.TestCase):
             expected_rate = 1680.3 if veh_type == "human" else 186.7
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
-    def test_i210_lane_env(self):
+    def test_lane_open_env(self):
         """Validate the functionality of the LaneOpenMultiAgentEnv class.
 
         This tests checks for the following cases:
@@ -2223,7 +2223,7 @@ class TestAVImitation(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        env = AVOpenImitationEnv(
+        env = AVOpenEnv(
             env_params=self.env_params_open,
             sim_params=self.sim_params,
             network=self.network_open
