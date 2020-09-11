@@ -568,6 +568,17 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
+        # These edges have an extra lane that RL vehicles do not traverse
+        # (since they do not change lanes). We as a result ignore their first
+        # lane computing per-lane states.
+        self._extra_lane_edges = [
+            "119257908#1-AddedOnRampEdge",
+            "119257908#1-AddedOffRampEdge",
+            ":119257908#1-AddedOnRampNode_0",
+            ":119257908#1-AddedOffRampNode_0",
+            "119257908#3",
+        ]
+
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
@@ -690,6 +701,12 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self.rl_queue = collections.deque()
         return super(AVOpenMultiAgentEnv, self).reset()
 
+    def _get_lane(self, veh_id):
+        """Return a processed lane number."""
+        lane = self.k.vehicle.get_lane(veh_id)
+        edge = self.k.vehicle.get_edge(veh_id)
+        return lane if edge not in self._extra_lane_edges else lane - 1
+
 
 class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     """Lane-level network variant of AVOpenMultiAgentEnv.
@@ -719,18 +736,6 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
         """See parent class."""
-        for p in OPEN_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError('Env parameter "{}" not supplied'.format(p))
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
         super(LaneOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -738,37 +743,11 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             simulator=simulator,
         )
 
-        # maximum number of controlled vehicles
-        self.num_rl = env_params.additional_params["num_rl"]
-
         # queue of rl vehicles in each lane that are waiting to be controlled
         self.rl_queue = [collections.deque() for _ in range(5)]
 
         # names of the rl vehicles in each lane that are controlled at any step
         self.rl_veh = [[] for _ in range(5)]
-
-        # names of the rl vehicles past the control range
-        self.removed_veh = []
-
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
-
-        # control range, updated to be entire network if not specified
-        self._control_range = \
-            self.env_params.additional_params["control_range"] or \
-            [0, self.k.network.length()]
-
-        # These edges have an extra edge that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = [
-            "119257908#1-AddedOnRampEdge",
-            "119257908#1-AddedOffRampEdge",
-            ":119257908#1-AddedOnRampNode_0",
-            ":119257908#1-AddedOffRampNode_0",
-        ]
 
     @property
     def action_space(self):
@@ -897,59 +876,37 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     def additional_command(self):
         """See parent class.
 
-        This method performs to auxiliary tasks:
-
-        * Define which vehicles are observed for visualization purposes.
-        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
-          vehicles that are represented in the state space does not change
-          until one of the vehicles in the state space leaves the network.
-          Then, the next vehicle in the queue is added to the state space and
-          provided with actions from the policy. This is done at a per-lane
-          level.
+        Here, the operations are done at a per-lane level.
         """
         for lane in range(5):
             # Collect the names of the RL vehicles on the given lane, while
             # tacking into account edges with an extra lane.
-            rl_ids = [
-                veh for veh in self.k.vehicle.get_rl_ids()
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
-            ]
+            rl_ids = [veh for veh in self.k.vehicle.get_rl_ids()
+                      if self._get_lane(veh) == lane]
 
-            # add rl vehicles that just entered the network into the rl queue
-            for veh_id in rl_ids:
-                if veh_id not in (list(self.rl_queue[lane]) +
-                                  self.rl_veh[lane] + self.removed_veh):
-                    self.rl_queue[lane].append(veh_id)
+            # Update the RL lists.
+            self.rl_queue[lane], self.rl_veh[lane], self.removed_veh = \
+                update_rl_veh(
+                    self,
+                    rl_queue=self.rl_queue[lane],
+                    rl_veh=self.rl_veh[lane],
+                    removed_veh=self.removed_veh,
+                    control_range=self._control_range,
+                    num_rl=self.num_rl,
+                    rl_ids=reversed(sorted(
+                        rl_ids, key=self.k.vehicle.get_x_by_id)),
+                )
 
-            # remove rl vehicles that exited the controllable range of the
-            # network
-            for veh_id in self.rl_veh[lane]:
-                if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1]\
-                        or veh_id not in self.k.vehicle.get_rl_ids():
-                    self.removed_veh.append(veh_id)
-                    self.rl_veh[lane].remove(veh_id)
+            # Specify actions for the uncontrolled RL vehicles based on human-
+            # driven dynamics.
+            for veh_id in list(set(rl_ids) - set(self.rl_veh[lane])):
+                self._rl_controller.veh_id = veh_id
+                acceleration = self._rl_controller.get_action(self)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
-            # fill up rl_veh until they are enough controlled vehicles
-            while len(self.rl_queue[lane]) > 0 \
-                    and len(self.rl_veh[lane]) < self.num_rl:
-                # ignore vehicles that are in the ghost edges
-                if self.k.vehicle.get_x_by_id(self.rl_queue[lane][0]) < \
-                        self._control_range[0]:
-                    break
-
-                rl_id = self.rl_queue[lane].popleft()
-                veh_pos = self.k.vehicle.get_x_by_id(rl_id)
-
-                # add the vehicle if it is within the control range
-                if veh_pos < self._control_range[1]:
-                    self.rl_veh[lane].append(rl_id)
-
-            # specify observed vehicles
-            for veh_id in self.leader + self.follower:
-                self.k.vehicle.set_observed(veh_id)
+        # Specify observed vehicles.
+        for veh_id in self.leader + self.follower:
+            self.k.vehicle.set_observed(veh_id)
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
