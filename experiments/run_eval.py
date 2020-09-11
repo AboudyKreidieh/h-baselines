@@ -27,8 +27,6 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
 
-from flow.core.rewards import instantaneous_mpg
-
 
 # dictionary that maps policy names to policy objects
 POLICY_DICT = {
