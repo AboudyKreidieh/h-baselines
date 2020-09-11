@@ -14,7 +14,7 @@ from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import I210LaneMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
 
@@ -123,7 +123,7 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = None  # to be added later
         else:
-            env_name = I210LaneMultiAgentEnv
+            env_name = LaneOpenMultiAgentEnv
     else:
         if imitation:
             env_name = AVOpenImitationEnv

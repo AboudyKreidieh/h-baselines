@@ -784,7 +784,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                         self.k.vehicle.set_vehicle_type(veh_id, "rl")
 
 
-class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
+class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     """Lane-level network variant of AVOpenMultiAgentEnv.
 
     Unlike previous environments in this file, this environment treats every
@@ -811,7 +811,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
         """See parent class."""
-        super(I210LaneMultiAgentEnv, self).__init__(
+        super(LaneOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
