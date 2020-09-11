@@ -14,7 +14,7 @@ from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
-from hbaselines.envs.mixed_autonomy.envs import HighwayOpenEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
@@ -163,7 +163,7 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = AVOpenImitationEnv
         else:
-            env_name = HighwayOpenEnv
+            env_name = AVOpenEnv
 
     return dict(
         # name of the experiment

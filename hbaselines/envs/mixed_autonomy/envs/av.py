@@ -12,9 +12,11 @@ from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.controllers import FollowerStopper
+from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
 
 
 BASE_ENV_PARAMS = dict(
@@ -468,7 +470,7 @@ class AVClosedEnv(AVEnv):
         return obs
 
 
-class HighwayOpenEnv(AVEnv):
+class AVOpenEnv(AVEnv):
     """Variant of AVEnv that is compatible with highway networks.
 
     This environment is suitable for training policies on a highway network.
@@ -528,7 +530,7 @@ class HighwayOpenEnv(AVEnv):
                     and env_params.additional_params["inflows"] is not None), \
             "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
 
-        super(HighwayOpenEnv, self).__init__(
+        super(AVOpenEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
@@ -602,16 +604,16 @@ class HighwayOpenEnv(AVEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
-        # the name of the final edge, whose speed limit may be updated
-        self._final_edge = "highway_end"
-
-        # These edges have an extra lane that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = []
-
-        # maximum number of lanes to add vehicles across
-        self._num_lanes = 1
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
 
     @property
     def action_space(self):
@@ -661,7 +663,7 @@ class HighwayOpenEnv(AVEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
-        super(HighwayOpenEnv, self).additional_command()
+        super(AVOpenEnv, self).additional_command()
 
         # Update the RL lists.
         self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
@@ -757,7 +759,7 @@ class HighwayOpenEnv(AVEnv):
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        _ = super(HighwayOpenEnv, self).reset()
+        _ = super(AVOpenEnv, self).reset()
 
         # Add automated vehicles.
         if self.warmup_paths is not None:
@@ -787,8 +789,7 @@ class HighwayOpenEnv(AVEnv):
         # Replace every nth vehicle with an RL vehicle.
         for lane in range(self._num_lanes):
             sorted_vehicles_lane = [
-                veh_id for veh_id in sorted_vehicles
-                if self._get_lane(veh_id) == lane]
+                veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
 
             for i, veh_id in enumerate(sorted_vehicles_lane):
                 self.k.vehicle.set_vehicle_type(veh_id, "human")
@@ -798,67 +799,3 @@ class HighwayOpenEnv(AVEnv):
                     pos = self.k.vehicle.get_x_by_id(veh_id)
                     if pos < self._control_range[1]:
                         self.k.vehicle.set_vehicle_type(veh_id, "rl")
-
-    def _get_lane(self, veh_id):
-        """Return a processed lane number."""
-        lane = self.k.vehicle.get_lane(veh_id)
-        edge = self.k.vehicle.get_edge(veh_id)
-        return lane if edge not in self._extra_lane_edges else lane - 1
-
-
-class I210OpenEnv(HighwayOpenEnv):
-    """Variant of HighwayAVEnv that is compatible with I-210 networks.
-
-    See parent class for a further description.
-
-    Required from env_params:
-
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
-    * stopping_penalty: whether to include a stopping penalty
-    * acceleration_penalty: whether to include a regularizing penalty for
-      accelerations by the AVs
-    * inflows: range for the inflows allowed in the network. If set to None,
-      the inflows are not modified from their initial value.
-    * rl_penetration: the AV penetration rate, defining the portion of inflow
-      vehicles that will be automated. If "inflows" is set to None, this is
-      irrelevant.
-    * num_rl: maximum number of controllable vehicles in the network
-    * control_range: the interval (in meters) in which automated vehicles are
-      controlled. If set to None, the entire region is controllable.
-    * warmup_path: path to the initialized vehicle states
-    """
-
-    def __init__(self, env_params, sim_params, network, simulator='traci'):
-        """See parent class."""
-        super(I210OpenEnv, self).__init__(
-            env_params=env_params,
-            sim_params=sim_params,
-            network=network,
-            simulator=simulator,
-        )
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
-        # the name of the final edge, whose speed limit may be updated
-        self._final_edge = "119257908#3"
-
-        # These edges have an extra lane that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = [
-            "119257908#1-AddedOnRampEdge",
-            "119257908#1-AddedOffRampEdge",
-            ":119257908#1-AddedOnRampNode_0",
-            ":119257908#1-AddedOffRampNode_0",
-            "119257908#3",
-        ]
-
-        # maximum number of lanes to add vehicles across
-        self._num_lanes = 5
