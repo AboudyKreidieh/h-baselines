@@ -15,9 +15,7 @@ from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
-
-from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
-from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
 
 
 BASE_ENV_PARAMS = dict(
@@ -604,17 +602,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             # maximum number of lanes to add vehicles across
             self._num_lanes = 1
 
-        # These edges have an extra lane that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = [
-            "119257908#1-AddedOnRampEdge",
-            "119257908#1-AddedOffRampEdge",
-            ":119257908#1-AddedOnRampNode_0",
-            ":119257908#1-AddedOffRampNode_0",
-            "119257908#3",
-        ]
-
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
@@ -787,8 +774,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         # Replace every nth vehicle with an RL vehicle.
         for lane in range(self._num_lanes):
             sorted_vehicles_lane = [
-                veh_id for veh_id in sorted_vehicles
-                if self._get_lane(veh_id) == lane]
+                veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
 
             for i, veh_id in enumerate(sorted_vehicles_lane):
                 if (i + 1) % int(1 / penetration) == 0:
@@ -796,12 +782,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                     pos = self.k.vehicle.get_x_by_id(veh_id)
                     if pos < self._control_range[1]:
                         self.k.vehicle.set_vehicle_type(veh_id, "rl")
-
-    def _get_lane(self, veh_id):
-        """Return a processed lane number."""
-        lane = self.k.vehicle.get_lane(veh_id)
-        edge = self.k.vehicle.get_edge(veh_id)
-        return lane if edge not in self._extra_lane_edges else lane - 1
 
 
 class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
@@ -942,9 +922,8 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
 
         for lane in range(5):
             # Collect the names of all vehicles on the given lane, while
-            # tacking into account edges with an extra lane.
-            veh_ids_lane = [
-                veh for veh in veh_ids if self._get_lane(veh) == lane]
+            # taking into account edges with an extra lane.
+            veh_ids_lane = [v for v in veh_ids if get_lane(self, v) == lane]
 
             # Collect the names of the RL vehicles on the lane.
             rl_ids_lane = [
@@ -972,7 +951,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
             # Collect the names of the RL vehicles on the given lane, while
             # tacking into account edges with an extra lane.
             rl_ids = [veh for veh in self.k.vehicle.get_rl_ids()
-                      if self._get_lane(veh) == lane]
+                      if get_lane(self, veh) == lane]
 
             # Update the RL lists.
             self.rl_queue[lane], self.rl_veh[lane], self.removed_veh = \
