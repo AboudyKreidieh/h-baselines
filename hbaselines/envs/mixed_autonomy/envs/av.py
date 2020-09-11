@@ -11,7 +11,6 @@ from csv import DictReader
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
-from flow.core.params import SumoCarFollowingParams
 from flow.controllers import FollowerStopper
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
