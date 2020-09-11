@@ -394,8 +394,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # intrinsic reward between 0 and 1.
             if "exp" in intrinsic_reward_type:
                 def exp_intrinsic_reward_fn(states, goals, next_states):
-                    return np.exp(
-                        -intrinsic_reward_fn(states, goals, next_states) ** 2)
+                    # TODO: temporary
+                    span = sum(np.square(self.policy[0].ac_space.high -
+                                         self.policy[0].ac_space.low))
+                    rew = intrinsic_reward_fn(states, goals, next_states)
+                    return np.exp(- (rew / (span / 40)) ** 2)
                 self.intrinsic_reward_fn = exp_intrinsic_reward_fn
             else:
                 self.intrinsic_reward_fn = intrinsic_reward_fn
