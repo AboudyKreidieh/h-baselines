@@ -14,7 +14,7 @@ from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
-from hbaselines.envs.mixed_autonomy.envs import HighwayOpenEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
@@ -111,10 +111,15 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0
+            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0.5
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
             model="SL2015",
@@ -158,7 +163,7 @@ def get_flow_params(fixed_boundary,
         if imitation:
             env_name = AVOpenImitationEnv
         else:
-            env_name = HighwayOpenEnv
+            env_name = AVOpenEnv
 
     return dict(
         # name of the experiment
@@ -177,17 +182,17 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=0,
+            warmup_steps=0,  # 500,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
                 "max_decel": 0.5,
-                "target_velocity": 10,
+                "target_velocity": 12,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 7,
+                "num_rl": float("inf") if multiagent else 7,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
@@ -195,7 +200,7 @@ def get_flow_params(fixed_boundary,
                 }),
                 "warmup_path": os.path.join(
                     hbaselines_config.PROJECT_PATH,
-                    "experiments/initial_states"
+                    "experiments/warmup/highway"
                 ),
             }
         ),

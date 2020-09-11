@@ -9,7 +9,7 @@ from flow.core.params import SumoCarFollowingParams
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
-from hbaselines.envs.mixed_autonomy.envs.av import HighwayOpenEnv
+from hbaselines.envs.mixed_autonomy.envs.av import AVOpenEnv
 
 
 IMITATION_PARAMS = {
@@ -117,7 +117,7 @@ class AVClosedImitationEnv(AVClosedEnv):
         return expert_actions
 
 
-class AVOpenImitationEnv(HighwayOpenEnv):
+class AVOpenImitationEnv(AVOpenEnv):
     """Imitation variant of AVOpenEnv."""
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):

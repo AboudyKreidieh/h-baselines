@@ -30,7 +30,7 @@ from hbaselines.envs.mixed_autonomy.params.i210 \
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
-from hbaselines.envs.mixed_autonomy.envs.av import HighwayOpenEnv
+from hbaselines.envs.mixed_autonomy.envs.av import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs.av \
     import CLOSED_ENV_PARAMS as SA_CLOSED_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av \
@@ -38,7 +38,7 @@ from hbaselines.envs.mixed_autonomy.envs.av \
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import I210LaneMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.av_multi import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
@@ -1462,7 +1462,7 @@ class TestAV(unittest.TestCase):
         self.env_params_closed.warmup_steps = 0
         self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
 
-        # for HighwayOpenEnv
+        # for AVOpenEnv
         flow_params_open = deepcopy(highway(
             fixed_boundary=False,
             stopping_penalty=True,
@@ -1594,8 +1594,8 @@ class TestAV(unittest.TestCase):
         self.assertEqual(env.k.vehicle.num_vehicles, 58)
         self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
 
-    def test_highway_open_env(self):
-        """Validate the functionality of the HighwayOpenEnv class.
+    def test_open_env(self):
+        """Validate the functionality of the AVOpenEnv class.
 
         This tests checks for the following cases:
 
@@ -1607,7 +1607,7 @@ class TestAV(unittest.TestCase):
         # test case 1
         self.assertTrue(
             test_additional_params(
-                env_class=HighwayOpenEnv,
+                env_class=AVOpenEnv,
                 sim_params=self.sim_params,
                 network=self.network_open,
                 additional_params={
@@ -1630,7 +1630,7 @@ class TestAV(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        env = HighwayOpenEnv(
+        env = AVOpenEnv(
             env_params=self.env_params_open,
             sim_params=self.sim_params,
             network=self.network_open
@@ -1900,8 +1900,8 @@ class TestAVMulti(unittest.TestCase):
             expected_rate = 1680.3 if veh_type == "human" else 186.7
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
-    def test_i210_lane_env(self):
-        """Validate the functionality of the I210LaneMultiAgentEnv class.
+    def test_lane_open_env(self):
+        """Validate the functionality of the LaneOpenMultiAgentEnv class.
 
         This tests checks for the following cases:
 
@@ -1913,7 +1913,7 @@ class TestAVMulti(unittest.TestCase):
         # test case 1
         self.assertTrue(
             test_additional_params(
-                env_class=I210LaneMultiAgentEnv,
+                env_class=LaneOpenMultiAgentEnv,
                 sim_params=self.sim_params,
                 network=self.network_lane,
                 additional_params={
@@ -1936,7 +1936,7 @@ class TestAVMulti(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        env = I210LaneMultiAgentEnv(
+        env = LaneOpenMultiAgentEnv(
             env_params=self.env_params_lane,
             sim_params=self.sim_params,
             network=self.network_lane
@@ -2223,7 +2223,7 @@ class TestAVImitation(unittest.TestCase):
         random.seed(1)
 
         # test case 2
-        env = AVOpenImitationEnv(
+        env = AVOpenEnv(
             env_params=self.env_params_open,
             sim_params=self.sim_params,
             network=self.network_open
