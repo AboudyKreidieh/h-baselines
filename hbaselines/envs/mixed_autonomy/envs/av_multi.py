@@ -11,6 +11,7 @@ from flow.core.params import VehicleParams
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
 
 
 BASE_ENV_PARAMS = dict(
@@ -568,17 +569,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
-        # These edges have an extra lane that RL vehicles do not traverse
-        # (since they do not change lanes). We as a result ignore their first
-        # lane computing per-lane states.
-        self._extra_lane_edges = [
-            "119257908#1-AddedOnRampEdge",
-            "119257908#1-AddedOffRampEdge",
-            ":119257908#1-AddedOnRampNode_0",
-            ":119257908#1-AddedOffRampNode_0",
-            "119257908#3",
-        ]
-
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
@@ -694,18 +684,18 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             )
             self.net_params = new_net_params
 
+        # Clear all AV-related attributes.
+        self._clear_attributes()
+
+        return super(AVOpenMultiAgentEnv, self).reset()
+
+    def _clear_attributes(self):
+        """Clear all AV-related attributes."""
         self.leader = []
         self.follower = []
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        return super(AVOpenMultiAgentEnv, self).reset()
-
-    def _get_lane(self, veh_id):
-        """Return a processed lane number."""
-        lane = self.k.vehicle.get_lane(veh_id)
-        edge = self.k.vehicle.get_edge(veh_id)
-        return lane if edge not in self._extra_lane_edges else lane - 1
 
 
 class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
@@ -847,14 +837,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
         for lane in range(5):
             # Collect the names of all vehicles on the given lane, while
-            # tacking into account edges with an extra lane.
-            veh_ids_lane = [
-                veh for veh in veh_ids
-                if (self.k.vehicle.get_lane(veh) == lane and
-                    self.k.vehicle.get_edge(veh) not in self._extra_lane_edges)
-                or (self.k.vehicle.get_lane(veh) == lane + 1 and
-                    self.k.vehicle.get_edge(veh) in self._extra_lane_edges)
-            ]
+            # taking into account edges with an extra lane.
+            veh_ids_lane = [v for v in veh_ids if get_lane(self, v) == lane]
 
             # Collect the names of the RL vehicles on the lane.
             rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
@@ -882,7 +866,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             # Collect the names of the RL vehicles on the given lane, while
             # tacking into account edges with an extra lane.
             rl_ids = [veh for veh in self.k.vehicle.get_rl_ids()
-                      if self._get_lane(veh) == lane]
+                      if get_lane(self, veh) == lane]
 
             # Update the RL lists.
             self.rl_queue[lane], self.rl_veh[lane], self.removed_veh = \
@@ -908,60 +892,10 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
-    def reset(self, new_inflow_rate=None):
-        """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
-            # Make sure restart instance is set to True when resetting.
-            self.sim_params.restart_instance = True
-
-            # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
-
-            # Create a new inflow object.
-            new_inflow = InFlows()
-
-            for inflow_i in self._network_net_params.inflows.get():
-                veh_type = inflow_i["vtype"]
-                edge = inflow_i["edge"]
-                depart_lane = inflow_i["departLane"]
-                depart_speed = inflow_i["departSpeed"]
-
-                # Get the inflow rate of the lane/edge based on whether the
-                # vehicle types are human-driven or automated.
-                if veh_type == "human":
-                    vehs_per_hour = inflow_rate * (1 - penetration)
-                else:
-                    vehs_per_hour = inflow_rate * penetration
-
-                new_inflow.add(
-                    veh_type=veh_type,
-                    edge=edge,
-                    vehs_per_hour=vehs_per_hour,
-                    depart_lane=depart_lane,
-                    depart_speed=depart_speed,
-                )
-
-            # Add the new inflows to NetParams.
-            new_net_params = deepcopy(self._network_net_params)
-            new_net_params.inflows = new_inflow
-
-            # Update the network.
-            self.network = self._network_cls(
-                self._network_name,
-                net_params=new_net_params,
-                vehicles=self._network_vehicles,
-                initial_config=self._network_initial_config,
-                traffic_lights=self._network_traffic_lights,
-            )
-            self.net_params = new_net_params
-
+    def _clear_attributes(self):
+        """Clear all AV-related attributes."""
         self.leader = []
         self.follower = []
         self.rl_veh = [[] for _ in range(5)]
         self.removed_veh = []
         self.rl_queue = [collections.deque() for _ in range(5)]
-        return super(AVOpenMultiAgentEnv, self).reset()

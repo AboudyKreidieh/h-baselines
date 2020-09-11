@@ -1,5 +1,16 @@
 """Script containing utility methods shared amount the environments."""
 
+# These edges have an extra lane that RL vehicles do not traverse (since they
+# do not change lanes). We as a result ignore their first lane computing
+# per-lane states.
+EXTRA_LANE_EDGES = [
+    "119257908#1-AddedOnRampEdge",
+    "119257908#1-AddedOffRampEdge",
+    ":119257908#1-AddedOnRampNode_0",
+    ":119257908#1-AddedOffRampNode_0",
+    "119257908#3",
+]
+
 
 def get_relative_obs(env, veh_id):
     """Return the relative observation of a vehicle.
@@ -134,3 +145,10 @@ def update_rl_veh(env,
             rl_veh.append(rl_id)
 
     return rl_queue, rl_veh, removed_veh
+
+
+def get_lane(env, veh_id):
+    """Return a processed lane number."""
+    lane = env.k.vehicle.get_lane(veh_id)
+    edge = env.k.vehicle.get_edge(veh_id)
+    return lane if edge not in EXTRA_LANE_EDGES else lane - 1
