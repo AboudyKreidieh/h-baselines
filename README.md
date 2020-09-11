@@ -22,7 +22,7 @@ available [here]().
     1.3. [Importing AntGather](#13-importing-antgather)  
     1.4. [Installing Flow](#14-installing-flow)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
-    2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
+    2.1. [RL Algorithms](#21-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
     2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
@@ -186,7 +186,7 @@ python experiments/run_fcnet.py "flow:singleagent_ring"
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-## 2.1 Off-Policy RL Algorithms
+## 2.1 RL Algorithms
 
 This repository supports the training of policies via two state-of-the-art 
 off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
@@ -219,7 +219,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.base_policies.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.base_policies.Policy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
