@@ -179,7 +179,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
                 env_name=env_name,
-                num_envs=num_envs,
+                num_envs=n_agents * num_envs if shared else num_envs,
             ),
         )
 
