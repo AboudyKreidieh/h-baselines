@@ -8,6 +8,7 @@ import random
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
@@ -255,7 +256,7 @@ class AVMultiAgentEnv(MultiEnv):
         self.follower = []
 
         # Initialize a set on empty observations
-        obs = {key: [0 for _ in range(5)] for key in self.rl_ids()}
+        obs = {key: None for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
@@ -569,6 +570,17 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
 
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
+
     def rl_ids(self):
         """See parent class."""
         return self.rl_veh
@@ -734,10 +746,10 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         )
 
         # queue of rl vehicles in each lane that are waiting to be controlled
-        self.rl_queue = [collections.deque() for _ in range(5)]
+        self.rl_queue = [collections.deque() for _ in range(self._num_lanes)]
 
         # names of the rl vehicles in each lane that are controlled at any step
-        self.rl_veh = [[] for _ in range(5)]
+        self.rl_veh = [[] for _ in range(self._num_lanes)]
 
     @property
     def action_space(self):
@@ -799,9 +811,9 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
         # Initialize a set on empty observations
         obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
-               for i in range(5)}
+               for i in range(self._num_lanes)}
 
-        for lane in range(5):
+        for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
@@ -835,7 +847,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
         ]
 
-        for lane in range(5):
+        for lane in range(self._num_lanes):
             # Collect the names of all vehicles on the given lane, while
             # taking into account edges with an extra lane.
             veh_ids_lane = [v for v in veh_ids if get_lane(self, v) == lane]
@@ -862,7 +874,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
         Here, the operations are done at a per-lane level.
         """
-        for lane in range(5):
+        for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the given lane, while
             # tacking into account edges with an extra lane.
             rl_ids = [veh for veh in self.k.vehicle.get_rl_ids()
@@ -896,6 +908,6 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         """Clear all AV-related attributes."""
         self.leader = []
         self.follower = []
-        self.rl_veh = [[] for _ in range(5)]
+        self.rl_veh = [[] for _ in range(self._num_lanes)]
         self.removed_veh = []
-        self.rl_queue = [collections.deque() for _ in range(5)]
+        self.rl_queue = [collections.deque() for _ in range(self._num_lanes)]

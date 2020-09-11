@@ -1,13 +1,14 @@
 """Environment for training automated vehicles in a mixed-autonomy setting."""
 import collections
 import numpy as np
+import random
 from gym.spaces import Box
 from copy import deepcopy
-import random
 
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
@@ -560,6 +561,17 @@ class AVOpenEnv(AVEnv):
                 "car_following_params"],
             **controller[1]
         )
+
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
 
     def rl_ids(self):
         """See parent class."""
