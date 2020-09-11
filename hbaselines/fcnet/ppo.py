@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.base_policies.actor_critic import ActorCriticPolicy
+from hbaselines.base_policies.actor_critic import Policy
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
@@ -10,7 +10,7 @@ from hbaselines.utils.tf_util import explained_variance
 from hbaselines.utils.tf_util import print_params_shape
 
 
-class FeedForwardPolicy(ActorCriticPolicy):
+class FeedForwardPolicy(Policy):
     """Feed-forward neural network policy.
 
     Attributes
