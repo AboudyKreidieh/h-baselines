@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.base_policies import ImitationLearningPolicy
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 
 
 class TestActorCriticPolicy(unittest.TestCase):
@@ -21,6 +21,13 @@ class TestActorCriticPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(3,)),
             'verbose': 0,
+            'buffer_size': 200000,
+            'batch_size': 128,
+            'actor_lr': 3e-4,
+            'critic_lr': 3e-4,
+            'tau': 0.005,
+            'gamma': 0.99,
+            'use_huber': False,
         }
         self.policy_params.update(FEEDFORWARD_PARAMS.copy())
 

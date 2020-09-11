@@ -9,7 +9,7 @@ import json
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
@@ -87,9 +87,7 @@ def parse_options(args):
         help='whether to run the simulation on a random seed. If not added, '
              'the original seed is used.')
 
-    flags, _ = parser.parse_known_args(args)
-
-    return flags
+    return parser.parse_args(args)
 
 
 def get_hyperparameters_from_dir(ckpt_path):
@@ -149,7 +147,7 @@ def main(args):
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,

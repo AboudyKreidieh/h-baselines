@@ -13,10 +13,10 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
     TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
     SACMultiGoalConditionedPolicy
-from hbaselines.algorithms.off_policy import SAC_PARAMS
-from hbaselines.algorithms.off_policy import TD3_PARAMS
-from hbaselines.algorithms.off_policy import MULTIAGENT_PARAMS
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
 class TestMultiActorCriticPolicy(unittest.TestCase):
