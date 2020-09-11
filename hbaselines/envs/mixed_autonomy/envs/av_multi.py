@@ -978,7 +978,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             self.k.vehicle.set_observed(veh_id)
 
     def _clear_attributes(self):
-        """See parent class."""
+        """Clear all AV-related attributes."""
         self.leader = []
         self.follower = []
         self.rl_veh = [[] for _ in range(self._num_lanes)]
