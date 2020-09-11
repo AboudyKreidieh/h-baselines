@@ -844,14 +844,6 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
         # names of the rl vehicles in each lane that are controlled at any step
         self.rl_veh = [[] for _ in range(5)]
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
     @property
     def action_space(self):
         """See class definition."""
@@ -974,15 +966,7 @@ class I210LaneMultiAgentEnv(AVOpenMultiAgentEnv):
     def additional_command(self):
         """See parent class.
 
-        This method performs to auxiliary tasks:
-
-        * Define which vehicles are observed for visualization purposes.
-        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
-          vehicles that are represented in the state space does not change
-          until one of the vehicles in the state space leaves the network.
-          Then, the next vehicle in the queue is added to the state space and
-          provided with actions from the policy. This is done at a per-lane
-          level.
+        Here, the operations are done at a per-lane level.
         """
         for lane in range(5):
             # Collect the names of the RL vehicles on the given lane, while
