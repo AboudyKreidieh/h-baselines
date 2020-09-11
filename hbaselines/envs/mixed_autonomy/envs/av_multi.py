@@ -16,6 +16,9 @@ from flow.networks import I210SubNetwork
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
+from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+
 
 BASE_ENV_PARAMS = dict(
     # maximum acceleration for autonomous vehicles, in m/s^2
@@ -654,6 +657,8 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
+        super(AVOpenMultiAgentEnv, self).additional_command()
+
         # Update the RL lists.
         self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
             self,
@@ -673,10 +678,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
-
-        # Specify observed vehicles.
-        for veh_id in self.leader + self.follower:
-            self.k.vehicle.set_observed(veh_id)
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
