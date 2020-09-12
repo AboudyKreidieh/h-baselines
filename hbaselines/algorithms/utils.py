@@ -1,6 +1,7 @@
 """Utility method for the algorithm classes."""
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy as PPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
@@ -41,11 +42,19 @@ def is_sac_policy(policy):
     ]
 
 
+def is_ppo_policy(policy):
+    """Check whether a policy is for designed to support PPO."""
+    return policy in [
+        PPOFeedForwardPolicy,
+    ]
+
+
 def is_feedforward_policy(policy):
     """Check whether a policy is a feedforward policy."""
     return policy in [
         TD3FeedForwardPolicy,
         SACFeedForwardPolicy,
+        PPOFeedForwardPolicy,
         TD3MultiFeedForwardPolicy,
         TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,

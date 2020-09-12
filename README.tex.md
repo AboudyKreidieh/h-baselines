@@ -188,9 +188,10 @@ goal-conditioned hierarchical reinforcement learning models.
 
 ## 2.1 RL Algorithms
 
-This repository supports the training of policies via two state-of-the-art 
-off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
-[SAC](https://arxiv.org/pdf/1801.01290.pdf).
+This repository supports the training of policies via two off-policy RL 
+algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
+[SAC](https://arxiv.org/pdf/1801.01290.pdf), as well as one on-policy RL 
+algorithm: [PPO](https://arxiv.org/pdf/1707.06347.pdf).
 
 To train a policy using this algorithm, create a `RLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
@@ -209,17 +210,18 @@ alg.learn(total_timesteps=1000000)
 
 The specific algorithm that is executed is defined by the policy that is 
 provided. If, for example, you would like to switch the above script to train 
-a feed-forward policy using the SAC algorithm, then the policy must simply be 
-changed to:
+a feed-forward policy using the SAC or PPO algorithms, then the policy must 
+simply be changed to:
 
 ```python
-from hbaselines.fcnet.sac import FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy  # for SAC
+from hbaselines.fcnet.ppo import FeedForwardPolicy  # for PPO
 ```
 
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.base_policies.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.base_policies.Policy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
@@ -279,8 +281,8 @@ We include a generic feed-forward neural network within the repository
 to validate the performance of typically used neural network model on 
 the benchmarked environments. This consists of a pair of actor and 
 critic fully connected networks with a tanh nonlinearity at the output 
-layer of the actor. The output of the actors are also scaled to match 
-the desired action space. 
+layer of the actor. The output of the actors for the off-policy algorithms (TD3
+and SAC) are also scaled to match the desired action space. 
 
 The feed-forward policy can be imported by including the following 
 script:
@@ -291,6 +293,9 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # for SAC
 from hbaselines.fcnet.sac import FeedForwardPolicy
+
+# for PPO
+from hbaselines.fcnet.ppo import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -302,17 +307,8 @@ The modifiable parameters of this policy are as follows:
 * **ob_space** (gym.spaces.*) : the observation space of the environment
 * **ac_space** (gym.spaces.*) : the action space of the environment
 * **co_space** (gym.spaces.*) : the context space of the environment
-* **buffer_size** (int) : the max number of transitions to store
-* **batch_size** (int) : SGD batch size
-* **actor_lr** (float) : actor learning rate
-* **critic_lr** (float) : critic learning rate
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
-* **tau** (float) : target update rate
-* **gamma** (float) : discount factor
-* **use_huber** (bool) : specifies whether to use the huber distance 
-  function as the loss for the critic. If set to False, the mean-squared 
-  error metric is used instead
 * **model_params** (dict) : dictionary of model-specific parameters, including:
   * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
     "conv"}.
@@ -337,6 +333,15 @@ The modifiable parameters of this policy are as follows:
 
 Additionally, TD3 policy parameters are:
 
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
 * **noise** (float) : scaling term to the range of the action space, 
   that is subsequently used as the standard deviation of Gaussian noise 
   added to the action if `apply_noise` is set to True in `get_action`
@@ -345,10 +350,38 @@ Additionally, TD3 policy parameters are:
 * **target_noise_clip** (float) : clipping term for the noise injected 
   in the target actor policy
 
-And SAC policy parameters are:
+SAC policy parameters are:
 
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
 * **target_entropy** (float): target entropy used when learning the entropy 
   coefficient. If set to None, a heuristic value is used.
+
+And PPO policy parameters are:
+
+* **learning_rate** (float) : the learning rate
+* **n_minibatches** (int) : number of training minibatches per update
+* **n_opt_epochs** (int) : number of training epochs per update procedure
+* **gamm** (float) : the discount factor
+* **lam** (float) : factor for trade-off of bias vs variance for Generalized 
+  Advantage Estimator
+* **ent_coef** (float) : entropy coefficient for the loss calculation
+* **vf_coef** (float) : value function coefficient for the loss calculation
+* **max_grad_norm** (float) : the maximum value for the gradient clipping
+* **cliprange** (float) : clipping parameter, it can be a function
+* **cliprange_vf** (float) : clipping parameter for the value function, it can 
+  be a function. This is a parameter specific to the OpenAI implementation. If 
+  None is passed (default), then `cliprange` (that is used for the policy) will
+  be used. IMPORTANT: this clipping depends on the reward scaling. To deactivate
+  value function clipping (and recover the original PPO implementation), you 
+  have to pass a negative value (e.g. -1).
 
 These parameters can be assigned when using the algorithm object by 
 assigning them via the `policy_kwargs` term. For example, if you would 
@@ -392,6 +425,10 @@ print(TD3_PARAMS)
 # for SAC
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
 ## 2.3 Goal-Conditioned HRL
@@ -446,6 +483,10 @@ print(TD3_PARAMS)
 # for SAC
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
 ### 2.3.1 Meta Period
