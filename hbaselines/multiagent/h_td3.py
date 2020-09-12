@@ -185,7 +185,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 pretrain_path=pretrain_path,
                 pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
-                num_envs=n_agents * num_envs,
+                num_envs=n_agents * num_envs if shared else num_envs,
             ),
         )
 
