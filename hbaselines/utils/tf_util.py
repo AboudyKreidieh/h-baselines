@@ -211,6 +211,32 @@ def apply_squashing_func(mu_, pi_, logp_pi):
     return deterministic_policy, policy, logp_pi
 
 
+def explained_variance(y_pred, y_true):
+    """Compute fraction of variance that ypred explains about y.
+
+    Returns 1 - Var[y-ypred] / Var[y]
+
+    interpretation:
+        ev=0  =>  might as well have predicted zero
+        ev=1  =>  perfect prediction
+        ev<0  =>  worse than just predicting zero
+
+    Parameters
+    ----------
+    y_pred : np.ndarray
+        the prediction
+    y_true : np.ndarray
+        the expected value
+
+    Returns
+    -------
+    float
+        explained variance of ypred and y
+    """
+    var_y = reduce_var(y_true)
+    return 1 - reduce_var(y_true - y_pred) / var_y
+
+
 def print_params_shape(scope, param_type):
     """Print parameter shapes and number of parameters.
 
