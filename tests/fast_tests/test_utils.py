@@ -16,7 +16,7 @@ from hbaselines.utils.tf_util import conv_layer
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
-from hbaselines.goal_conditioned.td3 import FeedForwardPolicy \
+from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
@@ -24,7 +24,7 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
     as TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
-from hbaselines.goal_conditioned.sac import FeedForwardPolicy \
+from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
     as SACGoalConditionedPolicy
@@ -32,8 +32,11 @@ from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
     as SACMultiFeedForwardPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy \
+    as PPOFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
@@ -1890,6 +1893,244 @@ class TestTrain(unittest.TestCase):
                 'shared': True,
                 'maddpg': True,
             }
+        })
+
+    def test_parse_options_PPO(self):
+        """Test the parse_options and get_hyperparameters methods for PPO.
+
+        This is done for the following cases:
+
+        1. hierarchical = False, multiagent = False
+           a. default arguments
+           b. custom  arguments
+
+        All other variants should work as well (tested by a different methods).
+        """
+        self.maxDiff = None
+        model_params = FEEDFORWARD_PARAMS["model_params"]
+
+        # =================================================================== #
+        # test case 1.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze", "--alg", "PPO"],
+            multiagent=False, hierarchical=False)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'PPO',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'cliprange': PPO_PARAMS['cliprange'],
+            'cliprange_vf': PPO_PARAMS['cliprange_vf'],
+            'ent_coef': PPO_PARAMS['ent_coef'],
+            'gamma': PPO_PARAMS['gamma'],
+            'lam': PPO_PARAMS['lam'],
+            'learning_rate': PPO_PARAMS['learning_rate'],
+            'max_grad_norm': PPO_PARAMS['max_grad_norm'],
+            'n_minibatches': PPO_PARAMS['n_minibatches'],
+            'n_opt_epochs': PPO_PARAMS['n_opt_epochs'],
+            'vf_coef': PPO_PARAMS['vf_coef'],
+        })
+
+        hp = get_hyperparameters(args, PPOFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'cliprange': PPO_PARAMS['cliprange'],
+                'cliprange_vf': PPO_PARAMS['cliprange_vf'],
+                'ent_coef': PPO_PARAMS['ent_coef'],
+                'gamma': PPO_PARAMS['gamma'],
+                'lam': PPO_PARAMS['lam'],
+                'learning_rate': PPO_PARAMS['learning_rate'],
+                'max_grad_norm': PPO_PARAMS['max_grad_norm'],
+                'n_minibatches': PPO_PARAMS['n_minibatches'],
+                'n_opt_epochs': PPO_PARAMS['n_opt_epochs'],
+                'vf_coef': PPO_PARAMS['vf_coef'],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+            }
+        })
+
+        # =================================================================== #
+        # test case 1.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--alg", "PPO",
+                '--evaluate',
+                '--save_replay_buffer',
+                '--n_training', '1',
+                '--total_steps', '2',
+                '--seed', '3',
+                '--log_interval', '4',
+                '--eval_interval', '5',
+                '--save_interval', '6',
+                '--nb_train_steps', '7',
+                '--nb_rollout_steps', '8',
+                '--nb_eval_episodes', '9',
+                '--reward_scale', '10',
+                '--render',
+                '--render_eval',
+                '--verbose', '11',
+                '--actor_update_freq', '12',
+                '--meta_update_freq', '13',
+                '--num_envs', '21',
+                '--model_params:model_type', 'model_type',
+                '--model_params:layer_norm',
+                '--model_params:layers', '22', '23',
+                '--cliprange', '24',
+                '--cliprange_vf', '25',
+                '--ent_coef', '26',
+                '--gamma', '27',
+                '--lam', '28',
+                '--learning_rate', '29',
+                '--max_grad_norm', '30',
+                '--n_minibatches', '31',
+                '--n_opt_epochs', '32',
+                '--vf_coef', '33',
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
+        self.assertDictEqual(vars(args), {
+            'actor_update_freq': 12,
+            'alg': 'PPO',
+            'env_name': 'AntMaze',
+            'eval_interval': 5,
+            'evaluate': True,
+            'initial_exploration_steps': 10000,
+            'log_interval': 4,
+            'meta_update_freq': 13,
+            'model_params:layers': [22, 23],
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': True,
+            'model_params:model_type': 'model_type',
+            'model_params:strides': None,
+            'n_training': 1,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'num_envs': 21,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_interval': 6,
+            'save_replay_buffer': True,
+            'seed': 3,
+            'total_steps': 2,
+            'verbose': 11,
+            'cliprange': 24.0,
+            'cliprange_vf': 25.0,
+            'ent_coef': 26.0,
+            'gamma': 27.0,
+            'lam': 28.0,
+            'learning_rate': 29.0,
+            'max_grad_norm': 30.0,
+            'n_minibatches': 31,
+            'n_opt_epochs': 32,
+            'vf_coef': 33.0,
+        })
+
+        hp = get_hyperparameters(args, PPOFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            '_init_setup_model': True,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_replay_buffer': True,
+            'verbose': 11,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'num_envs': 21,
+            'policy_kwargs': {
+                'cliprange': 24,
+                'cliprange_vf': 25,
+                'ent_coef': 26,
+                'gamma': 27,
+                'lam': 28,
+                'learning_rate': 29,
+                'max_grad_norm': 30,
+                'n_minibatches': 31,
+                'n_opt_epochs': 32,
+                'vf_coef': 33,
+                'model_params': {
+                    'layers': [22, 23],
+                    'filters': [16, 16, 16],
+                    'ignore_flat_channels': [],
+                    'ignore_image': False,
+                    'image_channels': 3,
+                    'image_height': 32,
+                    'image_width': 32,
+                    'kernel_sizes': [5, 5, 5],
+                    'layer_norm': True,
+                    'model_type': 'model_type',
+                    'strides': [2, 2, 2]
+                },
+            },
         })
 
 

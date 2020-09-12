@@ -2,9 +2,12 @@
 import argparse
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
-from hbaselines.algorithms.utils import is_sac_policy, is_td3_policy
+from hbaselines.algorithms.utils import is_sac_policy
+from hbaselines.algorithms.utils import is_td3_policy
+from hbaselines.algorithms.utils import is_ppo_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 
@@ -79,6 +82,21 @@ def get_hyperparameters(args, policy):
             "gamma": args.gamma,
             "use_huber": args.use_huber,
             "target_entropy": args.target_entropy,
+        })
+
+    # add PPO parameters
+    if is_ppo_policy(policy):
+        policy_kwargs.update({
+            "learning_rate": args.learning_rate,
+            "n_minibatches": args.n_minibatches,
+            "n_opt_epochs": args.n_opt_epochs,
+            "gamma": args.gamma,
+            "lam": args.lam,
+            "ent_coef": args.ent_coef,
+            "vf_coef": args.vf_coef,
+            "max_grad_norm": args.max_grad_norm,
+            "cliprange": args.cliprange,
+            "cliprange_vf": args.cliprange_vf,
         })
 
     # add GoalConditionedPolicy parameters
@@ -187,6 +205,8 @@ def parse_options(description,
         parser_policy = create_td3_parser(parser_policy)
     elif args_alg.alg == "SAC":
         parser_policy = create_sac_parser(parser_policy)
+    elif args_alg.alg == "PPO":
+        parser_policy = create_ppo_parser(parser_policy)
 
     # arguments for different model architectures
     parser_policy = create_feedforward_parser(parser_policy)
@@ -352,6 +372,69 @@ def create_sac_parser(parser):
         default=SAC_PARAMS["target_entropy"],
         help="target entropy used when learning the entropy coefficient. If "
              "set to None, a heuristic value is used.")
+
+    return parser
+
+
+def create_ppo_parser(parser):
+    """Add the PPO hyperparameters to the parser."""
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=PPO_PARAMS["learning_rate"],
+        help="the learning rate")
+    parser.add_argument(
+        "--n_minibatches",
+        type=int,
+        default=PPO_PARAMS["n_minibatches"],
+        help="number of training minibatches per update")
+    parser.add_argument(
+        "--n_opt_epochs",
+        type=int,
+        default=PPO_PARAMS["n_opt_epochs"],
+        help="number of training epochs per update procedure")
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=PPO_PARAMS["gamma"],
+        help="the discount factor")
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=PPO_PARAMS["lam"],
+        help="factor for trade-off of bias vs variance for Generalized "
+             "Advantage Estimator")
+    parser.add_argument(
+        "--ent_coef",
+        type=float,
+        default=PPO_PARAMS["ent_coef"],
+        help="entropy coefficient for the loss calculation")
+    parser.add_argument(
+        "--vf_coef",
+        type=float,
+        default=PPO_PARAMS["vf_coef"],
+        help="value function coefficient for the loss calculation")
+    parser.add_argument(
+        "--max_grad_norm",
+        type=float,
+        default=PPO_PARAMS["max_grad_norm"],
+        help="the maximum value for the gradient clipping")
+    parser.add_argument(
+        "--cliprange",
+        type=float,
+        default=PPO_PARAMS["cliprange"],
+        help="clipping parameter, it can be a function")
+    parser.add_argument(
+        "--cliprange_vf",
+        type=float,
+        default=PPO_PARAMS["cliprange_vf"],
+        help="clipping parameter for the value function, it can be a "
+             "function. This is a parameter specific to the OpenAI "
+             "implementation. If None is passed (default), then `cliprange` "
+             "(that is used for the policy) will be used. IMPORTANT: this "
+             "clipping depends on the reward scaling. To deactivate value "
+             "function clipping (and recover the original PPO "
+             "implementation), you have to pass a negative value (e.g. -1).")
 
     return parser
 

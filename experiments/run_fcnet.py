@@ -28,7 +28,7 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
-    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.Policy ]
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
@@ -91,6 +91,8 @@ def main(args, base_dir):
             from hbaselines.fcnet.td3 import FeedForwardPolicy
         elif args.alg == "SAC":
             from hbaselines.fcnet.sac import FeedForwardPolicy
+        elif args.alg == "PPO":
+            from hbaselines.fcnet.ppo import FeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
