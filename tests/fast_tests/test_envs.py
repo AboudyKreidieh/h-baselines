@@ -906,13 +906,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['idm_inflow_00.271',
-             'idm_inflow_00.283',
-             'idm_inflow_00.295',
-             'idm_inflow_00.307',
-             'idm_inflow_00.319',
-             'idm_inflow_00.331',
-             'idm_inflow_00.343']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -974,13 +974,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['idm_inflow_00.271',
-             'idm_inflow_00.283',
-             'idm_inflow_00.295',
-             'idm_inflow_00.307',
-             'idm_inflow_00.319',
-             'idm_inflow_00.331',
-             'idm_inflow_00.343']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1042,13 +1042,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['idm_inflow_00.271',
-             'idm_inflow_00.283',
-             'idm_inflow_00.295',
-             'idm_inflow_00.307',
-             'idm_inflow_00.319',
-             'idm_inflow_00.331',
-             'idm_inflow_00.343']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1110,13 +1110,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['idm_inflow_00.271',
-             'idm_inflow_00.283',
-             'idm_inflow_00.295',
-             'idm_inflow_00.307',
-             'idm_inflow_00.319',
-             'idm_inflow_00.331',
-             'idm_inflow_00.343']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
