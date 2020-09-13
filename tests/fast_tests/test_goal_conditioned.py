@@ -686,9 +686,6 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         )
 
     def test_pretrain_train(self):
-        """TODO.
-
-        """
         pass  # TODO
 
     def test_pretrain_load(self):
