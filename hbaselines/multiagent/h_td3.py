@@ -41,7 +41,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=5,
+                 n_agents=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 

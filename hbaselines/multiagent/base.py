@@ -458,7 +458,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
             # Compute the action of the provided observation.
             actions[key] = agent.get_action(
-                obs=[obs[0][key]],
+                obs=obs[key],
                 context=context_i,
                 apply_noise=apply_noise,
                 random_actions=random_actions,
