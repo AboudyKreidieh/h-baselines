@@ -9,7 +9,6 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
@@ -131,10 +130,6 @@ def get_flow_params(fixed_boundary,
             # right of way at intersections + obey limits on deceleration
             speed_mode=12
         ),
-        lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
-        ),
     )
 
     inflows.add(
@@ -153,11 +148,8 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(RLController, {}),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
-            speed_mode=12,
             # right of way at intersections + obey limits on deceleration
-        ),
-        lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,  # no lane changes
+            speed_mode=12,
         ),
     )
 

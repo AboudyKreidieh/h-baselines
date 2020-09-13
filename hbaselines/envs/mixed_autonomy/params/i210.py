@@ -3,7 +3,7 @@ import os
 
 from flow.controllers import RLController
 from flow.controllers import IDMController
-from flow.controllers import AILaneChangeController
+from flow.controllers import SimLaneChangeController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -102,7 +102,7 @@ def get_flow_params(fixed_boundary,
             "fail_safe": [
                 'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
-        lane_change_controller=(AILaneChangeController, {}),
+        lane_change_controller=(SimLaneChangeController, {}),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
             # right of way at intersections + obey limits on deceleration
@@ -119,8 +119,8 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(RLController, {}),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
-            speed_mode=12,
             # right of way at intersections + obey limits on deceleration
+            speed_mode=12,
         ),
         lane_change_params=SumoLaneChangeParams(
             lane_change_mode=0,  # no lane changes
