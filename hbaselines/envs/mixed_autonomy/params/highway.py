@@ -124,10 +124,6 @@ def get_flow_params(fixed_boundary,
             # right of way at intersections + obey limits on deceleration
             speed_mode=12
         ),
-        lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
-        ),
     )
 
     inflows.add(
@@ -148,9 +144,6 @@ def get_flow_params(fixed_boundary,
             min_gap=0.5,
             # right of way at intersections + obey limits on deceleration
             speed_mode=12,
-        ),
-        lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,  # no lane changes
         ),
     )
 
