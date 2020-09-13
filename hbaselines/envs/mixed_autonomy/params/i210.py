@@ -3,6 +3,7 @@ import os
 
 from flow.controllers import RLController
 from flow.controllers import IDMController
+from flow.controllers import SimLaneChangeController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -10,8 +11,9 @@ from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
+from flow.core.params import SumoCarFollowingParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
-import flow.config as config
+import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
@@ -22,7 +24,7 @@ INFLOW_RATE = 2050
 # the speed of inflowing vehicles from the main edge (in m/s)
 INFLOW_SPEED = 25.5
 # fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
-PENETRATION_RATE = 1/15
+PENETRATION_RATE = 1/12
 # horizon over which to run the env
 HORIZON = 1500
 # range for the inflows allowed in the network. If set to None, the inflows are
@@ -88,8 +90,17 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             'a': 1.3,
             'b': 2.0,
-            'noise': 0.3
+            'noise': 0.3,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
+        lane_change_controller=(SimLaneChangeController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
+        ),
         lane_change_params=SumoLaneChangeParams(
             lane_change_mode=1621,
         ),
@@ -98,8 +109,13 @@ def get_flow_params(fixed_boundary,
         "rl",
         num_vehicles=0,
         acceleration_controller=(RLController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12,
+        ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,  # no lane changes by automated vehicles
+            lane_change_mode=0,  # no lane changes
         ),
     )
 
@@ -159,6 +175,7 @@ def get_flow_params(fixed_boundary,
             evaluate=evaluate,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
+            done_at_exit=False,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
@@ -182,7 +199,7 @@ def get_flow_params(fixed_boundary,
         net=NetParams(
             inflows=inflow,
             template=os.path.join(
-                config.PROJECT_PATH,
+                flow_config.PROJECT_PATH,
                 "examples/exp_configs/templates/sumo/i210_with_ghost_cell_"
                 "with_downstream.xml"
             ),

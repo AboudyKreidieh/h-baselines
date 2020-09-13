@@ -9,7 +9,6 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
@@ -114,14 +113,15 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0
+            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0.5
-        ),
-        lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
         ),
     )
 
@@ -139,6 +139,11 @@ def get_flow_params(fixed_boundary,
         "rl",
         num_vehicles=0,
         acceleration_controller=(RLController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12,
+        ),
     )
 
     inflows.add(
@@ -182,6 +187,7 @@ def get_flow_params(fixed_boundary,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
             sims_per_step=3,
+            done_at_exit=False,
             additional_params={
                 "max_accel": 0.5,
                 "max_decel": 0.5,
@@ -190,7 +196,7 @@ def get_flow_params(fixed_boundary,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10,
+                "num_rl": float("inf") if multiagent else 10,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
