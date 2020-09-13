@@ -21,9 +21,9 @@ import hbaselines.config as hbaselines_config
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
 # the speed limit in the ghost edge
-END_SPEED = 5.0
+END_SPEED = 6.0
 # inflow rate on the highway in vehicles per hour
-TRAFFIC_FLOW = 2050
+TRAFFIC_FLOW = 2215
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
