@@ -8,6 +8,7 @@ from copy import deepcopy
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
@@ -19,6 +20,8 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
+    # whether to use the follower-stopper controller for the AVs
+    use_follower_stopper=False,
     # desired velocity for all vehicles in the network, in m/s
     target_velocity=30,
     # whether to include a stopping penalty
@@ -63,6 +66,10 @@ class AVEnv(Env):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -125,6 +132,21 @@ class AVEnv(Env):
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
 
+        # dynamics controller for controlled RL vehicles. Only relevant if
+        # "use_follower_stopper" is set to True.
+        human_type = "human" if "human" in self.k.vehicle.type_parameters \
+            else "human_0"
+        self._av_controller = FollowerStopper(
+            veh_id="av",
+            v_des=30,
+            max_accel=1,
+            max_decel=2,
+            display_warnings=False,
+            fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+            car_following_params=self.k.vehicle.type_parameters[human_type][
+                "car_following_params"],
+        )
+
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
 
@@ -135,11 +157,18 @@ class AVEnv(Env):
     @property
     def action_space(self):
         """See class definition."""
-        return Box(
-            low=-abs(self.env_params.additional_params['max_decel']),
-            high=self.env_params.additional_params['max_accel'],
-            shape=(self.num_rl,),
-            dtype=np.float32)
+        if self.env_params.additional_params["use_follower_stopper"]:
+            return Box(
+                low=0,
+                high=15,
+                shape=(self.num_rl,),
+                dtype=np.float32)
+        else:
+            return Box(
+                low=-abs(self.env_params.additional_params['max_decel']),
+                high=self.env_params.additional_params['max_accel'],
+                shape=(self.num_rl,),
+                dtype=np.float32)
 
     @property
     def observation_space(self):
@@ -152,18 +181,27 @@ class AVEnv(Env):
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
-        accelerations = deepcopy(rl_actions)
+        if self.env_params.additional_params["use_follower_stopper"]:
+            accelerations = []
+            for i, veh_id in enumerate(self.rl_ids()):
+                self._av_controller.veh_id = veh_id
+                self._av_controller.v_des = rl_actions[i]
+                accelerations.append(self._av_controller.get_action(self))
+        else:
+            accelerations = deepcopy(rl_actions)
 
-        # Redefine the accelerations if below a speed threshold so that all
-        # actions result in non-negative desired speeds.
-        for i, veh_id in enumerate(self.rl_ids()):
-            ac_range = self.action_space.high[i] - self.action_space.low[i]
-            speed = self.k.vehicle.get_speed(veh_id)
-            if speed < 0.5 * ac_range * self.sim_step:
-                accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+            # Redefine the accelerations if below a speed threshold so that all
+            # actions result in non-negative desired speeds.
+            for i, veh_id in enumerate(self.rl_ids()):
+                ac_range = self.action_space.high[i] - self.action_space.low[i]
+                speed = self.k.vehicle.get_speed(veh_id)
+                if speed < 0.5 * ac_range * self.sim_step:
+                    accelerations[i] += 0.5 * ac_range - speed / self.sim_step
 
         # Apply the actions via the simulator.
-        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
+        self.k.vehicle.apply_acceleration(
+            self.rl_ids(),
+            accelerations[:len(self.rl_ids())])
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -231,7 +269,9 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    accel = [self.k.vehicle.get_accel(veh_id, True, True) or 0
+                             for veh_id in self.rl_ids()]
+                    reward -= sum(np.square(accel))
 
             return reward
 
@@ -294,6 +334,10 @@ class AVClosedEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -496,6 +540,10 @@ class AVOpenEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
