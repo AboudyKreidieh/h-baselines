@@ -575,6 +575,14 @@ class AVOpenEnv(AVEnv):
                     and env_params.additional_params["inflows"] is not None), \
             "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
         super(AVOpenEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -628,14 +636,6 @@ class AVOpenEnv(AVEnv):
                 "car_following_params"],
             **controller[1]
         )
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         if isinstance(network, I210SubNetwork):
             # the name of the final edge, whose speed limit may be updated
