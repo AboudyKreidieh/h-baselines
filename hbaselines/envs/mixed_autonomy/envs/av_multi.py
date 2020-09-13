@@ -197,19 +197,24 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
-            for key in rl_actions.keys():
+            for veh_id in rl_actions.keys():
                 # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[key])
+                acceleration = deepcopy(rl_actions[veh_id])
 
                 # Redefine if below a speed threshold so that all actions
                 # result in non-negative desired speeds.
                 ac_range = self.action_space.high - self.action_space.low
-                speed = self.k.vehicle.get_speed(key)
+                speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     acceleration += 0.5 * ac_range - speed / self.sim_step
 
+                # Run the action through the controller, to include failsafe
+                # actions.
+                acceleration = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=acceleration)
+
                 # Apply the action via the simulator.
-                self.k.vehicle.apply_acceleration(key, acceleration)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -942,6 +947,11 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
 
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(

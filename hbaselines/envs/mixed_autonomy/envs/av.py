@@ -205,6 +205,11 @@ class AVEnv(Env):
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
 
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
+
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(
             self.rl_ids(),
