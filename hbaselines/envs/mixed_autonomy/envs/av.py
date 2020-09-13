@@ -2,8 +2,11 @@
 import collections
 import numpy as np
 import random
+import os
 from gym.spaces import Box
 from copy import deepcopy
+from collections import defaultdict
+from csv import DictReader
 
 from flow.envs import Env
 from flow.core.params import InFlows
@@ -13,6 +16,7 @@ from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
 
 
 BASE_ENV_PARAMS = dict(
@@ -48,6 +52,9 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -197,6 +204,11 @@ class AVEnv(Env):
                 speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
 
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(
@@ -505,10 +517,9 @@ class AVClosedEnv(AVEnv):
 
 
 class AVOpenEnv(AVEnv):
-    """Open network variant of AVEnv.
+    """Variant of AVEnv that is compatible with highway networks.
 
-    This environment is suitable for training policies on a merge or highway
-    network.
+    This environment is suitable for training policies on a highway network.
 
     We attempt to train a control policy in this setting that is robust to
     changes in density by altering the inflow rate of vehicles within the
@@ -549,6 +560,8 @@ class AVOpenEnv(AVEnv):
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -562,6 +575,10 @@ class AVOpenEnv(AVEnv):
         for p in OPEN_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        assert not (env_params.additional_params["warmup_path"] is not None
+                    and env_params.additional_params["inflows"] is not None), \
+            "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
 
         # this is stored to be reused during the reset procedure
         self._network_cls = network.__class__
@@ -577,6 +594,21 @@ class AVOpenEnv(AVEnv):
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(float(val))
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -673,16 +705,33 @@ class AVOpenEnv(AVEnv):
 
     def reset(self):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
+        end_speed = None
+        params = self.env_params.additional_params
+        if params["inflows"] is not None or params["warmup_path"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
+            if self.warmup_paths is not None:
+                # Choose a random available xml file.
+                xml_file = random.sample(self.warmup_paths, 1)[0]
+                xml_num = int(xml_file.split(".")[0])
+
+                # Update the choice of initial conditions.
+                self.sim_params.load_state = os.path.join(
+                    params["warmup_path"], xml_file)
+
+                # Assign the inflow rate to match the xml number.
+                inflow_rate = self.warmup_description["inflow"][xml_num]
+                end_speed = self.warmup_description["end_speed"][xml_num]
+                print("inflow: {}, end_speed: {}".format(
+                    inflow_rate, end_speed))
+            else:
+                # New inflow rate for human and automated vehicles, randomly
+                # assigned based on the inflows variable
+                inflow_range = self.env_params.additional_params["inflows"]
+                inflow_low = inflow_range[0]
+                inflow_high = inflow_range[1]
+                inflow_rate = random.randint(inflow_low, inflow_high)
 
             # Create a new inflow object.
             new_inflow = InFlows()
@@ -695,6 +744,7 @@ class AVOpenEnv(AVEnv):
 
                 # Get the inflow rate of the lane/edge based on whether the
                 # vehicle types are human-driven or automated.
+                penetration = params["rl_penetration"]
                 if veh_type == "human":
                     vehs_per_hour = inflow_rate * (1 - penetration)
                 else:
@@ -727,4 +777,43 @@ class AVOpenEnv(AVEnv):
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        return super(AVOpenEnv, self).reset()
+        _ = super(AVOpenEnv, self).reset()
+
+        # Add automated vehicles.
+        if self.warmup_paths is not None:
+            self._add_automated_vehicles()
+
+        # Update the end speed, if specified.
+        if end_speed is not None:
+            self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return np.copy(obs)
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(self._num_lanes):
+            sorted_vehicles_lane = [
+                veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                self.k.vehicle.set_vehicle_type(veh_id, "human")
+
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    pos = self.k.vehicle.get_x_by_id(veh_id)
+                    if pos < self._control_range[1]:
+                        self.k.vehicle.set_vehicle_type(veh_id, "rl")

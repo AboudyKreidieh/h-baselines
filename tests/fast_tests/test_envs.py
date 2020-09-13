@@ -906,7 +906,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -968,7 +974,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1030,7 +1042,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1092,7 +1110,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1504,6 +1528,7 @@ class TestAV(unittest.TestCase):
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -1751,6 +1776,7 @@ class TestAVMulti(unittest.TestCase):
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -1814,6 +1840,7 @@ class TestAVMulti(unittest.TestCase):
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -2105,6 +2132,7 @@ class TestAVImitation(unittest.TestCase):
                         "a": 0.3,
                         "b": 2.0,
                     }),
+                    "warmup_path": None,
                 },
             )
         )

@@ -16,6 +16,7 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+import hbaselines.config as hbaselines_config
 
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
@@ -32,6 +33,9 @@ INCLUDE_NOISE = True
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
+# the path to the warmup files to initialize a network
+WARMUP_PATH = os.path.join(
+    hbaselines_config.PROJECT_PATH, "experiments/warmup/highway")
 
 
 def get_flow_params(fixed_boundary,
@@ -85,7 +89,10 @@ def get_flow_params(fixed_boundary,
     """
     # steps to run before the agent is allowed to take control (set to lower
     # value during testing)
-    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+    if WARMUP_PATH is not None:
+        warmup_steps = 0
+    else:
+        warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params.update({
@@ -141,7 +148,10 @@ def get_flow_params(fixed_boundary,
     vehicles.add(
         "rl",
         num_vehicles=0,
-        acceleration_controller=(RLController, {}),
+        acceleration_controller=(RLController, {
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+        }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
             # right of way at intersections + obey limits on deceleration
@@ -206,6 +216,7 @@ def get_flow_params(fixed_boundary,
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "warmup_path": WARMUP_PATH,
             }
         ),
 

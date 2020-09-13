@@ -1,9 +1,12 @@
 """Environment for training automated vehicles in a mixed-autonomy setting."""
 import collections
 import numpy as np
+import random
+import os
 from gym.spaces import Box
 from copy import deepcopy
-import random
+from collections import defaultdict
+from csv import DictReader
 
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
@@ -49,6 +52,9 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -191,19 +197,24 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
-            for key in rl_actions.keys():
+            for veh_id in rl_actions.keys():
                 # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[key])
+                acceleration = deepcopy(rl_actions[veh_id])
 
                 # Redefine if below a speed threshold so that all actions
                 # result in non-negative desired speeds.
                 ac_range = self.action_space.high - self.action_space.low
-                speed = self.k.vehicle.get_speed(key)
+                speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     acceleration += 0.5 * ac_range - speed / self.sim_step
 
+                # Run the action through the controller, to include failsafe
+                # actions.
+                acceleration = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=acceleration)
+
                 # Apply the action via the simulator.
-                self.k.vehicle.apply_acceleration(key, acceleration)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -214,7 +225,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         # Compute the reward.
         reward = self._compute_reward_util(
-            rl_actions=rl_actions,
+            rl_actions=list(rl_actions.values()),
             veh_ids=self.k.vehicle.get_ids(),
             rl_ids=self.rl_ids(),
             **kwargs
@@ -275,7 +286,7 @@ class AVMultiAgentEnv(MultiEnv):
 
                 if stopping_penalty:
                     for veh_id in rl_ids:
-                        if self.k.vehicle.get_speed(veh_id) < 1:
+                        if self.k.vehicle.get_speed(veh_id) <= 1:
                             reward -= 5
 
                 # =========================================================== #
@@ -558,6 +569,8 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -576,6 +589,21 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(float(val))
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -694,16 +722,33 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
+        end_speed = None
+        params = self.env_params.additional_params
+        if params["inflows"] is not None or params["warmup_path"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
+            if self.warmup_paths is not None:
+                # Choose a random available xml file.
+                xml_file = random.sample(self.warmup_paths, 1)[0]
+                xml_num = int(xml_file.split(".")[0])
+
+                # Update the choice of initial conditions.
+                self.sim_params.load_state = os.path.join(
+                    params["warmup_path"], xml_file)
+
+                # Assign the inflow rate to match the xml number.
+                inflow_rate = self.warmup_description["inflow"][xml_num]
+                end_speed = self.warmup_description["end_speed"][xml_num]
+                print("inflow: {}, end_speed: {}".format(
+                    inflow_rate, end_speed))
+            else:
+                # New inflow rate for human and automated vehicles, randomly
+                # assigned based on the inflows variable
+                inflow_range = self.env_params.additional_params["inflows"]
+                inflow_low = inflow_range[0]
+                inflow_high = inflow_range[1]
+                inflow_rate = random.randint(inflow_low, inflow_high)
 
             # Create a new inflow object.
             new_inflow = InFlows()
@@ -716,6 +761,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
                 # Get the inflow rate of the lane/edge based on whether the
                 # vehicle types are human-driven or automated.
+                penetration = params["rl_penetration"]
                 if veh_type == "human":
                     vehs_per_hour = inflow_rate * (1 - penetration)
                 else:
@@ -746,7 +792,21 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         # Clear all AV-related attributes.
         self._clear_attributes()
 
-        return super(AVOpenMultiAgentEnv, self).reset()
+        _ = super(AVOpenMultiAgentEnv, self).reset()
+
+        # Add automated vehicles.
+        if self.warmup_paths is not None:
+            self._add_automated_vehicles()
+
+        # Update the end speed, if specified.
+        if end_speed is not None:
+            self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        return self.get_state()
 
     def _clear_attributes(self):
         """Clear all AV-related attributes."""
@@ -756,6 +816,27 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         self.removed_veh = []
         self.rl_queue = collections.deque()
 
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(self._num_lanes):
+            sorted_vehicles_lane = [
+                veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    pos = self.k.vehicle.get_x_by_id(veh_id)
+                    if pos < self._control_range[1]:
+                        self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
 
 class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     """Lane-level network variant of AVOpenMultiAgentEnv.
@@ -763,8 +844,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     Unlike previous environments in this file, this environment treats every
     lane as a separate agent, with the automated vehicles in any given lane
     being control by a single centralized policy. This environment is designed
-    specifically for the I-210 subnetwork, but is applicable to any similarly
-    structured network.
+    specifically for the I-210 subnetwork.
 
     Additional descriptions to this task can be founded in its parent classes.
 
@@ -781,6 +861,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -866,6 +948,11 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
 
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
+
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(
             veh_ids,
@@ -920,17 +1007,17 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             veh_ids_lane = [v for v in veh_ids if get_lane(self, v) == lane]
 
             # Collect the names of the RL vehicles on the lane.
-            rl_ids = [veh for veh in self.rl_ids() if veh in veh_ids_lane]
+            rl_ids_lane = [
+                veh for veh in self.rl_ids()[lane] if veh in veh_ids_lane]
 
             # Collect the actions that just correspond to this lane.
-            rl_actions_lane = {key: rl_actions[key]
-                               for key in rl_actions.keys() if key in rl_ids}
+            rl_actions_lane = rl_actions["lane_{}".format(lane)]
 
             # Compute the reward for a given lane.
             reward["lane_{}".format(lane)] = self._compute_reward_util(
                 rl_actions=rl_actions_lane,
                 veh_ids=veh_ids_lane,
-                rl_ids=rl_ids,
+                rl_ids=rl_ids_lane,
                 **kwargs
             )
 
