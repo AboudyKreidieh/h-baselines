@@ -39,6 +39,7 @@ WARMUP_PATH = os.path.join(
 def get_flow_params(fixed_boundary,
                     stopping_penalty,
                     acceleration_penalty,
+                    use_follower_stopper,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
@@ -52,6 +53,8 @@ def get_flow_params(fixed_boundary,
         whether to include a stopping penalty
     acceleration_penalty : bool
         whether to include a regularizing penalty for accelerations by the AVs
+    use_follower_stopper : bool
+        whether to use the follower-stopper controller for the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -191,6 +194,7 @@ def get_flow_params(fixed_boundary,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
+                "use_follower_stopper": use_follower_stopper,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
                 "num_rl": 10 if multiagent else 50,
