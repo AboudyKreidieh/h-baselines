@@ -564,7 +564,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 # Update the meta action based on the output from the policy if
                 # the time period requires is.
-                self._meta_action = self.policy[i].get_action(
+                self._meta_action[env_num][i] = self.policy[i].get_action(
                     obs, context_i, apply_noise, random_actions)
             else:
                 # Update the meta-action in accordance with a fixed transition

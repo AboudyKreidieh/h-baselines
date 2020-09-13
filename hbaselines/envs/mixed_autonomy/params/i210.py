@@ -3,6 +3,7 @@ import os
 
 from flow.controllers import RLController
 from flow.controllers import IDMController
+from flow.controllers import AILaneChangeController
 from flow.core.params import EnvParams
 from flow.core.params import NetParams
 from flow.core.params import InitialConfig
@@ -10,6 +11,7 @@ from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
+from flow.core.params import SumoCarFollowingParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as flow_config
 
@@ -29,6 +31,9 @@ HORIZON = 1500
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
+# the path to the warmup files to initialize a network
+WARMUP_PATH = os.path.join(
+    hbaselines_config.PROJECT_PATH, "experiments/warmup/i210")
 
 
 def get_flow_params(fixed_boundary,
@@ -77,6 +82,13 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
+    # steps to run before the agent is allowed to take control (set to lower
+    # value during testing)
+    if WARMUP_PATH is not None:
+        warmup_steps = 0
+    else:
+        warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+
     # Create the base vehicle types that will be used for inflows.
     vehicles = VehicleParams()
     vehicles.add(
@@ -85,18 +97,33 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             'a': 1.3,
             'b': 2.0,
-            'noise': 0.3
+            'noise': 0.3,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
+        lane_change_controller=(AILaneChangeController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
+        ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=1621,
+            model="SL2015",
+            lc_sublane=2.0,
         ),
     )
     vehicles.add(
         "rl",
         num_vehicles=0,
         acceleration_controller=(RLController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12,
+            # right of way at intersections + obey limits on deceleration
+        ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=0,  # no lane changes by automated vehicles
+            lane_change_mode=0,  # no lane changes
         ),
     )
 
@@ -155,7 +182,7 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=0,
+            warmup_steps=warmup_steps,
             done_at_exit=False,
             sims_per_step=3,
             additional_params={
@@ -172,10 +199,7 @@ def get_flow_params(fixed_boundary,
                     "a": 1.3,
                     "b": 2.0,
                 }),
-                "warmup_path": os.path.join(
-                    hbaselines_config.PROJECT_PATH,
-                    "experiments/warmup/i210"
-                ),
+                "warmup_path": WARMUP_PATH,
             }
         ),
 

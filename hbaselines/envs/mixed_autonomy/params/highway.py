@@ -28,12 +28,15 @@ TRAFFIC_FLOW = 2215
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 1/20
+PENETRATION_RATE = 1/12
 # whether to include noise in the environment
 INCLUDE_NOISE = True
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
+# the path to the warmup files to initialize a network
+WARMUP_PATH = os.path.join(
+    hbaselines_config.PROJECT_PATH, "experiments/warmup/highway")
 
 
 def get_flow_params(fixed_boundary,
@@ -82,6 +85,13 @@ def get_flow_params(fixed_boundary,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
+    # steps to run before the agent is allowed to take control (set to lower
+    # value during testing)
+    if WARMUP_PATH is not None:
+        warmup_steps = 0
+    else:
+        warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params.update({
         # length of the highway
@@ -141,6 +151,14 @@ def get_flow_params(fixed_boundary,
         "rl",
         num_vehicles=0,
         acceleration_controller=(RLController, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=12,
+            # right of way at intersections + obey limits on deceleration
+        ),
+        lane_change_params=SumoLaneChangeParams(
+            lane_change_mode=0,  # no lane changes
+        ),
     )
 
     inflows.add(
@@ -182,26 +200,24 @@ def get_flow_params(fixed_boundary,
         env=EnvParams(
             evaluate=evaluate,
             horizon=HORIZON,
-            warmup_steps=0,  # 500,
+            warmup_steps=warmup_steps,
             sims_per_step=3,
+            done_at_exit=False,
             additional_params={
                 "max_accel": 0.5,
                 "max_decel": 0.5,
-                "target_velocity": 12,
+                "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": float("inf") if multiagent else 7,
+                "num_rl": float("inf") if multiagent else 10,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
                 }),
-                "warmup_path": os.path.join(
-                    hbaselines_config.PROJECT_PATH,
-                    "experiments/warmup/highway"
-                ),
+                "warmup_path": WARMUP_PATH,
             }
         ),
 
