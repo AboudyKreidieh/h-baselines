@@ -906,7 +906,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.271',
+             'idm_inflow_00.283',
+             'idm_inflow_00.295',
+             'idm_inflow_00.307',
+             'idm_inflow_00.319',
+             'idm_inflow_00.331',
+             'idm_inflow_00.343']
         )
 
         # kill the environment
@@ -968,7 +974,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.271',
+             'idm_inflow_00.283',
+             'idm_inflow_00.295',
+             'idm_inflow_00.307',
+             'idm_inflow_00.319',
+             'idm_inflow_00.331',
+             'idm_inflow_00.343']
         )
 
         # kill the environment
@@ -1030,7 +1042,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.271',
+             'idm_inflow_00.283',
+             'idm_inflow_00.295',
+             'idm_inflow_00.307',
+             'idm_inflow_00.319',
+             'idm_inflow_00.331',
+             'idm_inflow_00.343']
         )
 
         # kill the environment
@@ -1092,7 +1110,13 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.271',
+             'idm_inflow_00.283',
+             'idm_inflow_00.295',
+             'idm_inflow_00.307',
+             'idm_inflow_00.319',
+             'idm_inflow_00.331',
+             'idm_inflow_00.343']
         )
 
         # kill the environment
@@ -2108,6 +2132,7 @@ class TestAVImitation(unittest.TestCase):
                         "a": 0.3,
                         "b": 2.0,
                     }),
+                    "warmup_path": None,
                 },
             )
         )

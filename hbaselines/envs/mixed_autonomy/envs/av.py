@@ -54,7 +54,7 @@ OPEN_ENV_PARAMS.update(dict(
     inflows=[1000, 2000],
     # path to the initialized vehicle states. Cannot be set in addition to the
     # `inflows` term. This feature defines its own inflows.
-    warmup_path="/path/to/initial_states",
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
