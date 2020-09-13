@@ -9,7 +9,6 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
