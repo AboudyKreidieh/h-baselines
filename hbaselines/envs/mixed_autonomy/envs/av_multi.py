@@ -8,6 +8,7 @@ import random
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
@@ -131,6 +132,21 @@ class AVMultiAgentEnv(MultiEnv):
         self.leader = []
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+
+        # dynamics controller for controlled RL vehicles. Only relevant if
+        # "use_follower_stopper" is set to True.
+        human_type = "human" if "human" in self.k.vehicle.type_parameters \
+            else "human_0"
+        self._av_controller = FollowerStopper(
+            veh_id="av",
+            v_des=30,
+            max_accel=1,
+            max_decel=2,
+            display_warnings=False,
+            fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+            car_following_params=self.k.vehicle.type_parameters[human_type][
+                "car_following_params"],
+        )
 
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
@@ -267,7 +283,8 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    accel = [rl_actions[key][0] for key in rl_actions.keys()]
+                    accel = [self.k.vehicle.get_accel(veh_id, True, True) or 0
+                             for veh_id in rl_ids]
                     reward -= sum(np.square(accel))
 
         return reward

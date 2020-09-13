@@ -134,6 +134,8 @@ class AVEnv(Env):
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
+        human_type = "human" if "human" in self.k.vehicle.type_parameters \
+            else "human_0"
         self._av_controller = FollowerStopper(
             veh_id="av",
             v_des=30,
@@ -141,7 +143,7 @@ class AVEnv(Env):
             max_decel=2,
             display_warnings=False,
             fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
-            car_following_params=self.k.vehicle.type_parameters["human"][
+            car_following_params=self.k.vehicle.type_parameters[human_type][
                 "car_following_params"],
         )
 
@@ -267,7 +269,9 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    accel = [self.k.vehicle.get_accel(veh_id, True, True) or 0
+                             for veh_id in self.rl_ids()]
+                    reward -= sum(np.square(accel))
 
             return reward
 

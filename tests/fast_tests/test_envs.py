@@ -1164,6 +1164,83 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         env.wrapped_env.terminate()
 
     # ======================================================================= #
+    #                               highway-v3                                #
+    # ======================================================================= #
+
+    def test_single_agent_highway_v3(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("highway-v3")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([15 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # test case 3
+        self.assertAlmostEqual(
+            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
+            0.0
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_highway_v3(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-highway-v3", shared=True)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([15 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertDictEqual(
+            env.wrapped_env.compute_reward(
+                {key: np.array([0.5]) for key in env.agents},
+                fail=False,
+            ),
+            {'rl_highway_inflow_10.0': 0.0, 'rl_highway_inflow_10.1': 0.0}
+        )
+
+        # test case 4
+        self.assertListEqual(
+            sorted(env.agents),
+            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
     #                            highway-imitation                            #
     # ======================================================================= #
 
@@ -1467,6 +1544,7 @@ class TestAV(unittest.TestCase):
             fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
         ))
 
         self.network_open = flow_params_open["network"](
@@ -1502,6 +1580,7 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                 },
             )
         )
@@ -1566,6 +1645,7 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "num_vehicles": [50, 75],
                     "even_distribution": False,
                     "sort_vehicles": True,
@@ -1616,6 +1696,7 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1692,6 +1773,7 @@ class TestAVMulti(unittest.TestCase):
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
+            use_follower_stopper=False,
         ))
 
         self.network_open = flow_params_open["network"](
@@ -1708,6 +1790,7 @@ class TestAVMulti(unittest.TestCase):
             fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
             multiagent=True,
         ))
 
@@ -1744,6 +1827,7 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                 },
             )
         )
@@ -1807,6 +1891,7 @@ class TestAVMulti(unittest.TestCase):
                     "max_decel": 3,
                     "target_velocity": 30,
                     "stopping_penalty": True,
+                    "use_follower_stopper": True,
                     "acceleration_penalty": True,
                     "num_vehicles":  [50, 75],
                     "even_distribution": False,
@@ -1858,6 +1943,7 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1920,6 +2006,7 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1994,6 +2081,7 @@ class TestAVImitation(unittest.TestCase):
             fixed_boundary=True,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
             imitation=True,
         ))
 
@@ -2042,6 +2130,7 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
@@ -2130,6 +2219,7 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "num_vehicles": [50, 75],
                     "even_distribution": False,
                     "sort_vehicles": True,
@@ -2203,6 +2293,7 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
