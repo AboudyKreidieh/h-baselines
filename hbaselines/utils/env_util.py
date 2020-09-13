@@ -791,7 +791,7 @@ ENV_ATTRIBUTES = {
         "state_indices": [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
-                fixed_boundary=False,
+                fixed_boundary=True,
                 stopping_penalty=False,
                 acceleration_penalty=False,
                 use_follower_stopper=False,

@@ -54,7 +54,7 @@ OPEN_ENV_PARAMS.update(dict(
     inflows=[1000, 2000],
     # path to the initialized vehicle states. Cannot be set in addition to the
     # `inflows` term. This feature defines its own inflows.
-    warmup_path="/path/to/initial_states",
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -204,6 +204,11 @@ class AVEnv(Env):
                 speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
 
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(
@@ -802,8 +807,8 @@ class AVOpenEnv(AVEnv):
         if end_speed is not None:
             self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
 
-            # Add the vehicles to their respective attributes.
-            self.additional_command()
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
 
         # Recompute the initial observation.
         obs = self.get_state()

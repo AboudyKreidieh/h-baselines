@@ -52,6 +52,9 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -196,19 +199,24 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
-            for key in rl_actions.keys():
+            for veh_id in rl_actions.keys():
                 # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[key])
+                acceleration = deepcopy(rl_actions[veh_id])
 
                 # Redefine if below a speed threshold so that all actions
                 # result in non-negative desired speeds.
                 ac_range = self.action_space.high - self.action_space.low
-                speed = self.k.vehicle.get_speed(key)
+                speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     acceleration += 0.5 * ac_range - speed / self.sim_step
 
+                # Run the action through the controller, to include failsafe
+                # actions.
+                acceleration = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=acceleration)
+
                 # Apply the action via the simulator.
-                self.k.vehicle.apply_acceleration(key, acceleration)
+                self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -563,6 +571,8 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -853,6 +863,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -937,6 +949,11 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 speed = self.k.vehicle.get_speed(veh_id)
                 if speed < 0.5 * ac_range * self.sim_step:
                     accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
 
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(

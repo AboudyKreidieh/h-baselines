@@ -119,7 +119,10 @@ def get_flow_params(fixed_boundary,
     vehicles.add(
         "rl",
         num_vehicles=0,
-        acceleration_controller=(RLController, {}),
+        acceleration_controller=(RLController, {
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+        }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
             # right of way at intersections + obey limits on deceleration
