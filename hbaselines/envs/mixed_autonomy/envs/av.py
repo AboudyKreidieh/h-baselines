@@ -733,21 +733,6 @@ class AVOpenEnv(AVEnv):
                 inflow_high = inflow_range[1]
                 inflow_rate = random.randint(inflow_low, inflow_high)
 
-            # Does not change for now.
-            end_speed = None
-
-        elif self.warmup_description is not None:
-            # Choose the inflow/end_speed to match the initial state.
-            xml_num = int(self.sim_params.load_state.split("/")[-1][:-4])
-            inflow_rate = self.warmup_description["inflow"][xml_num]
-            end_speed = self.warmup_description["end_speed"][xml_num]
-
-        else:
-            # Do not modify anything.
-            inflow_rate = None
-            end_speed = None
-
-        if inflow_rate is not None:
             # Create a new inflow object.
             new_inflow = InFlows()
 
@@ -776,11 +761,6 @@ class AVOpenEnv(AVEnv):
             # Add the new inflows to NetParams.
             new_net_params = deepcopy(self._network_net_params)
             new_net_params.inflows = new_inflow
-
-            # Update the end speed (if needed).
-            if end_speed is not None:
-                new_net_params.additional_params["ghost_speed_limit"] = \
-                    end_speed
 
             # Update the network.
             self.network = self._network_cls(

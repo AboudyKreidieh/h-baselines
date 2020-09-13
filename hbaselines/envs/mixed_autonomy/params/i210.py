@@ -112,8 +112,7 @@ def get_flow_params(fixed_boundary,
             speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
+            lane_change_mode=1621,
         ),
     )
     vehicles.add(

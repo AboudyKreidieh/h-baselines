@@ -120,6 +120,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
             action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,

@@ -63,8 +63,6 @@ OPEN_ENV_PARAMS.update(dict(
     # the interval (in meters) in which automated vehicles are controlled. If
     # set to None, the entire region is controllable.
     control_range=[500, 2500],
-    # path to the initialized vehicle states
-    warmup_path="/path/to/initial_states",
 ))
 
 
