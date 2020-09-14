@@ -131,15 +131,15 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 0]
+                context_range=[24, 0]
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 8]
+                context_range=[16, 8]
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[0, 8]
+                context_range=[16, -8]
             )
         ] if evaluate else HumanoidMaze(
             use_contexts=True,

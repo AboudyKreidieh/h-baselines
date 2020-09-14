@@ -167,6 +167,14 @@ def construct_maze(maze_id='Maze'):
             [1, 0, 0, 1],
             [1, 1, 1, 1],
         ]
+    elif maze_id == 'Cross':
+        structure = [
+            [0, 0, 0, 1, 1, 1, 0],
+            [1, 1, 1, 1, 0, 1, 1],
+            [1, r, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 0, 1, 1],
+            [0, 0, 0, 1, 1, 1, 0],
+        ]
     elif maze_id == 'FourRooms':
         structure = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],

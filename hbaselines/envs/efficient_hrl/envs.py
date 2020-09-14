@@ -570,7 +570,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
             If the context_range is not the right form based on whether
             contexts are a single value or random across a range.
         """
-        maze_id = "Maze"
+        maze_id = "Cross"
 
         def contextual_reward(states, goals, next_states):
             return negative_distance(
@@ -580,7 +580,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=1/7.2,
+                reward_scales=1/100,
                 output_activation=np.exp)
 
         super(HumanoidMaze, self).__init__(
