@@ -883,6 +883,10 @@ def get_meta_ac_space(ob_space, relative_goals, env_name):
     gym.spaces.Box
         the action space of the higher level policy
     """
+    # Handle multi-agent environments.
+    if env_name.startswith("multiagent"):
+        env_name = env_name[11:]
+
     if env_name in ENV_ATTRIBUTES.keys():
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
             relative_goals)
@@ -912,6 +916,10 @@ def get_state_indices(ob_space, env_name):
     list of int
         the state indices that are assigned goals
     """
+    # Handle multi-agent environments.
+    if env_name.startswith("multiagent"):
+        env_name = env_name[11:]
+
     if env_name in ENV_ATTRIBUTES.keys():
         state_indices = ENV_ATTRIBUTES[env_name]["state_indices"]
     else:
