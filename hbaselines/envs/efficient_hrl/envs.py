@@ -411,16 +411,16 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             action)
 
         if self.use_contexts:
-            # Add success to the info dict
-            dist = 7.2 * np.log(self.contextual_reward(
+            # Replace the reward with the contextual reward.
+            rew = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
                 goals=self.current_context,
-            ))
-            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
+            )
 
-            # Replace the reward with the contextual reward.
-            rew = dist
+            # Add success to the info dict
+            dist = 7.2 * np.log(rew)
+            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
 
         # Check if the time horizon has been met.
         self.step_number += 1
