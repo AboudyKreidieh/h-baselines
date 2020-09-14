@@ -477,7 +477,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             self.policy[i].initialize()
 
         if self.pretrain_path is not None:
-            # Add the "checkpoints" sub-directory.
             ckpt_path = os.path.join(self.pretrain_path, "checkpoints")
 
             # Get the checkpoint number.
@@ -489,7 +488,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             else:
                 ckpt_num = self.pretrain_ckpt
 
-            # Extract the final checkpoint path.
+            # Extract the checkpoint path.
             ckpt_path = os.path.join(ckpt_path, "itr-{}".format(ckpt_num))
             var_list = tf.train.list_variables(ckpt_path)
             ckpt_reader = tf.train.load_checkpoint(ckpt_path)
