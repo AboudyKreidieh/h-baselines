@@ -575,7 +575,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Do not use done masks for lower-level policies with negative
         # intrinsic rewards (these the policies to terminate early).
-        if self._negative_reward_fn():
+        if True:
             for i in range(self.num_levels - 1):
                 done[i+1] = np.array([False] * done[i+1].shape[0])
 

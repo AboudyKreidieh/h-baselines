@@ -31,6 +31,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  shared,
                  maddpg,
                  env_name="",
@@ -121,6 +124,15 @@ class MultiGoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -168,6 +180,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                pretrain_worker=pretrain_worker,
+                pretrain_path=pretrain_path,
+                pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
                 num_envs=n_agents * num_envs if shared else num_envs,
             ),
