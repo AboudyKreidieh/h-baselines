@@ -419,7 +419,8 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             )
 
             # Add success to the info dict
-            dist = 7.2 * np.log(rew)
+            dist = rew / REWARD_SCALE - np.linalg.norm([16, 8])
+            info["goal_distance"] = dist
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
 
         # Check if the time horizon has been met.
@@ -579,9 +580,9 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 next_states=next_states,
                 state_indices=[0, 1],
                 relative_context=False,
-                offset=0.0,
-                reward_scales=1/100,
-                output_activation=np.exp)
+                reward_scales=REWARD_SCALE,
+                offset=REWARD_SCALE * np.linalg.norm([16, 8]),
+            )
 
         super(HumanoidMaze, self).__init__(
             maze_id=maze_id,

@@ -20,6 +20,8 @@ try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
     from hbaselines.envs.snn4hrl.envs import SnakeGatherEnv
     from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
+
+    from hbaselines.envs.composition.cheetah_hurdle import HalfCheetahHurdleEnv
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -61,6 +63,7 @@ except (ImportError, ModuleNotFoundError):
 #   the Worker's state space
 # - env: a lambda term that takes an input (evaluate, render, multiagent,
 #   shared, maddpg) and return an environment or list of environments
+
 ENV_ATTRIBUTES = {
 
     # ======================================================================= #
@@ -131,20 +134,20 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[24, 0]
+                context_range=[16, 0],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[16, 8]
+                context_range=[8, 8],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[16, -8]
+                context_range=[8, -8],
             )
         ] if evaluate else HumanoidMaze(
             use_contexts=True,
-            random_contexts=True,
-            context_range=[(-2, 10), (-2, 10)]
+            random_contexts=False,
+            context_range=[[16, 0], [8, 8], [8, -8]],
         ),
     },
 
@@ -296,8 +299,8 @@ ENV_ATTRIBUTES = {
 
     "SwimmerGather": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([-10, -10, -np.pi/2, -np.pi/2, -np.pi/2]),
-            high=np.array([10, 10, np.pi/2, np.pi/2, np.pi/2]),
+            low=np.array([-4, -4]),
+            high=np.array([4, 4]),
             dtype=np.float32,
         ),
         "state_indices": [i for i in range(5)],
@@ -308,9 +311,9 @@ ENV_ATTRIBUTES = {
     "SnakeGather": {
         "meta_ac_space": lambda relative_goals: Box(
             low=np.array([
-                -10, -10, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2]),
+                -6, -6, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4]),
             high=np.array(
-                [10, 10, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]),
+                [6, 6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]),
             dtype=np.float32,
         ),
         "state_indices": [i for i in range(7)],
@@ -329,6 +332,21 @@ ENV_ATTRIBUTES = {
         "state_indices": [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         AntGatherEnv(),
+    },
+
+    #
+
+    "HalfCheetahHurdle": {
+        "meta_ac_space": lambda relative_goals: Box(
+            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
+                          -0.3, -0.5, -0.3, -0.5, -0.3]),
+            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
+                           0.3, 0.5, 0.3]),
+            dtype=np.float32,
+        ),
+        "state_indices": [i for i in range(15)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        HalfCheetahHurdleEnv(),
     },
 
     # ======================================================================= #

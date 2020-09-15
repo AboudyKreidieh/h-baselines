@@ -19,7 +19,7 @@ class AntGatherEnv(GatherEnv):
     def __init__(self,
                  n_apples=8,
                  n_bombs=8,
-                 activity_range=10.,
+                 activity_range=6.,
                  robot_object_spacing=2.,
                  catch_range=1.,
                  n_bins=10,
@@ -108,7 +108,7 @@ class SwimmerGatherEnv(AntGatherEnv):
 
     MODEL_CLASS = SwimmerEnv
     ORI_IND = 2
-    HORIZON = 500
+    HORIZON = 800
 
 
 class SnakeGatherEnv(AntGatherEnv):

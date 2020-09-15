@@ -147,6 +147,7 @@ class Sampler(object):
             "action": action,
             "reward": reward,
             "done": done,
+            "info": info,
             "env_num": self._env_num,
             "all_obs": all_obs if not done else (all_obs, reset_all_obs),
         }
