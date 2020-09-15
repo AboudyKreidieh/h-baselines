@@ -263,6 +263,12 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         # the rewards.
         self.vf_ratio_ph = tf.placeholder(tf.float32, shape=(), name="vf_rat")
 
+        # placeholder for the lambda term.
+        self.cg_weights_ph = tf.placeholder(tf.float32, shape=(), name="cg_wt")
+        self.cg_weights = 0
+        self.cg_weights_lr = 1e-5
+        self.cg_delta = 5 * 0.99 ** self.meta_period
+
         self.cg_loss = []
         self.cg_optimizer = []
         for level in range(self.num_levels - 1):
@@ -328,7 +334,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             optimizer = tf.compat.v1.train.AdamOptimizer(
                 self.policy[level].actor_lr)
             self.cg_optimizer.append(optimizer.minimize(
-                self.policy[level].actor_loss + self.cg_weights * cg_loss,
+                self.policy[level].actor_loss + self.cg_weights_ph * cg_loss,
                 var_list=get_trainable_vars(
                     "level_{}/model/pi/".format(level)),
             ))
@@ -399,6 +405,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].obs1_ph: obs1[level_num],
             self.policy[level_num].terminals1: terminals1[level_num],
             self.vf_ratio_ph: std_meta / std_worker,
+            self.cg_weights_ph: self.cg_weights,
         }
 
         if update_actor:
@@ -420,5 +427,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Extract the actor loss.
         actor_loss = _vals[2] if update_actor else 0
+
+        # Update the cg_weights terms.
+        estimate_value = self.sess.run(
+            self.policy[level_num + 1].critic_tf[0],
+            feed_dict={
+                self.policy[level_num + 1].action_ph: actions[level_num + 1],
+                self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
+            }
+        )
+        loss = estimate_value - self.cg_delta
+        self.cg_weights = max(0, self.cg_weights + self.cg_weights_lr * loss)
+        print(self.cg_weights)
 
         return critic_loss, actor_loss
