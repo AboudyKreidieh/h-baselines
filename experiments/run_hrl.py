@@ -6,7 +6,7 @@ import sys
 
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 
 EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --meta_period 10'
 
@@ -28,7 +28,7 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
-    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.Policy ]
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
@@ -54,7 +54,7 @@ def run_exp(env,
     """
     eval_env = env if evaluate else None
 
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env,
         eval_env=eval_env,
@@ -130,7 +130,9 @@ if __name__ == '__main__':
             description='Test the performance of goal-conditioned '
                         'hierarchical models on various environments.',
             example_usage=EXAMPLE_USAGE,
-            args=sys.argv[1:]
+            args=sys.argv[1:],
+            hierarchical=True,
+            multiagent=False,
         ),
         'data/goal-conditioned'
     )

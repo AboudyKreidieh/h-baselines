@@ -104,7 +104,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             the current TensorFlow session
         ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.spaces.*
+        ac_space : gym.spaces.* or dict < gym.spaces.* >
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment

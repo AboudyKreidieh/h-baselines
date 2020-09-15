@@ -38,6 +38,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -113,6 +116,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -140,6 +152,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             cg_weights=cg_weights,
             scope=scope,
             env_name=env_name,
+            pretrain_worker=pretrain_worker,
+            pretrain_path=pretrain_path,
+            pretrain_ckpt=pretrain_ckpt,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,

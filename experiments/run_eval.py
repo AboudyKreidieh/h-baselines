@@ -9,7 +9,7 @@ import json
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
@@ -18,6 +18,14 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
     as SACGoalConditionedPolicy
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
+    as TD3MultiFeedForwardPolicy
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
+    as SACMultiFeedForwardPolicy
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
+    as TD3MultiGoalConditionedPolicy
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
+    as SACMultiGoalConditionedPolicy
 
 
 # dictionary that maps policy names to policy objects
@@ -29,6 +37,14 @@ POLICY_DICT = {
     "GoalConditionedPolicy": {
         "TD3": TD3GoalConditionedPolicy,
         "SAC": SACGoalConditionedPolicy,
+    },
+    "MultiFeedForwardPolicy": {
+        "TD3": TD3MultiFeedForwardPolicy,
+        "SAC": SACMultiFeedForwardPolicy,
+    },
+    "MultiGoalConditionedPolicy": {
+        "TD3": TD3MultiGoalConditionedPolicy,
+        "SAC": SACMultiGoalConditionedPolicy,
     },
 }
 
@@ -87,9 +103,7 @@ def parse_options(args):
         help='whether to run the simulation on a random seed. If not added, '
              'the original seed is used.')
 
-    flags, _ = parser.parse_known_args(args)
-
-    return flags
+    return parser.parse_args(args)
 
 
 def get_hyperparameters_from_dir(ckpt_path):
@@ -146,10 +160,11 @@ def main(args):
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
+    multiagent = env_name.startswith("multiagent")
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,
@@ -218,6 +233,12 @@ def main(args):
                     random_actions=False,
                 )
 
+                # Flatten the actions to pass to step.
+                if multiagent:
+                    action = {key: action[key][0] for key in action.keys()}
+                else:
+                    action = action[0]
+
                 # Visualize the sub-goals of the hierarchical policy.
                 if hasattr(policy, "_meta_action") \
                         and policy._meta_action is not None \
@@ -227,7 +248,7 @@ def main(args):
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
 
-                new_obs, reward, done, _ = env.step(action[0])
+                new_obs, reward, done, _ = env.step(action)
                 if not flags.no_render:
                     if flags.save_video:
                         if alg.env_name == "AntGather":
@@ -237,16 +258,29 @@ def main(args):
                                 mode='rgb_array', height=1024, width=1024))
                     else:
                         env.render()
-                total_reward += reward
-                if done:
-                    break
+
+                if multiagent:
+                    if done["__all__"]:
+                        break
+                    obs0_transition = {
+                        key: np.array(obs[key]) for key in obs.keys()}
+                    obs1_transition = {
+                        key: np.array(new_obs[key]) for key in obs.keys()}
+                    total_reward += sum(
+                        reward[key] for key in reward.keys())
+                else:
+                    if done:
+                        break
+                    obs0_transition = obs
+                    obs1_transition = new_obs
+                    total_reward += reward
 
                 policy.store_transition(
-                    obs0=obs,
+                    obs0=obs0_transition,
                     context0=context[0] if context is not None else None,
-                    action=action[0],
+                    action=action,
                     reward=reward,
-                    obs1=new_obs,
+                    obs1=obs1_transition,
                     context1=context[0] if context is not None else None,
                     done=done,
                     is_final_step=done,
