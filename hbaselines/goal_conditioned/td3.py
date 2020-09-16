@@ -281,8 +281,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         # placeholder for the lambda term.
         self.cg_weights_ph = tf.placeholder(tf.float32, shape=(), name="cg_wt")
         self.cg_weights = 0
-        self.cg_weights_lr = 1e-5
-        self.cg_delta = 5 * 0.99 ** self.meta_period
+        self.cg_weights_lr = 1e-8
+        self.cg_delta = -2 * (1 / (1 - self.gamma))
+        tf.compat.v1.summary.scalar("level_0/cg_weights", self.cg_weights_ph)
 
         self.cg_loss = []
         self.cg_optimizer = []
@@ -408,6 +409,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Update operations for the critic networks.
         step_ops = [
+            self.policy[level_num + 1].critic_tf[0],
             self.policy[level_num].critic_loss,
             self.policy[level_num].critic_optimizer[0],
             self.policy[level_num].critic_optimizer[1],
@@ -421,6 +423,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].terminals1: terminals1[level_num],
             self.vf_ratio_ph: std_meta / std_worker,
             self.cg_weights_ph: self.cg_weights,
+            self.policy[level_num + 1].action_ph: actions[level_num + 1],
+            self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
         }
 
         if update_actor:
@@ -438,21 +442,27 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             })
 
         # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
+        estimate_value, critic_loss, *_vals = self.sess.run(
+            step_ops, feed_dict=feed_dict)
 
         # Extract the actor loss.
         actor_loss = _vals[2] if update_actor else 0
 
         # Update the cg_weights terms.
-        estimate_value = self.sess.run(
-            self.policy[level_num + 1].critic_tf[0],
-            feed_dict={
-                self.policy[level_num + 1].action_ph: actions[level_num + 1],
-                self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
-            }
-        )
-        loss = estimate_value - self.cg_delta
-        self.cg_weights = max(0, self.cg_weights + self.cg_weights_lr * loss)
-        print(self.cg_weights)
+        loss = np.mean(estimate_value) - self.cg_delta
+        self.cg_weights = max(0, self.cg_weights - self.cg_weights_lr * loss)
 
         return critic_loss, actor_loss
+
+    def get_td_map(self):
+        """See parent class.
+
+        This adds the cg_weights term in case cooperative gradients are being
+        used.
+        """
+        td_map = super(GoalConditionedPolicy, self).get_td_map()
+
+        if self.cooperative_gradients:
+            td_map.update({self.cg_weights_ph: self.cg_weights})
+
+        return td_map
