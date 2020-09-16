@@ -20,9 +20,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using independent learners, do not modify any
       policy-specific attributes:
 
-      >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
-      >>> alg = OffPolicyRLAlgorithm(
+      >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={}
@@ -38,9 +38,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using the shared policy feature, set the `shared`
       attribute to True:
 
-      >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
-      >>> alg = OffPolicyRLAlgorithm(
+      >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
@@ -54,9 +54,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       To train a policy using their MADDPG variants as opposed to independent
       learners, algorithm, set the `maddpg` attribute to True:
 
-      >>> from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+      >>> from hbaselines.algorithms import RLAlgorithm
       >>>
-      >>> alg = OffPolicyRLAlgorithm(
+      >>> alg = RLAlgorithm(
       >>>     policy=MultiActorCriticPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
@@ -105,10 +105,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  shared,
                  maddpg,
                  base_policy,
@@ -146,16 +144,12 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -192,10 +186,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber
+            use_huber=use_huber,
+            model_params=model_params,
         )
 
         self.shared = shared
@@ -396,10 +388,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             verbose=self.verbose,
             tau=self.tau,
             gamma=self.gamma,
-            layer_norm=self.layer_norm,
-            layers=self.layers,
-            act_fun=self.act_fun,
             use_huber=self.use_huber,
+            model_params=self.model_params,
             **self.additional_params
         )
 
@@ -456,10 +446,11 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """See get_action."""
         actions = {}
 
-        for key in obs.keys():
+        for i, key in enumerate(self._sorted_list(obs.keys())):
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
+            env_num_i = self.n_agents * env_num + i if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -471,7 +462,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                 context=context_i,
                 apply_noise=apply_noise,
                 random_actions=random_actions,
-                env_num=env_num,
+                env_num=env_num_i,
             )
 
         return actions
@@ -488,7 +479,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                                 env_num,
                                 evaluate):
         """See store_transition."""
-        for key in obs0.keys():
+        for i, key in enumerate(self._sorted_list(obs0.keys())):
             # If the agent has exited the environment, ignore it.
             if key not in reward.keys():
                 continue
@@ -496,6 +487,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
+            env_num_i = self.n_agents * env_num + i if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -513,7 +505,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                 done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
-                env_num=env_num,
+                env_num=env_num_i,
             )
 
     def _get_td_map_basic(self):
@@ -525,6 +517,11 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             combines_td_maps.update(self.agents[key].get_td_map())
 
         return combines_td_maps
+
+    @staticmethod
+    def _sorted_list(keys):
+        """Return a sorted list of dict keys."""
+        return sorted(list(keys))
 
     # ======================================================================= #
     #               MADDPG version of required abstract methods.              #

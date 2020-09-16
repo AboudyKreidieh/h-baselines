@@ -18,10 +18,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 model_params,
                  target_entropy,
                  num_levels,
                  meta_period,
@@ -33,6 +31,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  shared,
                  maddpg,
                  env_name="",
@@ -67,16 +68,12 @@ class MultiGoalConditionedPolicy(BasePolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -127,6 +124,15 @@ class MultiGoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -154,10 +160,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
@@ -176,8 +180,11 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                pretrain_worker=pretrain_worker,
+                pretrain_path=pretrain_path,
+                pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
-                num_envs=num_envs,
+                num_envs=n_agents * num_envs if shared else num_envs,
             ),
         )
 

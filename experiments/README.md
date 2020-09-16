@@ -94,10 +94,26 @@ respective policies.
 * `--tau` (*float*): the soft update coefficient (keep old values, between 0 
   and 1). Defatuls to 0.005.
 * `--gamma` (*float*): the discount rate. Defaults to 0.99.
-* `--layer_norm` (*store_true*): enable layer normalisation
 * `--use_huber` (*store_true*): specifies whether to use the huber distance 
   function as the loss for the critic. If set to False, the mean-squared error 
   metric is used instead.
+* `--model_params:model_type` (*str*): the type of model to use. Must be one of
+  {"fcnet", "conv"}.
+* `--model_params:layer_norm` (*store_true*): enable layer normalisation
+* `--model_params:ignore_flat_channels` (*list of int*): specifies which 
+  channels of the observation to ignore
+* `--model_params:ignore_image` (*store_true*): specifies whether the image in
+  the observation. should be ignored and removed
+* `--model_params:image_height` (*int*): the height of the image observation
+* `--model_params:image_width` (*int*): the width of the image observation
+* `--model_params:image_channels` (*int*): the number of channels of the image 
+  observation
+* `--model_params:filters` (*list of int*): specifies the convolutional filters
+  per layer
+* `--model_params:kernel_sizes` (*list of int*): specifies the convolutional 
+  kernel sizes per layer
+* `--model_params:strides` (*list of int*): specifies the convolutional strides
+  per layer
 
 ### Hierarchical RL Model with Goal-conditioned Policy
 
