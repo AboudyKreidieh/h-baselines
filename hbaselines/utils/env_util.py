@@ -338,13 +338,11 @@ ENV_ATTRIBUTES = {
 
     "HalfCheetahHurdle": {
         "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
-                          -0.3, -0.5, -0.3, -0.5, -0.3]),
-            high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
-                           0.3, 0.5, 0.3]),
+            low=np.array([-3, -1]),
+            high=np.array([3, 1]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": [0, 2],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         HalfCheetahHurdleEnv(),
     },
