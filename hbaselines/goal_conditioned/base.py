@@ -672,7 +672,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             obs=obs,
             context=self._meta_action[env_num][-1],
             apply_noise=apply_noise,
-            random_actions=random_actions and self.pretrain_path is not None)
+            random_actions=random_actions and self.pretrain_path is None)
 
         return action
 
