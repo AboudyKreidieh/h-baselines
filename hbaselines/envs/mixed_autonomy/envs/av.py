@@ -137,6 +137,7 @@ class AVEnv(Env):
         self._network_initial_config = deepcopy(network.initial_config)
         self._network_traffic_lights = deepcopy(network.traffic_lights)
         self._network_vehicles = deepcopy(network.vehicles)
+        self._obs_history = []
 
         super(AVEnv, self).__init__(
             env_params=env_params,
@@ -209,7 +210,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self.num_rl,),
+            shape=(5 * self.num_rl * 5,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -319,7 +320,7 @@ class AVEnv(Env):
         self.follower = []
 
         # Initialize a set on empty observations
-        obs = [0 for _ in range(self.observation_space.shape[0])]
+        obs = [0 for _ in range(5 * self.num_rl)]
 
         for i, v_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
@@ -331,7 +332,15 @@ class AVEnv(Env):
             if follower not in ["", None]:
                 self.follower.append(follower)
 
-        return obs
+        self._obs_history.append(obs)
+        if len(self._obs_history) > 5:
+            self._obs_history = self._obs_history[-5:]
+
+        obs_out = np.concatenate(self._obs_history[::-1])
+        obs_out_2 = [0 for _ in range(25 * self.num_rl)]
+        obs_out_2[:len(obs_out)] = obs_out
+
+        return obs_out_2
 
     def additional_command(self):
         """See parent class.
