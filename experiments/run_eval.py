@@ -226,8 +226,14 @@ def main(args):
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
 
+                if multiagent:
+                    processed_obs = {
+                        key: np.array([obs[key]]) for key in obs.keys()}
+                else:
+                    processed_obs = np.asarray([obs])
+
                 action = policy.get_action(
-                    obs=np.asarray([obs]),
+                    obs=processed_obs,
                     context=context,
                     apply_noise=False,
                     random_actions=False,
@@ -260,12 +266,12 @@ def main(args):
                         env.render()
 
                 if multiagent:
-                    if done["__all__"]:
+                    if (isinstance(done, dict) and done["__all__"]) or done:
                         break
                     obs0_transition = {
                         key: np.array(obs[key]) for key in obs.keys()}
                     obs1_transition = {
-                        key: np.array(new_obs[key]) for key in obs.keys()}
+                        key: np.array(new_obs[key]) for key in new_obs.keys()}
                     total_reward += sum(
                         reward[key] for key in reward.keys())
                 else:
