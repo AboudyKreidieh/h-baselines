@@ -130,7 +130,7 @@ class Sampler(object):
         context = getattr(self.env, "current_context", None)
 
         # Done mask for multi-agent policies is slightly different.
-        if multiagent:
+        if isinstance(done, dict):
             done = done["__all__"]
 
         if done:

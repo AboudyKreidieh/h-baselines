@@ -17,7 +17,7 @@ from flow.networks import I210SubNetwork
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
-from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_max_function
+from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 
 BASE_ENV_PARAMS = dict(
@@ -346,10 +346,12 @@ class AVEnv(Env):
         """See parent class."""
         obs, rew, done, info = super(AVEnv, self).step(rl_actions)
 
-        self._mean_speeds.append(np.mean(
-            self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            self._mean_speeds.append(np.mean(
+                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
 
-        info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"speed": np.mean(self._mean_speeds)})
 
         return obs, rew, done, info
 
@@ -412,15 +414,24 @@ class AVClosedEnv(AVEnv):
             "Cannot assign a value to both \"warmup_paths\" and " \
             "\"ring_length\""
 
-        # attributes for sorting RL IDs by their initial position.
-        self._sorted_rl_ids = []
-
         super(AVClosedEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
+
+        # attributes for sorting RL IDs by their initial position.
+        self._sorted_rl_ids = []
+
+        # solve for the free flow velocity of the ring
+        v_guess = 4
+        self._v_eq = fsolve(
+            v_eq_function, np.array(v_guess),
+            args=(len(self.initial_ids), self.k.network.length()))[0]
+
+        # for storing the distance from the free-flow-speed for a given rollout
+        self._percent_v_eq = []
 
     def rl_ids(self):
         """See parent class."""
@@ -429,8 +440,22 @@ class AVClosedEnv(AVEnv):
         else:
             return self.k.vehicle.get_rl_ids()
 
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, info = super(AVClosedEnv, self).step(rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            speed = np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            info.update({"v_eq": self._v_eq})
+            info.update({"v_eq_frac": speed / self._v_eq})
+
+        return obs, rew, done, info
+
     def reset(self):
         """See class definition."""
+        self._percent_v_eq = []
+
         params = self.env_params.additional_params
         if params["ring_length"] is not None or self.warmup_paths is not None:
             # Make sure restart instance is set to True when resetting.
@@ -468,12 +493,12 @@ class AVClosedEnv(AVEnv):
 
             # solve for the velocity upper bound of the ring
             v_guess = 4
-            v_eq_max = fsolve(v_eq_max_function, np.array(v_guess),
-                              args=(len(self.initial_ids), length))[0]
+            self._v_eq = fsolve(v_eq_function, np.array(v_guess),
+                                args=(len(self.initial_ids), length))[0]
 
             print('\n-----------------------')
             print('ring length:', self.net_params.additional_params['length'])
-            print('v_max:', v_eq_max)
+            print('v_eq:', self._v_eq)
             print('-----------------------')
 
         self.leader = []
@@ -481,7 +506,7 @@ class AVClosedEnv(AVEnv):
         _ = super(AVClosedEnv, self).reset()
 
         # Add automated vehicles.
-        if params["ring_length"] is not None or self.warmup_paths is not None:
+        if self.warmup_paths is not None:
             self._add_automated_vehicles()
 
         # Get the initial positions of the RL vehicles to allow us to sort the

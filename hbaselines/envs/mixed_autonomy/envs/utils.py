@@ -154,12 +154,12 @@ def get_lane(env, veh_id):
     return lane if edge not in EXTRA_LANE_EDGES else lane - 1
 
 
-def v_eq_max_function(v, *args):
+def v_eq_function(v, *args):
     """Return the error between the desired and actual equivalent gap."""
     num_vehicles, length = args
 
     # maximum gap in the presence of one rl vehicle
-    s_eq_max = (length - num_vehicles * 5) / (num_vehicles - 1)
+    s_eq_max = (length - num_vehicles * 5) / num_vehicles
 
     v0 = 30
     s0 = 2
