@@ -1344,7 +1344,6 @@ class TestAV(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
         ))["sim"]
@@ -1352,7 +1351,6 @@ class TestAV(unittest.TestCase):
 
         # for AVClosedEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
         ))
@@ -1571,7 +1569,6 @@ class TestAVMulti(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1580,7 +1577,6 @@ class TestAVMulti(unittest.TestCase):
 
         # for AVClosedMultiAgentEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=False,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1883,7 +1879,6 @@ class TestAVImitation(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             imitation=True,
@@ -1892,7 +1887,6 @@ class TestAVImitation(unittest.TestCase):
 
         # for AVClosedEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             imitation=True,

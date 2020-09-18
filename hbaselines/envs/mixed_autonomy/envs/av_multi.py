@@ -32,13 +32,16 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
 CLOSED_ENV_PARAMS.update(dict(
-    # range for the number of vehicles allowed in the network. If set to None,
-    # the number of vehicles are is modified from its initial value.
-    num_vehicles=[50, 75],
+    # range for the lengths allowed in the network. If set to None, the ring
+    # length is not modified from its initial value.
+    ring_length=[220, 270],
     # whether to distribute the automated vehicles evenly among the human
     # driven vehicles. Otherwise, they are randomly distributed.
     even_distribution=False,
@@ -52,9 +55,6 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
-    # path to the initialized vehicle states. Cannot be set in addition to the
-    # `inflows` term. This feature defines its own inflows.
-    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -128,7 +128,7 @@ class AVMultiAgentEnv(MultiEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        super(MultiEnv, self).__init__(
+        super(AVMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
