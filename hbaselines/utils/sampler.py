@@ -43,12 +43,14 @@ class Sampler(object):
             maddpg=maddpg,
             evaluate=evaluate,
         )
+        _, _, _, info_dict = self.env.step(self.env.action_space.sample())
         self._env_num = env_num
         self._render = render
+        self._info_keys = list(info_dict.keys())
 
     def get_init_obs(self):
         """Return the initial observation from the environment."""
-        return self._init_obs.copy()
+        return self._init_obs.copy(), self._info_keys
 
     def get_context(self):
         """Collect the contextual term. None if it is not passed."""
