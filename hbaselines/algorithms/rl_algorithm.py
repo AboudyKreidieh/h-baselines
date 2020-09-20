@@ -510,6 +510,7 @@ class RLAlgorithm(object):
         self.epoch = 0
         self.episode_rew_history = deque(maxlen=100)
         self.episode_reward = [0 for _ in range(num_envs)]
+        self.info_at_done = {}
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -857,6 +858,7 @@ class RLAlgorithm(object):
             self.episodes = 0
             self.total_steps = 0
             self.episode_rew_history = deque(maxlen=100)
+            self.info_at_done = {}
 
             while True:
                 # Reset epoch-specific variables.
@@ -1022,6 +1024,7 @@ class RLAlgorithm(object):
                 obs = ret_i["obs"]
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
+                info = ret_i["info"]
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
@@ -1060,6 +1063,14 @@ class RLAlgorithm(object):
                     self.episode_step[num] = 0
                     self.epoch_episodes += 1
                     self.episodes += 1
+
+                    for key in info.keys():
+                        # Add a queue for the specific info type.
+                        if key not in self.info_at_done.keys():
+                            self.info_at_done[key] = deque(maxlen=100)
+
+                        # Store the info value at the end of the rollout.
+                        self.info_at_done[key].append(info[key])
 
     def _train(self):
         """Perform the training operation."""
@@ -1284,6 +1295,12 @@ class RLAlgorithm(object):
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,
         }
+
+        # Information passed by the environment.
+        combined_stats.update({
+            'info_at_done/{}'.format(key): np.mean(self.info_at_done[key])
+            for key in self.info_at_done.keys()
+        })
 
         # Save combined_stats in a csv file.
         if file_path is not None:
