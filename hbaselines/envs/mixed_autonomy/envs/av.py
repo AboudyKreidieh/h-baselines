@@ -333,10 +333,10 @@ class AVEnv(Env):
                 self.follower.append(follower)
 
         self._obs_history.append(obs)
-        if len(self._obs_history) > 5:
-            self._obs_history = self._obs_history[-5:]
+        if len(self._obs_history) > 25:
+            self._obs_history = self._obs_history[-25:]
 
-        obs_out = np.concatenate(self._obs_history[::-1])
+        obs_out = np.concatenate(self._obs_history[::-5])
         obs_out_2 = [0 for _ in range(25 * self.num_rl)]
         obs_out_2[:len(obs_out)] = obs_out
 

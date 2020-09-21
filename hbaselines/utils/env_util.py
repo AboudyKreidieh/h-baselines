@@ -441,7 +441,7 @@ ENV_ATTRIBUTES = {
             shape=(1,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(1)],
+        "state_indices": [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
