@@ -273,17 +273,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_cooperative_gradients(self):
+        self.t = 0
         """Create the cooperative gradients meta-policy optimizer."""
-        # A Ratio for scaling the effect of the loss by the relative stds of
-        # the rewards.
-        self.vf_ratio_ph = tf.placeholder(tf.float32, shape=(), name="vf_rat")
-
         # placeholder for the lambda term.
         self.cg_weights_ph = [
             tf.placeholder(tf.float32, shape=(), name="cg_wt_{}".format(i))
             for i in range(self.num_levels - 1)]
-        self.cg_weights = [0 for _ in range(self.num_levels - 1)]
-        self.cg_delta = -5 * (1 / (1 - self.gamma))
+        self.cg_weights = [0.01 for _ in range(self.num_levels - 1)]
+        self.cg_delta = -2 * (1 / (1 - self.gamma))
         # updating more frequently for lower meta periods, hence the weird form
         # of this
         self.cg_weights_lr = 1e-9 * self.meta_period
@@ -350,8 +347,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn *= self.intrinsic_reward_scale
 
             # Compute the worker loss with respect to the meta policy actions.
-            cg_loss = - self.vf_ratio_ph * (
-                tf.reduce_mean(worker_with_meta_obs) + reward_fn)
+            cg_loss = - (tf.reduce_mean(worker_with_meta_obs) + reward_fn)
             self.cg_loss.append(cg_loss)
 
             # Create the optimizer object.
@@ -406,15 +402,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         float
             meta-policy actor loss
         """
+        self.t += 1
         # Reshape to match previous behavior and placeholder shape.
         rewards[level_num] = rewards[level_num].reshape(-1, 1)
         terminals1[level_num] = terminals1[level_num].reshape(-1, 1)
-
-        # Compute the standard deviations of the manager and worker rewards.
-        std_meta = np.sqrt(
-            self._running_std[level_num] / self._n[level_num])
-        std_worker = np.sqrt(
-            self._running_std[level_num + 1] / self._n[level_num + 1])
 
         # Update operations for the critic networks.
         step_ops = [
@@ -430,7 +421,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].rew_ph: rewards[level_num],
             self.policy[level_num].obs1_ph: obs1[level_num],
             self.policy[level_num].terminals1: terminals1[level_num],
-            self.vf_ratio_ph: std_meta / std_worker,
             self.cg_weights_ph[level_num]: self.cg_weights[level_num],
             self.policy[level_num + 1].action_ph: actions[level_num + 1],
             self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
@@ -458,9 +448,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         actor_loss = _vals[2] if update_actor else 0
 
         # Update the cg_weights terms.
-        loss = np.mean(estimate_value) - self.cg_delta
-        self.cg_weights[level_num] = max(
-            0, self.cg_weights[level_num] - self.cg_weights_lr * loss)
+        if self.t > 1000:
+            loss = np.mean(estimate_value) - self.cg_delta
+            self.cg_weights[level_num] = max(
+                0, self.cg_weights[level_num] - self.cg_weights_lr * loss)
 
         return critic_loss, actor_loss
 
