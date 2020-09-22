@@ -22,7 +22,7 @@ def run_exp(env,
             log_interval,
             save_interval,
             initial_exploration_steps,
-            exploration_strategies):
+            exploration_strategy):
     """Run a single training procedure.
 
     Parameters
@@ -52,7 +52,7 @@ def run_exp(env,
     initial_exploration_steps : int
         number of timesteps that the policy is run before training to
         initialize the replay buffer with samples
-    exploration_strategies: str
+    exploration_strategy: str
         The exploration strategies to use for this training.
     """
     eval_env = env if evaluate else None
@@ -61,6 +61,7 @@ def run_exp(env,
         policy=policy,
         env=env,
         eval_env=eval_env,
+        exploration_strategy=exploration_strategy,
         **hp
     )
 
@@ -126,6 +127,7 @@ def main(args, base_dir):
             log_interval=args.log_interval,
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
+            exploration_strategy = args.exploration_strategy,
         )
 
 

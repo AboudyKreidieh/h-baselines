@@ -131,6 +131,11 @@ PPO_PARAMS = dict(
 # =========================================================================== #
 
 FEEDFORWARD_PARAMS = dict(
+    # dictionary of exploration strategies
+    exploration_params=dict(
+        # the name of exploration strategies
+        exploration_strategy=None
+    ),
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -344,6 +349,7 @@ class RLAlgorithm(object):
                  policy,
                  env,
                  eval_env=None,
+                 exploration_strategy=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
@@ -464,6 +470,9 @@ class RLAlgorithm(object):
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
             self.get_spaces()
+
+        # Update exploration_params according to the arguments
+        FEEDFORWARD_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
 
         # Add the default policy kwargs to the policy_kwargs term.
         if is_feedforward_policy(policy):

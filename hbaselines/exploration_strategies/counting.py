@@ -31,11 +31,11 @@ class DensityCountingExploration(ExplorationStrategy):
         """See parent class."""
         return action  # TODO
 
-    def update(self, obs0, actions, rewards, obs1, terminals1):
+    def update(self, obs1):
         """See parent class."""
         self.density_model.update(obs1)
 
-    def update_loss(self, loss, obs, action, reward, terminal):
+    def update_loss(self, loss, obs):
         """Update the loss function in the policy.
         Parameters
         ----------

@@ -9,6 +9,8 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import explained_variance
 from hbaselines.utils.tf_util import print_params_shape
 
+import hbaselines.exploration_strategies
+
 
 class FeedForwardPolicy(Policy):
     """Feed-forward neural network policy.
@@ -126,7 +128,8 @@ class FeedForwardPolicy(Policy):
                  cliprange_vf,
                  model_params,
                  scope=None,
-                 num_envs=1):
+                 num_envs=1,
+                 exploration_params=None):
         """Instantiate the policy object.
 
         Parameters
@@ -169,6 +172,8 @@ class FeedForwardPolicy(Policy):
             scaling. To deactivate value function clipping (and recover the
             original PPO implementation), you have to pass a negative value
             (e.g. -1).
+        exploration_params: dict
+            parameters for the exploration strategies.
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
@@ -207,6 +212,15 @@ class FeedForwardPolicy(Policy):
         # Compute the shape of the input observation space, which may include
         # the contextual term.
         ob_dim = self._get_ob_dim(ob_space, co_space)
+
+        # Initialize the exploration strategy
+        self.exploration_strategy = None
+        if exploration_params is not None:
+            try:
+                ep_class = getattr(hbaselines.exploration_strategies, exploration_params['exploration_strategy'])
+                self.exploration_strategy = ep_class(ac_space)
+            except AttributeError e:
+                print("Requested exploration strategies is not supported, will default to no exploration")
 
         # =================================================================== #
         # Step 1: Create input variables.                                     #
@@ -268,7 +282,7 @@ class FeedForwardPolicy(Policy):
         self.optimizer = None
 
         with tf.compat.v1.variable_scope("Optimizer", reuse=False):
-            self._setup_optimizers(scope)
+            self._setup_optimizers(scope, self.obs_ph)
 
         # =================================================================== #
         # Step 5: Setup the operations for computing model statistics.        #
@@ -397,7 +411,7 @@ class FeedForwardPolicy(Policy):
             * tf.cast(tf.shape(x)[-1], tf.float32) \
             + tf.reduce_sum(self.pi_logstd, axis=-1)
 
-    def _setup_optimizers(self, scope):
+    def _setup_optimizers(self, scope, obs):
         """Create the actor and critic optimizers."""
         scope_name = 'model/'
         if scope is not None:
@@ -445,6 +459,10 @@ class FeedForwardPolicy(Policy):
             tf.abs(ratio - 1.0), self.cliprange), tf.float32))
         self.loss = self.pg_loss - self.entropy * self.ent_coef \
             + self.vf_loss * self.vf_coef
+
+        # Update the loss if needed using the exploration strategies
+        if self.exploration_strategy:
+            self.loss += self.exploration_strategy.update_loss(self.loss, obs)
 
         # Compute the gradients of the loss.
         var_list = get_trainable_vars(scope_name)
@@ -506,6 +524,10 @@ class FeedForwardPolicy(Policy):
              self.value_flat, self.neglogp],
             {self.obs_ph: obs}
         )
+
+        # Apply noise to the action using the exploration strategies
+        if self.exploration_strategy:
+            action = self.exploration_strategy.apply_noise(action)
 
         # Store information on the values and negative-log likelihood.
         self.mb_values[env_num].append(values)
@@ -663,6 +685,10 @@ class FeedForwardPolicy(Policy):
         """
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
+
+        # Update the Exploration Strategies
+        if self.exploration_strategy:
+            self.exploration_strategy.update(obs)
 
         return self.sess.run(self.optimizer, {
             self.obs_ph: obs,
