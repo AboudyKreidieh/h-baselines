@@ -276,23 +276,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         self.t = 0
         """Create the cooperative gradients meta-policy optimizer."""
         # placeholder for the lambda term.
-        self.cg_weights_ph = [
-            tf.placeholder(tf.float32, shape=(), name="cg_wt_{}".format(i))
-            for i in range(self.num_levels - 1)]
-        self.cg_weights = [0.01 for _ in range(self.num_levels - 1)]
+        self.cg_weights = [
+            tf.compat.v1.Variable(initial_value=0.01, trainable=True)
+            for _ in range(self.num_levels - 1)]
         self.cg_delta = -2 * (1 / (1 - self.gamma))
-        # updating more frequently for lower meta periods, hence the weird form
-        # of this
-        self.cg_weights_lr = 1e-9 * self.meta_period
 
         self.cg_loss = []
         self.cg_optimizer = []
         for level in range(self.num_levels - 1):
-            # Add to tensorboard.
-            tf.compat.v1.summary.scalar(
-                "level_{}/cg_weights".format(level),
-                self.cg_weights_ph[level])
-
             # Index relevant variables based on self.goal_indices
             meta_obs0 = self.crop_to_goal(self.policy[level].obs_ph)
             meta_obs1 = self.crop_to_goal(self.policy[level].obs1_ph)
@@ -355,10 +346,23 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 self.policy[level].actor_lr)
             self.cg_optimizer.append(optimizer.minimize(
                 self.policy[level].actor_loss
-                + self.cg_weights_ph[level] * cg_loss,
+                + self.cg_weights[level] * cg_loss,
                 var_list=get_trainable_vars(
                     "level_{}/model/pi/".format(level)),
             ))
+
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=1e-8)
+            self.cg_weights_optimizer = optimizer.apply_gradients(
+                [((tf.reduce_mean(worker_with_meta_obs + reward_fn))
+                  - self.cg_delta, self.cg_weights[level])])
+
+            # Add to tensorboard.
+            tf.compat.v1.summary.scalar(
+                "level_{}/cg_weights".format(level),
+                self.cg_weights[level])
+            tf.compat.v1.summary.scalar(
+                "level_{}/worker_with_meta_obs".format(level),
+                tf.reduce_mean(worker_with_meta_obs))
 
     def _cooperative_gradients_update(self,
                                       obs0,
@@ -409,7 +413,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Update operations for the critic networks.
         step_ops = [
-            self.policy[level_num + 1].critic_tf[0],
             self.policy[level_num].critic_loss,
             self.policy[level_num].critic_optimizer[0],
             self.policy[level_num].critic_optimizer[1],
@@ -421,10 +424,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].rew_ph: rewards[level_num],
             self.policy[level_num].obs1_ph: obs1[level_num],
             self.policy[level_num].terminals1: terminals1[level_num],
-            self.cg_weights_ph[level_num]: self.cg_weights[level_num],
             self.policy[level_num + 1].action_ph: actions[level_num + 1],
             self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
         }
+
+        # Update the cg_weights terms.
+        if self.t > 1000:
+            step_ops += [self.cg_weights_optimizer]
 
         if update_actor:
             # Actor updates and target soft update operation.
@@ -441,17 +447,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             })
 
         # Perform the update operations and collect the critic loss.
-        estimate_value, critic_loss, *_vals = self.sess.run(
-            step_ops, feed_dict=feed_dict)
+        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
 
         # Extract the actor loss.
         actor_loss = _vals[2] if update_actor else 0
-
-        # Update the cg_weights terms.
-        if self.t > 1000:
-            loss = np.mean(estimate_value) - self.cg_delta
-            self.cg_weights[level_num] = max(
-                0, self.cg_weights[level_num] - self.cg_weights_lr * loss)
 
         return critic_loss, actor_loss
 
@@ -462,11 +461,5 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         used.
         """
         td_map = super(GoalConditionedPolicy, self).get_td_map()
-
-        if self.cooperative_gradients:
-            td_map.update({
-                self.cg_weights_ph[level]: self.cg_weights[level]
-                for level in range(self.num_levels - 1)
-            })
 
         return td_map
