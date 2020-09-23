@@ -285,9 +285,6 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 reward_scale = 0.1
-
-                # Compute a positive form of the two-norm from a desired target
-                # velocity.
                 reward += reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
@@ -328,15 +325,18 @@ class AVEnv(Env):
             if follower not in ["", None]:
                 self.follower.append(follower)
 
+        # Add the observation to the observation history to the
         self._obs_history.append(obs)
         if len(self._obs_history) > 25:
             self._obs_history = self._obs_history[-25:]
 
-        obs_out = np.concatenate(self._obs_history[::-5])
-        obs_out_2 = [0 for _ in range(25 * self.num_rl)]
-        obs_out_2[:len(obs_out)] = obs_out
+        # Concatenate the past n samples for a given time delta and return as
+        # the final observation.
+        obs_t = np.concatenate(self._obs_history[::-5])
+        obs = [0 for _ in range(25 * self.num_rl)]
+        obs[:len(obs_t)] = obs_t
 
-        return obs_out_2
+        return obs
 
     def additional_command(self):
         """See parent class.

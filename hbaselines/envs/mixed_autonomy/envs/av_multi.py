@@ -135,6 +135,9 @@ class AVMultiAgentEnv(MultiEnv):
             simulator=simulator,
         )
 
+        # observations from previous time steps
+        self._obs_history = defaultdict(list)
+
         self.leader = []
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
@@ -183,7 +186,7 @@ class AVMultiAgentEnv(MultiEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5,),
+            shape=(25,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -271,14 +274,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # =========================================================== #
 
                 reward_scale = 0.1
-
-                # Compute a positive form of the two-norm from a desired target
-                # velocity.
-                target = self.env_params.additional_params['target_velocity']
-                max_cost = np.array([target] * num_vehicles)
-                max_cost = np.linalg.norm(max_cost)
-                cost = np.linalg.norm(vel - target)
-                reward += reward_scale * max(max_cost - cost, 0)
+                reward += reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -302,21 +298,37 @@ class AVMultiAgentEnv(MultiEnv):
 
     def get_state(self):
         """See class definition."""
+        obs = {}
         self.leader = []
         self.follower = []
 
-        # Initialize a set on empty observations
-        obs = {key: None for key in self.rl_ids()}
+        # Remove observations from vehicles that have left the network.
+        for key in list(self._obs_history.keys()):
+            if key not in self.rl_ids():
+                del self._obs_history[key]
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Add relative observation of each vehicle.
-            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
+            # Compute the relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
                 self.leader.append(leader)
             if follower not in ["", None]:
                 self.follower.append(follower)
+
+            # Add the observation to the observation history to the
+            self._obs_history[veh_id].append(obs_vehicle)
+            if len(self._obs_history[veh_id]) > 25:
+                self._obs_history[veh_id] = self._obs_history[veh_id][-25:]
+
+            # Concatenate the past n samples for a given time delta and return
+            # as the final observation.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-5])
+            obs_vehicle = [0 for _ in range(25)]
+            obs_vehicle[:len(obs_t)] = obs_t
+
+            obs[veh_id] = obs_vehicle
 
         return obs
 
@@ -884,6 +896,9 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         # names of the rl vehicles in each lane that are controlled at any step
         self.rl_veh = [[] for _ in range(self._num_lanes)]
 
+        # observations from previous time steps
+        self._obs_history = [[] for _ in range(self._num_lanes)]
+
     @property
     def action_space(self):
         """See class definition."""
@@ -906,7 +921,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self.num_rl,),
+            shape=(25 * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -960,27 +975,40 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def get_state(self):
         """See class definition."""
+        obs = {}
         self.leader = []
         self.follower = []
-
-        # Initialize a set on empty observations
-        obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
-               for i in range(self._num_lanes)}
 
         for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
+            # Initialize a set on empty observations
+            obs_lane = [0 for _ in range(5 * self.num_rl)]
+
             for i, veh_id in enumerate(rl_ids):
                 # Add relative observation of each vehicle.
-                obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
-                    leader, follower = get_relative_obs(self, veh_id)
+                obs_lane[5 * i: 5 * (i + 1)], leader, follower = \
+                    get_relative_obs(self, veh_id)
 
                 # Append to the leader/follower lists.
                 if leader not in ["", None]:
                     self.leader.append(leader)
                 if follower not in ["", None]:
                     self.follower.append(follower)
+
+            # Add the observation to the observation history to the
+            self._obs_history[lane].append(obs_lane)
+            if len(self._obs_history[lane]) > 25:
+                self._obs_history[lane] = self._obs_history[lane][-25:]
+
+            # Concatenate the past n samples for a given time delta and return
+            # as the final observation.
+            obs_t = np.concatenate(self._obs_history[lane][::-5])
+            obs_lane = [0 for _ in range(25 * self.num_rl)]
+            obs_lane[:len(obs_t)] = obs_t
+
+            obs["lane_{}".format(lane)] = obs_lane
 
         return obs
 
