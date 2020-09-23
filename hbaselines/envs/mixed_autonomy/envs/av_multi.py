@@ -194,7 +194,7 @@ class AVMultiAgentEnv(MultiEnv):
         if self.env_params.additional_params["use_follower_stopper"]:
             for veh_id in rl_actions.keys():
                 self._av_controller.veh_id = veh_id
-                self._av_controller.v_des = rl_actions[veh_id]
+                self._av_controller.v_des = rl_actions[veh_id][0]
                 acceleration = self._av_controller.get_action(self)
 
                 # Apply the action via the simulator.
@@ -202,7 +202,7 @@ class AVMultiAgentEnv(MultiEnv):
         else:
             for veh_id in rl_actions.keys():
                 # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[veh_id])
+                acceleration = deepcopy(rl_actions[veh_id][0])
 
                 # Redefine if below a speed threshold so that all actions
                 # result in non-negative desired speeds.
@@ -227,15 +227,15 @@ class AVMultiAgentEnv(MultiEnv):
             return {}
 
         # Compute the reward.
-        reward = self._compute_reward_util(
-            rl_actions=list(rl_actions.values()),
-            veh_ids=self.k.vehicle.get_ids(),
-            rl_ids=self.rl_ids(),
-            **kwargs
-        )
-
-        # A separate (shared) reward is passed to every agent.
-        return {key: reward for key in rl_actions.keys()}
+        return {
+            rl_id: self._compute_reward_util(
+                rl_actions=rl_actions[rl_id],
+                veh_ids=self.k.vehicle.get_ids(),
+                rl_ids=[rl_id],
+                **kwargs
+            )
+            for rl_id in rl_actions.keys()
+        }
 
     def _compute_reward_util(self, rl_actions, veh_ids, rl_ids, **kwargs):
         """Compute the reward over a specific list of vehicles.
@@ -687,16 +687,20 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
         ]
 
-        # Compute the reward.
-        reward = self._compute_reward_util(
-            rl_actions=rl_actions,
-            veh_ids=veh_ids,
-            rl_ids=self.rl_ids(),
-            **kwargs
-        )
+        # Compute the reward. Penalties are only assigned for the actions of
+        # the unique vehicle.
+        reward = {
+            rl_id: self._compute_reward_util(
+                rl_actions=rl_actions[rl_id],
+                veh_ids=veh_ids,
+                rl_ids=[rl_id],
+                **kwargs
+            )
+            for rl_id in rl_actions.keys()
+        }
 
         # A separate (shared) reward is passed to every agent.
-        return {key: reward for key in rl_actions.keys()}
+        return reward
 
     def additional_command(self):
         """See parent class.

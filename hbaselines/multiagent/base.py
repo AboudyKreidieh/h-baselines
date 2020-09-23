@@ -481,7 +481,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """See store_transition."""
         for i, key in enumerate(self._sorted_list(obs0.keys())):
             # If the agent has exited the environment, ignore it.
-            if key not in reward.keys():
+            if key not in obs1.keys():
                 continue
 
             # Use the same policy for all operations if shared, and the
@@ -502,7 +502,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                 reward=reward[key],
                 obs1=obs1[key],
                 context1=context1_i,
-                done=done,
+                done=False,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
                 env_num=env_num_i,
