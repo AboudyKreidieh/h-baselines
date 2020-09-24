@@ -330,7 +330,6 @@ class AVMultiAgentEnv(MultiEnv):
 
             obs[veh_id] = obs_vehicle
 
-        print(obs)
         return obs
 
     def additional_command(self):
