@@ -460,7 +460,6 @@ class RLAlgorithm(object):
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs, self._info_keys = \
             self.setup_sampler(env, render, shared, maddpg)
-        print(self._info_keys)
 
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
@@ -1020,18 +1019,11 @@ class RLAlgorithm(object):
             if self.num_envs > 1:
                 ret = ray.get([
                     self.sampler[env_num].collect_sample.remote(
-                        action=action[env_num],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
+                        action=action[env_num])
                     for env_num in range(n_steps)
                 ])
             else:
-                ret = [
-                    self.sampler[0].collect_sample(
-                        action=action[0],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
-                ]
+                ret = [self.sampler[0].collect_sample(action=action[0])]
 
             for ret_i in ret:
                 num = ret_i["env_num"]
