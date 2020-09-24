@@ -564,8 +564,9 @@ class RLAlgorithm(object):
                 )
                 for env_num in range(self.num_envs)
             ]
-            ob = ray.get([s.get_init_obs.remote()[0] for s in sampler])
-            info_key = ray.get(sampler[0].get_init_obs.remote()[1])
+            ob = ray.get([s.get_init_obs.remote() for s in sampler])
+            ob = ray.get([o[0] for o in ob])
+            info_key = ray.get(sampler[0].get_init_obs.remote())[1]
         else:
             from hbaselines.utils.sampler import Sampler
             sampler = [
