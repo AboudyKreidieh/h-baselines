@@ -168,6 +168,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
             scope=scope,
+            num_envs=num_envs,
             additional_params=dict(
                 target_entropy=target_entropy,
                 num_levels=num_levels,

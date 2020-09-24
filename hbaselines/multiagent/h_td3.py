@@ -176,6 +176,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
             scope=scope,
+            num_envs=num_envs,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,

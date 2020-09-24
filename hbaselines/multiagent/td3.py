@@ -95,6 +95,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                  maddpg,
                  all_ob_space=None,
                  n_agents=1,
+                 num_envs=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -215,6 +216,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
+            num_envs=num_envs,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,

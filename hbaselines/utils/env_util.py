@@ -68,14 +68,14 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "AntMaze": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntMaze(
                 use_contexts=True,
@@ -101,7 +101,7 @@ ENV_ATTRIBUTES = {
     },
 
     "HumanoidMaze": {
-        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+        "meta_ac_space": lambda relative_goals, multiagent: gym.spaces.Box(
             low=np.array([-10.0, -10.0, -1.0, -1.0, -1.0, -1.0, -1.0,
                           0.785398, -0.9162995, -0.610865,
                           -0.26179925, -0.8290325, -1.134463, -1.3788117,
@@ -127,7 +127,7 @@ ENV_ATTRIBUTES = {
                            0.0872665, 0.610865, 0.349066, -0.0349066,
                            1.0472, 1.0472, 0.872665,
                            1.48353, 1.48353, 0.872665]), dtype=np.float32),
-        "state_indices": list(range(24)),
+        "state_indices": lambda multiagent: list(range(24)),
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
@@ -149,13 +149,13 @@ ENV_ATTRIBUTES = {
     },
 
     "HumanoidMazeXY": {
-        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+        "meta_ac_space": lambda relative_goals, multiagent: gym.spaces.Box(
             low=np.array([-3.0, -3.0]),
             high=np.array([3.0, 3.0]), dtype=np.float32)
         if relative_goals else gym.spaces.Box(
             low=np.array([-2.0, -2.0]),
             high=np.array([10.0, 10.0]), dtype=np.float32),
-        "state_indices": list(range(2)),
+        "state_indices": lambda multiagent: list(range(2)),
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
@@ -177,14 +177,14 @@ ENV_ATTRIBUTES = {
     },
 
     "ImageAntMaze": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [32*32*3 + i for i in range(15)],
+        "state_indices": lambda multiagent: [32*32*3 + i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             ImageAntMaze(
                 use_contexts=True,
@@ -214,14 +214,14 @@ ENV_ATTRIBUTES = {
     },
 
     "AntPush": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntPush(
             use_contexts=True,
             context_range=[0, 19],
@@ -236,14 +236,14 @@ ENV_ATTRIBUTES = {
     },
 
     "AntFall": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: AntFall(
             use_contexts=True,
             context_range=[0, 27, 4.5],
@@ -258,14 +258,14 @@ ENV_ATTRIBUTES = {
     },
 
     "AntFourRooms": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntFourRooms(
                 use_contexts=True,
@@ -295,38 +295,38 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "SwimmerGather": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -np.pi/2, -np.pi/2, -np.pi/2]),
             high=np.array([10, 10, np.pi/2, np.pi/2, np.pi/2]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(5)],
+        "state_indices": lambda multiagent: [i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         SwimmerGatherEnv(),
     },
 
     "SnakeGather": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([
                 -10, -10, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2]),
             high=np.array(
                 [10, 10, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(7)],
+        "state_indices": lambda multiagent: [i for i in range(7)],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         SnakeGatherEnv(),
     },
 
     "AntGather": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-10, -10, -0.5, -1, -1, -1, -1, -0.5, -0.3, -0.5,
                           -0.3, -0.5, -0.3, -0.5, -0.3]),
             high=np.array([10, 10, 0.5, 1, 1, 1, 1, 0.5, 0.3, 0.5, 0.3, 0.5,
                            0.3, 0.5, 0.3]),
             dtype=np.float32,
         ),
-        "state_indices": [i for i in range(15)],
+        "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         AntGatherEnv(),
     },
@@ -336,12 +336,12 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "UR5": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-2 * np.pi, -2 * np.pi, -2 * np.pi, -4, -4, -4]),
             high=np.array([2 * np.pi, 2 * np.pi, 2 * np.pi, 4, 4, 4]),
             dtype=np.float32,
         ),
-        "state_indices": None,
+        "state_indices": lambda multiagent: None,
         "env": lambda evaluate, render, multiagent, shared, maddpg: UR5(
             use_contexts=True,
             random_contexts=True,
@@ -358,12 +358,12 @@ ENV_ATTRIBUTES = {
     },
 
     "Pendulum": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-np.pi, -15]),
             high=np.array([np.pi, 15]),
             dtype=np.float32
         ),
-        "state_indices": [0, 2],
+        "state_indices": lambda multiagent: [0, 2],
         "env": lambda evaluate, render, multiagent, shared, maddpg: Pendulum(
             use_contexts=True,
             context_range=[0, 0],
@@ -381,13 +381,13 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "ring_small": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
             shape=(1,),
             dtype=np.float32
         ),
-        "state_indices": [0],
+        "state_indices": lambda multiagent: [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             FlowEnv(
                 flow_params=ring_small(
@@ -435,13 +435,13 @@ ENV_ATTRIBUTES = {
     },
 
     "ring-v0": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
             shape=(1,),
             dtype=np.float32
         ),
-        "state_indices": [0],
+        "state_indices": lambda multiagent: [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
@@ -457,13 +457,14 @@ ENV_ATTRIBUTES = {
     },
 
     "merge-v0": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
-            shape=(5,),
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(5)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=merge(
                 exp_num=0,
@@ -479,13 +480,14 @@ ENV_ATTRIBUTES = {
     },
 
     "merge-v1": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
-            shape=(13,),
+            shape=(1 if multiagent else 13,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(13)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 13)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=merge(
                 exp_num=1,
@@ -501,13 +503,14 @@ ENV_ATTRIBUTES = {
     },
 
     "merge-v2": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-.5 if relative_goals else 0,
             high=.5 if relative_goals else 1,
-            shape=(17,),
+            shape=(1 if multiagent else 17,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(17)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 17)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=merge(
                 exp_num=2,
@@ -523,13 +526,14 @@ ENV_ATTRIBUTES = {
     },
 
     "highway-v0": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10,),
+            shape=(1 if multiagent else 7,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(10)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 7)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -546,13 +550,14 @@ ENV_ATTRIBUTES = {
     },
 
     "highway-v1": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
             shape=(10,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(10)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 7)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -569,13 +574,14 @@ ENV_ATTRIBUTES = {
     },
 
     "highway-v2": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
-            shape=(7,),
+            shape=(1 if multiagent else 7,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(7)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 7)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -592,13 +598,14 @@ ENV_ATTRIBUTES = {
     },
 
     "highway-v3": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10,),
+            shape=(1 if multiagent else 7,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(10)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(1 if multiagent else 7)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -615,13 +622,14 @@ ENV_ATTRIBUTES = {
     },
 
     "i210-v0": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(50,),
+            shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(50)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(10 if multiagent else 50)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
@@ -638,13 +646,14 @@ ENV_ATTRIBUTES = {
     },
 
     "i210-v1": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(50,),
+            shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(50)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(10 if multiagent else 50)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
@@ -661,13 +670,14 @@ ENV_ATTRIBUTES = {
     },
 
     "i210-v2": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(50,),
+            shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(50)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(10 if multiagent else 50)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
@@ -684,13 +694,14 @@ ENV_ATTRIBUTES = {
     },
 
     "i210-v3": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(50,),
+            shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(50)],
+        "state_indices": lambda multiagent: [
+            5 * i for i in range(10 if multiagent else 50)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
@@ -711,13 +722,13 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "ring-imitation": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-1 if relative_goals else 0,
             high=1,
             shape=(5,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(5)],
+        "state_indices": lambda multiagent: [5 * i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
@@ -734,13 +745,13 @@ ENV_ATTRIBUTES = {
     },
 
     "highway-imitation": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-1 if relative_goals else 0,
             high=1,
             shape=(10,),
             dtype=np.float32
         ),
-        "state_indices": [5 * i for i in range(10)],
+        "state_indices": lambda multiagent: [5 * i for i in range(10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -763,19 +774,20 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "BipedalSoccer": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([-0.5, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -1,
                           -2]),
             high=np.array([0.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2]),
             dtype=np.float32
         ),
-        "state_indices": [0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
+        "state_indices": lambda multiagent: [
+            0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         BipedalSoccer(render=render),
     },
 
     "BipedalObstacles": {
-        "meta_ac_space": lambda relative_goals: gym.spaces.Box(
+        "meta_ac_space": lambda relative_goals, multiagent: gym.spaces.Box(
             low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2]),
             high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]),
             dtype=np.float32),
@@ -790,24 +802,24 @@ ENV_ATTRIBUTES = {
     # ======================================================================= #
 
     "Point2DEnv": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             np.ones(2) * -4,
             np.ones(2) * 4,
             dtype=np.float32
         ),
-        "state_indices": [0, 1],
+        "state_indices": lambda multiagent: [0, 1],
         "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
             images_in_obs=False
         ),
     },
 
     "Point2DImageEnv": {
-        "meta_ac_space": lambda relative_goals: Box(
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
             np.ones(2) * -4,
             np.ones(2) * 4,
             dtype=np.float32
         ),
-        "state_indices": [3072, 3073],
+        "state_indices": lambda multiagent: [3072, 3073],
         "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
             images_in_obs=True
         ),
@@ -836,12 +848,13 @@ def get_meta_ac_space(ob_space, relative_goals, env_name):
         the action space of the higher level policy
     """
     # Handle multi-agent environments.
-    if env_name.startswith("multiagent"):
+    multiagent = env_name.startswith("multiagent")
+    if multiagent:
         env_name = env_name[11:]
 
     if env_name in ENV_ATTRIBUTES.keys():
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
-            relative_goals)
+            relative_goals, multiagent)
     else:
         meta_ac_space = ob_space
 
@@ -869,11 +882,12 @@ def get_state_indices(ob_space, env_name):
         the state indices that are assigned goals
     """
     # Handle multi-agent environments.
-    if env_name.startswith("multiagent"):
+    multiagent = env_name.startswith("multiagent")
+    if multiagent:
         env_name = env_name[11:]
 
     if env_name in ENV_ATTRIBUTES.keys():
-        state_indices = ENV_ATTRIBUTES[env_name]["state_indices"]
+        state_indices = ENV_ATTRIBUTES[env_name]["state_indices"](multiagent)
     else:
         # All observations are presented in the goal.
         state_indices = list(np.arange(0, ob_space.shape[0]))
