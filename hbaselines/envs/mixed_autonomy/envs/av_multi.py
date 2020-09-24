@@ -141,6 +141,7 @@ class AVMultiAgentEnv(MultiEnv):
         self.leader = []
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+        self._mean_speeds = []
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -340,6 +341,20 @@ class AVMultiAgentEnv(MultiEnv):
         # specify observed vehicles
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
+
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, _ = super(AVMultiAgentEnv, self).step(rl_actions)
+        info = {}
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            self._mean_speeds.append(np.mean(
+                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
 
     def reset(self, new_inflow_rate=None):
         """See parent class.
@@ -735,6 +750,27 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, info = super(AVOpenMultiAgentEnv, self).step(
+            rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            # Update the most recent mean speed term to match the speed of the
+            # control range.
+            kv = self.k.vehicle
+            control_range = self._control_range
+            veh_ids = [
+                veh_id for veh_id in kv.get_ids()
+                if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
+            ]
+            self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""

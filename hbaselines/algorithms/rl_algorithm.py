@@ -1029,6 +1029,7 @@ class RLAlgorithm(object):
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
                 info = ret_i["info"]
+                print(info)
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
