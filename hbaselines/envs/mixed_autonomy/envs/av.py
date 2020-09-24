@@ -333,7 +333,7 @@ class AVEnv(Env):
         # Concatenate the past n samples for a given time delta and return as
         # the final observation.
         obs_t = np.concatenate(self._obs_history[::-5])
-        obs = [0 for _ in range(25 * self.num_rl)]
+        obs = np.array([0. for _ in range(25 * self.num_rl)])
         obs[:len(obs_t)] = obs_t
 
         return obs

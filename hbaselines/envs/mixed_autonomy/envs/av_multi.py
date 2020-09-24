@@ -325,11 +325,12 @@ class AVMultiAgentEnv(MultiEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[veh_id][::-5])
-            obs_vehicle = [0 for _ in range(25)]
+            obs_vehicle = np.array([0. for _ in range(25)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
 
+        print(obs)
         return obs
 
     def additional_command(self):
@@ -1009,7 +1010,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[lane][::-5])
-            obs_lane = [0 for _ in range(25 * self.num_rl)]
+            obs_lane = np.array([0. for _ in range(25 * self.num_rl)])
             obs_lane[:len(obs_t)] = obs_t
 
             obs["lane_{}".format(lane)] = obs_lane

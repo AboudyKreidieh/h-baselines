@@ -218,6 +218,9 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
     maddpg=False,
+    # the expected number of agents in the environment. Only relevant if using
+    # shared policies with MADDPG or goal-conditioned hierarchies.
+    n_agents=1,
 ))
 
 

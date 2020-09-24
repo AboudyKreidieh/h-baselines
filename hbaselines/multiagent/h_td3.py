@@ -38,10 +38,10 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  pretrain_ckpt,
                  shared,
                  maddpg,
+                 n_agents,
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -150,9 +150,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """

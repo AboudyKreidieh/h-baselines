@@ -79,9 +79,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         the observation space of the full state space. Used by MADDPG variants
         of the policy.
     n_agents : int
-        the number of agents in the networks. This is needed if using MADDPG
-        with a shared policy to compute the length of the full action space.
-        Otherwise, it is not used.
+        the expected number of agents in the environment. Only relevant if
+        using shared policies with MADDPG or goal-conditioned hierarchies.
     base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the base (single agent) policy model used by all agents within the
         network
@@ -109,9 +108,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  model_params,
                  shared,
                  maddpg,
+                 n_agents,
                  base_policy,
                  all_ob_space=None,
-                 n_agents=1,
                  num_envs=1,
                  additional_params=None,
                  scope=None):
@@ -163,9 +162,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
