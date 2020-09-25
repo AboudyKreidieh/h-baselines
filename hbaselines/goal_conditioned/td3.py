@@ -277,7 +277,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         """Create the cooperative gradients meta-policy optimizer."""
         # placeholder for the lambda term.
         self.cg_weights = [
-            tf.compat.v1.Variable(initial_value=0.01, trainable=True)
+            tf.compat.v1.Variable(initial_value=-4.20, trainable=True)
             for _ in range(self.num_levels - 1)]
         self.cg_delta = -2 * (1 / (1 - self.gamma))
 
@@ -346,20 +346,32 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 self.policy[level].actor_lr)
             self.cg_optimizer.append(optimizer.minimize(
                 self.policy[level].actor_loss
-                + self.cg_weights[level] * cg_loss,
+                + tf.exp(self.cg_weights[level]) * cg_loss,
                 var_list=get_trainable_vars(
                     "level_{}/model/pi/".format(level)),
             ))
 
-            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=1e-8)
-            self.cg_weights_optimizer = optimizer.apply_gradients(
-                [((tf.reduce_mean(worker_with_meta_obs + reward_fn))
-                  - self.cg_delta, self.cg_weights[level])])
+            cg_weights_loss = \
+                tf.reduce_mean(
+                    tf.exp(self.cg_weights[level]) * tf.stop_gradient(
+                        worker_with_meta_obs + reward_fn - self.cg_delta
+                    )
+                )
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=3e-4)
+            self.cg_weights_optimizer = optimizer.minimize(
+                cg_weights_loss,
+                var_list=[self.cg_weights[level]])
 
             # Add to tensorboard.
             tf.compat.v1.summary.scalar(
-                "level_{}/cg_weights".format(level),
+                "level_{}/cg_weights_log".format(level),
                 self.cg_weights[level])
+            tf.compat.v1.summary.scalar(
+                "level_{}/cg_weights".format(level),
+                tf.exp(self.cg_weights[level]))
+            tf.compat.v1.summary.scalar(
+                "level_{}/cg_weights_loss".format(level),
+                cg_weights_loss)
             tf.compat.v1.summary.scalar(
                 "level_{}/worker_with_meta_obs".format(level),
                 tf.reduce_mean(worker_with_meta_obs))
