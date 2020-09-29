@@ -269,23 +269,23 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, multiagent, shared, maddpg: [
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 0],
+                context_range=[20, 0],
                 evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[0, 30],
+                context_range=[2, 30],
                 evaluate=True,
             ),
             AntFourRooms(
                 use_contexts=True,
-                context_range=[30, 30],
+                context_range=[20, 20],
                 evaluate=True,
             )
         ] if evaluate else AntFourRooms(
             use_contexts=True,
             random_contexts=False,
-            context_range=[[30, 0], [0, 30], [30, 30]],
+            context_range=[[20, 0], [0, 20], [20, 20]],
             evaluate=False,
         ),
     },
