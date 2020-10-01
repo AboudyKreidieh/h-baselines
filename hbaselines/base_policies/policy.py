@@ -17,6 +17,8 @@ class Policy(object):
         the context space of the environment
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    l2_penalty : float
+        L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. The following must be
         specified:
@@ -55,6 +57,7 @@ class Policy(object):
                  ac_space,
                  co_space,
                  verbose,
+                 l2_penalty,
                  model_params):
         """Instantiate the base policy object.
 
@@ -71,6 +74,8 @@ class Policy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. The following must be
             specified:
@@ -107,6 +112,7 @@ class Policy(object):
         self.ac_space = ac_space
         self.co_space = co_space
         self.verbose = verbose
+        self.l2_penalty = l2_penalty
         self.model_params = model_params
 
         # Run assertions.

@@ -126,6 +126,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  target_entropy,
                  scope=None):
@@ -160,6 +161,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         target_entropy : float
@@ -181,6 +184,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
         )
 
