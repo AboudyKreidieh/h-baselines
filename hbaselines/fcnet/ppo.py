@@ -450,6 +450,9 @@ class FeedForwardPolicy(Policy):
         self.loss = self.pg_loss - self.entropy * self.ent_coef \
             + self.vf_loss * self.vf_coef
 
+        # Add a regularization penalty.
+        self.loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # Compute the gradients of the loss.
         var_list = get_trainable_vars(scope_name)
         grads = tf.gradients(self.loss, var_list)

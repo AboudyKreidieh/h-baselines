@@ -42,6 +42,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    l2_penalty : float
+        L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. See parent class.
     noise : float
@@ -293,10 +295,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
             print('setting up actor optimizer')
             print_params_shape(scope_name, "actor")
 
-        # compute the actor loss
+        # Compute the actor loss.
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf[0])
 
-        # create an optimizer object
+        # Add a regularization penalty.
+        self.actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
+        # Create an optimizer object.
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
         self.actor_optimizer = optimizer.minimize(

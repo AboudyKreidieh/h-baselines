@@ -1083,6 +1083,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Compute the policy loss
         actor_loss = tf.reduce_mean(alpha * logp_pi - min_qf_pi)
 
+        # Add a regularization penalty.
+        actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # Policy train op (has to be separate from value train op, because
         # min_qf_pi appears in policy_loss)
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)

@@ -875,6 +875,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         # compute the actor loss
         actor_loss = -tf.reduce_mean(critic_with_actor_tf[0])
 
+        # Add a regularization penalty.
+        actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 

@@ -645,6 +645,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Compute the policy loss
         self.actor_loss = tf.reduce_mean(self.alpha * self.logp_pi - min_qf_pi)
 
+        # Add a regularization penalty.
+        self.actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # Policy train op (has to be separate from value train op, because
         # min_qf_pi appears in policy_loss)
         actor_optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
