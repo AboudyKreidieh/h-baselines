@@ -261,13 +261,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             gamma=gamma,
             use_huber=use_huber,
             model_params=model_params,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
