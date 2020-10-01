@@ -14,6 +14,8 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy \
+    as PPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
@@ -33,6 +35,7 @@ POLICY_DICT = {
     "FeedForwardPolicy": {
         "TD3": TD3FeedForwardPolicy,
         "SAC": SACFeedForwardPolicy,
+        "PPO": PPOFeedForwardPolicy,
     },
     "GoalConditionedPolicy": {
         "TD3": TD3GoalConditionedPolicy,
@@ -200,12 +203,12 @@ def main(args):
     # Perform the evaluation procedure.
     episode_rewards = []
 
-    # Add an emission path to Flow environments.
-    if env_name in FLOW_ENV_NAMES:
-        sim_params = deepcopy(env.wrapped_env.sim_params)
-        sim_params.emission_path = "./flow_results"
-        env.wrapped_env.restart_simulation(
-            sim_params, render=not flags.no_render)
+    # # Add an emission path to Flow environments.
+    # if env_name in FLOW_ENV_NAMES:
+    #     sim_params = deepcopy(env.wrapped_env.sim_params)
+    #     sim_params.emission_path = "./flow_results"
+    #     env.wrapped_env.restart_simulation(
+    #         sim_params, render=not flags.no_render)
 
     if not isinstance(env, list):
         env_list = [env]
@@ -254,7 +257,7 @@ def main(args):
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
 
-                new_obs, reward, done, _ = env.step(action)
+                new_obs, reward, done, info = env.step(action)
                 if not flags.no_render:
                     if flags.save_video:
                         if alg.env_name == "AntGather":
@@ -299,6 +302,7 @@ def main(args):
             # Print total returns from a given episode.
             episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
+            print(info)
 
             # Save the video.
             if not flags.no_render and env_name not in FLOW_ENV_NAMES \

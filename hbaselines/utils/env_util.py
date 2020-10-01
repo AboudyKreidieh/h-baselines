@@ -36,6 +36,8 @@ try:
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
         import get_flow_params as i210
+    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
+        import RingSingleAgentEnv
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
@@ -453,6 +455,38 @@ ENV_ATTRIBUTES = {
             multiagent=multiagent,
             shared=shared,
             maddpg=maddpg,
+        ),
+    },
+
+    "ring-v0-fast": {
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
+            shape=(1,),
+            dtype=np.float32
+        ),
+        "state_indices": lambda multiagent: [0],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ) if evaluate else RingSingleAgentEnv(
+            length=260,
+            num_vehicles=22,
+            dt=0.2,
+            horizon=1500,
+            gen_emission=False,
+            rl_ids=[0],
+            warmup_steps=500,
+            initial_state="random",
+            sims_per_step=1,
         ),
     },
 
