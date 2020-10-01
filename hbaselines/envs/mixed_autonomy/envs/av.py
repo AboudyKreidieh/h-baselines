@@ -1,13 +1,22 @@
 """Environment for training automated vehicles in a mixed-autonomy setting."""
 import collections
 import numpy as np
+import random
+import os
 from gym.spaces import Box
 from copy import deepcopy
-import random
+from collections import defaultdict
+from csv import DictReader
 
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
+from flow.controllers import FollowerStopper
+from flow.networks import I210SubNetwork
+
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
+from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
+from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
 
 
 BASE_ENV_PARAMS = dict(
@@ -15,6 +24,8 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # maximum deceleration for autonomous vehicles, in m/s^2
     max_decel=1,
+    # whether to use the follower-stopper controller for the AVs
+    use_follower_stopper=False,
     # desired velocity for all vehicles in the network, in m/s
     target_velocity=30,
     # whether to include a stopping penalty
@@ -41,6 +52,9 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -59,6 +73,10 @@ class AVEnv(Env):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -121,6 +139,21 @@ class AVEnv(Env):
         self.follower = []
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
 
+        # dynamics controller for controlled RL vehicles. Only relevant if
+        # "use_follower_stopper" is set to True.
+        human_type = "human" if "human" in self.k.vehicle.type_parameters \
+            else "human_0"
+        self._av_controller = FollowerStopper(
+            veh_id="av",
+            v_des=30,
+            max_accel=1,
+            max_decel=2,
+            display_warnings=False,
+            fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+            car_following_params=self.k.vehicle.type_parameters[human_type][
+                "car_following_params"],
+        )
+
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
 
@@ -131,11 +164,18 @@ class AVEnv(Env):
     @property
     def action_space(self):
         """See class definition."""
-        return Box(
-            low=-abs(self.env_params.additional_params['max_decel']),
-            high=self.env_params.additional_params['max_accel'],
-            shape=(self.num_rl,),
-            dtype=np.float32)
+        if self.env_params.additional_params["use_follower_stopper"]:
+            return Box(
+                low=0,
+                high=15,
+                shape=(self.num_rl,),
+                dtype=np.float32)
+        else:
+            return Box(
+                low=-abs(self.env_params.additional_params['max_decel']),
+                high=self.env_params.additional_params['max_accel'],
+                shape=(self.num_rl,),
+                dtype=np.float32)
 
     @property
     def observation_space(self):
@@ -148,18 +188,32 @@ class AVEnv(Env):
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
-        accelerations = deepcopy(rl_actions)
+        if self.env_params.additional_params["use_follower_stopper"]:
+            accelerations = []
+            for i, veh_id in enumerate(self.rl_ids()):
+                self._av_controller.veh_id = veh_id
+                self._av_controller.v_des = rl_actions[i]
+                accelerations.append(self._av_controller.get_action(self))
+        else:
+            accelerations = deepcopy(rl_actions)
 
-        # Redefine the accelerations if below a speed threshold so that all
-        # actions result in non-negative desired speeds.
-        for i, veh_id in enumerate(self.rl_ids()):
-            ac_range = self.action_space.high[i] - self.action_space.low[i]
-            speed = self.k.vehicle.get_speed(veh_id)
-            if speed < 0.5 * ac_range * self.sim_step:
-                accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+            # Redefine the accelerations if below a speed threshold so that all
+            # actions result in non-negative desired speeds.
+            for i, veh_id in enumerate(self.rl_ids()):
+                ac_range = self.action_space.high[i] - self.action_space.low[i]
+                speed = self.k.vehicle.get_speed(veh_id)
+                if speed < 0.5 * ac_range * self.sim_step:
+                    accelerations[i] += 0.5 * ac_range - speed / self.sim_step
+
+                # Run the action through the controller, to include failsafe
+                # actions.
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
 
         # Apply the actions via the simulator.
-        self.k.vehicle.apply_acceleration(self.rl_ids(), accelerations)
+        self.k.vehicle.apply_acceleration(
+            self.rl_ids(),
+            accelerations[:len(self.rl_ids())])
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -227,7 +281,9 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 if acceleration_penalty:
-                    reward -= sum(np.square(rl_actions[:self.num_rl]))
+                    accel = [self.k.vehicle.get_accel(veh_id, True, True) or 0
+                             for veh_id in self.rl_ids()]
+                    reward -= sum(np.square(accel))
 
             return reward
 
@@ -236,44 +292,18 @@ class AVEnv(Env):
         self.leader = []
         self.follower = []
 
-        # used to handle missing observations of adjacent vehicles
-        max_speed = self.k.network.max_speed()
-        max_length = self.k.network.length()
-
         # Initialize a set on empty observations
         obs = [0 for _ in range(self.observation_space.shape[0])]
 
-        for i, veh_id in enumerate(self.rl_ids()):
-            # Add the speed of the ego vehicle.
-            obs[5 * i] = self.k.vehicle.get_speed(veh_id, error=0)
+        for i, v_id in enumerate(self.rl_ids()):
+            # Add relative observation of each vehicle.
+            obs[5*i: 5*(i+1)], leader, follower = get_relative_obs(self, v_id)
 
-            # Add the speed and bumper-to-bumper headway of leading vehicles.
-            leader = self.k.vehicle.get_leader(veh_id)
-            if leader in ["", None]:
-                # in case leader is not visible
-                lead_speed = max_speed
-                lead_head = max_length
-            else:
-                lead_speed = self.k.vehicle.get_speed(leader, error=0)
-                lead_head = self.k.vehicle.get_headway(veh_id, error=0)
+            # Append to the leader/follower lists.
+            if leader not in ["", None]:
                 self.leader.append(leader)
-
-            obs[5 * i + 1] = lead_speed
-            obs[5 * i + 2] = lead_head
-
-            # Add the speed and bumper-to-bumper headway of following vehicles.
-            follower = self.k.vehicle.get_follower(veh_id)
-            if follower in ["", None]:
-                # in case follower is not visible
-                follow_speed = max_speed
-                follow_head = max_length
-            else:
-                follow_speed = self.k.vehicle.get_speed(follower, error=0)
-                follow_head = self.k.vehicle.get_headway(follower, error=0)
+            if follower not in ["", None]:
                 self.follower.append(follower)
-
-            obs[5 * i + 3] = follow_speed
-            obs[5 * i + 4] = follow_head
 
         return obs
 
@@ -316,6 +346,10 @@ class AVClosedEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -483,10 +517,9 @@ class AVClosedEnv(AVEnv):
 
 
 class AVOpenEnv(AVEnv):
-    """Open network variant of AVEnv.
+    """Variant of AVEnv that is compatible with highway networks.
 
-    This environment is suitable for training policies on a merge or highway
-    network.
+    This environment is suitable for training policies on a highway network.
 
     We attempt to train a control policy in this setting that is robust to
     changes in density by altering the inflow rate of vehicles within the
@@ -518,11 +551,17 @@ class AVOpenEnv(AVEnv):
 
     * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
     * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * use_follower_stopper: whether to use the follower-stopper controller for
+      the AVs
+    * target_velocity: whether to use the follower-stopper controller for the
+      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
+    * warmup_path: path to the initialized vehicle states. Cannot be set in
+      addition to the `inflows` term. This feature defines its own inflows.
     * rl_penetration: the AV penetration rate, defining the portion of inflow
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
@@ -536,6 +575,10 @@ class AVOpenEnv(AVEnv):
         for p in OPEN_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        assert not (env_params.additional_params["warmup_path"] is not None
+                    and env_params.additional_params["inflows"] is not None), \
+            "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
 
         # this is stored to be reused during the reset procedure
         self._network_cls = network.__class__
@@ -551,6 +594,21 @@ class AVOpenEnv(AVEnv):
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(float(val))
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
@@ -573,6 +631,27 @@ class AVOpenEnv(AVEnv):
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
             [0, self.k.network.length()]
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
+
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
 
     def rl_ids(self):
         """See parent class."""
@@ -602,49 +681,57 @@ class AVOpenEnv(AVEnv):
           Then, the next vehicle in the queue is added to the state space and
           provided with actions from the policy.
         """
-        # add rl vehicles that just entered the network into the rl queue
-        for veh_id in self.k.vehicle.get_rl_ids():
-            if veh_id not in \
-                    list(self.rl_queue) + self.rl_veh + self.removed_veh:
-                self.rl_queue.append(veh_id)
+        super(AVOpenEnv, self).additional_command()
 
-        # remove rl vehicles that exited the controllable range of the network
-        for veh_id in self.rl_veh:
-            if self.k.vehicle.get_x_by_id(veh_id) > self._control_range[1] \
-                    or veh_id not in self.k.vehicle.get_rl_ids():
-                self.removed_veh.append(veh_id)
-                self.rl_veh.remove(veh_id)
+        # Update the RL lists.
+        self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
+            self,
+            rl_queue=self.rl_queue,
+            rl_veh=self.rl_veh,
+            removed_veh=self.removed_veh,
+            control_range=self._control_range,
+            num_rl=self.num_rl,
+            rl_ids=reversed(sorted(
+                self.k.vehicle.get_rl_ids(), key=self.k.vehicle.get_x_by_id)),
+        )
 
-        # fill up rl_veh until they are enough controlled vehicles
-        while len(self.rl_queue) > 0 and len(self.rl_veh) < self.num_rl:
-            # ignore vehicles that are in the ghost edges
-            if self.k.vehicle.get_x_by_id(self.rl_queue[0]) < \
-                    self._control_range[0]:
-                break
-
-            rl_id = self.rl_queue.popleft()
-            veh_pos = self.k.vehicle.get_x_by_id(rl_id)
-
-            # add the vehicle if it is within the control range
-            if veh_pos < self._control_range[1]:
-                self.rl_veh.append(rl_id)
-
-        # specify observed vehicles
-        for veh_id in self.leader + self.follower:
-            self.k.vehicle.set_observed(veh_id)
+        # Specify actions for the uncontrolled RL vehicles based on human-
+        # driven dynamics.
+        for veh_id in list(
+                set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
+            self._rl_controller.veh_id = veh_id
+            acceleration = self._rl_controller.get_action(self)
+            self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
     def reset(self):
         """See class definition."""
-        if self.env_params.additional_params["inflows"] is not None:
+        end_speed = None
+        params = self.env_params.additional_params
+        if params["inflows"] is not None or params["warmup_path"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            # New inflow rate for human and automated vehicles.
-            penetration = self.env_params.additional_params["rl_penetration"]
-            inflow_range = self.env_params.additional_params["inflows"]
-            inflow_low = inflow_range[0]
-            inflow_high = inflow_range[1]
-            inflow_rate = random.randint(inflow_low, inflow_high)
+            if self.warmup_paths is not None:
+                # Choose a random available xml file.
+                xml_file = random.sample(self.warmup_paths, 1)[0]
+                xml_num = int(xml_file.split(".")[0])
+
+                # Update the choice of initial conditions.
+                self.sim_params.load_state = os.path.join(
+                    params["warmup_path"], xml_file)
+
+                # Assign the inflow rate to match the xml number.
+                inflow_rate = self.warmup_description["inflow"][xml_num]
+                end_speed = self.warmup_description["end_speed"][xml_num]
+                print("inflow: {}, end_speed: {}".format(
+                    inflow_rate, end_speed))
+            else:
+                # New inflow rate for human and automated vehicles, randomly
+                # assigned based on the inflows variable
+                inflow_range = self.env_params.additional_params["inflows"]
+                inflow_low = inflow_range[0]
+                inflow_high = inflow_range[1]
+                inflow_rate = random.randint(inflow_low, inflow_high)
 
             # Create a new inflow object.
             new_inflow = InFlows()
@@ -657,6 +744,7 @@ class AVOpenEnv(AVEnv):
 
                 # Get the inflow rate of the lane/edge based on whether the
                 # vehicle types are human-driven or automated.
+                penetration = params["rl_penetration"]
                 if veh_type == "human":
                     vehs_per_hour = inflow_rate * (1 - penetration)
                 else:
@@ -689,4 +777,43 @@ class AVOpenEnv(AVEnv):
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
-        return super(AVOpenEnv, self).reset()
+        _ = super(AVOpenEnv, self).reset()
+
+        # Add automated vehicles.
+        if self.warmup_paths is not None:
+            self._add_automated_vehicles()
+
+        # Update the end speed, if specified.
+        if end_speed is not None:
+            self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
+
+        # Add the vehicles to their respective attributes.
+        self.additional_command()
+
+        # Recompute the initial observation.
+        obs = self.get_state()
+
+        return np.copy(obs)
+
+    def _add_automated_vehicles(self):
+        """Replace a portion of vehicles with automated vehicles."""
+        penetration = self.env_params.additional_params["rl_penetration"]
+
+        # Sort the initial vehicles by their positions.
+        sorted_vehicles = sorted(
+            self.k.vehicle.get_ids(),
+            key=lambda x: self.k.vehicle.get_x_by_id(x))
+
+        # Replace every nth vehicle with an RL vehicle.
+        for lane in range(self._num_lanes):
+            sorted_vehicles_lane = [
+                veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
+
+            for i, veh_id in enumerate(sorted_vehicles_lane):
+                self.k.vehicle.set_vehicle_type(veh_id, "human")
+
+                if (i + 1) % int(1 / penetration) == 0:
+                    # Don't add vehicles past the control range.
+                    pos = self.k.vehicle.get_x_by_id(veh_id)
+                    if pos < self._control_range[1]:
+                        self.k.vehicle.set_vehicle_type(veh_id, "rl")

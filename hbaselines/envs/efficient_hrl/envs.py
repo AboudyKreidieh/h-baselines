@@ -183,7 +183,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             extra information dictionary
         """
         # Run environment update.
-        obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
+        obs, rew, done, _ = super(UniversalAntMazeEnv, self).step(action)
+        info = {}
 
         if self.use_contexts:
             # Add success to the info dict
@@ -192,6 +193,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 next_states=obs,
                 goals=self.current_context,
             )
+            info["goal_distance"] = dist / REWARD_SCALE
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
@@ -312,7 +314,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
-            manual_collision=False
+            manual_collision=False,
         )
 
         self.horizon = horizon
@@ -411,16 +413,16 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             action)
 
         if self.use_contexts:
-            # Add success to the info dict
-            dist = self.contextual_reward(
+            # Replace the reward with the contextual reward.
+            rew = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
                 goals=self.current_context,
             )
-            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
-            # Replace the reward with the contextual reward.
-            rew = dist
+            # Add success to the info dict
+            dist = 7.2 * np.log(rew)
+            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -580,7 +582,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=(2.0 / 11.313708499),
+                reward_scales=1/7.2,
                 output_activation=np.exp)
 
         super(HumanoidMaze, self).__init__(
@@ -1049,7 +1051,7 @@ class AntFourRooms(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            maze_size_scaling=3,
+            maze_size_scaling=2,
             ant_fall=False,
             top_down_view=False,
             evaluate=evaluate,

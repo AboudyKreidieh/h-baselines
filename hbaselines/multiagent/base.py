@@ -447,10 +447,11 @@ class MultiAgentPolicy(Policy):
         """See get_action."""
         actions = {}
 
-        for key in obs.keys():
+        for i, key in enumerate(self._sorted_list(obs.keys())):
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
+            env_num_i = self.n_agents * env_num + i if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -462,7 +463,7 @@ class MultiAgentPolicy(Policy):
                 context=context_i,
                 apply_noise=apply_noise,
                 random_actions=random_actions,
-                env_num=env_num,
+                env_num=env_num_i,
             )
 
         return actions
@@ -479,14 +480,15 @@ class MultiAgentPolicy(Policy):
                                 env_num,
                                 evaluate):
         """See store_transition."""
-        for key in obs0.keys():
+        for i, key in enumerate(self._sorted_list(obs0.keys())):
             # If the agent has exited the environment, ignore it.
-            if key not in reward.keys():
+            if key not in obs1.keys():
                 continue
 
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
+            env_num_i = self.n_agents * env_num + i if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -501,10 +503,10 @@ class MultiAgentPolicy(Policy):
                 reward=reward[key],
                 obs1=obs1[key],
                 context1=context1_i,
-                done=done,
+                done=False,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
-                env_num=env_num,
+                env_num=env_num_i,
             )
 
     def _get_td_map_basic(self):
@@ -516,6 +518,11 @@ class MultiAgentPolicy(Policy):
             combines_td_maps.update(self.agents[key].get_td_map())
 
         return combines_td_maps
+
+    @staticmethod
+    def _sorted_list(keys):
+        """Return a sorted list of dict keys."""
+        return sorted(list(keys))
 
     # ======================================================================= #
     #               MADDPG version of required abstract methods.              #
