@@ -311,7 +311,7 @@ class Policy(object):
         if l2_penalty > 0:
             print("regularizing policy network: L2 = {}".format(l2_penalty))
             regularizer = tf.contrib.layers.l2_regularizer(
-                scale_l2=l2_penalty, scope=scope_name)
+                scale=l2_penalty, scope="{}/l2_regularize".format(scope_name))
             l2_loss = tf.contrib.layers.apply_regularization(
                 regularizer,
                 weights_list=get_trainable_vars(scope_name))
