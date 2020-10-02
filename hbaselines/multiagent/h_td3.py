@@ -19,6 +19,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  noise,
                  target_policy_noise,
@@ -74,6 +75,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         noise : float
@@ -169,6 +172,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
             maddpg=maddpg,

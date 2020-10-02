@@ -1,5 +1,8 @@
 """Script containing the abstract policy class."""
 import numpy as np
+import tensorflow as tf
+
+from hbaselines.utils.tf_util import get_trainable_vars
 
 
 class Policy(object):
@@ -17,6 +20,8 @@ class Policy(object):
         the context space of the environment
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    l2_penalty : float
+        L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. The following must be
         specified:
@@ -55,6 +60,7 @@ class Policy(object):
                  ac_space,
                  co_space,
                  verbose,
+                 l2_penalty,
                  model_params):
         """Instantiate the base policy object.
 
@@ -71,6 +77,8 @@ class Policy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. The following must be
             specified:
@@ -107,6 +115,7 @@ class Policy(object):
         self.ac_space = ac_space
         self.co_space = co_space
         self.verbose = verbose
+        self.l2_penalty = l2_penalty
         self.model_params = model_params
 
         # Run assertions.
@@ -282,3 +291,32 @@ class Policy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
+
+    @staticmethod
+    def _l2_loss(l2_penalty, scope_name):
+        """Compute the L2 regularization penalty.
+
+        Parameters
+        ----------
+        l2_penalty : float
+            L2 regularization penalty
+        scope_name : str
+            the scope of the trainable variables to regularize
+
+        Returns
+        -------
+        float
+            the overall regularization penalty
+        """
+        if l2_penalty > 0:
+            print("regularizing policy network: L2 = {}".format(l2_penalty))
+            regularizer = tf.contrib.layers.l2_regularizer(
+                scale=l2_penalty, scope="{}/l2_regularize".format(scope_name))
+            l2_loss = tf.contrib.layers.apply_regularization(
+                regularizer,
+                weights_list=get_trainable_vars(scope_name))
+        else:
+            # no regularization
+            l2_loss = 0
+
+        return l2_loss

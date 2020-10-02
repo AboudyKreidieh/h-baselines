@@ -77,6 +77,8 @@ variable hyperparameters of the algorithms:
 * `--actor_update_freq` (*int*): the number of training steps per actor policy
   update step. The critic policy is updated every training step. Only used when 
   the algorithm is set to "TD3". Defaults to 2.
+* `--l2_penalty` (*float*): L2 regularization penalty. This is applied to the 
+  policy network. Defaults to 0.
 * `--meta_update_freq` (*int*): the number of training steps per meta policy
   update step. Defaults to 10.
 

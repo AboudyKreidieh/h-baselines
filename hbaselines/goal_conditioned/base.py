@@ -129,6 +129,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  num_levels,
                  meta_period,
@@ -259,6 +260,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
         )
 
@@ -332,6 +334,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     tau=tau,
                     gamma=gamma,
                     use_huber=use_huber,
+                    l2_penalty=l2_penalty,
                     model_params=model_params_i,
                     scope=scope_i,
                     **(additional_params or {}),
