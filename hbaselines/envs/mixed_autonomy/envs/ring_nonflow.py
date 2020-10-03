@@ -4,6 +4,7 @@ import csv
 import time
 import random
 from collections import defaultdict
+import json
 from scipy.optimize import fsolve
 
 from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
@@ -13,6 +14,9 @@ MAX_HEADWAY = 20
 
 
 class RingEnv(gym.Env):
+    """
+
+    """
 
     def __init__(self,
                  length,
@@ -30,11 +34,25 @@ class RingEnv(gym.Env):
         :param length:
         :param num_vehicles:
         :param dt:
+        :param horizon:
+        :param sims_per_step:
+        :param min_gap:
+        :param gen_emission:
         :param rl_ids:
         :param warmup_steps:
         :param initial_state:
         """
-        self.length = length
+        self._length = length
+
+        # Load the initial state (if needed).
+        if isinstance(initial_state, str) and initial_state != "random":
+            with open(initial_state, "r") as fp:
+                self.initial_state = json.load(fp)
+            self._length = list(self.initial_state.keys())
+        else:
+            self.initial_state = initial_state
+
+        self.length = self._set_length(self._length)
         self.num_vehicles = num_vehicles
         self.dt = dt
         self.horizon = horizon
@@ -43,7 +61,6 @@ class RingEnv(gym.Env):
         self.gen_emission = gen_emission
         self.rl_ids = np.asarray(rl_ids)
         self.warmup_steps = warmup_steps
-        self.initial_state = initial_state
         self.time_log = None
         self._v_eq = None
         self._mean_speeds = None
@@ -73,6 +90,20 @@ class RingEnv(gym.Env):
         self.delay = 0
 
     @staticmethod
+    def _set_length(length):
+        if isinstance(length, list):
+            if len(length) == 2:
+                # if the range for the length term was defined by the length
+                # parameter
+                length = random.randint(length[0], length[1])
+            else:
+                # if the lengths to choose from were defined the initial_states
+                # parameter
+                length = int(random.choice(length))
+
+        return length
+
+    @staticmethod
     def _set_initial_state(length, num_vehicles, initial_state, min_gap):
         """
 
@@ -97,8 +128,10 @@ class RingEnv(gym.Env):
             # no initial speed (0 m/s)
             vel = np.array([0. for _ in range(num_vehicles)])
         else:
-            pos = np.array([])
-            vel = np.array([])
+            # Choose from the available initial states.
+            pos_vel = random.choice(initial_state[str(length)])
+            pos = np.array([pv[0] for pv in pos_vel])
+            vel = np.array([pv[1] for pv in pos_vel])
 
         return pos, vel
 
@@ -121,14 +154,17 @@ class RingEnv(gym.Env):
 
         :return:
         """
-        pos = self.positions
+        # compute the individual headways
         headway = np.append(
-            pos[1:] - pos[:-1] - VEHICLE_LENGTH,
-            pos[0] - pos[-1] - VEHICLE_LENGTH)
-        headway[np.argmax(pos)] += self.length
+            self.positions[1:] - self.positions[:-1] - VEHICLE_LENGTH,
+            self.positions[0] - self.positions[-1] - VEHICLE_LENGTH)
+
+        # dealing with wraparound
+        headway[np.argmax(self.positions)] += self.length
+
         return headway
 
-    def _get_accel(self, pos, vel, h):
+    def _get_accel(self, vel, h):
         """
 
         :return:
@@ -151,33 +187,29 @@ class RingEnv(gym.Env):
 
         return accel
 
-    def _get_rl_accel(self, accel, vel, h):
+    def _get_rl_accel(self, accel, vel):
         """
 
         :param accel:
         :param vel:
-        :param h:
         :return:
         """
         # for multi-agent environments
         if isinstance(accel, dict):
-            accel = [accel[key] for key in self.rl_ids]
+            accel = [accel[key][0] for key in self.rl_ids]
 
         # Redefine if below a speed threshold so that all actions result in
         # non-negative desired speeds.
         for i, veh_id in enumerate(self.rl_ids):
-            ac_range = self.action_space.high - self.action_space.low
+            ac_range = self.action_space.high[0] - self.action_space.low[0]
             speed = self.speeds[veh_id]
             if speed < 0.5 * ac_range * self.dt:
                 accel[i] += 0.5 * ac_range - speed / self.dt
 
         accel_min = - vel / self.dt
         accel_max = self._failsafe(self.rl_ids)
-        # accel_max = np.clip(
-        #     2 * (h - self.min_gap - vel * self.dt) / self.dt ** 2,
-        #     a_min=accel_min, a_max=np.inf)
 
-        return np.clip(accel, a_max=accel_max, a_min=accel_min)
+        return np.clip(accel, a_max=accel_max, a_min=accel_min), accel_max
 
     def _failsafe(self, veh_ids):
         lead_vel = self.speeds[(veh_ids + 1) % self.num_vehicles]
@@ -249,18 +281,13 @@ class RingEnv(gym.Env):
             self.t += 1
 
             # Compute the accelerations.
-            accelerations = self._get_accel(
-                pos=self.positions,
-                vel=self.speeds,
-                h=self.headways,
-            )
+            accelerations = self._get_accel(vel=self.speeds, h=self.headways)
 
             # Compute the accelerations for RL vehicles.
             if self.rl_ids is not None and action is not None:
-                accelerations[self.rl_ids] = self._get_rl_accel(
+                accelerations[self.rl_ids], _ = self._get_rl_accel(
                     accel=action,
                     vel=self.speeds[self.rl_ids],
-                    h=self.headways[self.rl_ids],
                 )
 
             # Update the speeds, positions, and headways.
@@ -305,13 +332,12 @@ class RingEnv(gym.Env):
 
         return self.get_state(), self.compute_reward(action or [0]), done, info
 
-    def reset(self, length=None):
+    def reset(self):
         """
 
         :return:
         """
-        length = random.randint(220, 270)
-        self.length = length or self.length
+        self.length = self._set_length(self._length)
 
         # solve for the velocity upper bound of the ring
         v_guess = 4
@@ -348,6 +374,7 @@ class RingEnv(gym.Env):
             initial_state=self.initial_state,
             min_gap=self.min_gap,
         )
+        self.headways = self._compute_headway()
 
         if self.gen_emission:
             data = {"t": self.t}
@@ -465,8 +492,8 @@ class RingSingleAgentEnv(RingEnv):
 
         return reward
 
-    def reset(self, length=None):
-        obs = super(RingSingleAgentEnv, self).reset(length)
+    def reset(self):
+        obs = super(RingSingleAgentEnv, self).reset()
 
         # observations from previous time steps
         self._obs_history = []
@@ -575,7 +602,7 @@ class RingMultiAgentEnv(RingEnv):
 
         return obs
 
-    def compute_reward(self):
+    def compute_reward(self, action):
         reward_scale = 0.1
         reward = {
             key: reward_scale * np.mean(self.speeds) ** 2
@@ -584,8 +611,8 @@ class RingMultiAgentEnv(RingEnv):
 
         return reward
 
-    def reset(self, length=None):
-        obs = super(RingMultiAgentEnv, self).reset(length)
+    def reset(self):
+        obs = super(RingMultiAgentEnv, self).reset()
 
         # observations from previous time steps
         self._obs_history = defaultdict(list)
@@ -594,23 +621,25 @@ class RingMultiAgentEnv(RingEnv):
 
 
 if __name__ == "__main__":
-    env = RingEnv(
-        length=260,
-        num_vehicles=22,
-        dt=0.2,
-        horizon=1500,
-        gen_emission=True,
-        rl_ids=None,
-        warmup_steps=500,
-        initial_state="random",
-        sims_per_step=1,
-    )
+    res = defaultdict(list)
+    for length in range(2100, 2710, 10):
+        print(length)
+        for i in range(10):
+            print(i)
+            env = RingEnv(
+                length=length,
+                num_vehicles=200,
+                dt=0.2,
+                horizon=1500,
+                gen_emission=False,
+                rl_ids=None,
+                warmup_steps=500,
+                initial_state="random",
+                sims_per_step=3,
+            )
 
-    obs = env.reset()
-
-    done = False
-    while not done:
-        _, rew, done, info = env.step(None)
-        if isinstance(done, dict):
-            done = done["__all__"]
-    _ = env.reset()
+            _ = env.reset()
+            xy = zip(env.positions, env.speeds)
+            res[length].append(sorted(xy))
+        with open("initial_states.json", "w") as fp:
+            json.dump(res, fp)

@@ -1061,8 +1061,8 @@ class RLAlgorithm(object):
                 self.total_steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
-                    self.episode_reward[num] += sum(
-                        reward[k] for k in reward.keys())
+                    self.episode_reward[num] += np.mean(
+                        [reward[k] for k in reward.keys()])
                 else:
                     self.episode_reward[num] += reward
 
