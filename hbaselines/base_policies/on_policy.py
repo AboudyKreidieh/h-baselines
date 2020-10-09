@@ -69,6 +69,7 @@ class OnPolicyPolicy(Policy):
                  max_grad_norm,
                  cliprange,
                  cliprange_vf,
+                 l2_penalty,
                  model_params,
                  num_envs=1):
         """Instantiate the base policy object.
@@ -86,6 +87,8 @@ class OnPolicyPolicy(Policy):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         learning_rate : float
@@ -122,6 +125,7 @@ class OnPolicyPolicy(Policy):
             ac_space=ac_space,
             co_space=co_space,
             verbose=verbose,
+            l2_penalty=l2_penalty,
             model_params=model_params,
         )
 
