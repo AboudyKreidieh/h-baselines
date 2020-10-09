@@ -38,6 +38,8 @@ class ActorCriticPolicy(Policy):
         specifies whether to use the huber distance function as the loss for
         the critic. If set to False, the mean-squared error metric is used
         instead
+    l2_penalty : float
+        L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. See parent class.
     buffer_size : int
@@ -71,6 +73,7 @@ class ActorCriticPolicy(Policy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params):
         """Instantiate the base policy object.
 
@@ -103,6 +106,8 @@ class ActorCriticPolicy(Policy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         """
@@ -112,6 +117,7 @@ class ActorCriticPolicy(Policy):
             ac_space=ac_space,
             co_space=co_space,
             verbose=verbose,
+            l2_penalty=l2_penalty,
             model_params=model_params,
         )
 

@@ -125,6 +125,7 @@ class FeedForwardPolicy(OnPolicyPolicy):
                  max_grad_norm,
                  cliprange,
                  cliprange_vf,
+                 l2_penalty,
                  scope=None,
                  num_envs=1):
         """Instantiate the policy object.
@@ -171,6 +172,8 @@ class FeedForwardPolicy(OnPolicyPolicy):
             scaling. To deactivate value function clipping (and recover the
             original PPO implementation), you have to pass a negative value
             (e.g. -1).
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
@@ -178,6 +181,7 @@ class FeedForwardPolicy(OnPolicyPolicy):
             ac_space=ac_space,
             co_space=co_space,
             verbose=verbose,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             learning_rate=learning_rate,
             n_minibatches=n_minibatches,
@@ -446,6 +450,9 @@ class FeedForwardPolicy(OnPolicyPolicy):
             tf.abs(ratio - 1.0), self.cliprange), tf.float32))
         self.loss = self.pg_loss - self.entropy * self.ent_coef \
             + self.vf_loss * self.vf_coef
+
+        # Add a regularization penalty.
+        self.loss += self._l2_loss(self.l2_penalty, scope_name)
 
         # Compute the gradients of the loss.
         var_list = get_trainable_vars(scope_name)

@@ -31,6 +31,7 @@ def get_hyperparameters(args, policy):
 
     # add FeedForwardPolicy parameters
     policy_kwargs = {
+        "l2_penalty": args.l2_penalty,
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
@@ -444,6 +445,12 @@ def create_ppo_parser(parser):
 
 def create_feedforward_parser(parser):
     """Add the feedforward policy hyperparameters to the parser."""
+    parser.add_argument(
+        "--l2_penalty",
+        type=float,
+        default=FEEDFORWARD_PARAMS["l2_penalty"],
+        help="L2 regularization penalty. This is applied to the policy "
+             "network.")
     parser.add_argument(
         "--model_params:model_type",
         type=str,
