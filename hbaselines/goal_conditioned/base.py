@@ -108,6 +108,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     policy : list of hbaselines.base_policies.ActorCriticPolicy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
+    meta_action : TODO
+        TODO
+    prev_obs : TODO
+        TODO
     goal_indices : list of int
         the state indices for the intrinsic rewards
     intrinsic_reward_fn : function
@@ -343,8 +347,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # =================================================================== #
 
         # current action by the meta-level policies
-        self.meta_action = [[None for _ in range(num_levels - 1)]
-                             for _ in range(num_envs)]
+        self.meta_action = [[[] for _ in range(num_levels - 1)]
+                            for _ in range(num_envs)]
+
+        # previous step observation
+        self.prev_obs = [[] for _ in range(num_envs)]
 
         # state indices for the intrinsic rewards
         self.goal_indices = get_state_indices(ob_space, env_name)
@@ -428,10 +435,20 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def initialize(self):
         """See parent class.
 
-        This method imports the worker policy from a pre-trained checkpoint if
-        a path to one is specified. Additional initialization actions are
-        provided by the child classes.
+        This method performs the following operations:
+
+        - It calls the initialization methods of the policies at every level of
+          the hierarchy to match the target value function parameters with the
+          current policy parameters.
+        - It also imports the worker policy from a pre-trained checkpoint if a
+          path to one is specified.
+
+        Additional initialization actions are provided by the child classes.
         """
+        # Initialize the separate policies in the hierarchy.
+        for i in range(self.num_levels):
+            self.policy[i].initialize()
+
         if self.pretrain_path is not None:
             ckpt_path = os.path.join(self.pretrain_path, "checkpoints")
 
@@ -512,20 +529,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # data, removing it can speedup the other algorithms.
         with_additional = self.off_policy_corrections
 
-        # Not enough samples in the replay buffer.  FIXME
-        if not self.replay_buffer.can_sample():
-            return tuple([[0, 0] for _ in range(self.num_levels)]), \
-                tuple([0 for _ in range(self.num_levels)])
+        # Get a batch.
+        samples = self._sample_buffer(with_additional)
 
-        # Get a batch.  FIXME
-        obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
-
-        # Do not use done masks for lower-level policies with negative
-        # intrinsic rewards (these the policies to terminate early).  FIXME
-        if self._negative_reward_fn():
-            for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
+        if samples is None:
+            # Not enough samples in the replay buffer.
+            return
+        else:
+            obs0, obs1, act, rew, done, additional = samples
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
@@ -595,11 +606,13 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 # Update the meta-action in accordance with a fixed transition
                 # function.
                 self.meta_action[env_num][i] = self.goal_transition_fn(
-                    obs0=np.array(
-                        [self._observations[env_num][-1][self.goal_indices]]),
+                    obs0=np.array([self.prev_obs[env_num][self.goal_indices]]),
                     goal=self.meta_action[env_num][i],
                     obs1=obs[:, self.goal_indices]
                 )
+
+        # Update the previous observation variable.
+        self.prev_obs[env_num] = deepcopy(obs)
 
         # Return the action to be performed within the environment (i.e. the
         # action by the lowest level policy).
@@ -645,12 +658,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_td_map(self):
         """See parent class."""
-        # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample():
-            return {}
-
         # Get a batch.
-        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
+        samples = self._sample_buffer(False)
+
+        if samples is None:
+            # Not enough samples in the replay buffer.
+            return {}
+        else:
+            obs0, obs1, act, rew, done, _ = samples
 
         td_map = {}
         for i in range(self.num_levels):
@@ -664,15 +679,24 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return td_map
 
-    def _negative_reward_fn(self):  # FIXME
-        """Return True if the intrinsic reward returns negative values.
+    # ======================================================================= #
+    #             Auxiliary methods for all hierarchical variants             #
+    # ======================================================================= #
 
-        Intrinsic reward functions with negative rewards incentivize early
-        terminations, which we attempt to mitigate in the training operation by
-        preventing early terminations from return an expected return of 0.
+    def _sample_buffer(self, with_additional=False):
+        """TODO.
+
+        Parameters
+        ----------
+        with_additional : bool
+            TODO
+
+        Returns
+        -------
+        TODO
+            TODO
         """
-        return "exp" not in self.intrinsic_reward_type \
-            and "non" not in self.intrinsic_reward_type
+        raise NotImplementedError
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #
