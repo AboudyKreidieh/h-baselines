@@ -2,15 +2,16 @@
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.base_policies.on_policy import OnPolicyPolicy
+from hbaselines.base_policies import Policy
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import explained_variance
 from hbaselines.utils.tf_util import print_params_shape
+from hbaselines.utils.tf_util import process_minibatch
 
 
-class FeedForwardPolicy(OnPolicyPolicy):
+class FeedForwardPolicy(Policy):
     """Feed-forward neural network policy.
 
     Attributes
@@ -183,18 +184,19 @@ class FeedForwardPolicy(OnPolicyPolicy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
-            learning_rate=learning_rate,
-            n_minibatches=n_minibatches,
-            n_opt_epochs=n_opt_epochs,
-            gamma=gamma,
-            lam=lam,
-            ent_coef=ent_coef,
-            vf_coef=vf_coef,
-            max_grad_norm=max_grad_norm,
-            cliprange=cliprange,
-            cliprange_vf=cliprange_vf,
-            num_envs=num_envs,
         )
+
+        self.learning_rate = learning_rate
+        self.n_minibatches = n_minibatches
+        self.n_opt_epochs = n_opt_epochs
+        self.gamma = gamma
+        self.lam = lam
+        self.ent_coef = ent_coef
+        self.vf_coef = vf_coef
+        self.max_grad_norm = max_grad_norm
+        self.cliprange = cliprange
+        self.cliprange_vf = cliprange_vf
+        self.num_envs = num_envs
 
         # Create variables to store on-policy data.
         self.mb_rewards = [[] for _ in range(num_envs)]
@@ -591,7 +593,7 @@ class FeedForwardPolicy(OnPolicyPolicy):
          self.mb_rewards,
          self.mb_returns,
          self.mb_dones,
-         self.mb_advs, n_steps) = self.process_minibatch(
+         self.mb_advs, n_steps) = process_minibatch(
             mb_obs=self.mb_obs,
             mb_contexts=self.mb_contexts,
             mb_actions=self.mb_actions,
@@ -602,6 +604,9 @@ class FeedForwardPolicy(OnPolicyPolicy):
             mb_returns=self.mb_returns,
             mb_dones=self.mb_dones,
             last_values=last_values,
+            gamma=self.gamma,
+            lam=self.lam,
+            num_envs=self.num_envs,
         )
 
         # Run the optimization procedure.

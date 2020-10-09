@@ -3,16 +3,14 @@ import tensorflow as tf
 import numpy as np
 from copy import deepcopy
 import os
-import random
 
-from hbaselines.base_policies import ActorCriticPolicy
-from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
+from hbaselines.base_policies import Policy
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 from hbaselines.utils.tf_util import get_trainable_vars
 
 
-class GoalConditionedPolicy(ActorCriticPolicy):
+class GoalConditionedPolicy(Policy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
 
     TODO
@@ -123,14 +121,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 buffer_size,
-                 batch_size,
-                 actor_lr,
-                 critic_lr,
                  verbose,
-                 tau,
-                 gamma,
-                 use_huber,
                  l2_penalty,
                  model_params,
                  num_levels,
@@ -164,25 +155,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
-        buffer_size : int
-            the max number of transitions to store
-        batch_size : int
-            SGD batch size
-        actor_lr : float
-            actor learning rate
-        critic_lr : float
-            critic learning rate
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        tau : float
-            target update rate
-        gamma : float
-            discount factor
-        use_huber : bool
-            specifies whether to use the huber distance function as the loss
-            for the critic. If set to False, the mean-squared error metric is
-            used instead
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         num_levels : int
@@ -254,14 +229,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
         )
@@ -328,14 +296,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     ob_space=ob_space_i,
                     ac_space=ac_space_i,
                     co_space=co_space_i,
-                    buffer_size=buffer_size,
-                    batch_size=batch_size,
-                    actor_lr=actor_lr,
-                    critic_lr=critic_lr,
                     verbose=verbose,
-                    tau=tau,
-                    gamma=gamma,
-                    use_huber=use_huber,
                     l2_penalty=l2_penalty,
                     model_params=model_params_i,
                     scope=scope_i,
@@ -418,13 +379,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 return goal
         self.goal_transition_fn = goal_transition_fn
 
-        # Utility method for indexing the goal out of an observation variable.
-        self.crop_to_goal = lambda g: tf.gather(
-            g,
-            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
-                    [self.batch_size, 1]),
-            batch_dims=1, axis=1)
-
         if self.cooperative_gradients:
             if scope is None:
                 self._setup_cooperative_gradients()
@@ -502,89 +456,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     self.sess.run(
                         tf.compat.v1.assign(current_vars[var_name], value))
 
-    def update(self, update_actor=True, **kwargs):
-        """Perform a gradient update step.
-
-        This is done both at every level of the hierarchy.
-
-        The kwargs argument for this method contains two additional terms:
-
-        * update_meta (bool): specifies whether to perform a gradient update
-          step for the meta-policies
-        * update_meta_actor (bool): similar to the `update_policy` term, but
-          for the meta-policy. Note that, if `update_meta` is set to False,
-          this term is void.
-
-        **Note**; The target update soft updates for all policies occur at the
-        same frequency as their respective actor update frequencies.
-
-        Parameters
-        ----------
-        update_actor : bool
-            specifies whether to update the actor policy. The critic policy is
-            still updated if this value is set to False.
-        """
-        # Specifies whether to remove additional data from the replay buffer
-        # sampling procedure. Since only a subset of algorithms use additional
-        # data, removing it can speedup the other algorithms.
-        with_additional = self.off_policy_corrections
-
-        # Get a batch.
-        samples = self._sample_buffer(with_additional)
-
-        if samples is None:
-            # Not enough samples in the replay buffer.
-            return
-        else:
-            obs0, obs1, act, rew, done, additional = samples
-
-        # Loop through all meta-policies.
-        for i in range(self.num_levels - 1):
-            if kwargs['update_meta'][i] and not self.pretrain_worker:
-                # Replace the goals with the most likely goals.
-                if self.off_policy_corrections and i == 0:  # FIXME
-                    meta_act = self._sample_best_meta_action(
-                        meta_obs0=obs0[i],
-                        meta_obs1=obs1[i],
-                        meta_action=act[i],
-                        worker_obses=additional["worker_obses"],
-                        worker_actions=additional["worker_actions"],
-                        k=8
-                    )
-                    act[i] = meta_act
-
-                if self.cooperative_gradients:
-                    # Perform the cooperative gradients update procedure.
-                    self._cooperative_gradients_update(
-                        obs0=obs0,
-                        actions=act,
-                        rewards=rew,
-                        obs1=obs1,
-                        terminals1=done,
-                        level_num=i,
-                        update_actor=kwargs['update_meta_actor'],
-                    )
-                else:
-                    # Perform the regular meta update procedure.
-                    self.policy[i].update_from_batch(
-                        obs0=obs0[i],
-                        actions=act[i],
-                        rewards=rew[i],
-                        obs1=obs1[i],
-                        terminals1=done[i],
-                        update_actor=kwargs['update_meta_actor'],
-                    )
-
-        # Update the lowest level policy.
-        self.policy[-1].update_from_batch(
-            obs0=obs0[-1],
-            actions=act[-1],
-            rewards=rew[-1],
-            obs1=obs1[-1],
-            terminals1=done[-1],
-            update_actor=update_actor,
-        )
-
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
         # Loop through the policies in the hierarchy.
@@ -624,35 +495,44 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return action
 
-    def get_td_map(self):
-        """See parent class."""
-        # Get a batch.
-        samples = self._sample_buffer(False)
-
-        if samples is None:
-            # Not enough samples in the replay buffer.
-            return {}
-        else:
-            obs0, obs1, act, rew, done, _ = samples
-
-        td_map = {}
-        for i in range(self.num_levels):
-            td_map.update(self.policy[i].get_td_map_from_batch(
-                obs0=obs0[i],
-                actions=act[i],
-                rewards=rew[i],
-                obs1=obs1[i],
-                terminals1=done[i]
-            ))
-
-        return td_map
-
     # ======================================================================= #
     #             Auxiliary methods for all hierarchical variants             #
     # ======================================================================= #
 
+    def update(self, update_actor=True, **kwargs):
+        """Perform a gradient update step.
+
+        This is done at every level of the hierarchy.
+
+        The kwargs argument for this method contains two additional terms:
+
+        * update_meta (bool): specifies whether to perform a gradient update
+          step for the meta-policies
+        * update_meta_actor (bool): similar to the `update_policy` term, but
+          for the meta-policy. Note that, if `update_meta` is set to False,
+          this term is void.
+
+        **Note**; The target update soft updates for all policies occur at the
+        same frequency as their respective actor update frequencies.
+
+        Parameters
+        ----------
+        update_actor : bool
+            specifies whether to update the actor policy. The critic policy is
+            still updated if this value is set to False.
+        """
+        raise NotImplementedError
+
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
+        """See parent class."""
+        raise NotImplementedError
+
+    def clear_memory(self, env_num):
+        """Clear internal memory that is used by the replay buffer."""
+        raise NotImplementedError
+
+    def get_td_map(self):
         """See parent class."""
         raise NotImplementedError
 
@@ -676,25 +556,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         bool
             True if the action should be updated by the meta-policy at the
             given level
-        """
-        raise NotImplementedError
-
-    def clear_memory(self, env_num):
-        """Clear internal memory that is used by the replay buffer."""
-        raise NotImplementedError
-
-    def _sample_buffer(self, with_additional=False):
-        """TODO.
-
-        Parameters
-        ----------
-        with_additional : bool
-            TODO
-
-        Returns
-        -------
-        TODO
-            TODO
         """
         raise NotImplementedError
 

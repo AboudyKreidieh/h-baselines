@@ -278,6 +278,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_cooperative_gradients(self):
         """Create the cooperative gradients meta-policy optimizer."""
+        # Utility method for indexing the goal out of an observation variable.
+        self.crop_to_goal = lambda g: tf.gather(
+            g,
+            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
+                    [self.batch_size, 1]),
+            batch_dims=1, axis=1)
+
         self.cg_loss = []
         self.cg_optimizer = []
         for level in range(self.num_levels - 1):
