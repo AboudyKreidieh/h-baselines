@@ -180,16 +180,16 @@ class GoalConditionedPolicy(BasePolicy):
             additional_params=additional_params,
         )
 
+        # =================================================================== #
+        # Create attributes for the replay buffer.                            #
+        # =================================================================== #
+
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
             ob_space=ob_space,
             relative_goals=relative_goals,
             env_name=env_name,
         )
-
-        # =================================================================== #
-        # Step 2: Create attributes for the replay buffer.                    #
-        # =================================================================== #
 
         # Create the replay buffer.
         self.replay_buffer = HierReplayBuffer(

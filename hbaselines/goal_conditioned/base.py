@@ -624,6 +624,33 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         return action
 
+    def get_td_map(self):
+        """See parent class."""
+        # Get a batch.
+        samples = self._sample_buffer(False)
+
+        if samples is None:
+            # Not enough samples in the replay buffer.
+            return {}
+        else:
+            obs0, obs1, act, rew, done, _ = samples
+
+        td_map = {}
+        for i in range(self.num_levels):
+            td_map.update(self.policy[i].get_td_map_from_batch(
+                obs0=obs0[i],
+                actions=act[i],
+                rewards=rew[i],
+                obs1=obs1[i],
+                terminals1=done[i]
+            ))
+
+        return td_map
+
+    # ======================================================================= #
+    #             Auxiliary methods for all hierarchical variants             #
+    # ======================================================================= #
+
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
         """See parent class."""
@@ -655,33 +682,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     def clear_memory(self, env_num):
         """Clear internal memory that is used by the replay buffer."""
         raise NotImplementedError
-
-    def get_td_map(self):
-        """See parent class."""
-        # Get a batch.
-        samples = self._sample_buffer(False)
-
-        if samples is None:
-            # Not enough samples in the replay buffer.
-            return {}
-        else:
-            obs0, obs1, act, rew, done, _ = samples
-
-        td_map = {}
-        for i in range(self.num_levels):
-            td_map.update(self.policy[i].get_td_map_from_batch(
-                obs0=obs0[i],
-                actions=act[i],
-                rewards=rew[i],
-                obs1=obs1[i],
-                terminals1=done[i]
-            ))
-
-        return td_map
-
-    # ======================================================================= #
-    #             Auxiliary methods for all hierarchical variants             #
-    # ======================================================================= #
 
     def _sample_buffer(self, with_additional=False):
         """TODO.
