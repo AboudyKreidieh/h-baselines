@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from hbaselines.base_policies.policy import Policy
+from hbaselines.base_policies.on_policy import OnPolicyPolicy
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
@@ -10,7 +10,7 @@ from hbaselines.utils.tf_util import explained_variance
 from hbaselines.utils.tf_util import print_params_shape
 
 
-class FeedForwardPolicy(Policy):
+class FeedForwardPolicy(OnPolicyPolicy):
     """Feed-forward neural network policy.
 
     Attributes
@@ -115,6 +115,7 @@ class FeedForwardPolicy(Policy):
                  co_space,
                  verbose,
                  learning_rate,
+                 model_params,
                  n_minibatches,
                  n_opt_epochs,
                  gamma,
@@ -125,7 +126,6 @@ class FeedForwardPolicy(Policy):
                  cliprange,
                  cliprange_vf,
                  l2_penalty,
-                 model_params,
                  scope=None,
                  num_envs=1):
         """Instantiate the policy object.
@@ -143,6 +143,8 @@ class FeedForwardPolicy(Policy):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         learning_rate : float
             the learning rate
         n_minibatches : int
@@ -181,19 +183,18 @@ class FeedForwardPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            learning_rate=learning_rate,
+            n_minibatches=n_minibatches,
+            n_opt_epochs=n_opt_epochs,
+            gamma=gamma,
+            lam=lam,
+            ent_coef=ent_coef,
+            vf_coef=vf_coef,
+            max_grad_norm=max_grad_norm,
+            cliprange=cliprange,
+            cliprange_vf=cliprange_vf,
+            num_envs=num_envs,
         )
-
-        self.learning_rate = learning_rate
-        self.n_minibatches = n_minibatches
-        self.n_opt_epochs = n_opt_epochs
-        self.gamma = gamma
-        self.lam = lam
-        self.ent_coef = ent_coef
-        self.vf_coef = vf_coef
-        self.max_grad_norm = max_grad_norm
-        self.cliprange = cliprange
-        self.cliprange_vf = cliprange_vf
-        self.num_envs = num_envs
 
         # Create variables to store on-policy data.
         self.mb_rewards = [[] for _ in range(num_envs)]
@@ -573,53 +574,35 @@ class FeedForwardPolicy(Policy):
 
     def update(self, **kwargs):
         """See parent class."""
-        n_steps = 0
+        # Compute the last estimated value.
+        last_values = [
+            self.sess.run(
+                self.value_flat,
+                feed_dict={self.obs_ph: self.last_obs[env_num]})
+            for env_num in range(self.num_envs)
+        ]
 
-        for env_num in range(self.num_envs):
-            # Convert the data to numpy arrays.
-            self.mb_obs[env_num] = \
-                np.concatenate(self.mb_obs[env_num], axis=0)
-            self.mb_rewards[env_num] = \
-                np.asarray(self.mb_rewards[env_num])
-            self.mb_actions[env_num] = \
-                np.concatenate(self.mb_actions[env_num], axis=0)
-            self.mb_values[env_num] = \
-                np.concatenate(self.mb_values[env_num], axis=0)
-            self.mb_neglogpacs[env_num] = \
-                np.concatenate(self.mb_neglogpacs[env_num], axis=0)
-            self.mb_dones[env_num] = \
-                np.asarray(self.mb_dones[env_num])
-            n_steps += self.mb_obs[env_num].shape[0]
-
-            # Compute the bootstrapped/discounted returns.
-            self.mb_returns[env_num] = self._gae_returns(
-                mb_rewards=self.mb_rewards[env_num],
-                mb_values=self.mb_values[env_num],
-                mb_dones=self.mb_dones[env_num],
-                obs=self.last_obs[env_num],
-            )
-
-        # Concatenate the stored data.
-        if self.num_envs > 1:
-            self.mb_obs = np.concatenate(self.mb_obs, axis=0)
-            self.mb_contexts = np.concatenate(self.mb_contexts, axis=0)
-            self.mb_actions = np.concatenate(self.mb_actions, axis=0)
-            self.mb_values = np.concatenate(self.mb_values, axis=0)
-            self.mb_neglogpacs = np.concatenate(self.mb_neglogpacs, axis=0)
-            self.mb_all_obs = np.concatenate(self.mb_all_obs, axis=0)
-            self.mb_returns = np.concatenate(self.mb_returns, axis=0)
-        else:
-            self.mb_obs = self.mb_obs[0]
-            self.mb_contexts = self.mb_contexts[0]
-            self.mb_actions = self.mb_actions[0]
-            self.mb_values = self.mb_values[0]
-            self.mb_neglogpacs = self.mb_neglogpacs[0]
-            self.mb_all_obs = self.mb_all_obs[0]
-            self.mb_returns = self.mb_returns[0]
-
-        # Compute the advantages.
-        advs = self.mb_returns - self.mb_values
-        self.mb_advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+        (self.mb_obs,
+         self.mb_contexts,
+         self.mb_actions,
+         self.mb_values,
+         self.mb_neglogpacs,
+         self.mb_all_obs,
+         self.mb_rewards,
+         self.mb_returns,
+         self.mb_dones,
+         self.mb_advs, n_steps) = self.process_minibatch(
+            mb_obs=self.mb_obs,
+            mb_contexts=self.mb_contexts,
+            mb_actions=self.mb_actions,
+            mb_values=self.mb_values,
+            mb_neglogpacs=self.mb_neglogpacs,
+            mb_all_obs=self.mb_all_obs,
+            mb_rewards=self.mb_rewards,
+            mb_returns=self.mb_returns,
+            mb_dones=self.mb_dones,
+            last_values=last_values,
+        )
 
         # Run the optimization procedure.
         batch_size = n_steps // self.n_minibatches
@@ -686,14 +669,14 @@ class FeedForwardPolicy(Policy):
         context = None if self.mb_contexts[0] is None else self.mb_contexts
         obs = self._get_obs(self.mb_obs, context, axis=1)
 
-        td_map = {
-            self.obs_ph: obs.copy(),
-            self.action_ph: self.mb_actions,
-            self.advs_ph: self.mb_advs,
-            self.rew_ph: self.mb_returns,
-            self.old_neglog_pac_ph: self.mb_neglogpacs,
-            self.old_vpred_ph: self.mb_values,
-        }
+        td_map = self.get_td_map_from_batch(
+            obs=obs.copy(),
+            mb_actions=self.mb_actions,
+            mb_advs=self.mb_advs,
+            mb_returns=self.mb_returns,
+            mb_neglogpacs=self.mb_neglogpacs,
+            mb_values=self.mb_values,
+        )
 
         # Clear memory
         self.mb_rewards = [[] for _ in range(self.num_envs)]
@@ -710,49 +693,19 @@ class FeedForwardPolicy(Policy):
 
         return td_map
 
-    def _gae_returns(self, mb_rewards, mb_values, mb_dones, obs):
-        """Compute the bootstrapped/discounted returns.
-
-        Parameters
-        ----------
-        mb_rewards : array_like
-            a minibatch of rewards from a given environment
-        mb_values : array_like
-            a minibatch of values computed by the policy from a given
-            environment
-        mb_dones : array_like
-            a minibatch of done masks from a given environment
-        obs : array_like
-            the current observation within the environment
-
-        Returns
-        -------
-        array_like
-            GAE-style expected discounted returns.
-        """
-        n_steps = mb_rewards.shape[0]
-
-        # Compute the last estimated value.
-        last_values = self.sess.run(self.value_flat, {self.obs_ph: obs})
-
-        # Discount/bootstrap off value fn.
-        mb_advs = np.zeros_like(mb_rewards)
-        mb_vactual = np.zeros_like(mb_rewards)
-        lastgaelam = 0
-        for t in reversed(range(n_steps)):
-            if t == n_steps - 1:
-                nextnonterminal = 1.0 - mb_dones[-1]
-                nextvalues = last_values
-                mb_vactual[t] = mb_rewards[t]
-            else:
-                nextnonterminal = 1.0 - mb_dones[t+1]
-                nextvalues = mb_values[t+1]
-                mb_vactual[t] = mb_rewards[t] \
-                    + self.gamma * nextnonterminal * nextvalues
-            delta = mb_rewards[t] \
-                + self.gamma * nextvalues * nextnonterminal - mb_values[t]
-            mb_advs[t] = lastgaelam = delta \
-                + self.gamma * self.lam * nextnonterminal * lastgaelam
-        mb_returns = mb_advs + mb_values
-
-        return mb_returns
+    def get_td_map_from_batch(self,
+                              obs,
+                              mb_actions,
+                              mb_advs,
+                              mb_returns,
+                              mb_neglogpacs,
+                              mb_values):
+        """Convert a batch to a td_map."""
+        return {
+            self.obs_ph: obs,
+            self.action_ph: mb_actions,
+            self.advs_ph: mb_advs,
+            self.rew_ph: mb_returns,
+            self.old_neglog_pac_ph: mb_neglogpacs,
+            self.old_vpred_ph: mb_values,
+        }
