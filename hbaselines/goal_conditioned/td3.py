@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
+from hbaselines.goal_conditioned.actor_critic import GoalConditionedPolicy as \
     BaseGoalConditionedPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.utils.tf_util import get_trainable_vars

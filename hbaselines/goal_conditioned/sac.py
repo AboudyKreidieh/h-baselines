@@ -1,7 +1,7 @@
 """SAC-compatible goal-conditioned hierarchical policy."""
 import numpy as np
 
-from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
+from hbaselines.goal_conditioned.actor_critic import GoalConditionedPolicy as \
     BaseGoalConditionedPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 
