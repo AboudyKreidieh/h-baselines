@@ -186,13 +186,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
         )
 
         if target_entropy is None:

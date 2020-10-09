@@ -42,22 +42,6 @@ class ActorCriticPolicy(Policy):
         L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. See parent class.
-    buffer_size : int
-        the max number of transitions to store
-    batch_size : int
-        SGD batch size
-    actor_lr : float
-        actor learning rate
-    critic_lr : float
-        critic learning rate
-    tau : float
-        target update rate
-    gamma : float
-        discount factor
-    use_huber : bool
-        specifies whether to use the huber distance function as the loss for
-        the critic. If set to False, the mean-squared error metric is used
-        instead
     """
 
     def __init__(self,
