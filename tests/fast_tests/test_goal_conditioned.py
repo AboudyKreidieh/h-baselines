@@ -63,7 +63,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Run the initialize method.
         policy.initialize()
 
-        policy._meta_action = [np.array([5, 5])]
+        policy.meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])
@@ -140,7 +140,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Run the initialize method.
         policy.initialize()
 
-        policy._meta_action = [np.array([5, 5])]
+        policy.meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])
@@ -216,7 +216,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Run the initialize method.
         policy.initialize()
 
-        policy._meta_action = [np.array([5, 5])]
+        policy.meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])
@@ -331,7 +331,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # Run the initialize method.
         policy.initialize()
 
-        policy._meta_action = [np.array([5, 5])]
+        policy.meta_action = [np.array([5, 5])]
 
         for i in range(4):
             obs0 = np.array([i for _ in range(2)])

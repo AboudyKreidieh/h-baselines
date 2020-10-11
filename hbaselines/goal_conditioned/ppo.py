@@ -61,7 +61,37 @@ class GoalConditionedPolicy(BasePolicy):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        TODO
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
+        learning_rate : float
+            the learning rate
+        n_minibatches : int
+            number of training minibatches per update
+        n_opt_epochs : int
+            number of training epochs per update procedure
+        gamma : float
+            the discount factor
+        lam : float
+            factor for trade-off of bias vs variance for Generalized Advantage
+            Estimator
+        ent_coef : float
+            entropy coefficient for the loss calculation
+        vf_coef : float
+            value function coefficient for the loss calculation
+        max_grad_norm : float
+            the maximum value for the gradient clipping
+        cliprange : float or callable
+            clipping parameter, it can be a function
+        cliprange_vf : float or callable
+            clipping parameter for the value function, it can be a function.
+            This is a parameter specific to the OpenAI implementation. If None
+            is passed (default), then `cliprange` (that is used for the policy)
+            will be used. IMPORTANT: this clipping depends on the reward
+            scaling. To deactivate value function clipping (and recover the
+            original PPO implementation), you have to pass a negative value
+            (e.g. -1).
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.

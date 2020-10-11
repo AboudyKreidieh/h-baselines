@@ -241,17 +241,36 @@ class GoalConditionedPolicy(BasePolicy):
         self._dones = [[] for _ in range(num_envs)]
 
     def _sample_buffer(self, with_additional=False):
-        """TODO.
+        """Sample a minibatch of data from the replay buffer.
+
+        If not enough data is available in the buffer, a None value is
+        returned.
 
         Parameters
         ----------
         with_additional : bool
-            TODO
+            specifies whether to remove additional data from the replay buffer
+            sampling procedure. Since only a subset of algorithms use
+            additional data, removing it can speedup the other algorithms.
 
         Returns
         -------
-        TODO
-            TODO
+        list of array_like
+            (batch_size, obs_dim) matrix of observations for every level in the
+            hierarchy
+        list of array_like
+            (batch_size, obs_dim) matrix of next step observations for every
+            level in the hierarchy
+        list of array_like
+            (batch_size, ac_dim) matrix of actions for every level in the
+            hierarchy
+        list of array_like
+            (batch_size,) vector of rewards for every level in the hierarchy
+        list of array_like
+            (batch_size,) vector of done masks for every level in the hierarchy
+        dict
+            additional information; used for features such as the off-policy
+            corrections or centralized value functions
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():

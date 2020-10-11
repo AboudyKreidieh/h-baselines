@@ -536,10 +536,11 @@ def gae_returns(mb_rewards, mb_values, mb_dones, last_values, gamma, lam):
     last_values : array_like
         the value associated with the current observation within the
         environment
-    gamma : TODO
-        TODO
-    lam : TODO
-        TODO
+    gamma : float
+        discount factor
+    lam : float
+        factor for trade-off of bias vs variance for Generalized Advantage
+        Estimator
 
     Returns
     -------
@@ -612,12 +613,13 @@ def process_minibatch(mb_obs,
     last_values : array_like
         the value associated with the current observation within the
         environment
-    gamma : TODO
-        TODO
-    lam : TODO
-        TODO
-    num_envs : TODO
-        TODO
+    gamma : float
+        discount factor
+    lam : float
+        factor for trade-off of bias vs variance for Generalized Advantage
+        Estimator
+    num_envs : int
+        number of environments used to run simulations in parallel.
 
     Returns
     -------

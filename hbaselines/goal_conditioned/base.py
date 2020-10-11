@@ -483,7 +483,7 @@ class GoalConditionedPolicy(Policy):
                 )
 
         # Update the previous observation variable.
-        self.prev_obs[env_num] = deepcopy(obs)
+        self.prev_obs[env_num] = deepcopy(obs.flatten())
 
         # Return the action to be performed within the environment (i.e. the
         # action by the lowest level policy).
@@ -643,15 +643,14 @@ class GoalConditionedPolicy(Policy):
         for i in range(1, len(observations) + 1):
             obs_t = observations[-i]
 
-            # Calculate the hindsight goal in using relative goals.
-            # If not, the hindsight goal is simply a subset of the
-            # final state observation.
+            # Calculate the hindsight goal in using relative goals. If not, the
+            # hindsight goal is simply a subset of the final state observation.
             if self.relative_goals:
                 hindsight_goal += \
                     obs_tp1[self.goal_indices] - obs_t[self.goal_indices]
 
-            # Modify the Worker intrinsic rewards based on the new
-            # hindsight goal.
+            # Modify the Worker intrinsic rewards based on the new hindsight
+            # goal.
             if i > 1:
                 rewards[-(i - 1)] = self.intrinsic_reward_scale \
                     * self.intrinsic_reward_fn(obs_t, hindsight_goal, obs_tp1)

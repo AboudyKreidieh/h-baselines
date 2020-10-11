@@ -144,6 +144,8 @@ class FeedForwardPolicy(Policy):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         learning_rate : float
@@ -173,8 +175,6 @@ class FeedForwardPolicy(Policy):
             scaling. To deactivate value function clipping (and recover the
             original PPO implementation), you have to pass a negative value
             (e.g. -1).
-        l2_penalty : float
-            L2 regularization penalty. This is applied to the policy network.
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
