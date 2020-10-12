@@ -357,8 +357,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # current action by the meta-level policies
-        self._meta_action = [[None for _ in range(num_levels - 1)]
-                             for _ in range(num_envs)]
+        self.meta_action = [[None for _ in range(num_levels - 1)]
+                            for _ in range(num_envs)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy. A separate element is
@@ -649,23 +649,23 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             if self._update_meta(i, env_num):
                 if self.pretrain_worker:
                     # Sample goals randomly when performing pre-training.
-                    self._meta_action[env_num][i] = np.array([
+                    self.meta_action[env_num][i] = np.array([
                         self.policy[i].ac_space.sample()])
                 else:
                     context_i = context if i == 0 \
-                        else self._meta_action[env_num][i - 1]
+                        else self.meta_action[env_num][i - 1]
 
                     # Update the meta action based on the output from the
                     # policy if the time period requires is.
-                    self._meta_action[env_num][i] = self.policy[i].get_action(
+                    self.meta_action[env_num][i] = self.policy[i].get_action(
                         obs, context_i, apply_noise, random_actions)
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
-                self._meta_action[env_num][i] = self.goal_transition_fn(
+                self.meta_action[env_num][i] = self.goal_transition_fn(
                     obs0=np.array(
                         [self._observations[env_num][-1][self.goal_indices]]),
-                    goal=self._meta_action[env_num][i],
+                    goal=self.meta_action[env_num][i],
                     obs1=obs[:, self.goal_indices]
                 )
 
@@ -673,7 +673,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # action by the lowest level policy).
         action = self.policy[-1].get_action(
             obs=obs,
-            context=self._meta_action[env_num][-1],
+            context=self.meta_action[env_num][-1],
             apply_noise=apply_noise,
             random_actions=random_actions and self.pretrain_path is None)
 
@@ -695,7 +695,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             if t_start % self.meta_period ** (i-1) == 0:
                 self._rewards[env_num][-i].append(0)
                 self._actions[env_num][-i-1].append(
-                    self._meta_action[env_num][-i].flatten())
+                    self.meta_action[env_num][-i].flatten())
 
             # Compute the intrinsic rewards and append them to the list of
             # rewards.
@@ -703,7 +703,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 self.intrinsic_reward_scale / self.meta_period ** (i-1) * \
                 self.intrinsic_reward_fn(
                     states=obs0,
-                    goals=self._meta_action[env_num][-i].flatten(),
+                    goals=self.meta_action[env_num][-i].flatten(),
                     next_states=obs1
                 )
 
@@ -734,7 +734,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             for i in range(self.num_levels - 1):
                 self._actions[env_num][i].append(self.goal_transition_fn(
                     obs0=obs0[self.goal_indices],
-                    goal=self._meta_action[env_num][i],
+                    goal=self.meta_action[env_num][i],
                     obs1=obs1[self.goal_indices]
                 ).flatten())
 
