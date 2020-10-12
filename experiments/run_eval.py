@@ -247,9 +247,9 @@ def main(args):
 
                 # Visualize the sub-goals of the hierarchical policy.
                 if hasattr(policy, "_meta_action") \
-                        and policy._meta_action is not None \
+                        and policy.meta_action is not None \
                         and hasattr(env, "set_goal"):
-                    goal = policy._meta_action[0][0] + (
+                    goal = policy.meta_action[0][0] + (
                         obs[policy.goal_indices]
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
