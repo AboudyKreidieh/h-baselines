@@ -653,6 +653,7 @@ class GoalConditionedPolicy(Policy):
             # goal.
             if i > 1:
                 rewards[-(i - 1)] = self.intrinsic_reward_scale \
+                    / self.meta_period ** (i - 1) \
                     * self.intrinsic_reward_fn(obs_t, hindsight_goal, obs_tp1)
 
             obs_tp1 = deepcopy(obs_t)

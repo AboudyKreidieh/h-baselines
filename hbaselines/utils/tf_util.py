@@ -653,6 +653,7 @@ def process_minibatch(mb_obs,
     for env_num in range(num_envs):
         # Convert the data to numpy arrays.
         mb_obs[env_num] = np.concatenate(mb_obs[env_num], axis=0)
+        mb_contexts[env_num] = np.asarray(mb_contexts[env_num])
         mb_rewards[env_num] = np.asarray(mb_rewards[env_num])
         mb_actions[env_num] = np.concatenate(mb_actions[env_num], axis=0)
         mb_values[env_num] = np.concatenate(mb_values[env_num], axis=0)
@@ -674,20 +675,24 @@ def process_minibatch(mb_obs,
     # Concatenate the stored data.
     if num_envs > 1:
         mb_obs = np.concatenate(mb_obs, axis=0)
+        mb_rewards = np.concatenate(mb_rewards, axis=0)
         mb_contexts = np.concatenate(mb_contexts, axis=0)
         mb_actions = np.concatenate(mb_actions, axis=0)
         mb_values = np.concatenate(mb_values, axis=0)
         mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
         mb_all_obs = np.concatenate(mb_all_obs, axis=0)
         mb_returns = np.concatenate(mb_returns, axis=0)
+        mb_dones = np.concatenate(mb_dones, axis=0)
     else:
         mb_obs = mb_obs[0]
+        mb_rewards = mb_rewards[0]
         mb_contexts = mb_contexts[0]
         mb_actions = mb_actions[0]
         mb_values = mb_values[0]
         mb_neglogpacs = mb_neglogpacs[0]
         mb_all_obs = mb_all_obs[0]
         mb_returns = mb_returns[0]
+        mb_dones = mb_dones[0]
 
     # Compute the advantages.
     advs = mb_returns - mb_values

@@ -214,7 +214,7 @@ class GoalConditionedPolicy(BasePolicy):
         self.mb_all_obs = deepcopy(storage_list)
         self.mb_returns = deepcopy(storage_list)
         self.last_obs = deepcopy(storage_list)
-        self.mb_advs = None
+        self.mb_advs = [[] for _ in range(self.num_levels)]
 
         # the time since the most recent sample began collecting step samples
         self._t_start = [0 for _ in range(num_levels)]
@@ -279,25 +279,35 @@ class GoalConditionedPolicy(BasePolicy):
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
         """See parent class."""
-        for level in range(self.num_levels):
+        for i in range(self.num_levels):
+            level = self.num_levels - (i + 1)
             # Actions and intrinsic rewards for the high-level policies are
             # only updated when the action is recomputed by the graph.
-            if self._t_start[env_num] % self.meta_period ** level == 0 or done:
+            if self._t_start[env_num] % self.meta_period ** i == 0 or done:
                 # Update the minibatch of samples.
                 self.mb_rewards[level][env_num].append(0)
                 self.mb_obs[level][env_num].append([obs0])
-                self.mb_contexts[level][env_num].append(context0)
+                self.mb_contexts[level][env_num].append(
+                    context0 if level == 0
+                    else list(self.meta_action[env_num][level - 1].flatten()))
                 self.mb_actions[level][env_num].append(
-                    [action] if level == 0
+                    [action] if i == 0
                     else self.meta_action[env_num][level])
                 self.mb_dones[level][env_num].append(done)
+                self.mb_values[level][env_num].append(
+                    self.policy[level].mb_values[env_num][-1])
+                self.mb_neglogpacs[level][env_num].append(
+                    self.policy[level].mb_neglogpacs[env_num][-1])
 
                 # Update the last observation (to compute the last value for
                 # the GAE expected returns).
-                self.last_obs[level][env_num] = self._get_obs([obs1], context1)
+                self.last_obs[level][env_num] = self._get_obs(
+                    [obs1],
+                    context1 if level == 0
+                    else self.meta_action[env_num][level - 1], axis=1)
 
             # Add to the most recent reward the return from the current step.
-            if level == self.num_levels - 1:
+            if level == 0:
                 self.mb_rewards[level][env_num][-1] += reward
             else:
                 self.mb_rewards[level][env_num][-1] += \
@@ -305,7 +315,7 @@ class GoalConditionedPolicy(BasePolicy):
                     self.meta_period ** (level - 1) * \
                     self.intrinsic_reward_fn(
                         states=obs0,
-                        goals=self.meta_action[env_num][level].flatten(),
+                        goals=self.meta_action[env_num][level - 1].flatten(),
                         next_states=obs1
                     )
 
@@ -357,7 +367,10 @@ class GoalConditionedPolicy(BasePolicy):
         self.mb_all_obs = deepcopy(storage_list)
         self.mb_returns = deepcopy(storage_list)
         self.last_obs = deepcopy(storage_list)
-        self.mb_advs = None
+        self.mb_advs = [[] for _ in range(self.num_levels)]
+
+        # Reset the meta-policy timers.
+        self._t_start = [0 for _ in range(self.num_levels)]
 
         return td_map
 

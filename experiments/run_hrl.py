@@ -91,6 +91,8 @@ def main(args, base_dir):
             from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
         elif args.alg == "SAC":
             from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
+        elif args.alg == "PPO":
+            from hbaselines.goal_conditioned.ppo import GoalConditionedPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
