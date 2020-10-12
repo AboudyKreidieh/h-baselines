@@ -240,54 +240,6 @@ class GoalConditionedPolicy(BasePolicy):
         # for each environment.
         self._dones = [[] for _ in range(num_envs)]
 
-    def _sample_buffer(self, with_additional=False):
-        """Sample a minibatch of data from the replay buffer.
-
-        If not enough data is available in the buffer, a None value is
-        returned.
-
-        Parameters
-        ----------
-        with_additional : bool
-            specifies whether to remove additional data from the replay buffer
-            sampling procedure. Since only a subset of algorithms use
-            additional data, removing it can speedup the other algorithms.
-
-        Returns
-        -------
-        list of array_like
-            (batch_size, obs_dim) matrix of observations for every level in the
-            hierarchy
-        list of array_like
-            (batch_size, obs_dim) matrix of next step observations for every
-            level in the hierarchy
-        list of array_like
-            (batch_size, ac_dim) matrix of actions for every level in the
-            hierarchy
-        list of array_like
-            (batch_size,) vector of rewards for every level in the hierarchy
-        list of array_like
-            (batch_size,) vector of done masks for every level in the hierarchy
-        dict
-            additional information; used for features such as the off-policy
-            corrections or centralized value functions
-        """
-        # Not enough samples in the replay buffer.
-        if not self.replay_buffer.can_sample():
-            return None
-
-        # Get a batch.
-        obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
-
-        # Do not use done masks for lower-level policies with negative
-        # intrinsic rewards (these cause the policies to terminate early).
-        if self._negative_reward_fn():
-            for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
-
-        return obs0, obs1, act, rew, done, additional
-
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
 
@@ -309,20 +261,37 @@ class GoalConditionedPolicy(BasePolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
+
+        Returns
+        -------
+         ([float, float], [float, float])
+            the critic loss for every policy in the hierarchy
+        (float, float)
+            the actor loss for every policy in the hierarchy
         """
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
+            return tuple([[0, 0] for _ in range(self.num_levels)]), \
+                tuple([0 for _ in range(self.num_levels)])
+
         # Specifies whether to remove additional data from the replay buffer
         # sampling procedure. Since only a subset of algorithms use additional
         # data, removing it can speedup the other algorithms.
         with_additional = self.off_policy_corrections
 
         # Get a batch.
-        samples = self._sample_buffer(with_additional)
+        obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
+            with_additional)
 
-        if samples is None:
-            # Not enough samples in the replay buffer.
-            return
-        else:
-            obs0, obs1, act, rew, done, additional = samples
+        # Do not use done masks for lower-level policies with negative
+        # intrinsic rewards (these the policies to terminate early).
+        if self._negative_reward_fn():
+            for i in range(self.num_levels - 1):
+                done[i+1] = np.array([False] * done[i+1].shape[0])
+
+        # Update the higher-level policies.
+        actor_loss = []
+        critic_loss = []
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
@@ -341,7 +310,7 @@ class GoalConditionedPolicy(BasePolicy):
 
                 if self.cooperative_gradients:
                     # Perform the cooperative gradients update procedure.
-                    self._cooperative_gradients_update(
+                    vf_loss, pi_loss = self._cooperative_gradients_update(
                         obs0=obs0,
                         actions=act,
                         rewards=rew,
@@ -352,7 +321,7 @@ class GoalConditionedPolicy(BasePolicy):
                     )
                 else:
                     # Perform the regular meta update procedure.
-                    self.policy[i].update_from_batch(
+                    vf_loss, pi_loss = self.policy[i].update_from_batch(
                         obs0=obs0[i],
                         actions=act[i],
                         rewards=rew[i],
@@ -361,8 +330,14 @@ class GoalConditionedPolicy(BasePolicy):
                         update_actor=kwargs['update_meta_actor'],
                     )
 
+                actor_loss.append(pi_loss)
+                critic_loss.append(vf_loss)
+            else:
+                actor_loss.append(0)
+                critic_loss.append([0, 0])
+
         # Update the lowest level policy.
-        self.policy[-1].update_from_batch(
+        w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
             obs0=obs0[-1],
             actions=act[-1],
             rewards=rew[-1],
@@ -370,6 +345,10 @@ class GoalConditionedPolicy(BasePolicy):
             terminals1=done[-1],
             update_actor=update_actor,
         )
+        critic_loss.append(w_critic_loss)
+        actor_loss.append(w_actor_loss)
+
+        return tuple(critic_loss), tuple(actor_loss)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
@@ -508,14 +487,12 @@ class GoalConditionedPolicy(BasePolicy):
 
     def get_td_map(self):
         """See parent class."""
-        # Get a batch.
-        samples = self._sample_buffer(False)
-
-        if samples is None:
-            # Not enough samples in the replay buffer.
+        # Not enough samples in the replay buffer.
+        if not self.replay_buffer.can_sample():
             return {}
-        else:
-            obs0, obs1, act, rew, done, _ = samples
+
+        # Get a batch.
+        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(False)
 
         td_map = {}
         for i in range(self.num_levels):
