@@ -54,8 +54,8 @@ POLICY_DICT = {
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
     "ring-v0",
-    "ring-v1",
-    "ring-v2",
+    "ring-v0-fast",
+    "ring-v1-fast",
     "merge-v0",
     "merge-v1",
     "merge-v2",
@@ -204,11 +204,11 @@ def main(args):
     episode_rewards = []
 
     # # Add an emission path to Flow environments.
-    # if env_name in FLOW_ENV_NAMES:
-    #     sim_params = deepcopy(env.wrapped_env.sim_params)
-    #     sim_params.emission_path = "./flow_results"
-    #     env.wrapped_env.restart_simulation(
-    #         sim_params, render=not flags.no_render)
+    if env_name in FLOW_ENV_NAMES:
+        sim_params = deepcopy(env.wrapped_env.sim_params)
+        sim_params.emission_path = "./flow_results"
+        env.wrapped_env.restart_simulation(
+            sim_params, render=not flags.no_render)
 
     if not isinstance(env, list):
         env_list = [env]
