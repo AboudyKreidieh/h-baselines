@@ -67,8 +67,10 @@ class FeedForwardPolicy(Policy):
         GAE terms.
     mb_advs : array_like
         a minibatch of estimated advantages
-    rew_ph : tf.compat.v1.placeholder
-        placeholder for the rewards / discounted returns
+    returns_ph : tf.compat.v1.placeholder
+        placeholder for the discounted returns
+    rewards_ph : tf.compat.v1.placeholder
+        placeholder for the rewards
     action_ph : tf.compat.v1.placeholder
         placeholder for the actions
     obs_ph : tf.compat.v1.placeholder
@@ -220,7 +222,11 @@ class FeedForwardPolicy(Policy):
         # =================================================================== #
 
         with tf.compat.v1.variable_scope("input", reuse=False):
-            self.rew_ph = tf.compat.v1.placeholder(
+            self.returns_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None,),
+                name='returns')
+            self.rewards_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name='rewards')
@@ -437,8 +443,8 @@ class FeedForwardPolicy(Policy):
                 self.value_flat - self.old_vpred_ph,
                 -self.cliprange_vf, self.cliprange_vf)
 
-        vf_losses1 = tf.square(self.value_flat - self.rew_ph)
-        vf_losses2 = tf.square(vpred_clipped - self.rew_ph)
+        vf_losses1 = tf.square(self.value_flat - self.returns_ph)
+        vf_losses2 = tf.square(vpred_clipped - self.returns_ph)
         self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
         ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
@@ -481,7 +487,8 @@ class FeedForwardPolicy(Policy):
         ops = {
             'reference_action_mean': tf.reduce_mean(self.pi_mean),
             'reference_action_std': tf.reduce_mean(self.pi_logstd),
-            'rewards': tf.reduce_mean(self.rew_ph),
+            'returns': tf.reduce_mean(self.returns_ph),
+            'rewards': tf.reduce_mean(self.rewards_ph),
             'advantage': tf.reduce_mean(self.advs_ph),
             'old_neglog_action_probability': tf.reduce_mean(
                 self.old_neglog_pac_ph),
@@ -493,7 +500,7 @@ class FeedForwardPolicy(Policy):
             'clip_factor': self.clipfrac,
             'loss': self.loss,
             'explained_variance': explained_variance(
-                self.old_vpred_ph, self.rew_ph)
+                self.old_vpred_ph, self.returns_ph)
         }
 
         # Add all names and ops to the tensorboard summary.
@@ -663,7 +670,7 @@ class FeedForwardPolicy(Policy):
             self.obs_ph: obs,
             self.action_ph: actions,
             self.advs_ph: advs,
-            self.rew_ph: returns,
+            self.returns_ph: returns,
             self.old_neglog_pac_ph: neglogpacs,
             self.old_vpred_ph: values,
         })
@@ -679,6 +686,7 @@ class FeedForwardPolicy(Policy):
             mb_actions=self.mb_actions,
             mb_advs=self.mb_advs,
             mb_returns=self.mb_returns,
+            mb_rewards=self.mb_rewards,
             mb_neglogpacs=self.mb_neglogpacs,
             mb_values=self.mb_values,
         )
@@ -703,6 +711,7 @@ class FeedForwardPolicy(Policy):
                               mb_actions,
                               mb_advs,
                               mb_returns,
+                              mb_rewards,
                               mb_neglogpacs,
                               mb_values):
         """Convert a batch to a td_map."""
@@ -710,7 +719,8 @@ class FeedForwardPolicy(Policy):
             self.obs_ph: obs,
             self.action_ph: mb_actions,
             self.advs_ph: mb_advs,
-            self.rew_ph: mb_returns,
+            self.returns_ph: mb_returns,
+            self.rewards_ph: mb_rewards,
             self.old_neglog_pac_ph: mb_neglogpacs,
             self.old_vpred_ph: mb_values,
         }

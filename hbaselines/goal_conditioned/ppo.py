@@ -350,6 +350,7 @@ class GoalConditionedPolicy(BasePolicy):
                 mb_actions=self.mb_actions[level],
                 mb_advs=self.mb_advs[level],
                 mb_returns=self.mb_returns[level],
+                mb_rewards=self.mb_rewards[level],
                 mb_neglogpacs=self.mb_neglogpacs[level],
                 mb_values=self.mb_values[level]
             ))
