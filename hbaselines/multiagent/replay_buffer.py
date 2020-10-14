@@ -231,7 +231,8 @@ class SharedReplayBuffer(object):
         ac_dim : int
             number of elements in the action
         n_agents : int
-            maximum number of agents in the network
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         all_obs_dim : int
             number of elements in the full state observations
         """

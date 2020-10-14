@@ -110,9 +110,10 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  model_params,
                  shared,
                  maddpg,
+                 n_agents,
                  base_policy,
                  all_ob_space=None,
-                 n_agents=1,
+                 num_envs=1,
                  additional_params=None,
                  scope=None):
         """Instantiate the base multi-agent actor critic policy.
@@ -199,6 +200,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         self.all_ob_space = all_ob_space
         self.n_agents = n_agents
         self.base_policy = base_policy
+        self.num_envs = num_envs
         self.additional_params = additional_params or {}
 
         # Setup the agents and the necessary objects and operations needed to
@@ -388,6 +390,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=self.use_huber,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
+            num_evs=self.num_envs,
             **self.additional_params
         )
 

@@ -220,6 +220,9 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
     maddpg=False,
+    # the expected number of agents in the environment. Only relevant if using
+    # shared policies with MADDPG or goal-conditioned hierarchies.
+    n_agents=1,
 ))
 
 
@@ -479,6 +482,7 @@ class RLAlgorithm(object):
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
+            self.policy_kwargs['num_envs'] = num_envs
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -1057,8 +1061,8 @@ class RLAlgorithm(object):
                 self.total_steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
-                    self.episode_reward[num] += sum(
-                        reward[k] for k in reward.keys())
+                    self.episode_reward[num] += np.mean(
+                        [reward[k] for k in reward.keys()])
                 else:
                     self.episode_reward[num] += reward
 
