@@ -556,8 +556,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return tuple([[0, 0] for _ in range(self.num_levels)]), \
-                tuple([0 for _ in range(self.num_levels)])
+            return
 
         # Specifies whether to remove additional data from the replay buffer
         # sampling procedure. Since only a subset of algorithms use additional

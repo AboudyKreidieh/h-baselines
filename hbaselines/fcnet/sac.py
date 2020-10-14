@@ -459,18 +459,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return qf1, qf2, value_fn
 
     def update(self, **kwargs):
-        """Perform a gradient update step.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
-        """
+        """Perform a gradient update step."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return [0, 0], 0
+            return
 
         # Get a batch
         obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()

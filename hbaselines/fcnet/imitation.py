@@ -345,7 +345,7 @@ class FeedForwardPolicy(ImitationLearningPolicy):
         """See parent class."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return 0
+            return
 
         # Get a batch.
         obs0, actions, _, _, _ = self.replay_buffer.sample()

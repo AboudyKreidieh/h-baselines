@@ -468,17 +468,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return [0, 0], 0
+            return
 
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
