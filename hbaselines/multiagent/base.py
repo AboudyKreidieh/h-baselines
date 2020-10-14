@@ -227,13 +227,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
         """
         if self.maddpg:
             return self._update_maddpg(update_actor, **kwargs)
@@ -433,14 +426,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
     def _update_basic(self, update_actor=True, **kwargs):
         """See update."""
-        actor_loss = {}
-        critic_loss = {}
         for key in self.agents.keys():
-            c, a = self.agents[key].update(update_actor=update_actor, **kwargs)
-            critic_loss[key] = c
-            actor_loss[key] = a
-
-        return critic_loss, actor_loss
+            self.agents[key].update(update_actor=update_actor, **kwargs)
 
     def _get_action_basic(self,
                           obs,

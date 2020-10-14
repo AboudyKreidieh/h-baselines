@@ -1111,7 +1111,7 @@ class RLAlgorithm(object):
 
             # Run a step of training from batch.
             for _ in range(self.nb_train_steps):
-                _ = self.policy_tf.update(update_actor=update, **kwargs)
+                self.policy_tf.update(update_actor=update, **kwargs)
         else:
             # for PPO policies
             self.policy_tf.update()

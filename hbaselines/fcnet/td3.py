@@ -468,17 +468,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return [0, 0], 0
+            return
 
         # Get a batch
         obs0, actions, rewards, obs1, terminals1 = self.replay_buffer.sample()
@@ -513,42 +506,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specified whether to perform gradient update procedures to the
             actor policy. Default set to True. Note that the update procedure
             for the critic is always performed when calling this method.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         # Reshape to match previous behavior and placeholder shape.
         rewards = rewards.reshape(-1, 1)
         terminals1 = terminals1.reshape(-1, 1)
 
         # Update operations for the critic networks.
-        step_ops = [self.critic_loss,
-                    self.critic_optimizer[0],
+        step_ops = [self.critic_optimizer[0],
                     self.critic_optimizer[1]]
 
         if update_actor:
             # Actor updates and target soft update operation.
-            step_ops += [self.actor_loss,
-                         self.actor_optimizer,
+            step_ops += [self.actor_optimizer,
                          self.target_soft_updates]
 
-        # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict={
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict={
             self.obs_ph: obs0,
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
             self.terminals1: terminals1
         })
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
