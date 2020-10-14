@@ -131,6 +131,8 @@ PPO_PARAMS = dict(
 # =========================================================================== #
 
 FEEDFORWARD_PARAMS = dict(
+    # L2 regularization penalty. This is applied to the policy network.
+    l2_penalty=0,
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -458,8 +460,8 @@ class RLAlgorithm(object):
         self.policy_kwargs = {'verbose': verbose}
 
         # Create the environment and collect the initial observations.
-        self.sampler, self.obs, self.all_obs = self.setup_sampler(
-            env, render, shared, maddpg)
+        self.sampler, self.obs, self.all_obs, self._info_keys = \
+            self.setup_sampler(env, render, shared, maddpg)
 
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
@@ -510,6 +512,8 @@ class RLAlgorithm(object):
         self.epoch = 0
         self.episode_rew_history = deque(maxlen=100)
         self.episode_reward = [0 for _ in range(num_envs)]
+        self.info_at_done = {key: deque(maxlen=100) for key in self._info_keys}
+        self.info_ph = {}
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -563,6 +567,8 @@ class RLAlgorithm(object):
                 for env_num in range(self.num_envs)
             ]
             ob = ray.get([s.get_init_obs.remote() for s in sampler])
+            ob = [o[0] for o in ob]
+            info_key = ray.get(sampler[0].get_init_obs.remote())[1]
         else:
             from hbaselines.utils.sampler import Sampler
             sampler = [
@@ -575,13 +581,14 @@ class RLAlgorithm(object):
                     evaluate=False,
                 )
             ]
-            ob = [s.get_init_obs() for s in sampler]
+            ob = [s.get_init_obs()[0] for s in sampler]
+            info_key = sampler[0].get_init_obs()[1]
 
         # Separate the observation and full-state observation.
         obs = [get_obs(o)[0] for o in ob]
         all_obs = [get_obs(o)[1] for o in ob]
 
-        return sampler, obs, all_obs
+        return sampler, obs, all_obs, info_key
 
     def get_spaces(self):
         """Collect the spaces of the environments.
@@ -639,6 +646,14 @@ class RLAlgorithm(object):
             tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
             tf.compat.v1.summary.scalar("Train/return_history",
                                         self.rew_history_ph)
+
+            # Add the info_dict various to tensorboard as well.
+            with tf.compat.v1.variable_scope("info_at_done"):
+                for key in self._info_keys:
+                    self.info_ph[key] = tf.compat.v1.placeholder(
+                        tf.float32, name="{}".format(key))
+                    tf.compat.v1.summary.scalar(
+                        "{}".format(key), self.info_ph[key])
 
             # Create the tensorboard summary.
             self.summary = tf.compat.v1.summary.merge_all()
@@ -857,6 +872,8 @@ class RLAlgorithm(object):
             self.episodes = 0
             self.total_steps = 0
             self.episode_rew_history = deque(maxlen=100)
+            self.info_at_done = {
+                key: deque(maxlen=100) for key in self._info_keys}
 
             while True:
                 # Reset epoch-specific variables.
@@ -914,6 +931,10 @@ class RLAlgorithm(object):
                     td_map.update({
                         self.rew_ph: np.mean(self.epoch_episode_rewards),
                         self.rew_history_ph: np.mean(self.episode_rew_history),
+                    })
+                    td_map.update({
+                        self.info_ph[key]: np.mean(self.info_at_done[key])
+                        for key in self.info_ph.keys()
                     })
                     summary = self.sess.run(self.summary, td_map)
                     writer.add_summary(summary, self.total_steps)
@@ -1001,18 +1022,11 @@ class RLAlgorithm(object):
             if self.num_envs > 1:
                 ret = ray.get([
                     self.sampler[env_num].collect_sample.remote(
-                        action=action[env_num],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
+                        action=action[env_num])
                     for env_num in range(n_steps)
                 ])
             else:
-                ret = [
-                    self.sampler[0].collect_sample(
-                        action=action[0],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
-                ]
+                ret = [self.sampler[0].collect_sample(action=action[0])]
 
             for ret_i in ret:
                 num = ret_i["env_num"]
@@ -1022,6 +1036,7 @@ class RLAlgorithm(object):
                 obs = ret_i["obs"]
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
+                info = ret_i["info"]
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
@@ -1061,6 +1076,10 @@ class RLAlgorithm(object):
                     self.epoch_episodes += 1
                     self.episodes += 1
 
+                    # Store the info value at the end of the rollout.
+                    for key in info.keys():
+                        self.info_at_done[key].append(info[key])
+
     def _train(self):
         """Perform the training operation."""
         if is_td3_policy(self.policy) or is_sac_policy(self.policy):
@@ -1092,7 +1111,7 @@ class RLAlgorithm(object):
 
             # Run a step of training from batch.
             for _ in range(self.nb_train_steps):
-                _ = self.policy_tf.update(update_actor=update, **kwargs)
+                self.policy_tf.update(update_actor=update, **kwargs)
         else:
             # for PPO policies
             self.policy_tf.update()
@@ -1284,6 +1303,12 @@ class RLAlgorithm(object):
             'total/steps_per_second': self.total_steps / duration,
             'total/episodes': self.episodes,
         }
+
+        # Information passed by the environment.
+        combined_stats.update({
+            'info_at_done/{}'.format(key): np.mean(self.info_at_done[key])
+            for key in self.info_at_done.keys()
+        })
 
         # Save combined_stats in a csv file.
         if file_path is not None:

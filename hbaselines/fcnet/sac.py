@@ -126,6 +126,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  target_entropy,
                  scope=None):
@@ -160,6 +161,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         target_entropy : float
@@ -181,6 +184,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
         )
 
@@ -455,18 +459,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return qf1, qf2, value_fn
 
     def update(self, **kwargs):
-        """Perform a gradient update step.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
-        """
+        """Perform a gradient update step."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return [0, 0], 0
+            return
 
         # Get a batch
         obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
@@ -492,13 +488,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             an episode and 0 otherwise.
         update_actor : bool
             whether to update the actor policy. Unused by this method.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         del update_actor  # unused by this method
 
@@ -511,11 +500,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Collect all update and loss call operations.
         step_ops = [
-            self.critic_loss[0],
-            self.critic_loss[1],
-            self.critic_loss[2],
-            self.actor_loss,
-            self.alpha_loss,
             self.critic_optimizer,
             self.actor_optimizer,
             self.alpha_optimizer,
@@ -531,11 +515,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.terminals1: terminals1
         }
 
-        # Perform the update operations and collect the actor and critic loss.
-        q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
-            step_ops, feed_dict)
-
-        return [q1_loss, q2_loss], actor_loss
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
@@ -640,6 +621,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Compute the policy loss
         self.actor_loss = tf.reduce_mean(self.alpha * self.logp_pi - min_qf_pi)
+
+        # Add a regularization penalty.
+        self.actor_loss += self._l2_loss(self.l2_penalty, scope_name)
 
         # Policy train op (has to be separate from value train op, because
         # min_qf_pi appears in policy_loss)
