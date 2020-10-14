@@ -487,7 +487,7 @@ ENV_ATTRIBUTES = {
             gen_emission=False,
             rl_ids=[0],
             warmup_steps=0,
-            initial_state="/home/aboudy/Documents/h-baselines/hbaselines/envs/"
+            initial_state="/home/nier/Documents/h-baselines/hbaselines/envs/"
                           "mixed_autonomy/envs/ring-v0.json",
             sims_per_step=1,
         ),

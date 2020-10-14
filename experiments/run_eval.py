@@ -203,7 +203,7 @@ def main(args):
     # Perform the evaluation procedure.
     episode_rewards = []
 
-    # # Add an emission path to Flow environments.
+    # Add an emission path to Flow environments.
     if env_name in FLOW_ENV_NAMES:
         sim_params = deepcopy(env.wrapped_env.sim_params)
         sim_params.emission_path = "./flow_results"

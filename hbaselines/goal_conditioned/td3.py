@@ -462,13 +462,3 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Perform the update operations.
         self.sess.run(step_ops, feed_dict=feed_dict)
-
-    def get_td_map(self):
-        """See parent class.
-
-        This adds the cg_weights term in case cooperative gradients are being
-        used.
-        """
-        td_map = super(GoalConditionedPolicy, self).get_td_map()
-
-        return td_map

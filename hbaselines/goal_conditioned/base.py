@@ -280,11 +280,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.pretrain_path = pretrain_path
         self.pretrain_ckpt = pretrain_ckpt
 
-        # variables for computing the running mean and std
-        self._n = [0 for _ in range(num_levels)]
-        self._running_mean = [0 for _ in range(num_levels)]
-        self._running_std = [0 for _ in range(num_levels)]
-
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
             ob_space=ob_space,
@@ -687,16 +682,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Actions and intrinsic rewards for the high-level policies are
             # only updated when the action is recomputed by the graph.
             if t_start % self.meta_period ** (i-1) == 0:
-                # Update the running mean and stds once a step is done.
-                if not evaluate and len(self._rewards[env_num][-i]) > 0:
-                    rew = self._rewards[env_num][-i][-1]
-                    prev_mean = self._running_mean[-i]
-                    self._n[-i] += 1
-                    self._running_mean[-i] += \
-                        (rew - self._running_mean[-i]) / self._n[-i]
-                    self._running_std[-i] += \
-                        (rew - self._running_mean[-i]) * (rew - prev_mean)
-
                 self._rewards[env_num][-i].append(0)
                 self._actions[env_num][-i-1].append(
                     self._meta_action[env_num][-i].flatten())
@@ -730,16 +715,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Add a sample to the replay buffer.
         if len(self._observations[env_num]) == \
                 self.meta_period ** (self.num_levels - 1) or done:
-            # Update the running mean and stds of the highest level policy.
-            if not evaluate:
-                prev_mean = self._running_mean[0]
-                rew = self._rewards[env_num][0][0]
-                self._n[0] += 1
-                self._running_mean[0] += \
-                    (rew - self._running_mean[0]) / self._n[0]
-                self._running_std[0] += \
-                    (rew - self._running_mean[0]) * (rew - prev_mean)
-
             # Add the last observation and context.
             self._observations[env_num].append(obs1)
             self._contexts[env_num].append(context1)
