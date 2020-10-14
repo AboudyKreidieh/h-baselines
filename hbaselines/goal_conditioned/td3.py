@@ -414,13 +414,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.
-
-        Returns
-        -------
-        [float, float]
-            meta-policy critic loss
-        float
-            meta-policy actor loss
         """
         self.t += 1
         # Reshape to match previous behavior and placeholder shape.

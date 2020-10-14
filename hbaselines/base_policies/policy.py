@@ -159,13 +159,6 @@ class Policy(object):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
         """
         raise NotImplementedError
 
