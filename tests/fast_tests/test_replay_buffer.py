@@ -155,6 +155,29 @@ class TestHierReplayBuffer(unittest.TestCase):
         np.testing.assert_array_almost_equal(done[1], [0])
         np.testing.assert_array_almost_equal(done[2], [0])
 
+        # Test the `sample` method with collect_levels set to a subset.
+        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(
+            False, collect_levels=[0, 2])
+        np.testing.assert_array_almost_equal(obs0[0], [[0, 0]])
+        np.testing.assert_array_almost_equal(obs0[1], [])
+        np.testing.assert_array_almost_equal(obs0[2], [[6, 6]])
+
+        np.testing.assert_array_almost_equal(obs1[0], [[9, 1]])
+        np.testing.assert_array_almost_equal(obs1[1], [])
+        np.testing.assert_array_almost_equal(obs1[2], [[7, 7]])
+
+        np.testing.assert_array_almost_equal(act[0], [[0]])
+        np.testing.assert_array_almost_equal(act[1], [])
+        np.testing.assert_array_almost_equal(act[2], [[6]])
+
+        np.testing.assert_array_almost_equal(rew[0], [0])
+        np.testing.assert_array_almost_equal(rew[1], [])
+        np.testing.assert_array_almost_equal(rew[2], [6])
+
+        np.testing.assert_array_almost_equal(done[0], [0])
+        np.testing.assert_array_almost_equal(done[1], [])
+        np.testing.assert_array_almost_equal(done[2], [0])
+
 
 class TestMultiReplayBuffer(unittest.TestCase):
     """Tests for the MultiReplayBuffer object."""
