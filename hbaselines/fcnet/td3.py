@@ -487,6 +487,46 @@ class FeedForwardPolicy(ActorCriticPolicy):
             obs0, actions, rewards, obs1, terminals1,
             update_actor=update_actor)
 
+    def get_update_ops(self,
+                       obs0,
+                       actions,
+                       rewards,
+                       obs1,
+                       terminals1,
+                       update_actor=True):
+        """
+
+        :param obs0:
+        :param actions:
+        :param rewards:
+        :param obs1:
+        :param terminals1:
+        :param update_actor:
+        :return:
+        """
+        # Reshape to match previous behavior and placeholder shape.
+        rewards = rewards.reshape(-1, 1)
+        terminals1 = terminals1.reshape(-1, 1)
+
+        # Update operations for the critic networks.
+        step_ops = [self.critic_optimizer[0],
+                    self.critic_optimizer[1]]
+
+        if update_actor:
+            # Actor updates and target soft update operation.
+            step_ops += [self.actor_optimizer,
+                         self.target_soft_updates]
+
+        td_map = {
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+            self.rew_ph: rewards,
+            self.obs1_ph: obs1,
+            self.terminals1: terminals1
+        }
+
+        return step_ops, td_map
+
     def update_from_batch(self,
                           obs0,
                           actions,
@@ -521,34 +561,18 @@ class FeedForwardPolicy(ActorCriticPolicy):
         float
             actor loss
         """
-        # Reshape to match previous behavior and placeholder shape.
-        rewards = rewards.reshape(-1, 1)
-        terminals1 = terminals1.reshape(-1, 1)
-
-        # Update operations for the critic networks.
-        step_ops = [self.critic_loss,
-                    self.critic_optimizer[0],
-                    self.critic_optimizer[1]]
-
-        if update_actor:
-            # Actor updates and target soft update operation.
-            step_ops += [self.actor_loss,
-                         self.actor_optimizer,
-                         self.target_soft_updates]
+        # Collect the operations and input placeholders.
+        step_ops, td_map = self.get_update_ops(
+            obs0=obs0,
+            actions=actions,
+            rewards=rewards,
+            obs1=obs1,
+            terminals1=terminals1,
+            update_actor=update_actor,
+        )
 
         # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict={
-            self.obs_ph: obs0,
-            self.action_ph: actions,
-            self.rew_ph: rewards,
-            self.obs1_ph: obs1,
-            self.terminals1: terminals1
-        })
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+        self.sess.run(step_ops, feed_dict=td_map)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""

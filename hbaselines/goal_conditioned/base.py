@@ -577,18 +577,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         with_additional = self.off_policy_corrections
 
         # Get a batch.
+        collect_levels = \
+            [i for i in range(self.num_levels - 1)
+             if kwargs["update_meta"][i]] + [self.num_levels - 1]
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
+            with_additional, collect_levels)
 
         # Do not use done masks for lower-level policies with negative
         # intrinsic rewards (these the policies to terminate early).
-        if True:
+        if self._negative_reward_fn():
             for i in range(self.num_levels - 1):
                 done[i+1] = np.array([False] * done[i+1].shape[0])
-
-        # Update the higher-level policies.
-        actor_loss = []
-        critic_loss = []
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
@@ -607,7 +606,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
                 if self.cooperative_gradients:
                     # Perform the cooperative gradients update procedure.
-                    vf_loss, pi_loss = self._cooperative_gradients_update(
+                    self._cooperative_gradients_update(
                         obs0=obs0,
                         actions=act,
                         rewards=rew,
@@ -618,7 +617,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     )
                 else:
                     # Perform the regular meta update procedure.
-                    vf_loss, pi_loss = self.policy[i].update_from_batch(
+                    self.policy[i].update_from_batch(
                         obs0=obs0[i],
                         actions=act[i],
                         rewards=rew[i],
@@ -627,14 +626,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         update_actor=kwargs['update_meta_actor'],
                     )
 
-                actor_loss.append(pi_loss)
-                critic_loss.append(vf_loss)
-            else:
-                actor_loss.append(0)
-                critic_loss.append([0, 0])
-
         # Update the lowest level policy.
-        w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
+        self.policy[-1].update_from_batch(
             obs0=obs0[-1],
             actions=act[-1],
             rewards=rew[-1],
@@ -642,10 +635,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             terminals1=done[-1],
             update_actor=update_actor,
         )
-        critic_loss.append(w_critic_loss)
-        actor_loss.append(w_actor_loss)
-
-        return tuple(critic_loss), tuple(actor_loss)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""

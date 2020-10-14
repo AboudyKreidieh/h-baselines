@@ -429,7 +429,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Update operations for the critic networks.
         step_ops = [
-            self.policy[level_num].critic_loss,
             self.policy[level_num].critic_optimizer[0],
             self.policy[level_num].critic_optimizer[1],
         ]
@@ -451,7 +450,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         if update_actor:
             # Actor updates and target soft update operation.
             step_ops += [
-                self.policy[level_num].actor_loss,
                 self.cg_optimizer[level_num],  # This is what's replaced.
                 self.policy[level_num].target_soft_updates,
             ]
@@ -462,13 +460,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 self.policy[level_num + 1].obs1_ph: obs1[level_num + 1],
             })
 
-        # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict=feed_dict)
 
     def get_td_map(self):
         """See parent class.

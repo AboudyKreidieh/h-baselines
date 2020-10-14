@@ -164,7 +164,7 @@ class HierReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self.buffer_size
         self._size = min(self._size + 1, self.buffer_size)
 
-    def sample(self, with_additional):
+    def sample(self, with_additional, collect_levels=None):
         """Sample a batch of experiences.
 
         An example for how a sample is collected from the list of observations/
@@ -298,13 +298,15 @@ class HierReplayBuffer(object):
             corrections or centralized value functions
         """
         meta_period = self.meta_period
-        obses = [[] for _ in range(self.num_levels)]
-        contexts = [[] for _ in range(self.num_levels)]
-        actions = [[] for _ in range(self.num_levels)]
-        next_obses = [[] for _ in range(self.num_levels)]
-        next_contexts = [[] for _ in range(self.num_levels)]
-        rewards = [[] for _ in range(self.num_levels)]
-        dones = [[] for _ in range(self.num_levels)]
+        num_levels = self.num_levels
+        collect_levels = collect_levels or list(range(num_levels))
+        obses = [[] for _ in range(num_levels)]
+        contexts = [[] for _ in range(num_levels)]
+        actions = [[] for _ in range(num_levels)]
+        next_obses = [[] for _ in range(num_levels)]
+        next_contexts = [[] for _ in range(num_levels)]
+        rewards = [[] for _ in range(num_levels)]
+        dones = [[] for _ in range(num_levels)]
 
         # Do not encode additional information information in samples if it is
         # not needed. Waste of compute resources.
@@ -335,17 +337,18 @@ class HierReplayBuffer(object):
             # Collect the sample information for the highest level policy. This
             # will be the first or last element in the list, depended on if the
             # element represents the start of end of a sample (e.g. next_obs).
-            obses[0].append(candidate_obs[0])
-            contexts[0].append(candidate_context[0])
-            actions[0].append(candidate_action[0][0])
-            next_obses[0].append(candidate_obs[-1])
-            next_contexts[0].append(candidate_context[-1])
-            rewards[0].append(candidate_reward[0][0])
-            dones[0].append(candidate_done[-1])
+            if 0 in collect_levels:
+                obses[0].append(candidate_obs[0])
+                contexts[0].append(candidate_context[0])
+                actions[0].append(candidate_action[0][0])
+                next_obses[0].append(candidate_obs[-1])
+                next_contexts[0].append(candidate_context[-1])
+                rewards[0].append(candidate_reward[0][0])
+                dones[0].append(candidate_done[-1])
 
             # Choose a subsample taking a specific point in time.
             total_time = len(candidate_obs) - 1
-            sample_time = random.randint(0, total_time - 1)
+            sample_time = int(random.random() * (total_time - 1))
 
             # Collect samples for each level.
             for i in reversed(range(1, self.num_levels)):
@@ -353,25 +356,28 @@ class HierReplayBuffer(object):
                 # lowest (worker) policy.
                 level_num = self.num_levels - i - 1
 
-                obses[i].append(candidate_obs[sample_time])
-                dones[i].append(candidate_done[sample_time])
+                if i in collect_levels:
+                    obses[i].append(candidate_obs[sample_time])
+                    dones[i].append(candidate_done[sample_time])
 
-                indx_next_obs = min(
-                    sample_time + meta_period ** level_num, total_time)
-                next_obses[i].append(candidate_obs[indx_next_obs])
+                    indx_next_obs = min(
+                        sample_time + meta_period ** level_num, total_time)
+                    next_obses[i].append(candidate_obs[indx_next_obs])
 
-                indx_context = int(sample_time / meta_period ** level_num)
-                contexts[i].append(candidate_action[i - 1][indx_context])
+                    indx_context = int(sample_time / meta_period ** level_num)
+                    contexts[i].append(candidate_action[i - 1][indx_context])
 
-                indx_actions = int(
-                    sample_time / meta_period ** max(level_num - 1, 0))
-                actions[i].append(candidate_action[i][indx_actions])
+                    indx_actions = int(
+                        sample_time / meta_period ** max(level_num - 1, 0))
+                    actions[i].append(candidate_action[i][indx_actions])
 
-                indx_context = int(sample_time / meta_period ** level_num) + 1
-                next_contexts[i].append(candidate_action[i - 1][indx_context])
+                    indx_context = int(
+                        sample_time / meta_period ** level_num) + 1
+                    next_contexts[i].append(
+                        candidate_action[i - 1][indx_context])
 
-                indx_rewards = int(sample_time / meta_period ** level_num)
-                rewards[i].append(candidate_reward[i][indx_rewards])
+                    indx_rewards = int(sample_time / meta_period ** level_num)
+                    rewards[i].append(candidate_reward[i][indx_rewards])
 
                 # Update the sample time to match the start of the meta period
                 # for the next higher-level.
@@ -389,9 +395,9 @@ class HierReplayBuffer(object):
                         candidate_action[-1][j]
 
         # Convert everything to an array.
-        for i in range(self.num_levels):
-            obses[i] = self._get_obs(obses[i], contexts[i], 1)
-            next_obses[i] = self._get_obs(next_obses[i], next_contexts[i], 1)
+        for i in collect_levels:
+            obses[i] = self._get_obs(obses[i], contexts[i])
+            next_obses[i] = self._get_obs(next_obses[i], next_contexts[i])
             actions[i] = np.asarray(actions[i])
             rewards[i] = np.asarray(rewards[i])
             dones[i] = np.asarray(dones[i])
@@ -399,7 +405,7 @@ class HierReplayBuffer(object):
         return obses, next_obses, actions, rewards, dones, additional
 
     @staticmethod
-    def _get_obs(obs, context, axis=0):
+    def _get_obs(obs, context):
         """Return the processed observation.
 
         If the contextual term is not None, this will look as follows:
@@ -417,17 +423,14 @@ class HierReplayBuffer(object):
         context : array_like or None
             the contextual term. Set to None if no context is provided by the
             environment.
-        axis : int
-            the axis to concatenate the observations and contextual terms by
 
         Returns
         -------
         array_like
             the processed observation
         """
-        obs = np.array(obs)
+        obs = np.asarray(obs)
         if context[0] is not None:
-            context = np.array(context)
-            context = context.flatten() if axis == 0 else context
-            obs = np.concatenate((obs, context), axis=axis)
+            context = np.asarray(context)
+            obs = np.concatenate((obs, context), axis=1)
         return obs
