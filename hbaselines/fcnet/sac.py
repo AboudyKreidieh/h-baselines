@@ -496,13 +496,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             an episode and 0 otherwise.
         update_actor : bool
             whether to update the actor policy. Unused by this method.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         del update_actor  # unused by this method
 
@@ -515,11 +508,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Collect all update and loss call operations.
         step_ops = [
-            self.critic_loss[0],
-            self.critic_loss[1],
-            self.critic_loss[2],
-            self.actor_loss,
-            self.alpha_loss,
             self.critic_optimizer,
             self.actor_optimizer,
             self.alpha_optimizer,
@@ -535,11 +523,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.terminals1: terminals1
         }
 
-        # Perform the update operations and collect the actor and critic loss.
-        q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
-            step_ops, feed_dict)
-
-        return [q1_loss, q2_loss], actor_loss
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""

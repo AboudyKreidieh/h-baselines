@@ -950,7 +950,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
-                return {"policy": [0, 0]}, {"policy": 0}
+                return
 
             # Get a batch.
             obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
@@ -961,14 +961,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             done1 = done1.reshape(-1, 1)
 
             # Update operations for the critic networks.
-            step_ops = [self.critic_loss,
-                        self.critic_optimizer[0],
+            step_ops = [self.critic_optimizer[0],
                         self.critic_optimizer[1]]
 
             if update_actor:
                 # Actor updates and target soft update operation.
-                step_ops += [self.actor_loss,
-                             self.actor_optimizer,
+                step_ops += [self.actor_optimizer,
                              self.target_soft_updates]
 
             # Prepare the feed_dict information.
@@ -988,28 +986,18 @@ class MultiFeedForwardPolicy(BasePolicy):
             feed_dict.update({
                 self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
 
-            # Perform the update operations and collect the critic loss.
-            critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-            critic_loss = {"policy": critic_loss}
-
-            # Extract the actor loss.
-            actor_loss = _vals[2] if update_actor else 0
-            actor_loss = {"policy": actor_loss}
+            # Perform the update operations.
+            self.sess.run(step_ops, feed_dict=feed_dict)
 
         # =================================================================== #
         #                    Independent update procedure                     #
         # =================================================================== #
 
         else:
-            actor_loss = {}
-            critic_loss = {}
-
             # Loop through all agent.
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():
-                    actor_loss[key] = 0
-                    critic_loss[key] = [0, 0]
                     continue
 
                 # Get a batch.
@@ -1021,14 +1009,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                 done1 = done1.reshape(-1, 1)
 
                 # Update operations for the critic networks.
-                step_ops = [self.critic_loss[key],
-                            self.critic_optimizer[key][0],
+                step_ops = [self.critic_optimizer[key][0],
                             self.critic_optimizer[key][1]]
 
                 if update_actor:
                     # Actor updates and target soft update operation.
-                    step_ops += [self.actor_loss[key],
-                                 self.actor_optimizer[key],
+                    step_ops += [self.actor_optimizer[key],
                                  self.target_soft_updates[key]]
 
                 # Prepare the feed_dict information.
@@ -1043,14 +1029,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.terminals1[key]: done1
                 }
 
-                # Perform the update operations and collect the critic loss.
-                critic_loss[key], *_vals = self.sess.run(
-                    step_ops, feed_dict=feed_dict)
-
-                # Extract the actor loss.
-                actor_loss[key] = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+                # Perform the update operations.
+                self.sess.run(step_ops, feed_dict=feed_dict)
 
     def _get_action_maddpg(self,
                            obs,

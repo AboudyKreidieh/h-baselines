@@ -361,21 +361,11 @@ class FeedForwardPolicy(ImitationLearningPolicy):
             batch of observations
         actions : array_like
             batch of actions executed given obs_batch
-
-        Returns
-        -------
-        float
-            policy loss
         """
-        loss, *_ = self.sess.run(
-            [self.loss, self.optimizer],
-            feed_dict={
-                self.obs_ph: obs0,
-                self.action_ph: actions,
-            }
-        )
-
-        return loss
+        self.sess.run([self.optimizer], feed_dict={
+            self.obs_ph: obs0,
+            self.action_ph: actions,
+        })
 
     def get_action(self, obs, context):
         """See parent class."""
