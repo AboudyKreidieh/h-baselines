@@ -421,6 +421,8 @@ class HierReplayBuffer(object):
         context : array_like or None
             the contextual term. Set to None if no context is provided by the
             environment.
+        axis : int
+            the axis to concatenate the observations and contextual terms by
 
         Returns
         -------

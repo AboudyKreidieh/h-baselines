@@ -569,9 +569,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                           kwargs["update_meta"][i]] + [self.num_levels - 1]
 
         # Get a batch.
-        collect_levels = \
-            [i for i in range(self.num_levels - 1)
-             if kwargs["update_meta"][i]] + [self.num_levels - 1]
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
             with_additional, collect_levels)
 
