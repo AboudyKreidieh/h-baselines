@@ -114,6 +114,7 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
+            "cg_delta": args.cg_delta,
             "pretrain_worker": args.pretrain_worker,
             "pretrain_path": args.pretrain_path,
             "pretrain_ckpt": args.pretrain_ckpt,
@@ -570,6 +571,13 @@ def create_goal_conditioned_parser(parser):
         help="weights for the gradients of the loss of the lower-level "
              "policies with respect to the parameters of the higher-level "
              "policies. Only used if `cooperative_gradients` is set to True.")
+    parser.add_argument(
+        "--cg_delta",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["cg_delta"],
+        help="the desired lower-level expected returns. If set to None, a "
+             "fixed Lagrangian specified by cg_weights is used instead. Only "
+             "used if `cooperative_gradients` is set to True.")
     parser.add_argument(
         "--pretrain_worker",
         action="store_true",
