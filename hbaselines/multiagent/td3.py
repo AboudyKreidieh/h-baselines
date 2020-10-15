@@ -220,7 +220,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             num_envs=num_envs,
             base_policy=FeedForwardPolicy,
             scope=scope,
-            num_envs=num_envs,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,

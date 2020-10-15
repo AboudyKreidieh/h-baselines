@@ -180,7 +180,6 @@ class MultiGoalConditionedPolicy(BasePolicy):
             base_policy=GoalConditionedPolicy,
             num_envs=n_agents * num_envs if shared else num_envs,
             scope=scope,
-            num_envs=num_envs,
             additional_params=dict(
                 noise=noise,
                 target_policy_noise=target_policy_noise,

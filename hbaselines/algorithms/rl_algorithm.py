@@ -481,7 +481,6 @@ class RLAlgorithm(object):
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
-            self.policy_kwargs['num_envs'] = num_envs
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
