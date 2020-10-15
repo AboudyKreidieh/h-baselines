@@ -429,7 +429,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         v_guess = 4
         self._v_eq = fsolve(
             v_eq_function, np.array(v_guess),
-            args=(len(self.initial_ids), self.k.network.length()))[0]
+            args=(self.k.vehicle.num_vehicles, self.k.network.length()))[0]
 
         # for storing the distance from the free-flow-speed for a given rollout
         self._percent_v_eq = []
