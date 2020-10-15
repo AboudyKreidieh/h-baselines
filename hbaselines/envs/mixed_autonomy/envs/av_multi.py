@@ -138,8 +138,19 @@ class AVMultiAgentEnv(MultiEnv):
         # observations from previous time steps
         self._obs_history = defaultdict(list)
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
         self.leader = []
         self.follower = []
+
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
 
@@ -362,6 +373,7 @@ class AVMultiAgentEnv(MultiEnv):
         In addition, a few variables that are specific to this class are
         emptied before they are used by the new rollout.
         """
+        self._mean_speeds = []
         self.leader = []
         self.follower = []
         return super().reset(new_inflow_rate)
@@ -407,14 +419,6 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         for p in CLOSED_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         # attributes for sorting RL IDs by their initial position.
         self._sorted_rl_ids = []
@@ -644,11 +648,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         # names of the rl vehicles past the control range
         self.removed_veh = []
 
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
-
         # control range, updated to be entire network if not specified
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
@@ -663,14 +662,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                 "car_following_params"],
             **controller[1]
         )
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         if isinstance(network, I210SubNetwork):
             # the name of the final edge, whose speed limit may be updated

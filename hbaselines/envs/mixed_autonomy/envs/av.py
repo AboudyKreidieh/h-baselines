@@ -146,9 +146,20 @@ class AVEnv(Env):
             simulator=simulator,
         )
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
         self.leader = []
         self.follower = []
-        self.num_rl = 1  # deepcopy(self.initial_vehicles.num_rl_vehicles)
+
+        self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
 
         # Get the paths to all the initial state xml files
@@ -643,11 +654,6 @@ class AVOpenEnv(AVEnv):
 
         # names of the rl vehicles past the control range
         self.removed_veh = []
-
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
 
         # control range, updated to be entire network if not specified
         self._control_range = \
