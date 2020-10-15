@@ -500,7 +500,8 @@ ENV_ATTRIBUTES = {
             shape=(1,),
             dtype=np.float32
         ),
-        "state_indices": lambda multiagent: [0],
+        "state_indices": lambda multiagent: [0] if multiagent else [
+            5 * i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
@@ -624,7 +625,7 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10,),
+            shape=(1 if multiagent else 7,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
@@ -862,7 +863,7 @@ ENV_ATTRIBUTES = {
             low=np.array([0, -1, -1, -1, -1, -2, -2, -2, -2, -2, -2]),
             high=np.array([1.5, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]),
             dtype=np.float32),
-        "state_indices": [i + 1024 for i in [
+        "state_indices": lambda multiagent: [i + 1024 for i in [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
         "env": lambda evaluate, render, multiagent, shared, maddpg:
         BipedalObstacles(render=render),

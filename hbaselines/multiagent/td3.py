@@ -217,6 +217,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
+            num_envs=num_envs,
             base_policy=FeedForwardPolicy,
             scope=scope,
             num_envs=num_envs,

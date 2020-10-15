@@ -184,6 +184,7 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
     def test_store_transition_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
+        policy_params["n_agents"] = 2
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         # Initialize the variables of the policy.
@@ -202,6 +203,7 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
             is_final_step = False
             evaluate = False
 
+            policy._update_agent_index({"a": obs0, "b": obs0 + 1}, env_num=0)
             policy.store_transition(
                 obs0={"a": obs0, "b": obs0 + 1},
                 context0={"a": context0, "b": context0 + 1},

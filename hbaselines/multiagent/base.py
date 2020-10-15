@@ -191,6 +191,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         self.shared = shared
@@ -391,6 +392,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=self.use_huber,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
+            num_envs=self.num_envs,
             **self.additional_params
         )
 
