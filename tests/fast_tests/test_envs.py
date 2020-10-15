@@ -1872,7 +1872,6 @@ class TestAVImitation(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the number of vehicles is properly modified in between resets
-        3. the the query_expert method returns the expected values
         """
         env_params = deepcopy(self.env_params_closed)
         env_params.additional_params["expert_model"] = (IDMController, {
@@ -1919,19 +1918,6 @@ class TestAVImitation(unittest.TestCase):
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 268.4)
-
-        # test case 3
-        env = AVClosedImitationEnv(
-            sim_params=self.sim_params,
-            network=self.network_closed,
-            env_params=env_params,
-        )
-        env.reset()
-
-        np.testing.assert_almost_equal(
-            env.query_expert(None),
-            [-0.2360226]
-        )
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenImitationEnv class.
