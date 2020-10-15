@@ -1,4 +1,4 @@
-"""Flow-specific parameters for the multi-lane ring scenario."""
+"""Flow-specific parameters for the ring scenario."""
 import os
 
 from flow.controllers import IDMController
@@ -16,15 +16,9 @@ from flow.networks.ring import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
-import hbaselines.config as hbaselines_config
 
 # Number of vehicles in the network
 RING_LENGTH = [220, 270]
-# number of automated (RL) vehicles
-NUM_AUTOMATED = 1
-# the path to the warmup files to initialize a network
-WARMUP_PATH = None
-# os.path.join(hbaselines_config.PROJECT_PATH, "experiments/warmup/ring")
 
 
 def get_flow_params(stopping_penalty,
@@ -81,10 +75,7 @@ def get_flow_params(stopping_penalty,
     """
     # steps to run before the agent is allowed to take control (set to lower
     # value during testing)
-    if WARMUP_PATH is not None:
-        warmup_steps = 0
-    else:
-        warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
 
     vehicles = VehicleParams()
     vehicles.add(
@@ -99,7 +90,7 @@ def get_flow_params(stopping_penalty,
             speed_mode=25,
             min_gap=0.5,
         ),
-        num_vehicles=21 if WARMUP_PATH is None else 22)
+        num_vehicles=21)
     vehicles.add(
         veh_id="rl",
         acceleration_controller=(RLController, {}),
@@ -108,7 +99,7 @@ def get_flow_params(stopping_penalty,
             min_gap=0.5,
             speed_mode=25,
         ),
-        num_vehicles=1 if WARMUP_PATH is None else 0)
+        num_vehicles=1)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
 
@@ -157,9 +148,6 @@ def get_flow_params(stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,
                 "ring_length": RING_LENGTH,
-                "even_distribution": False,
-                "sort_vehicles": True,
-                "warmup_path": WARMUP_PATH,
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,

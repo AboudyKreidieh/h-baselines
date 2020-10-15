@@ -1606,42 +1606,10 @@ class TestEnvUtil(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test for ring-v1
-        ac_space = get_meta_ac_space(env_name="ring-v1", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
-            expected_size=5,
-        )
-        ac_space = get_meta_ac_space(env_name="ring-v1", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test for ring-v2
-        ac_space = get_meta_ac_space(env_name="ring-v2", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
-            expected_size=5,
-        )
-        ac_space = get_meta_ac_space(env_name="ring-v2", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-5 for _ in range(5)]),
@@ -1903,19 +1871,7 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v0
         self.assertListEqual(
             get_state_indices(env_name="ring-v0", **params),
-            [0, 5, 10, 15, 20]
-        )
-
-        # test for ring-v1
-        self.assertListEqual(
-            get_state_indices(env_name="ring-v1", **params),
-            [0, 5, 10, 15, 20]
-        )
-
-        # test for ring-v2
-        self.assertListEqual(
-            get_state_indices(env_name="ring-v2", **params),
-            [0, 5, 10, 15, 20]
+            [0]
         )
 
         # test for ring-imitation

@@ -43,12 +43,6 @@ CLOSED_ENV_PARAMS.update(dict(
     # range for the lengths allowed in the network. If set to None, the ring
     # length is not modified from its initial value.
     ring_length=[220, 270],
-    # whether to distribute the automated vehicles evenly among the human
-    # driven vehicles. Otherwise, they are randomly distributed.
-    even_distribution=False,
-    # whether to sort RL vehicles by their initial position. Used to account
-    # for noise brought about by shuffling.
-    sort_vehicles=True,
 ))
 
 OPEN_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -410,13 +404,8 @@ class AVClosedEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
-    * num_vehicles: range for the number of vehicles allowed in the network. If
-      set to None, the number of vehicles are is modified from its initial
-      value.
-    * even_distribution: whether to distribute the automated vehicles evenly
-      among the human driven vehicles. Otherwise, they are randomly distributed
-    * sort_vehicles: whether to sort RL vehicles by their initial position.
-      Used to account for noise brought about by shuffling.
+    * ring_length: range for the lengths allowed in the network. If set to
+      None, the ring length is not modified from its initial value.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -425,21 +414,12 @@ class AVClosedEnv(AVEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        assert not (
-                env_params.additional_params["warmup_path"] is not None
-                and env_params.additional_params["ring_length"] is not None), \
-            "Cannot assign a value to both \"warmup_paths\" and " \
-            "\"ring_length\""
-
         super(AVClosedEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
-
-        # attributes for sorting RL IDs by their initial position.
-        self._sorted_rl_ids = []
 
         # solve for the free flow velocity of the ring
         v_guess = 4
@@ -449,13 +429,6 @@ class AVClosedEnv(AVEnv):
 
         # for storing the distance from the free-flow-speed for a given rollout
         self._percent_v_eq = []
-
-    def rl_ids(self):
-        """See parent class."""
-        if self.env_params.additional_params["sort_vehicles"]:
-            return self._sorted_rl_ids
-        else:
-            return self.k.vehicle.get_rl_ids()
 
     def step(self, rl_actions):
         """See parent class."""
@@ -474,25 +447,13 @@ class AVClosedEnv(AVEnv):
         self._percent_v_eq = []
 
         params = self.env_params.additional_params
-        if params["ring_length"] is not None or self.warmup_paths is not None:
+        if params["ring_length"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            if self.warmup_paths is not None:
-                # Choose a random available xml file.
-                xml_file = random.sample(self.warmup_paths, 1)[0]
-                xml_num = int(xml_file.split(".")[0])
-
-                # Update the choice of initial conditions.
-                self.sim_params.load_state = os.path.join(
-                    params["warmup_path"], xml_file)
-
-                # Assign the ring length to match the xml number.
-                length = self.warmup_description["length"][xml_num]
-            else:
-                # Choose the network length randomly.
-                length = random.randint(
-                    params['ring_length'][0], params['ring_length'][1])
+            # Choose the network length randomly.
+            length = random.randint(
+                params['ring_length'][0], params['ring_length'][1])
 
             # Add the ring length to NetParams.
             new_net_params = deepcopy(self._network_net_params)
@@ -518,58 +479,10 @@ class AVClosedEnv(AVEnv):
             print('v_eq:', self._v_eq)
             print('-----------------------')
 
-        self.leader = []
-        self.follower = []
-        _ = super(AVClosedEnv, self).reset()
-
-        # Add automated vehicles.
-        if self.warmup_paths is not None:
-            self._add_automated_vehicles()
-
-        # Get the initial positions of the RL vehicles to allow us to sort the
-        # vehicles by this term.
-        def init_pos(veh_id):
-            return self.k.vehicle.get_x_by_id(veh_id)
-
-        # Create a list of the RL IDs sorted by the above term.
-        self._sorted_rl_ids = sorted(self.k.vehicle.get_rl_ids(), key=init_pos)
-
-        # Recompute the initial observation.
-        obs = self.get_state()
+        # Perform the reset operation.
+        obs = super(AVClosedEnv, self).reset()
 
         return np.copy(obs)
-
-    def _add_automated_vehicles(self):
-        """Replace a portion of vehicles with automated vehicles."""
-        if self.env_params.additional_params["even_distribution"]:
-            penetration = 0  # FIXME
-
-            # Sort the initial vehicles by their positions.
-            sorted_vehicles = sorted(
-                self.k.vehicle.get_ids(),
-                key=lambda x: self.k.vehicle.get_x_by_id(x))
-
-            # Replace every nth vehicle with an RL vehicle.
-            for i, veh_id in enumerate(sorted_vehicles):
-                self.k.vehicle.set_vehicle_type(veh_id, "human")
-
-                if (i + 1) % int(1 / penetration) == 0:
-                    # Don't add vehicles past the control range.
-                    pos = self.k.vehicle.get_x_by_id(veh_id)
-                    if pos < self._control_range[1]:
-                        self.k.vehicle.set_vehicle_type(veh_id, "rl")
-        else:
-            # Sample a number of vehicles randomly to assign as AVs.
-            av_ids = random.sample(self.k.vehicle.get_ids(), self.num_rl)
-
-            # Replace the vehicle type of the AVs to "rl".
-            for veh_id in av_ids:
-                self.k.vehicle.set_vehicle_type(veh_id, "rl")
-
-            # Make sure vehicle that are not under the AV list are treated as
-            # human-driven vehicles.
-            for veh_id in list(set(self.k.vehicle.get_ids()) - set(av_ids)):
-                self.k.vehicle.set_vehicle_type(veh_id, "human")
 
 
 class AVOpenEnv(AVEnv):
