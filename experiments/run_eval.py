@@ -54,8 +54,6 @@ POLICY_DICT = {
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
     "ring-v0",
-    "ring-v1",
-    "ring-v2",
     "merge-v0",
     "merge-v1",
     "merge-v2",
