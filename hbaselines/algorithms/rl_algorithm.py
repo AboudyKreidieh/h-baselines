@@ -200,6 +200,10 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # respect to the parameters of the higher-level policies. Only used if
     # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
+    # the desired lower-level expected returns. If set to None, a fixed
+    # Lagrangian specified by cg_weights is used instead. Only used if
+    # `cooperative_gradients` is set to True.
+    cg_delta=None,
     # specifies whether you are pre-training the lower-level policies. Actions
     # by the high-level policy are randomly sampled from its action space.
     pretrain_worker=False,

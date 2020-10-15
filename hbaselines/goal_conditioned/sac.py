@@ -35,6 +35,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
@@ -109,6 +110,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -144,6 +149,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
+            cg_delta=cg_delta,
             scope=scope,
             env_name=env_name,
             pretrain_worker=pretrain_worker,
