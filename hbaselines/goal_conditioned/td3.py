@@ -278,7 +278,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_cooperative_gradients(self):
         """Create the cooperative gradients meta-policy optimizer."""
-        self.t = 0
+        self._n_train_steps = 0
         # placeholder for the lambda term.
         self.cg_weights = [
             tf.compat.v1.Variable(initial_value=-4.20, trainable=True)
@@ -415,7 +415,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.
         """
-        self.t += 1
+        self._n_train_steps += 1
+
         # Reshape to match previous behavior and placeholder shape.
         rewards[level_num] = rewards[level_num].reshape(-1, 1)
         terminals1[level_num] = terminals1[level_num].reshape(-1, 1)
@@ -437,7 +438,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         }
 
         # Update the cg_weights terms.
-        if self.t > 1000:
+        if self._n_train_steps > 1000:
             step_ops += [self.cg_weights_optimizer]
 
         if update_actor:
