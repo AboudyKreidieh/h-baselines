@@ -1077,11 +1077,10 @@ congestion. This networks are detailed below.
 
 #### ring
 
-This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
-which are automated) are placed on a sing-lane circular track of length 1500m.
-In the absence of the automated vehicle, the human-driven vehicles exhibit 
-stop-and-go instabilities brought about by the string-unstable characteristic 
-of human car-following dynamics.
+This scenario consists of 22 vehicles (1 of which are automated) on a sing-lane
+circular track of length 220-270 m. In the absence of the automated vehicle, 
+the human-driven vehicles exhibit stop-and-go instabilities brought about by 
+the string-unstable characteristic of human car-following dynamics.
 
 #### merge
 
