@@ -135,8 +135,19 @@ class AVEnv(Env):
             simulator=simulator,
         )
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
         self.leader = []
         self.follower = []
+
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
 
         # dynamics controller for controlled RL vehicles. Only relevant if
@@ -368,14 +379,6 @@ class AVClosedEnv(AVEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
         # attributes for sorting RL IDs by their initial position.
         self._sorted_rl_ids = []
 
@@ -580,14 +583,6 @@ class AVOpenEnv(AVEnv):
                     and env_params.additional_params["inflows"] is not None), \
             "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
         super(AVOpenEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -621,11 +616,6 @@ class AVOpenEnv(AVEnv):
 
         # names of the rl vehicles past the control range
         self.removed_veh = []
-
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
 
         # control range, updated to be entire network if not specified
         self._control_range = \
