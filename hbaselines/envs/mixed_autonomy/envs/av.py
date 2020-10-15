@@ -7,6 +7,7 @@ from gym.spaces import Box
 from copy import deepcopy
 from collections import defaultdict
 from csv import DictReader
+from scipy.optimize import fsolve
 
 from flow.envs import Env
 from flow.core.params import InFlows
@@ -17,6 +18,7 @@ from flow.networks import I210SubNetwork
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
+from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 
 BASE_ENV_PARAMS = dict(
@@ -409,6 +411,15 @@ class AVClosedEnv(AVEnv):
             assert not self.initial_config.shuffle, \
                 "InitialConfig.shuffle must be set to False when using even " \
                 "distributions."
+
+        # solve for the free flow velocity of the ring
+        v_guess = 4
+        self._v_eq = fsolve(
+            v_eq_function, np.array(v_guess),
+            args=(len(self.initial_ids), self.k.network.length()))[0]
+
+        # for storing the distance from the free-flow-speed for a given rollout
+        self._percent_v_eq = []
 
     def rl_ids(self):
         """See parent class."""
