@@ -14,6 +14,8 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy \
+    as PPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
@@ -33,6 +35,7 @@ POLICY_DICT = {
     "FeedForwardPolicy": {
         "TD3": TD3FeedForwardPolicy,
         "SAC": SACFeedForwardPolicy,
+        "PPO": PPOFeedForwardPolicy,
     },
     "GoalConditionedPolicy": {
         "TD3": TD3GoalConditionedPolicy,
