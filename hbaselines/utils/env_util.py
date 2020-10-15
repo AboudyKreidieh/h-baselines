@@ -437,62 +437,15 @@ ENV_ATTRIBUTES = {
     "ring-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(5,),
             dtype=np.float32
         ),
-        "state_indices": lambda multiagent: [5 * i for i in range(5)],
+        "state_indices": lambda multiagent: [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
-                fixed_density=False,
                 stopping_penalty=True,
                 acceleration_penalty=True,
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "ring-v1": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
-            shape=(5,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring(
-                fixed_density=False,
-                stopping_penalty=False,
-                acceleration_penalty=True,
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "ring-v2": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
-            shape=(5,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring(
-                fixed_density=False,
-                stopping_penalty=False,
-                acceleration_penalty=False,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
@@ -778,7 +731,6 @@ ENV_ATTRIBUTES = {
         "state_indices": lambda multiagent: [5 * i for i in range(5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
-                fixed_density=False,
                 stopping_penalty=False,
                 acceleration_penalty=False,
                 evaluate=evaluate,

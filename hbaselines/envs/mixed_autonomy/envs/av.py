@@ -11,7 +11,6 @@ from scipy.optimize import fsolve
 
 from flow.envs import Env
 from flow.core.params import InFlows
-from flow.core.params import VehicleParams
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
@@ -38,15 +37,9 @@ BASE_ENV_PARAMS = dict(
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
 CLOSED_ENV_PARAMS.update(dict(
-    # range for the number of vehicles allowed in the network. If set to None,
-    # the number of vehicles are is modified from its initial value.
-    num_vehicles=[50, 75],
-    # whether to distribute the automated vehicles evenly among the human
-    # driven vehicles. Otherwise, they are randomly distributed.
-    even_distribution=False,
-    # whether to sort RL vehicles by their initial position. Used to account
-    # for noise brought about by shuffling.
-    sort_vehicles=True,
+    # range for the lengths allowed in the network. If set to None, the ring
+    # length is not modified from its initial value.
+    ring_length=[220, 270],
 ))
 
 OPEN_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -382,13 +375,8 @@ class AVClosedEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
-    * num_vehicles: range for the number of vehicles allowed in the network. If
-      set to None, the number of vehicles are is modified from its initial
-      value.
-    * even_distribution: whether to distribute the automated vehicles evenly
-      among the human driven vehicles. Otherwise, they are randomly distributed
-    * sort_vehicles: whether to sort RL vehicles by their initial position.
-      Used to account for noise brought about by shuffling.
+    * ring_length: range for the lengths allowed in the network. If set to
+      None, the ring length is not modified from its initial value.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -397,20 +385,12 @@ class AVClosedEnv(AVEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # attributes for sorting RL IDs by their initial position.
-        self._sorted_rl_ids = []
-
         super(AVClosedEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
-
-        if self.env_params.additional_params["even_distribution"]:
-            assert not self.initial_config.shuffle, \
-                "InitialConfig.shuffle must be set to False when using even " \
-                "distributions."
 
         # solve for the free flow velocity of the ring
         v_guess = 4
@@ -421,126 +401,54 @@ class AVClosedEnv(AVEnv):
         # for storing the distance from the free-flow-speed for a given rollout
         self._percent_v_eq = []
 
-    def rl_ids(self):
+    def step(self, rl_actions):
         """See parent class."""
-        if self.env_params.additional_params["sort_vehicles"]:
-            return self._sorted_rl_ids
-        else:
-            return self.k.vehicle.get_rl_ids()
+        obs, rew, done, info = super(AVClosedEnv, self).step(rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            speed = np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            info.update({"v_eq": self._v_eq})
+            info.update({"v_eq_frac": speed / self._v_eq})
+
+        return obs, rew, done, info
 
     def reset(self):
         """See class definition."""
-        if self.env_params.additional_params["num_vehicles"] is None:
-            # Skip if ring length is None.
-            _ = super(AVClosedEnv, self).reset()
-        else:
-            self.step_counter = 1
-            self.time_counter = 1
+        self._percent_v_eq = []
 
+        params = self.env_params.additional_params
+        if params["ring_length"] is not None:
             # Make sure restart instance is set to True when resetting.
             self.sim_params.restart_instance = True
 
-            # Create a new VehicleParams object with a new number of human-
-            # driven vehicles.
-            n_vehicles = self.env_params.additional_params["num_vehicles"]
-            n_rl = self._network_vehicles.num_rl_vehicles
-            n_vehicles_low = n_vehicles[0] - n_rl
-            n_vehicles_high = n_vehicles[1] - n_rl
-            new_n_vehicles = random.randint(n_vehicles_low, n_vehicles_high)
-            params = self._network_vehicles.type_parameters
+            # Choose the network length randomly.
+            length = random.randint(
+                params['ring_length'][0], params['ring_length'][1])
 
-            print("humans: {}, automated: {}".format(new_n_vehicles, n_rl))
-
-            if self.env_params.additional_params["even_distribution"]:
-                num_human = new_n_vehicles - n_rl
-                humans_remaining = num_human
-
-                new_vehicles = VehicleParams()
-                for i in range(n_rl):
-                    # Add one automated vehicle.
-                    new_vehicles.add(
-                        veh_id="rl_{}".format(i),
-                        acceleration_controller=params["rl_{}".format(i)][
-                            "acceleration_controller"],
-                        lane_change_controller=params["rl_{}".format(i)][
-                            "lane_change_controller"],
-                        routing_controller=params["rl_{}".format(i)][
-                            "routing_controller"],
-                        initial_speed=params["rl_{}".format(i)][
-                            "initial_speed"],
-                        car_following_params=params["rl_{}".format(i)][
-                            "car_following_params"],
-                        lane_change_params=params["rl_{}".format(i)][
-                            "lane_change_params"],
-                        num_vehicles=1)
-
-                    # Add a fraction of the remaining human vehicles.
-                    vehicles_to_add = round(humans_remaining / (n_rl - i))
-                    humans_remaining -= vehicles_to_add
-                    new_vehicles.add(
-                        veh_id="human_{}".format(i),
-                        acceleration_controller=params["human_{}".format(i)][
-                            "acceleration_controller"],
-                        lane_change_controller=params["human_{}".format(i)][
-                            "lane_change_controller"],
-                        routing_controller=params["human_{}".format(i)][
-                            "routing_controller"],
-                        initial_speed=params["human_{}".format(i)][
-                            "initial_speed"],
-                        car_following_params=params["human_{}".format(i)][
-                            "car_following_params"],
-                        lane_change_params=params["human_{}".format(i)][
-                            "lane_change_params"],
-                        num_vehicles=vehicles_to_add)
-            else:
-                new_vehicles = VehicleParams()
-                new_vehicles.add(
-                    "human_0",
-                    acceleration_controller=params["human_0"][
-                        "acceleration_controller"],
-                    lane_change_controller=params["human_0"][
-                        "lane_change_controller"],
-                    routing_controller=params["human_0"]["routing_controller"],
-                    initial_speed=params["human_0"]["initial_speed"],
-                    car_following_params=params["human_0"][
-                        "car_following_params"],
-                    lane_change_params=params["human_0"]["lane_change_params"],
-                    num_vehicles=new_n_vehicles)
-                new_vehicles.add(
-                    "rl_0",
-                    acceleration_controller=params["rl_0"][
-                        "acceleration_controller"],
-                    lane_change_controller=params["rl_0"][
-                        "lane_change_controller"],
-                    routing_controller=params["rl_0"]["routing_controller"],
-                    initial_speed=params["rl_0"]["initial_speed"],
-                    car_following_params=params["rl_0"][
-                        "car_following_params"],
-                    lane_change_params=params["rl_0"]["lane_change_params"],
-                    num_vehicles=n_rl)
+            # Add the ring length to NetParams.
+            new_net_params = deepcopy(self._network_net_params)
+            new_net_params.additional_params["length"] = length
 
             # Update the network.
             self.network = self._network_cls(
                 self._network_name,
-                net_params=self._network_net_params,
-                vehicles=new_vehicles,
+                net_params=new_net_params,
+                vehicles=self._network_vehicles,
                 initial_config=self._network_initial_config,
                 traffic_lights=self._network_traffic_lights,
             )
+            # solve for the velocity upper bound of the ring
+            v_guess = 4
+            self._v_eq = fsolve(v_eq_function, np.array(v_guess),
+                                args=(len(self.initial_ids), length))[0]
 
-            # Perform the reset operation.
-            _ = super(AVClosedEnv, self).reset()
+            print('\n-----------------------')
+            print('ring length:', self.net_params.additional_params['length'])
+            print('v_eq:', self._v_eq)
+            print('-----------------------')
 
-        # Get the initial positions of the RL vehicles to allow us to sort the
-        # vehicles by this term.
-        def init_pos(veh_id):
-            return self.k.vehicle.get_x_by_id(veh_id)
-
-        # Create a list of the RL IDs sorted by the above term.
-        self._sorted_rl_ids = sorted(self.k.vehicle.get_rl_ids(), key=init_pos)
-
-        # Perform the reset operation again because the vehicle IDs weren't
-        # caught the first time.
+        # Perform the reset operation.
         obs = super(AVClosedEnv, self).reset()
 
         return obs
