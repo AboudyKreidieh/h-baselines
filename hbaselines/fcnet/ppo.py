@@ -184,6 +184,7 @@ class FeedForwardPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         self.learning_rate = learning_rate
@@ -196,7 +197,6 @@ class FeedForwardPolicy(Policy):
         self.max_grad_norm = max_grad_norm
         self.cliprange = cliprange
         self.cliprange_vf = cliprange_vf
-        self.num_envs = num_envs
 
         # Create variables to store on-policy data.
         self.mb_rewards = [[] for _ in range(num_envs)]

@@ -191,6 +191,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         self.shared = shared
@@ -198,7 +199,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         self.all_ob_space = all_ob_space
         self.n_agents = n_agents
         self.base_policy = base_policy
-        self.num_envs = num_envs
         self.additional_params = additional_params or {}
 
         # Used to maintain memory on the env_num used for individual agents.
@@ -392,7 +392,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=self.use_huber,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
-            num_evs=self.num_envs,
+            num_envs=self.num_envs,
             **self.additional_params
         )
 

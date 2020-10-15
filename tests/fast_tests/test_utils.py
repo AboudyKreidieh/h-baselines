@@ -32,6 +32,7 @@ from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
@@ -606,6 +607,7 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -650,6 +652,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -659,7 +662,7 @@ class TestTrain(unittest.TestCase):
 
         args = parse_options(
             "", "",
-            args=["AntMaze", "--shared", "--maddpg"],
+            args=["AntMaze", "--shared", "--maddpg", "--n_agents", "2"],
             multiagent=True,
             hierarchical=False,
         )
@@ -710,6 +713,7 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': True,
             'maddpg': True,
+            'n_agents': 2,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -754,6 +758,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 2,
             }
         })
 
@@ -825,6 +830,7 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -869,6 +875,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -892,6 +899,7 @@ class TestTrain(unittest.TestCase):
                 "--cg_weights", "7",
                 "--shared",
                 "--maddpg",
+                "--n_agents", "8",
             ],
             multiagent=True,
             hierarchical=True,
@@ -956,6 +964,7 @@ class TestTrain(unittest.TestCase):
             'subgoal_testing_rate': 6,
             'shared': True,
             'maddpg': True,
+            'n_agents': 8,
         })
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
@@ -1013,6 +1022,7 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate': 6,
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 8,
             }
         })
 

@@ -623,7 +623,7 @@ ENV_ATTRIBUTES = {
     "highway-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            high=5 if relative_goals else 20,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),

@@ -460,7 +460,7 @@ class RLAlgorithm(object):
         self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
-        self.policy_kwargs = {'verbose': verbose}
+        self.policy_kwargs = {'verbose': verbose, 'num_envs': num_envs}
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs, self._info_keys = \
@@ -477,12 +477,10 @@ class RLAlgorithm(object):
         if is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
-            self.policy_kwargs['num_envs'] = num_envs
 
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
             self.policy_kwargs["all_ob_space"] = all_ob_space
-            self.policy_kwargs['num_envs'] = num_envs
 
         if is_td3_policy(policy):
             self.policy_kwargs.update(TD3_PARAMS.copy())
@@ -490,7 +488,6 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
-            self.policy_kwargs['num_envs'] = num_envs
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})

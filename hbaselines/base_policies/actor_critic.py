@@ -58,7 +58,8 @@ class ActorCriticPolicy(Policy):
                  gamma,
                  use_huber,
                  l2_penalty,
-                 model_params):
+                 model_params,
+                 num_envs=1):
         """Instantiate the base policy object.
 
         Parameters
@@ -103,6 +104,7 @@ class ActorCriticPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         self.buffer_size = buffer_size
