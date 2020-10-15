@@ -61,7 +61,8 @@ class Policy(object):
                  co_space,
                  verbose,
                  l2_penalty,
-                 model_params):
+                 model_params,
+                 num_envs=1):
         """Instantiate the base policy object.
 
         Parameters
@@ -117,6 +118,7 @@ class Policy(object):
         self.verbose = verbose
         self.l2_penalty = l2_penalty
         self.model_params = model_params
+        self.num_envs = num_envs
 
         # Run assertions.
         required = ["model_type", "layers", "layer_norm", "act_fun"]

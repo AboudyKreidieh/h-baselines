@@ -220,6 +220,9 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
     maddpg=False,
+    # the expected number of agents in the environment. Only relevant if using
+    # shared policies with MADDPG or goal-conditioned hierarchies.
+    n_agents=1,
 ))
 
 
@@ -457,7 +460,7 @@ class RLAlgorithm(object):
         self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
-        self.policy_kwargs = {'verbose': verbose}
+        self.policy_kwargs = {'verbose': verbose, 'num_envs': num_envs}
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs, self._info_keys = \
@@ -474,7 +477,6 @@ class RLAlgorithm(object):
         if is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
-            self.policy_kwargs['num_envs'] = num_envs
 
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
@@ -486,7 +488,6 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
-            self.policy_kwargs['num_envs'] = num_envs
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -1057,8 +1058,8 @@ class RLAlgorithm(object):
                 self.total_steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
-                    self.episode_reward[num] += sum(
-                        reward[k] for k in reward.keys())
+                    self.episode_reward[num] += np.mean(
+                        [reward[k] for k in reward.keys()])
                 else:
                     self.episode_reward[num] += reward
 

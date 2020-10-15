@@ -184,6 +184,7 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
     def test_store_transition_2(self):
         policy_params = self.policy_params_shared.copy()
         policy_params["maddpg"] = False
+        policy_params["n_agents"] = 2
         policy = TD3MultiFeedForwardPolicy(**policy_params)
 
         # Initialize the variables of the policy.
@@ -202,6 +203,7 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
             is_final_step = False
             evaluate = False
 
+            policy._update_agent_index({"a": obs0, "b": obs0 + 1}, env_num=0)
             policy.store_transition(
                 obs0={"a": obs0, "b": obs0 + 1},
                 context0={"a": context0, "b": context0 + 1},
@@ -248,6 +250,66 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
             done[:8],
             [0., 0., 0., 0., 0., 0., 0., 0.]
         )
+
+    def test_update_agent_index(self):
+        """Validates the functionality of the _update_agent_index method.
+
+        This method performs the following tests:
+
+        1. that the agent indices are properly filled in
+        2. that if an agent is removed from the observation, it is removed from
+           the agent index dict as well, and memory is cleared from the agent
+           class at the required environment number
+        """
+        policy_params = self.policy_params_shared.copy()
+        policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
+        policy_params["num_envs"] = 2
+        policy_params["n_agents"] = 5
+        policy = TD3MultiGoalConditionedPolicy(**policy_params)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        policy._update_agent_index(
+            obs={
+                "a": policy.ob_space.sample(),
+                "b": policy.ob_space.sample()
+            },
+            env_num=0
+        )
+        policy._update_agent_index(
+            obs={
+                "b": policy.ob_space.sample(),
+                "c": policy.ob_space.sample()
+            },
+            env_num=1
+        )
+
+        self.assertEqual(policy._agent_index[0], {'a': 0, 'b': 1})
+        self.assertEqual(policy._agent_index[1], {'b': 0, 'c': 1})
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        policy._update_agent_index(
+            obs={
+                "b": policy.ob_space.sample(),
+                "c": policy.ob_space.sample()
+            },
+            env_num=0
+        )
+        policy._update_agent_index(
+            obs={
+                "c": policy.ob_space.sample(),
+                "d": policy.ob_space.sample()
+            },
+            env_num=1
+        )
+
+        self.assertEqual(policy._agent_index[0], {'b': 1, 'c': 0})
+        self.assertEqual(policy._agent_index[1], {'c': 1, 'd': 0})
 
 
 class TestTD3MultiFeedForwardPolicy(unittest.TestCase):

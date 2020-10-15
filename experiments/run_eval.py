@@ -266,7 +266,8 @@ def main(args):
                         env.render()
 
                 if multiagent:
-                    if (isinstance(done, dict) and done["__all__"]) or done:
+                    if (isinstance(done, dict) and done["__all__"]) \
+                            or done is True:
                         break
                     obs0_transition = {
                         key: np.array(obs[key]) for key in obs.keys()}

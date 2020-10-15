@@ -108,7 +108,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  noise,
                  target_policy_noise,
                  target_noise_clip,
-                 scope=None):
+                 scope=None,
+                 num_envs=1):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -171,6 +172,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         # action magnitudes

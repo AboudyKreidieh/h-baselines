@@ -5,6 +5,7 @@ from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
@@ -123,6 +124,7 @@ def get_hyperparameters(args, policy):
         policy_kwargs.update({
             "shared": args.shared,
             "maddpg": args.maddpg,
+            "n_agents": args.n_agents,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -600,5 +602,12 @@ def create_multi_feedforward_parser(parser):
         action="store_true",
         help="whether to use an algorithm-specific variant of the MADDPG "
              "algorithm")
+    parser.add_argument(
+        "--n_agents",
+        type=int,
+        default=MULTIAGENT_PARAMS["n_agents"],
+        help="the expected number of agents in the environment. Only relevant "
+             "if using shared policies with MADDPG or goal-conditioned "
+             "hierarchies.")
 
     return parser
