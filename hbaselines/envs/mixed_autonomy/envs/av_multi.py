@@ -33,9 +33,6 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
-    # path to the initialized vehicle states. Cannot be set in addition to the
-    # `inflows` term. This feature defines its own inflows.
-    warmup_path=None,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -50,6 +47,9 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
     # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
@@ -464,6 +464,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
                 initial_config=self._network_initial_config,
                 traffic_lights=self._network_traffic_lights,
             )
+            self.net_params = new_net_params
 
             # solve for the velocity upper bound of the ring
             v_guess = 4

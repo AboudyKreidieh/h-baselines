@@ -33,9 +33,6 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
-    # path to the initialized vehicle states. Cannot be set in addition to the
-    # `inflows` term. This feature defines its own inflows.
-    warmup_path=None,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -50,9 +47,11 @@ OPEN_ENV_PARAMS.update(dict(
     # range for the inflows allowed in the network. If set to None, the inflows
     # are not modified from their initial value.
     inflows=[1000, 2000],
+    # path to the initialized vehicle states. Cannot be set in addition to the
+    # `inflows` term. This feature defines its own inflows.
+    warmup_path=None,
     # the AV penetration rate, defining the portion of inflow vehicles that
-    # will be automated. If "inflows" or "warmup_path" is set to None, this is
-    # irrelevant.
+    # will be automated. If "inflows" is set to None, this is irrelevant.
     rl_penetration=0.1,
     # maximum number of controllable vehicles in the network
     num_rl=5,
@@ -124,15 +123,6 @@ class AVEnv(Env):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-        self._obs_history = []
-
         super(AVEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -155,21 +145,7 @@ class AVEnv(Env):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
-
-        # Get the paths to all the initial state xml files
-        warmup_path = env_params.additional_params["warmup_path"]
-        if warmup_path is not None:
-            self.warmup_paths = [
-                f for f in os.listdir(warmup_path) if f.endswith(".xml")
-            ]
-            self.warmup_description = defaultdict(list)
-            for record in DictReader(
-                    open(os.path.join(warmup_path, 'description.csv'))):
-                for key, val in record.items():  # or iteritems in Python 2
-                    self.warmup_description[key].append(float(val))
-        else:
-            self.warmup_paths = None
-            self.warmup_description = None
+        self._obs_history = []
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -482,7 +458,7 @@ class AVClosedEnv(AVEnv):
         # Perform the reset operation.
         obs = super(AVClosedEnv, self).reset()
 
-        return np.copy(obs)
+        return obs
 
 
 class AVOpenEnv(AVEnv):
@@ -555,6 +531,21 @@ class AVOpenEnv(AVEnv):
             network=network,
             simulator=simulator,
         )
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(float(val))
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
 
         # maximum number of controlled vehicles
         self.num_rl = env_params.additional_params["num_rl"]
