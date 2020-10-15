@@ -231,6 +231,10 @@ class Policy(object):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
 
+    def clear_memory(self, env_num):
+        """Clear internal memory that is used by the replay buffer."""
+        pass
+
     @staticmethod
     def _get_obs(obs, context, axis=0):
         """Return the processed observation.
