@@ -283,7 +283,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_cooperative_gradients(self):
-        self.t = 0
         """Create the cooperative gradients meta-policy optimizer."""
         self._n_train_steps = 0
 
