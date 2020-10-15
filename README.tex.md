@@ -309,6 +309,8 @@ The modifiable parameters of this policy are as follows:
 * **co_space** (gym.spaces.*) : the context space of the environment
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
+* **l2_penalty** (float) : L2 regularization penalty. This is applied to the
+  policy network.
 * **model_params** (dict) : dictionary of model-specific parameters, including:
   * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
     "conv"}.

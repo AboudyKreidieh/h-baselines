@@ -14,6 +14,8 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy \
+    as PPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
@@ -33,6 +35,7 @@ POLICY_DICT = {
     "FeedForwardPolicy": {
         "TD3": TD3FeedForwardPolicy,
         "SAC": SACFeedForwardPolicy,
+        "PPO": PPOFeedForwardPolicy,
     },
     "GoalConditionedPolicy": {
         "TD3": TD3GoalConditionedPolicy,
@@ -226,8 +229,14 @@ def main(args):
                 context = [env.current_context] \
                     if hasattr(env, "current_context") else None
 
+                if multiagent:
+                    processed_obs = {
+                        key: np.array([obs[key]]) for key in obs.keys()}
+                else:
+                    processed_obs = np.asarray([obs])
+
                 action = policy.get_action(
-                    obs=np.asarray([obs]),
+                    obs=processed_obs,
                     context=context,
                     apply_noise=False,
                     random_actions=False,
@@ -241,9 +250,9 @@ def main(args):
 
                 # Visualize the sub-goals of the hierarchical policy.
                 if hasattr(policy, "_meta_action") \
-                        and policy._meta_action is not None \
+                        and policy.meta_action is not None \
                         and hasattr(env, "set_goal"):
-                    goal = policy._meta_action[0][0] + (
+                    goal = policy.meta_action[0][0] + (
                         obs[policy.goal_indices]
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
@@ -260,12 +269,13 @@ def main(args):
                         env.render()
 
                 if multiagent:
-                    if done["__all__"]:
+                    if (isinstance(done, dict) and done["__all__"]) \
+                            or done is True:
                         break
                     obs0_transition = {
                         key: np.array(obs[key]) for key in obs.keys()}
                     obs1_transition = {
-                        key: np.array(new_obs[key]) for key in obs.keys()}
+                        key: np.array(new_obs[key]) for key in new_obs.keys()}
                     total_reward += sum(
                         reward[key] for key in reward.keys())
                 else:

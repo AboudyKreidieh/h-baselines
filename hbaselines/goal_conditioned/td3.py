@@ -27,6 +27,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  target_policy_noise,
                  target_noise_clip,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  num_levels,
                  meta_period,
@@ -84,6 +85,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         num_levels : int
@@ -139,6 +142,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
@@ -273,8 +277,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     # ======================================================================= #
 
     def _setup_cooperative_gradients(self):
-        self.t = 0
         """Create the cooperative gradients meta-policy optimizer."""
+        self.t = 0
         # placeholder for the lambda term.
         self.cg_weights = [
             tf.compat.v1.Variable(initial_value=-4.20, trainable=True)
@@ -410,13 +414,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.
-
-        Returns
-        -------
-        [float, float]
-            meta-policy critic loss
-        float
-            meta-policy actor loss
         """
         self.t += 1
         # Reshape to match previous behavior and placeholder shape.
@@ -425,7 +422,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Update operations for the critic networks.
         step_ops = [
-            self.policy[level_num].critic_loss,
             self.policy[level_num].critic_optimizer[0],
             self.policy[level_num].critic_optimizer[1],
         ]
@@ -447,7 +443,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         if update_actor:
             # Actor updates and target soft update operation.
             step_ops += [
-                self.policy[level_num].actor_loss,
                 self.cg_optimizer[level_num],  # This is what's replaced.
                 self.policy[level_num].target_soft_updates,
             ]
@@ -458,20 +453,5 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 self.policy[level_num + 1].obs1_ph: obs1[level_num + 1],
             })
 
-        # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
-
-    def get_td_map(self):
-        """See parent class.
-
-        This adds the cg_weights term in case cooperative gradients are being
-        used.
-        """
-        td_map = super(GoalConditionedPolicy, self).get_td_map()
-
-        return td_map
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict=feed_dict)

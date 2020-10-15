@@ -128,16 +128,28 @@ class AVMultiAgentEnv(MultiEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        super(MultiEnv, self).__init__(
+        super(AVMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
             network=network,
             simulator=simulator,
         )
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
         self.leader = []
         self.follower = []
+
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+        self._mean_speeds = []
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -191,7 +203,7 @@ class AVMultiAgentEnv(MultiEnv):
         if self.env_params.additional_params["use_follower_stopper"]:
             for veh_id in rl_actions.keys():
                 self._av_controller.veh_id = veh_id
-                self._av_controller.v_des = rl_actions[veh_id]
+                self._av_controller.v_des = rl_actions[veh_id][0]
                 acceleration = self._av_controller.get_action(self)
 
                 # Apply the action via the simulator.
@@ -199,7 +211,7 @@ class AVMultiAgentEnv(MultiEnv):
         else:
             for veh_id in rl_actions.keys():
                 # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[veh_id])
+                acceleration = deepcopy(rl_actions[veh_id][0])
 
                 # Redefine if below a speed threshold so that all actions
                 # result in non-negative desired speeds.
@@ -224,15 +236,15 @@ class AVMultiAgentEnv(MultiEnv):
             return {}
 
         # Compute the reward.
-        reward = self._compute_reward_util(
-            rl_actions=list(rl_actions.values()),
-            veh_ids=self.k.vehicle.get_ids(),
-            rl_ids=self.rl_ids(),
-            **kwargs
-        )
-
-        # A separate (shared) reward is passed to every agent.
-        return {key: reward for key in rl_actions.keys()}
+        return {
+            rl_id: self._compute_reward_util(
+                rl_actions=rl_actions[rl_id],
+                veh_ids=self.k.vehicle.get_ids(),
+                rl_ids=[rl_id],
+                **kwargs
+            )
+            for rl_id in rl_actions.keys()
+        }
 
     def _compute_reward_util(self, rl_actions, veh_ids, rl_ids, **kwargs):
         """Compute the reward over a specific list of vehicles.
@@ -270,7 +282,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 0.1
+                reward_scale = 0.01
 
                 # Compute a positive form of the two-norm from a desired target
                 # velocity.
@@ -329,12 +341,27 @@ class AVMultiAgentEnv(MultiEnv):
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, _ = super(AVMultiAgentEnv, self).step(rl_actions)
+        info = {}
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            self._mean_speeds.append(np.mean(
+                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
+
     def reset(self, new_inflow_rate=None):
         """See parent class.
 
         In addition, a few variables that are specific to this class are
         emptied before they are used by the new rollout.
         """
+        self._mean_speeds = []
         self.leader = []
         self.follower = []
         return super().reset(new_inflow_rate)
@@ -380,14 +407,6 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         for p in CLOSED_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         # attributes for sorting RL IDs by their initial position.
         self._sorted_rl_ids = []
@@ -617,11 +636,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         # names of the rl vehicles past the control range
         self.removed_veh = []
 
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
-
         # control range, updated to be entire network if not specified
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
@@ -636,14 +650,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                 "car_following_params"],
             **controller[1]
         )
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         if isinstance(network, I210SubNetwork):
             # the name of the final edge, whose speed limit may be updated
@@ -675,16 +681,20 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
         ]
 
-        # Compute the reward.
-        reward = self._compute_reward_util(
-            rl_actions=rl_actions,
-            veh_ids=veh_ids,
-            rl_ids=self.rl_ids(),
-            **kwargs
-        )
+        # Compute the reward. Penalties are only assigned for the actions of
+        # the unique vehicle.
+        reward = {
+            rl_id: self._compute_reward_util(
+                rl_actions=rl_actions[rl_id],
+                veh_ids=veh_ids,
+                rl_ids=[rl_id],
+                **kwargs
+            )
+            for rl_id in rl_actions.keys()
+        }
 
         # A separate (shared) reward is passed to every agent.
-        return {key: reward for key in rl_actions.keys()}
+        return reward
 
     def additional_command(self):
         """See parent class.
@@ -719,6 +729,27 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, info = super(AVOpenMultiAgentEnv, self).step(
+            rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            # Update the most recent mean speed term to match the speed of the
+            # control range.
+            kv = self.k.vehicle
+            control_range = self._control_range
+            veh_ids = [
+                veh_id for veh_id in kv.get_ids()
+                if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
+            ]
+            self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
