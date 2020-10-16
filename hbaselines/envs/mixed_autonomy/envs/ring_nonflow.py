@@ -1,21 +1,83 @@
+"""Script containing a non-flow variant of the ring road environment."""
 import numpy as np
-import gym
 import csv
 import time
 import random
-from collections import defaultdict
 import json
+import gym
 from scipy.optimize import fsolve
+from collections import defaultdict
+from gym.spaces import Box
 
 from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
+# the length of the individual vehicles
 VEHICLE_LENGTH = 5
+# a normalizing term for the vehicle headways
 MAX_HEADWAY = 20
 
 
 class RingEnv(gym.Env):
-    """
+    """Non-flow variant of the ring road environment.
 
+    Attributes
+    ----------
+    initial_state : str or None
+        the initial state. Must be one of the following:
+        * None: in this case, vehicles are evenly distributed
+        * "random": in this case, vehicles are randomly placed with a minimum
+          gap between vehicles specified by "min_gap"
+        * str: A string that is not "random" is assumed to be a path to a json
+          file specifying initial vehicle positions and speeds
+    length : float
+        the length of the ring at the current time step
+    num_vehicles : int
+        total number of vehicles in the network
+    dt : float
+        seconds per simulation step
+    horizon : int
+        the environment time horizon, in steps
+    sims_per_step : int
+        the number of simulation steps per environment step
+    min_gap : float
+        the minimum allowable gap by all vehicles. This is used during the
+        failsafe computations.
+    gen_emission : bool
+        whether to generate the emission file
+    rl_ids : array_like
+        the indices of vehicles that are treated as automated, or RL, vehicles
+    num_rl : int
+        the number of automated, or RL, vehicles
+    warmup_steps : int
+        number of steps performed before the initialization of training during
+        a rollout
+    t : int
+        number of simulation steps since the start of the current rollout
+    positions : array_like
+        positions of all vehicles in the network
+    speeds : array_like
+        speeds of all vehicles in the network
+    headways : array_like
+        bumper-to-bumper gaps of all vehicles in the network
+    v0 : float
+        desirable velocity, in m/s
+    T : float
+        safe time headway, in s
+    a : float
+        max acceleration, in m/s2
+    b : float
+        comfortable deceleration, in m/s2
+    delta : float
+        acceleration exponent
+    s0 : float
+        linear jam distance, in m
+    noise : float
+        std dev of normal perturbation to the acceleration
+    decel : float
+        maximum desired deceleration
+    delay : float
+        delay in applying the action, in seconds. This is used by the failsafe
+        computation.
     """
 
     def __init__(self,
@@ -29,18 +91,39 @@ class RingEnv(gym.Env):
                  rl_ids=None,
                  warmup_steps=0,
                  initial_state=None):
-        """
+        """Instantiate the environment class.
 
-        :param length:
-        :param num_vehicles:
-        :param dt:
-        :param horizon:
-        :param sims_per_step:
-        :param min_gap:
-        :param gen_emission:
-        :param rl_ids:
-        :param warmup_steps:
-        :param initial_state:
+        Parameters
+        ----------
+        length : float or [float, float]
+            the length of the ring if a float, and a range of [min, max] length
+            values that are sampled from during the reset procedure
+        num_vehicles : int
+            total number of vehicles in the network
+        dt : float
+            seconds per simulation step
+        horizon : int
+            the environment time horizon, in steps
+        sims_per_step : int
+            the number of simulation steps per environment step
+        min_gap : float
+            the minimum allowable gap by all vehicles. This is used during the
+            failsafe computations.
+        gen_emission : bool
+            whether to generate the emission file
+        rl_ids : list of int or None
+            the indices of vehicles that are treated as automated, or RL,
+            vehicles
+        warmup_steps : int
+            number of steps performed before the initialization of training
+            during a rollout
+        initial_state : str or None
+            the initial state. Must be one of the following:
+            * None: in this case, vehicles are evenly distributed
+            * "random": in this case, vehicles are randomly placed with a
+              minimum gap between vehicles specified by "min_gap"
+            * str: A string that is not "random" is assumed to be a path to a
+              json file specifying initial vehicle positions and speeds
         """
         self._length = length
 
@@ -60,8 +143,9 @@ class RingEnv(gym.Env):
         self.min_gap = min_gap
         self.gen_emission = gen_emission
         self.rl_ids = np.asarray(rl_ids)
+        self.num_rl = len(self.rl_ids)
         self.warmup_steps = warmup_steps
-        self.time_log = None
+        self._time_log = None
         self._v_eq = None
         self._mean_speeds = None
 
@@ -91,6 +175,19 @@ class RingEnv(gym.Env):
 
     @staticmethod
     def _set_length(length):
+        """Update the length of the ring road.
+
+        Parameters
+        ----------
+        length : float or [float, float]
+            the length of the ring if a float, and a range of [min, max] length
+            values that are sampled from during the reset procedure
+
+        Returns
+        -------
+        float
+            the updated ring length
+        """
         if isinstance(length, list):
             if len(length) == 2:
                 # if the range for the length term was defined by the length
@@ -105,12 +202,23 @@ class RingEnv(gym.Env):
 
     @staticmethod
     def _set_initial_state(length, num_vehicles, initial_state, min_gap):
-        """
+        """Choose an initial state for all vehicles in the network
 
-        :param length:
-        :param num_vehicles:
-        :param initial_state:
-        :return:
+        Parameters
+        ----------
+        length : float
+            the length of the ring road
+        num_vehicles : int
+            number of vehicles in the network
+        initial_state : str or None or dict
+            the initial state. See description in __init__.
+
+        Returns
+        -------
+        array_like
+            initial vehicle positions
+        array_like
+            initial vehicle speeds
         """
         if initial_state is None:
             # uniformly distributed vehicles
@@ -136,12 +244,23 @@ class RingEnv(gym.Env):
         return pos, vel
 
     def _update_state(self, pos, vel, accel):
-        """
+        """Update the positions and speeds of all vehicles.
 
-        :param pos:
-        :param vel:
-        :param accel:
-        :return:
+        Parameters
+        ----------
+        pos : array_like
+            positions of all vehicles in the network
+        vel : array_like
+            speeds of all vehicles in the network
+        accel : array_like
+            accelerations of all vehicles in the network
+
+        Returns
+        -------
+        array_like
+            the updated vehicle positions
+        array_like
+            the updated vehicle speeds
         """
         new_vel = vel + accel * self.dt
         new_pos = np.mod(
@@ -150,10 +269,7 @@ class RingEnv(gym.Env):
         return new_pos, new_vel
 
     def _compute_headway(self):
-        """
-
-        :return:
-        """
+        """Compute the current step headway for all vehicles."""
         # compute the individual headways
         headway = np.append(
             self.positions[1:] - self.positions[:-1] - VEHICLE_LENGTH,
@@ -165,13 +281,27 @@ class RingEnv(gym.Env):
         return headway
 
     def _get_accel(self, vel, h):
-        """
+        """Compute the accelerations of individual vehicles.
 
-        :return:
+        The acceleration values are dictated by the Intelligent Driver Model
+        (IDM), which car-following parameters specified in __init__.
+
+        Parameters
+        ----------
+        vel : array_like
+            speeds of all vehicles in the network
+        h : array_like
+            bumper-to-bumper gaps of all vehicles in the network
+
+        Returns
+        -------
+        array_like
+            vehicle accelerations
         """
         lead_vel = np.append(vel[1:], vel[0])
         s_star = self.s0 + np.clip(
-            vel * self.T + np.multiply(vel, vel - lead_vel) / (2 * np.sqrt(self.a * self.b)),
+            vel * self.T + np.multiply(vel, vel - lead_vel) /
+            (2 * np.sqrt(self.a * self.b)),
             a_min=0,
             a_max=np.inf,
         )
@@ -188,11 +318,21 @@ class RingEnv(gym.Env):
         return accel
 
     def _get_rl_accel(self, accel, vel):
-        """
+        """Compute the RL acceleration from the desired acceleration.
 
-        :param accel:
-        :param vel:
-        :return:
+        We reduce the decelerations at smaller speeds to smooth of the effects.
+
+        Parameters
+        ----------
+        accel : array_like or dict
+            the RL actions
+        vel : array_like
+            the speed of the RL vehicles
+
+        Returns
+        -------
+        array_like
+            the updated acceleration values
         """
         # for multi-agent environments
         if isinstance(accel, dict):
@@ -209,13 +349,25 @@ class RingEnv(gym.Env):
         accel_min = - vel / self.dt
         accel_max = self._failsafe(self.rl_ids)
 
-        return np.clip(accel, a_max=accel_max, a_min=accel_min), accel_max
+        return np.clip(accel, a_max=accel_max, a_min=accel_min)
 
     def _failsafe(self, veh_ids):
+        """Compute the failsafe maximum acceleration.
+
+        Parameters
+        ----------
+        veh_ids : array_like
+            the IDs of vehicles whose failsafe actions should be computed
+
+        Returns
+        -------
+        array_like
+            maximum accelerations
+        """
         lead_vel = self.speeds[(veh_ids + 1) % self.num_vehicles]
         h = self.headways[veh_ids]
 
-        # how much we can reduce the speed in each timestep
+        # how much we can reduce the speed in each time step
         speed_reduction = self.decel * self.dt
         # how many steps to get the speed to zero
         steps_to_zero = np.round(lead_vel / speed_reduction)
@@ -243,8 +395,8 @@ class RingEnv(gym.Env):
         n = np.floor(.5 - ((t + sqrt_quantity) / s))
         h = 0.5 * n * (n-1) * speed_reduction * s + n * speed_reduction * t
         assert all(h <= brake_distance + 1e-6)
-        # compute the additional speed that must be used during
-        # deceleration to fix the discrepancy between g and h
+        # compute the additional speed that must be used during deceleration to
+        # fix the discrepancy between g and h
         r = (brake_distance - h) / (n * s + t)
         x = n * speed_reduction + r
         assert all(x >= 0)
@@ -256,25 +408,21 @@ class RingEnv(gym.Env):
         return max_accel
 
     def get_state(self):
-        """
+        """Compute the environment reward.
 
-        :return:
+        This is defined by the child classes.
         """
         return []
 
     def compute_reward(self, action):
-        """
+        """Compute the environment reward.
 
-        :return:
+        This is defined by the child classes.
         """
         return 0
 
     def step(self, action):
-        """
-
-        :param action:
-        :return:
-        """
+        """Advance the simulation by one step."""
         collision = False
         done = False
         for _ in range(self.sims_per_step):
@@ -285,7 +433,7 @@ class RingEnv(gym.Env):
 
             # Compute the accelerations for RL vehicles.
             if self.rl_ids is not None and action is not None:
-                accelerations[self.rl_ids], _ = self._get_rl_accel(
+                accelerations[self.rl_ids] = self._get_rl_accel(
                     accel=action,
                     vel=self.speeds[self.rl_ids],
                 )
@@ -333,9 +481,9 @@ class RingEnv(gym.Env):
         return self.get_state(), self.compute_reward(action or [0]), done, info
 
     def reset(self):
-        """
+        """See parent class.
 
-        :return:
+        We update the ring length to match a new value within a given range.
         """
         self.length = self._set_length(self._length)
 
@@ -350,11 +498,11 @@ class RingEnv(gym.Env):
         print('v_eq:', self._v_eq)
         print('-----------------------')
 
-        if self.time_log is None:
-            self.time_log = time.time()
+        if self._time_log is None:
+            self._time_log = time.time()
         else:
-            print("Runtime: {}".format(time.time() - self.time_log))
-            self.time_log = time.time()
+            print("Runtime: {}".format(time.time() - self._time_log))
+            self._time_log = time.time()
 
         if len(self._emission_data) > 0:
             # Save the data to a csv.
@@ -393,8 +541,13 @@ class RingEnv(gym.Env):
 
         return self.get_state()
 
+    def render(self, mode='human'):
+        """See parent class."""
+        pass
+
 
 class RingSingleAgentEnv(RingEnv):
+    """Single agent variant of the ring environment."""
 
     def __init__(self,
                  length,
@@ -407,18 +560,39 @@ class RingSingleAgentEnv(RingEnv):
                  rl_ids=None,
                  warmup_steps=0,
                  initial_state=None):
-        """
+        """Instantiate the environment class.
 
-        :param length:
-        :param num_vehicles:
-        :param dt:
-        :param horizon:
-        :param sims_per_step:
-        :param min_gap:
-        :param gen_emission:
-        :param rl_ids:
-        :param warmup_steps:
-        :param initial_state:
+        Parameters
+        ----------
+        length : float or [float, float]
+            the length of the ring if a float, and a range of [min, max] length
+            values that are sampled from during the reset procedure
+        num_vehicles : int
+            total number of vehicles in the network
+        dt : float
+            seconds per simulation step
+        horizon : int
+            the environment time horizon, in steps
+        sims_per_step : int
+            the number of simulation steps per environment step
+        min_gap : float
+            the minimum allowable gap by all vehicles. This is used during the
+            failsafe computations.
+        gen_emission : bool
+            whether to generate the emission file
+        rl_ids : list of int or None
+            the indices of vehicles that are treated as automated, or RL,
+            vehicles
+        warmup_steps : int
+            number of steps performed before the initialization of training
+            during a rollout
+        initial_state : str or None
+            the initial state. Must be one of the following:
+            * None: in this case, vehicles are evenly distributed
+            * "random": in this case, vehicles are randomly placed with a
+              minimum gap between vehicles specified by "min_gap"
+            * str: A string that is not "random" is assumed to be a path to a
+              json file specifying initial vehicle positions and speeds
         """
         super(RingSingleAgentEnv, self).__init__(
             length=length,
@@ -439,7 +613,7 @@ class RingSingleAgentEnv(RingEnv):
     @property
     def action_space(self):
         """See class definition."""
-        return gym.spaces.Box(
+        return Box(
             low=-0.5,
             high=0.5,
             shape=(1,),
@@ -448,29 +622,30 @@ class RingSingleAgentEnv(RingEnv):
     @property
     def observation_space(self):
         """See class definition."""
-        return gym.spaces.Box(
+        return Box(
             low=-float('inf'),
             high=float('inf'),
             shape=(25,),
             dtype=np.float32)
 
     def get_state(self):
-        """
-
-        :return:
-        """
-        self.num_rl = len(self.rl_ids)
+        """See parent class."""
         # Initialize a set on empty observations
         obs = [0 for _ in range(5 * self.num_rl)]
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add relative observation of each vehicle.
             obs[5*i: 5*(i+1)] = [
-                self.speeds[veh_id],  # ego speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],  # lead speed
-                self.headways[veh_id] / MAX_HEADWAY,  # lead gap
-                self.speeds[(veh_id - 1) % self.num_vehicles],  # follow speed
-                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,  # follow gap
+                # ego speed
+                self.speeds[veh_id],
+                # lead speed
+                self.speeds[(veh_id + 1) % self.num_vehicles],
+                # lead gap
+                self.headways[veh_id] / MAX_HEADWAY,
+                # follow speed
+                self.speeds[(veh_id - 1) % self.num_vehicles],
+                # follow gap
+                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
 
         # Add the observation to the observation history to the
@@ -487,12 +662,14 @@ class RingSingleAgentEnv(RingEnv):
         return obs
 
     def compute_reward(self, action):
+        """See parent class."""
         reward_scale = 0.1
         reward = reward_scale * np.mean(self.speeds) ** 2
 
         return reward
 
     def reset(self):
+        """See parent class."""
         obs = super(RingSingleAgentEnv, self).reset()
 
         # observations from previous time steps
@@ -502,6 +679,7 @@ class RingSingleAgentEnv(RingEnv):
 
 
 class RingMultiAgentEnv(RingEnv):
+    """Multi-agent variant of the ring environment."""
 
     def __init__(self,
                  length,
@@ -514,18 +692,39 @@ class RingMultiAgentEnv(RingEnv):
                  rl_ids=None,
                  warmup_steps=0,
                  initial_state=None):
-        """
+        """Instantiate the environment class.
 
-        :param length:
-        :param num_vehicles:
-        :param dt:
-        :param horizon:
-        :param sims_per_step:
-        :param min_gap:
-        :param gen_emission:
-        :param rl_ids:
-        :param warmup_steps:
-        :param initial_state:
+        Parameters
+        ----------
+        length : float or [float, float]
+            the length of the ring if a float, and a range of [min, max] length
+            values that are sampled from during the reset procedure
+        num_vehicles : int
+            total number of vehicles in the network
+        dt : float
+            seconds per simulation step
+        horizon : int
+            the environment time horizon, in steps
+        sims_per_step : int
+            the number of simulation steps per environment step
+        min_gap : float
+            the minimum allowable gap by all vehicles. This is used during the
+            failsafe computations.
+        gen_emission : bool
+            whether to generate the emission file
+        rl_ids : list of int or None
+            the indices of vehicles that are treated as automated, or RL,
+            vehicles
+        warmup_steps : int
+            number of steps performed before the initialization of training
+            during a rollout
+        initial_state : str or None
+            the initial state. Must be one of the following:
+            * None: in this case, vehicles are evenly distributed
+            * "random": in this case, vehicles are randomly placed with a
+              minimum gap between vehicles specified by "min_gap"
+            * str: A string that is not "random" is assumed to be a path to a
+              json file specifying initial vehicle positions and speeds
         """
         super(RingMultiAgentEnv, self).__init__(
             length=length,
@@ -546,7 +745,7 @@ class RingMultiAgentEnv(RingEnv):
     @property
     def action_space(self):
         """See class definition."""
-        return gym.spaces.Box(
+        return Box(
             low=-0.5,
             high=0.5,
             shape=(1,),
@@ -555,17 +754,17 @@ class RingMultiAgentEnv(RingEnv):
     @property
     def observation_space(self):
         """See class definition."""
-        return gym.spaces.Box(
+        return Box(
             low=-float('inf'),
             high=float('inf'),
             shape=(25,),
             dtype=np.float32)
 
     def step(self, action):
-        """
+        """See parent class.
 
-        :param action:
-        :return:
+        The done mask is replaced with a dictionary to match other multi-agent
+        environments.
         """
         obs, rew, done, info = super(RingMultiAgentEnv, self).step(action)
         done = {"__all__": done}
@@ -573,18 +772,20 @@ class RingMultiAgentEnv(RingEnv):
         return obs, rew, done, info
 
     def get_state(self):
-        """
-
-        :return:
-        """
+        """See parent class."""
         obs = {}
         for veh_id in self.rl_ids:
             obs_vehicle = [
-                self.speeds[veh_id],  # ego speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],  # lead speed
-                self.headways[veh_id] / MAX_HEADWAY,  # lead gap
-                self.speeds[(veh_id - 1) % self.num_vehicles],  # follow speed
-                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,  # follow gap
+                # ego speed
+                self.speeds[veh_id],
+                # lead speed
+                self.speeds[(veh_id + 1) % self.num_vehicles],
+                # lead gap
+                self.headways[veh_id] / MAX_HEADWAY,
+                # follow speed
+                self.speeds[(veh_id - 1) % self.num_vehicles],
+                # follow gap
+                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
 
             # Add the observation to the observation history to the
@@ -603,6 +804,7 @@ class RingMultiAgentEnv(RingEnv):
         return obs
 
     def compute_reward(self, action):
+        """See parent class."""
         reward_scale = 0.1
         reward = {
             key: reward_scale * np.mean(self.speeds) ** 2
@@ -612,6 +814,7 @@ class RingMultiAgentEnv(RingEnv):
         return reward
 
     def reset(self):
+        """See parent class."""
         obs = super(RingMultiAgentEnv, self).reset()
 
         # observations from previous time steps
@@ -622,12 +825,12 @@ class RingMultiAgentEnv(RingEnv):
 
 if __name__ == "__main__":
     res = defaultdict(list)
-    for length in range(2100, 2710, 10):
-        print(length)
-        for i in range(10):
-            print(i)
+    for ring_length in range(2100, 2710, 10):
+        print(ring_length)
+        for ix in range(10):
+            print(ix)
             env = RingEnv(
-                length=length,
+                length=ring_length,
                 num_vehicles=200,
                 dt=0.2,
                 horizon=1500,
@@ -640,6 +843,6 @@ if __name__ == "__main__":
 
             _ = env.reset()
             xy = zip(env.positions, env.speeds)
-            res[length].append(sorted(xy))
-        with open("initial_states.json", "w") as fp:
-            json.dump(res, fp)
+            res[ring_length].append(sorted(xy))
+        with open("initial_states.json", "w") as out_fp:
+            json.dump(res, out_fp)

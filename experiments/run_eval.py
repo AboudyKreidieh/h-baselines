@@ -302,7 +302,8 @@ def main(args):
             # Print total returns from a given episode.
             episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
-            print(info)
+            for key in info.keys():
+                print("Round {}, {}: {}".format(episode_num, key, info[key]))
 
             # Save the video.
             if not flags.no_render and env_name not in FLOW_ENV_NAMES \
