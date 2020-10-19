@@ -600,12 +600,12 @@ ENV_ATTRIBUTES = {
     "highway-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 7,),
+            high=5 if relative_goals else 10,
+            shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 7)],
+            5 * i for i in range(1 if multiagent else 10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -624,12 +624,12 @@ ENV_ATTRIBUTES = {
     "highway-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 7,),
+            high=5 if relative_goals else 10,
+            shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 7)],
+            5 * i for i in range(1 if multiagent else 10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -649,11 +649,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
-            shape=(1 if multiagent else 7,),
+            shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 7)],
+            5 * i for i in range(1 if multiagent else 10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -672,12 +672,12 @@ ENV_ATTRIBUTES = {
     "highway-v3": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 7,),
+            high=5 if relative_goals else 10,
+            shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 7)],
+            5 * i for i in range(1 if multiagent else 10)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -696,7 +696,7 @@ ENV_ATTRIBUTES = {
     "i210-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -720,7 +720,7 @@ ENV_ATTRIBUTES = {
     "i210-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -744,7 +744,7 @@ ENV_ATTRIBUTES = {
     "i210-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -768,7 +768,7 @@ ENV_ATTRIBUTES = {
     "i210-v3": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
