@@ -5,6 +5,7 @@ from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
@@ -31,6 +32,7 @@ def get_hyperparameters(args, policy):
 
     # add FeedForwardPolicy parameters
     policy_kwargs = {
+        "l2_penalty": args.l2_penalty,
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
@@ -112,6 +114,7 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
+            "cg_delta": args.cg_delta,
             "pretrain_worker": args.pretrain_worker,
             "pretrain_path": args.pretrain_path,
             "pretrain_ckpt": args.pretrain_ckpt,
@@ -122,6 +125,7 @@ def get_hyperparameters(args, policy):
         policy_kwargs.update({
             "shared": args.shared,
             "maddpg": args.maddpg,
+            "n_agents": args.n_agents,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -450,6 +454,12 @@ def create_ppo_parser(parser):
 def create_feedforward_parser(parser):
     """Add the feedforward policy hyperparameters to the parser."""
     parser.add_argument(
+        "--l2_penalty",
+        type=float,
+        default=FEEDFORWARD_PARAMS["l2_penalty"],
+        help="L2 regularization penalty. This is applied to the policy "
+             "network.")
+    parser.add_argument(
         "--model_params:model_type",
         type=str,
         default=FEEDFORWARD_PARAMS["model_params"]["model_type"],
@@ -567,6 +577,13 @@ def create_goal_conditioned_parser(parser):
              "policies with respect to the parameters of the higher-level "
              "policies. Only used if `cooperative_gradients` is set to True.")
     parser.add_argument(
+        "--cg_delta",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["cg_delta"],
+        help="the desired lower-level expected returns. If set to None, a "
+             "fixed Lagrangian specified by cg_weights is used instead. Only "
+             "used if `cooperative_gradients` is set to True.")
+    parser.add_argument(
         "--pretrain_worker",
         action="store_true",
         help="specifies whether you are pre-training the lower-level "
@@ -598,5 +615,12 @@ def create_multi_feedforward_parser(parser):
         action="store_true",
         help="whether to use an algorithm-specific variant of the MADDPG "
              "algorithm")
+    parser.add_argument(
+        "--n_agents",
+        type=int,
+        default=MULTIAGENT_PARAMS["n_agents"],
+        help="the expected number of agents in the environment. Only relevant "
+             "if using shared policies with MADDPG or goal-conditioned "
+             "hierarchies.")
 
     return parser

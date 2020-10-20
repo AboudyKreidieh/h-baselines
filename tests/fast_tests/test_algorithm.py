@@ -71,6 +71,7 @@ class TestRLAlgorithm(unittest.TestCase):
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
         policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():

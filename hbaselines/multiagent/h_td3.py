@@ -19,6 +19,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  noise,
                  target_policy_noise,
@@ -33,15 +34,16 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
                  shared,
                  maddpg,
+                 n_agents,
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -74,6 +76,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         noise : float
@@ -132,6 +136,10 @@ class MultiGoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -150,9 +158,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -169,12 +176,14 @@ class MultiGoalConditionedPolicy(BasePolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
+            num_envs=n_agents * num_envs if shared else num_envs,
             scope=scope,
             additional_params=dict(
                 noise=noise,
@@ -190,11 +199,11 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                cg_delta=cg_delta,
                 pretrain_worker=pretrain_worker,
                 pretrain_path=pretrain_path,
                 pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
-                num_envs=n_agents * num_envs if shared else num_envs,
             ),
         )
 

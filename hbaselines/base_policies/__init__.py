@@ -6,5 +6,5 @@ from hbaselines.base_policies.imitation import ImitationLearningPolicy
 __all__ = [
     "Policy",
     "ActorCriticPolicy",
-    "ImitationLearningPolicy"
+    "ImitationLearningPolicy",
 ]

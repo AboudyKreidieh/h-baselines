@@ -22,6 +22,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  target_entropy,
                  num_levels,
@@ -34,6 +35,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
@@ -71,6 +73,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         target_entropy : float
@@ -106,6 +110,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -129,6 +137,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
@@ -140,6 +149,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
+            cg_delta=cg_delta,
             scope=scope,
             env_name=env_name,
             pretrain_worker=pretrain_worker,

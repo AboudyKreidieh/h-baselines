@@ -54,8 +54,6 @@ POLICY_DICT = {
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
     "ring-v0",
-    "ring-v1",
-    "ring-v2",
     "merge-v0",
     "merge-v1",
     "merge-v2",
@@ -250,9 +248,9 @@ def main(args):
 
                 # Visualize the sub-goals of the hierarchical policy.
                 if hasattr(policy, "_meta_action") \
-                        and policy._meta_action is not None \
+                        and policy.meta_action is not None \
                         and hasattr(env, "set_goal"):
-                    goal = policy._meta_action[0][0] + (
+                    goal = policy.meta_action[0][0] + (
                         obs[policy.goal_indices]
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
@@ -269,7 +267,8 @@ def main(args):
                         env.render()
 
                 if multiagent:
-                    if (isinstance(done, dict) and done["__all__"]) or done:
+                    if (isinstance(done, dict) and done["__all__"]) \
+                            or done is True:
                         break
                     obs0_transition = {
                         key: np.array(obs[key]) for key in obs.keys()}

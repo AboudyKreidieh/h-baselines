@@ -26,18 +26,13 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
-from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
-    as SACGoalConditionedPolicy
-from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
-    as SACMultiFeedForwardPolicy
-from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
-    as SACMultiGoalConditionedPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy \
     as PPOFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
@@ -93,6 +88,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -141,6 +137,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -194,6 +191,7 @@ class TestTrain(unittest.TestCase):
                 '--target_policy_noise', '22',
                 '--target_noise_clip', '23',
                 '--use_huber',
+                '--l2_penalty', '1',
                 '--model_params:model_type', 'model_type',
                 '--model_params:layers', '24', '25',
                 '--model_params:layer_norm',
@@ -215,6 +213,7 @@ class TestTrain(unittest.TestCase):
             'initial_exploration_steps': 10000,
             'log_interval': 4,
             'meta_update_freq': 13,
+            'l2_penalty': 1,
             'model_params:layers': [24, 25],
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -266,6 +265,7 @@ class TestTrain(unittest.TestCase):
                 'buffer_size': 14,
                 'critic_lr': 17.0,
                 'gamma': 19.0,
+                'l2_penalty': 1,
                 'model_params': {
                     'layers': [24, 25],
                     'filters': [16, 16, 16],
@@ -315,6 +315,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -337,6 +338,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
             'cooperative_gradients': False,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -379,6 +381,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -394,6 +397,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+                'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
                 'cooperative_gradients': False,
                 'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
                 'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -430,6 +434,7 @@ class TestTrain(unittest.TestCase):
                 "--subgoal_testing_rate", "6",
                 "--cooperative_gradients",
                 "--cg_weights", "7",
+                "--cg_delta", "10",
                 "--pretrain_ckpt", "8",
                 "--pretrain_path", "9",
                 "--pretrain_worker",
@@ -460,6 +465,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -482,6 +488,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': 7,
+            'cg_delta': 10,
             'cooperative_gradients': True,
             'pretrain_ckpt': 8,
             'pretrain_path': "9",
@@ -521,6 +528,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -536,6 +544,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': 7,
+                'cg_delta': 10,
                 'cooperative_gradients': True,
                 'pretrain_ckpt': 8,
                 'pretrain_path': "9",
@@ -579,6 +588,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -602,6 +612,7 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -629,6 +640,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -645,6 +657,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -654,7 +667,7 @@ class TestTrain(unittest.TestCase):
 
         args = parse_options(
             "", "",
-            args=["AntMaze", "--shared", "--maddpg"],
+            args=["AntMaze", "--shared", "--maddpg", "--n_agents", "2"],
             multiagent=True,
             hierarchical=False,
         )
@@ -681,6 +694,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -704,6 +718,7 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': True,
             'maddpg': True,
+            'n_agents': 2,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -731,6 +746,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -747,6 +763,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 2,
             }
         })
 
@@ -778,6 +795,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -800,6 +818,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
             'cooperative_gradients': False,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -817,6 +836,7 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -844,6 +864,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -860,6 +881,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -881,8 +903,10 @@ class TestTrain(unittest.TestCase):
                 "--subgoal_testing_rate", "6",
                 "--cooperative_gradients",
                 "--cg_weights", "7",
+                "--cg_delta", "9",
                 "--shared",
                 "--maddpg",
+                "--n_agents", "8",
             ],
             multiagent=True,
             hierarchical=True,
@@ -910,6 +934,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -932,6 +957,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': 7,
+            'cg_delta': 9,
             'cooperative_gradients': True,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -946,6 +972,7 @@ class TestTrain(unittest.TestCase):
             'subgoal_testing_rate': 6,
             'shared': True,
             'maddpg': True,
+            'n_agents': 8,
         })
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
@@ -973,6 +1000,7 @@ class TestTrain(unittest.TestCase):
                 'target_policy_noise': TD3_PARAMS['target_policy_noise'],
                 'target_noise_clip': TD3_PARAMS['target_noise_clip'],
                 'use_huber': TD3_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -988,6 +1016,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': 7,
+                'cg_delta': 9,
                 'cooperative_gradients': True,
                 'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
                 'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -1002,6 +1031,7 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate': 6,
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 8,
             }
         })
 
@@ -1055,6 +1085,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -1099,6 +1130,7 @@ class TestTrain(unittest.TestCase):
                 'gamma': SAC_PARAMS['gamma'],
                 'target_entropy': SAC_PARAMS['target_entropy'],
                 'use_huber': SAC_PARAMS['use_huber'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -1172,6 +1204,7 @@ class TestTrain(unittest.TestCase):
             'initial_exploration_steps': 10000,
             'log_interval': 4,
             'meta_update_freq': 13,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': [22, 23],
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -1221,6 +1254,7 @@ class TestTrain(unittest.TestCase):
                 'buffer_size': 14,
                 'critic_lr': 17.0,
                 'gamma': 19.0,
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'layers': [22, 23],
                     'filters': [16, 16, 16],
@@ -1238,706 +1272,6 @@ class TestTrain(unittest.TestCase):
                 'tau': 18.0,
                 'use_huber': True
             },
-        })
-
-        # =================================================================== #
-        # test case 2.a                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "", args=["AntMaze", "--alg", "SAC"],
-            multiagent=False, hierarchical=True)
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
-            'cooperative_gradients': False,
-            'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-            'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-            'pretrain_worker': False,
-            'hindsight': False,
-            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
-                'intrinsic_reward_scale'],
-            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
-                'intrinsic_reward_type'],
-            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
-            'off_policy_corrections': False,
-            'relative_goals': False,
-            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
-                'subgoal_testing_rate'],
-        })
-
-        hp = get_hyperparameters(args, SACGoalConditionedPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
-                'cooperative_gradients': False,
-                'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-                'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-                'pretrain_worker': False,
-                'hindsight': False,
-                'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
-                    'intrinsic_reward_scale'],
-                'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
-                    'intrinsic_reward_type'],
-                'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-                'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
-                'off_policy_corrections': False,
-                'relative_goals': False,
-                'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
-                    'subgoal_testing_rate'],
-            }
-        })
-
-        # =================================================================== #
-        # test case 2.b                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "",
-            args=[
-                "AntMaze",
-                "--alg", "SAC",
-                "--num_levels", "1",
-                "--meta_period", "2",
-                "--intrinsic_reward_type", "3",
-                "--intrinsic_reward_scale", "4",
-                "--relative_goals",
-                "--off_policy_corrections",
-                "--hindsight",
-                "--subgoal_testing_rate", "6",
-                "--cooperative_gradients",
-                "--cg_weights", "7",
-            ],
-            multiagent=False,
-            hierarchical=True,
-        )
-
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'cg_weights': 7,
-            'cooperative_gradients': True,
-            'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-            'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-            'pretrain_worker': False,
-            'hindsight': True,
-            'intrinsic_reward_scale': 4,
-            'intrinsic_reward_type': "3",
-            'meta_period': 2,
-            'num_levels': 1,
-            'off_policy_corrections': True,
-            'relative_goals': True,
-            'subgoal_testing_rate': 6,
-        })
-
-        hp = get_hyperparameters(args, SACGoalConditionedPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'cg_weights': 7,
-                'cooperative_gradients': True,
-                'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-                'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-                'pretrain_worker': False,
-                'hindsight': True,
-                'intrinsic_reward_scale': 4,
-                'intrinsic_reward_type': "3",
-                'meta_period': 2,
-                'num_levels': 1,
-                'off_policy_corrections': True,
-                'relative_goals': True,
-                'subgoal_testing_rate': 6,
-            }
-        })
-
-        # =================================================================== #
-        # test case 3.a                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "",
-            args=["AntMaze", "--alg", "SAC"],
-            multiagent=True, hierarchical=False)
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'shared': False,
-            'maddpg': False,
-        })
-
-        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'shared': False,
-                'maddpg': False,
-            }
-        })
-
-        # =================================================================== #
-        # test case 3.b                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "",
-            args=["AntMaze", "--alg", "SAC", "--shared", "--maddpg"],
-            multiagent=True,
-            hierarchical=False,
-        )
-
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'shared': True,
-            'maddpg': True,
-        })
-
-        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'shared': True,
-                'maddpg': True,
-            }
-        })
-
-        # =================================================================== #
-        # test case 4.a                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "",
-            args=["AntMaze", "--alg", "SAC"],
-            multiagent=True,
-            hierarchical=True,
-        )
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
-            'cooperative_gradients': False,
-            'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-            'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-            'pretrain_worker': False,
-            'hindsight': False,
-            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
-                'intrinsic_reward_scale'],
-            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
-                'intrinsic_reward_type'],
-            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
-            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
-            'off_policy_corrections': False,
-            'relative_goals': False,
-            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
-                'subgoal_testing_rate'],
-            'shared': False,
-            'maddpg': False,
-        })
-
-        hp = get_hyperparameters(args, SACMultiFeedForwardPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'shared': False,
-                'maddpg': False,
-            }
-        })
-
-        # =================================================================== #
-        # test case 4.b                                                       #
-        # =================================================================== #
-
-        args = parse_options(
-            "", "",
-            args=[
-                "AntMaze",
-                "--alg", "SAC",
-                "--num_levels", "1",
-                "--meta_period", "2",
-                "--intrinsic_reward_type", "3",
-                "--intrinsic_reward_scale", "4",
-                "--relative_goals",
-                "--off_policy_corrections",
-                "--hindsight",
-                "--subgoal_testing_rate", "6",
-                "--cooperative_gradients",
-                "--cg_weights", "7",
-                "--shared",
-                "--maddpg",
-            ],
-            multiagent=True,
-            hierarchical=True,
-        )
-
-        self.assertDictEqual(vars(args), {
-            'env_name': 'AntMaze',
-            'alg': 'SAC',
-            'evaluate': False,
-            'n_training': 1,
-            'total_steps': 1000000,
-            'seed': 1,
-            'log_interval': 2000,
-            'eval_interval': 50000,
-            'save_interval': 50000,
-            'initial_exploration_steps': 10000,
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'save_replay_buffer': False,
-            'num_envs': 1,
-            'model_params:layers': None,
-            'model_params:filters': None,
-            'model_params:ignore_flat_channels': None,
-            'model_params:ignore_image': False,
-            'model_params:image_channels': 3,
-            'model_params:image_height': 32,
-            'model_params:image_width': 32,
-            'model_params:kernel_sizes': None,
-            'model_params:layer_norm': False,
-            'model_params:model_type': 'fcnet',
-            'model_params:strides': None,
-            'use_huber': False,
-            'target_entropy': SAC_PARAMS['target_entropy'],
-            'buffer_size': SAC_PARAMS['buffer_size'],
-            'batch_size': SAC_PARAMS['batch_size'],
-            'actor_lr': SAC_PARAMS['actor_lr'],
-            'critic_lr': SAC_PARAMS['critic_lr'],
-            'tau': SAC_PARAMS['tau'],
-            'gamma': SAC_PARAMS['gamma'],
-            'cg_weights': 7,
-            'cooperative_gradients': True,
-            'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-            'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-            'pretrain_worker': False,
-            'hindsight': True,
-            'intrinsic_reward_scale': 4,
-            'intrinsic_reward_type': "3",
-            'meta_period': 2,
-            'num_levels': 1,
-            'off_policy_corrections': True,
-            'relative_goals': True,
-            'subgoal_testing_rate': 6,
-            'shared': True,
-            'maddpg': True,
-        })
-
-        hp = get_hyperparameters(args, SACMultiGoalConditionedPolicy)
-        self.assertDictEqual(hp, {
-            'nb_train_steps': 1,
-            'nb_rollout_steps': 1,
-            'nb_eval_episodes': 50,
-            'reward_scale': 1,
-            'render': False,
-            'render_eval': False,
-            'verbose': 2,
-            'actor_update_freq': 2,
-            'meta_update_freq': 10,
-            'num_envs': 1,
-            'save_replay_buffer': False,
-            '_init_setup_model': True,
-            'policy_kwargs': {
-                'buffer_size': SAC_PARAMS['buffer_size'],
-                'batch_size': SAC_PARAMS['batch_size'],
-                'actor_lr': SAC_PARAMS['actor_lr'],
-                'critic_lr': SAC_PARAMS['critic_lr'],
-                'tau': SAC_PARAMS['tau'],
-                'gamma': SAC_PARAMS['gamma'],
-                'target_entropy': SAC_PARAMS['target_entropy'],
-                'use_huber': SAC_PARAMS['use_huber'],
-                'model_params': {
-                    'model_type': model_params["model_type"],
-                    'layers': model_params["layers"],
-                    'layer_norm': model_params["layer_norm"],
-                    'filters': model_params["filters"],
-                    'ignore_flat_channels': model_params[
-                        "ignore_flat_channels"],
-                    'ignore_image': model_params["ignore_image"],
-                    'image_channels': model_params["image_channels"],
-                    'image_height': model_params["image_height"],
-                    'image_width': model_params["image_width"],
-                    'kernel_sizes': model_params["kernel_sizes"],
-                    'strides': model_params["strides"],
-                },
-                'cg_weights': 7,
-                'cooperative_gradients': True,
-                'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
-                'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
-                'pretrain_worker': False,
-                'hindsight': True,
-                'intrinsic_reward_scale': 4,
-                'intrinsic_reward_type': "3",
-                'meta_period': 2,
-                'num_levels': 1,
-                'off_policy_corrections': True,
-                'relative_goals': True,
-                'subgoal_testing_rate': 6,
-                'shared': True,
-                'maddpg': True,
-            }
         })
 
     def test_parse_options_PPO(self):
@@ -1983,6 +1317,7 @@ class TestTrain(unittest.TestCase):
             'meta_update_freq': 10,
             'save_replay_buffer': False,
             'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:layers': None,
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
@@ -2031,6 +1366,7 @@ class TestTrain(unittest.TestCase):
                 'n_minibatches': PPO_PARAMS['n_minibatches'],
                 'n_opt_epochs': PPO_PARAMS['n_opt_epochs'],
                 'vf_coef': PPO_PARAMS['vf_coef'],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
@@ -2102,6 +1438,7 @@ class TestTrain(unittest.TestCase):
             'log_interval': 4,
             'meta_update_freq': 13,
             'model_params:layers': [22, 23],
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
             'model_params:filters': None,
             'model_params:ignore_flat_channels': None,
             'model_params:ignore_image': False,
@@ -2162,6 +1499,7 @@ class TestTrain(unittest.TestCase):
                 'n_minibatches': 31,
                 'n_opt_epochs': 32,
                 'vf_coef': 33,
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
                 'model_params': {
                     'layers': [22, 23],
                     'filters': [16, 16, 16],
@@ -2268,42 +1606,10 @@ class TestEnvUtil(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test for ring-v1
-        ac_space = get_meta_ac_space(env_name="ring-v1", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
-            expected_size=5,
-        )
-        ac_space = get_meta_ac_space(env_name="ring-v1", **rel_params)
-        test_space(
-            ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test for ring-v2
-        ac_space = get_meta_ac_space(env_name="ring-v2", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
-            expected_size=5,
-        )
-        ac_space = get_meta_ac_space(env_name="ring-v2", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-5 for _ in range(5)]),
@@ -2565,19 +1871,7 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v0
         self.assertListEqual(
             get_state_indices(env_name="ring-v0", **params),
-            [0, 5, 10, 15, 20]
-        )
-
-        # test for ring-v1
-        self.assertListEqual(
-            get_state_indices(env_name="ring-v1", **params),
-            [0, 5, 10, 15, 20]
-        )
-
-        # test for ring-v2
-        self.assertListEqual(
-            get_state_indices(env_name="ring-v2", **params),
-            [0, 5, 10, 15, 20]
+            [0]
         )
 
         # test for ring-imitation

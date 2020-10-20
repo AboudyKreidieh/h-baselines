@@ -79,9 +79,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         the observation space of the full state space. Used by MADDPG variants
         of the policy.
     n_agents : int
-        the number of agents in the networks. This is needed if using MADDPG
-        with a shared policy to compute the length of the full action space.
-        Otherwise, it is not used.
+        the expected number of agents in the environment. Only relevant if
+        using shared policies with MADDPG or goal-conditioned hierarchies.
     base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
         the base (single agent) policy model used by all agents within the
         network
@@ -106,12 +105,14 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  shared,
                  maddpg,
+                 n_agents,
                  base_policy,
                  all_ob_space=None,
-                 n_agents=1,
+                 num_envs=1,
                  additional_params=None,
                  scope=None):
         """Instantiate the base multi-agent actor critic policy.
@@ -148,6 +149,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         shared : bool
@@ -162,9 +165,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
@@ -187,7 +189,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
 
         self.shared = shared
@@ -196,6 +200,10 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         self.n_agents = n_agents
         self.base_policy = base_policy
         self.additional_params = additional_params or {}
+
+        # Used to maintain memory on the env_num used for individual agents.
+        # Key: agent ID, Element: agent env number.
+        self._agent_index = [{} for _ in range(num_envs)]
 
         # Setup the agents and the necessary objects and operations needed to
         # support the training procedure.
@@ -223,13 +231,6 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
         """
         if self.maddpg:
             return self._update_maddpg(update_actor, **kwargs)
@@ -389,7 +390,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             tau=self.tau,
             gamma=self.gamma,
             use_huber=self.use_huber,
+            l2_penalty=self.l2_penalty,
             model_params=self.model_params,
+            num_envs=self.num_envs,
             **self.additional_params
         )
 
@@ -428,14 +431,8 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
 
     def _update_basic(self, update_actor=True, **kwargs):
         """See update."""
-        actor_loss = {}
-        critic_loss = {}
         for key in self.agents.keys():
-            c, a = self.agents[key].update(update_actor=update_actor, **kwargs)
-            critic_loss[key] = c
-            actor_loss[key] = a
-
-        return critic_loss, actor_loss
+            self.agents[key].update(update_actor=update_actor, **kwargs)
 
     def _get_action_basic(self,
                           obs,
@@ -446,11 +443,19 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         """See get_action."""
         actions = {}
 
-        for i, key in enumerate(self._sorted_list(obs.keys())):
+        # Update the index of agent observations. This helps support action
+        # computations for agents with memory (e.g. goal-conditioned policies)
+        # and variable agents (e.g. the highway and I-210  networks).
+        if self.shared:
+            self._update_agent_index(obs, env_num)
+
+        for key in obs.keys():
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
-            env_num_i = self.n_agents * env_num + i if self.shared else env_num
+            env_num_i = \
+                self.n_agents * env_num + self._agent_index[env_num][key] \
+                if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -479,7 +484,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                                 env_num,
                                 evaluate):
         """See store_transition."""
-        for i, key in enumerate(self._sorted_list(obs0.keys())):
+        for key in obs0.keys():
             # If the agent has exited the environment, ignore it.
             if key not in obs1.keys():
                 continue
@@ -487,7 +492,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             # Use the same policy for all operations if shared, and the
             # corresponding policy otherwise.
             agent = self.agents["policy"] if self.shared else self.agents[key]
-            env_num_i = self.n_agents * env_num + i if self.shared else env_num
+            env_num_i = \
+                self.n_agents * env_num + self._agent_index[env_num][key] \
+                if self.shared else env_num
 
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
@@ -522,6 +529,55 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
     def _sorted_list(keys):
         """Return a sorted list of dict keys."""
         return sorted(list(keys))
+
+    def _update_agent_index(self, obs, env_num):
+        """Update the index of individual agents.
+
+        This auxiliary method helps supports assigning env_num variables when
+        both computing actions and storing memory in replay buffers.
+
+        NOTE: This only works (and is used) for shared policies.
+
+        Parameters
+        ----------
+        obs : dict of array_like
+            the observations, with each element corresponding to a unique agent
+            (as defined by the key)
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
+        """
+        # Check if the old agents are still available.
+        for key in list(self._agent_index[env_num].keys()):
+            if key not in obs.keys():
+                # If using a goal-conditioned policy, clear memory so that the
+                # higher level policies are forced to compute a new meta-action
+                # when using this env num.
+                agent = self.agents["policy"]
+                agent.clear_memory(
+                    self.n_agents * env_num + self._agent_index[env_num][key])
+
+                # Remove vehicles from the agent indices if it is not longer
+                # available.
+                del self._agent_index[env_num][key]
+
+        # Collect the indices that are still available.
+        free_indices = list(
+            set(range(self.n_agents)) -
+            set(self._agent_index[env_num].items()))
+
+        # Check if new agents are available.
+        for key in obs.keys():
+            # Do not add new vehicles after the maximum number has been set.
+            if len(free_indices) == 0:
+                raise ValueError(
+                    "Too many agents are available. Please set n_agents to a "
+                    "larger value.")
+
+            # Provide the newest agent one of the old free indices.
+            if key not in self._agent_index[env_num].keys():
+                self._agent_index[env_num][key] = free_indices[0]
+                free_indices = free_indices[1:]
 
     # ======================================================================= #
     #               MADDPG version of required abstract methods.              #
