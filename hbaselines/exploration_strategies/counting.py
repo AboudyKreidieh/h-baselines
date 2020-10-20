@@ -14,7 +14,7 @@ class DensityCountingExploration(ExplorationStrategy):
 
     """
 
-    def __init__(self, ac_space, density_model=GaussianMixtureModel):
+    def __init__(self, ac_space, obs_dim, density_model=GaussianMixtureModel):
         """Instantiate the exploration strategy object.
 
         Parameters
@@ -25,7 +25,7 @@ class DensityCountingExploration(ExplorationStrategy):
             The density model used to assign state distribution
         """
         super(DensityCountingExploration, self).__init__(ac_space)
-        self.density_model = density_model(dimension=ac_space.shape[0])
+        self.density_model = density_model(dimension=obs_dim)
 
     def apply_noise(self, action):
         """See parent class."""

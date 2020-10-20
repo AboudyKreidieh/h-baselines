@@ -215,10 +215,10 @@ class FeedForwardPolicy(Policy):
 
         # Initialize the exploration strategy
         self.exploration_strategy = None
-        if exploration_params is not None:
+        if exploration_params['exploration_strategy'] is not None:
             try:
                 ep_class = getattr(hbaselines.exploration_strategies, exploration_params['exploration_strategy'])
-                self.exploration_strategy = ep_class(ac_space)
+                self.exploration_strategy = ep_class(ac_space, ob_dim[0])
             except AttributeError:
                 print("Requested exploration strategies is not supported, will default to no exploration")
 

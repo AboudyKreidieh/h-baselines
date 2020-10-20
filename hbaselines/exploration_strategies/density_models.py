@@ -1,10 +1,11 @@
 import numpy as np
 from sklearn.datasets import make_spd_matrix
-from scipy.stats import multivariate_normal
+import tensorflow as tf
+import tensorflow_probability as tfp
 
 
 class GaussianMixtureModel:
-    def __init__(self, dimension, num_components=3, max_training_size=50, min_training_size=10, num_steps=1):
+    def __init__(self, dimension, num_components=3, max_training_size=2000000, min_training_size=1000, num_steps=10):
         self.num_components = num_components
         self.dimension = dimension
         self.max_training_size = max_training_size
@@ -20,8 +21,9 @@ class GaussianMixtureModel:
 
     def probability(self, obs):
         prob = 0
+        obs = tf.cast(obs, dtype=tf.float64)
         for i in range(self.num_components):
-            prob += self.mixing_coefficients[i] * multivariate_normal.pdf(x=obs, mean=self.means[i], cov=self.covariance[i])
+            prob += self.mixing_coefficients[i] * tfp.distributions.MultivariateNormalDiag(loc=self.means[i], scale_diag=self.covariance[i]).prob(value=obs)
         return prob
 
     def recoding_probability(self, obs):
@@ -41,7 +43,7 @@ class GaussianMixtureModel:
             # E-step
             multi_norm_pdf = []
             for i in range(self.num_components):
-                multi_norm_pdf.append(multivariate_normal.pdf(x=trains_X, mean=self.means[i], cov=self.covariance[i]))
+                multi_norm_pdf.append(tfp.distributions.MultivariateNormalDiag(loc=self.means[i], scale_diag=self.covariance[i]).prob(value=obs))
             multi_norm_pdf = np.array(multi_norm_pdf)
             assert multi_norm_pdf.shape == (self.num_components, len(trains_X))
             multi_norm_pdf = multi_norm_pdf * self.mixing_coefficients.reshape(len(self.mixing_coefficients), 1)

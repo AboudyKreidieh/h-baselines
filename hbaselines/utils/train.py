@@ -199,6 +199,7 @@ def parse_options(description,
              'initialize the replay buffer with samples')
     parser_algorithm.add_argument(
         '--exploration_strategy', type=str, default=None,
+        choices = ['DensityCountingExploration'],
         help='The exploration strategy used for this training.'
              'Default to not using any explorations.')
 
