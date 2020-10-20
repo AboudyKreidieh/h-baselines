@@ -19,8 +19,6 @@ from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 
 # Number of vehicles in the network
 RING_LENGTH = [220, 270]
-# number of automated (RL) vehicles
-NUM_AUTOMATED = 1
 
 
 def get_flow_params(stopping_penalty,

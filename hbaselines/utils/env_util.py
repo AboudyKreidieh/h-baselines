@@ -36,6 +36,10 @@ try:
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
         import get_flow_params as i210
+    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
+        import RingSingleAgentEnv
+    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
+        import RingMultiAgentEnv
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
@@ -438,14 +442,14 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
-            shape=(5,),
+            shape=(1,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
-                stopping_penalty=True,
-                acceleration_penalty=True,
+                stopping_penalty=False,
+                acceleration_penalty=False,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
@@ -453,6 +457,74 @@ ENV_ATTRIBUTES = {
             multiagent=multiagent,
             shared=shared,
             maddpg=maddpg,
+        ),
+    },
+
+    "ring-v0-fast": {
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
+            shape=(1,),
+            dtype=np.float32
+        ),
+        "state_indices": lambda multiagent: [0],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ) if evaluate else RingSingleAgentEnv(
+            length=[220, 270],
+            num_vehicles=22,
+            dt=0.2,
+            horizon=1500,
+            gen_emission=False,
+            rl_ids=[0],
+            warmup_steps=0,
+            initial_state="/home/nier/Documents/h-baselines/hbaselines/envs/"
+                          "mixed_autonomy/envs/ring-v0.json",
+            sims_per_step=1,
+        ),
+    },
+
+    "ring-v1-fast": {
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
+            shape=(1,),
+            dtype=np.float32
+        ),
+        "state_indices": lambda multiagent: [0] if multiagent else [
+            5 * i for i in range(5)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ) if evaluate else
+        (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
+            length=[2200, 2700],
+            num_vehicles=200,
+            dt=0.2,
+            horizon=1500,
+            gen_emission=False,
+            rl_ids=20 * np.arange(10),
+            warmup_steps=0,
+            initial_state="/home/aboudy/Documents/h-baselines/hbaselines/envs/"
+                          "mixed_autonomy/envs/ring-v1.json",
+            sims_per_step=6,
         ),
     },
 
@@ -528,7 +600,7 @@ ENV_ATTRIBUTES = {
     "highway-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -552,7 +624,7 @@ ENV_ATTRIBUTES = {
     "highway-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -576,7 +648,7 @@ ENV_ATTRIBUTES = {
     "highway-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -600,7 +672,7 @@ ENV_ATTRIBUTES = {
     "highway-v3": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -624,7 +696,7 @@ ENV_ATTRIBUTES = {
     "i210-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -648,7 +720,7 @@ ENV_ATTRIBUTES = {
     "i210-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -672,7 +744,7 @@ ENV_ATTRIBUTES = {
     "i210-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -696,7 +768,7 @@ ENV_ATTRIBUTES = {
     "i210-v3": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 20,
+            high=5 if relative_goals else 10,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),

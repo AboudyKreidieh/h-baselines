@@ -145,6 +145,7 @@ class AVEnv(Env):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
+        self._obs_history = []
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -190,7 +191,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self.num_rl,),
+            shape=(5 * self.num_rl * 5,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -265,14 +266,7 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 reward_scale = 0.1
-
-                # Compute a positive form of the two-norm from a desired target
-                # velocity.
-                target = self.env_params.additional_params['target_velocity']
-                max_cost = np.array([target] * num_vehicles)
-                max_cost = np.linalg.norm(max_cost)
-                cost = np.linalg.norm(vel - target)
-                reward += reward_scale * max(max_cost - cost, 0)
+                reward += reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -300,7 +294,7 @@ class AVEnv(Env):
         self.follower = []
 
         # Initialize a set on empty observations
-        obs = [0 for _ in range(self.observation_space.shape[0])]
+        obs = [0 for _ in range(5 * self.num_rl)]
 
         for i, v_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
@@ -311,6 +305,17 @@ class AVEnv(Env):
                 self.leader.append(leader)
             if follower not in ["", None]:
                 self.follower.append(follower)
+
+        # Add the observation to the observation history to the
+        self._obs_history.append(obs)
+        if len(self._obs_history) > 25:
+            self._obs_history = self._obs_history[-25:]
+
+        # Concatenate the past n samples for a given time delta and return as
+        # the final observation.
+        obs_t = np.concatenate(self._obs_history[::-5])
+        obs = np.array([0. for _ in range(25 * self.num_rl)])
+        obs[:len(obs_t)] = obs_t
 
         return obs
 
@@ -438,6 +443,8 @@ class AVClosedEnv(AVEnv):
                 initial_config=self._network_initial_config,
                 traffic_lights=self._network_traffic_lights,
             )
+            self.net_params = new_net_params
+
             # solve for the velocity upper bound of the ring
             v_guess = 4
             self._v_eq = fsolve(v_eq_function, np.array(v_guess),
