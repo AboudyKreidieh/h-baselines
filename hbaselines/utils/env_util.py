@@ -15,6 +15,7 @@ from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.hac.envs import UR5, Pendulum
+import hbaselines.config as hbaselines_config
 
 try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
@@ -487,8 +488,9 @@ ENV_ATTRIBUTES = {
             gen_emission=False,
             rl_ids=[0],
             warmup_steps=0,
-            initial_state="/home/nier/Documents/h-baselines/hbaselines/envs/"
-                          "mixed_autonomy/envs/ring-v0.json",
+            initial_state=os.path.join(
+                hbaselines_config.PROJECT_PATH,
+                "hbaselines/envs/mixed_autonomy/envs/ring-v0.json"),
             sims_per_step=1,
         ),
     },
@@ -496,7 +498,7 @@ ENV_ATTRIBUTES = {
     "ring-v1-fast": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            high=5 if relative_goals else 2,
             shape=(1,),
             dtype=np.float32
         ),
@@ -522,9 +524,10 @@ ENV_ATTRIBUTES = {
             gen_emission=False,
             rl_ids=20 * np.arange(10),
             warmup_steps=0,
-            initial_state="/home/aboudy/Documents/h-baselines/hbaselines/envs/"
-                          "mixed_autonomy/envs/ring-v1.json",
-            sims_per_step=6,
+            initial_state=os.path.join(
+                hbaselines_config.PROJECT_PATH,
+                "hbaselines/envs/mixed_autonomy/envs/ring-v1.json"),
+            sims_per_step=2,
         ),
     },
 
