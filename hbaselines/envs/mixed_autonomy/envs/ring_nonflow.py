@@ -15,6 +15,8 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 VEHICLE_LENGTH = 5
 # a normalizing term for the vehicle headways
 MAX_HEADWAY = 20
+# a normalizing term for the vehicle speeds
+MAX_SPEED = 5
 
 
 class RingEnv(gym.Env):
@@ -637,13 +639,13 @@ class RingSingleAgentEnv(RingEnv):
             # Add relative observation of each vehicle.
             obs[5*i: 5*(i+1)] = [
                 # ego speed
-                self.speeds[veh_id],
+                self.speeds[veh_id] / MAX_SPEED,
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],
+                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 self.headways[veh_id] / MAX_HEADWAY,
                 # follow speed
-                self.speeds[(veh_id - 1) % self.num_vehicles],
+                self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
                 # follow gap
                 self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
@@ -777,13 +779,13 @@ class RingMultiAgentEnv(RingEnv):
         for veh_id in self.rl_ids:
             obs_vehicle = [
                 # ego speed
-                self.speeds[veh_id],
+                self.speeds[veh_id] / MAX_SPEED,
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],
+                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 self.headways[veh_id] / MAX_HEADWAY,
                 # follow speed
-                self.speeds[(veh_id - 1) % self.num_vehicles],
+                self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
                 # follow gap
                 self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
@@ -825,24 +827,25 @@ class RingMultiAgentEnv(RingEnv):
 
 if __name__ == "__main__":
     res = defaultdict(list)
-    for ring_length in range(2100, 2710, 10):
-        print(ring_length)
-        for ix in range(10):
-            print(ix)
-            env = RingEnv(
-                length=ring_length,
-                num_vehicles=200,
-                dt=0.2,
-                horizon=1500,
-                gen_emission=False,
-                rl_ids=None,
-                warmup_steps=500,
-                initial_state="random",
-                sims_per_step=3,
-            )
+    for scale in range(1, 11):
+        for ring_length in range(scale * 260, scale * 271, scale * 1):
+            print(ring_length)
+            for ix in range(10):
+                print(ix)
+                env = RingEnv(
+                    length=ring_length,
+                    num_vehicles=scale * 22,
+                    dt=0.2,
+                    horizon=1500,
+                    gen_emission=False,
+                    rl_ids=None,
+                    warmup_steps=500,
+                    initial_state="random",
+                    sims_per_step=1,
+                )
 
-            _ = env.reset()
-            xy = zip(env.positions, env.speeds)
-            res[ring_length].append(sorted(xy))
-        with open("initial_states.json", "w") as out_fp:
-            json.dump(res, out_fp)
+                _ = env.reset()
+                xy = zip(env.positions, env.speeds)
+                res[ring_length].append(sorted(xy))
+            with open("initial_states/ring-v{}.json".format(scale - 1), "w") as out_fp:
+                json.dump(res, out_fp)
