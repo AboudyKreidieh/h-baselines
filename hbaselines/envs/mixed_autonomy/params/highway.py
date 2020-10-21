@@ -199,7 +199,7 @@ def get_flow_params(fixed_boundary,
             evaluate=evaluate,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
-            sims_per_step=3,
+            sims_per_step=1,
             done_at_exit=False,
             additional_params={
                 "max_accel": 0.5,
