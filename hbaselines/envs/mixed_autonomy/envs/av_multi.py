@@ -318,6 +318,7 @@ class AVMultiAgentEnv(MultiEnv):
         for i, veh_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
             obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
+            obs[veh_id] = np.asarray(obs[veh_id])
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
@@ -929,6 +930,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 # Add relative observation of each vehicle.
                 obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
                     leader, follower = get_relative_obs(self, veh_id)
+                obs["lane_{}".format(lane)] = np.asarray(
+                    obs["lane_{}".format(lane)])
 
                 # Append to the leader/follower lists.
                 if leader not in ["", None]:
