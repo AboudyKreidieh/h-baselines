@@ -33,6 +33,9 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
+    # number of observation frames to use. Additional frames are provided from
+    # previous time steps.
+    obs_frames=1,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -75,6 +78,8 @@ class AVEnv(Env):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
@@ -146,6 +151,7 @@ class AVEnv(Env):
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
         self._obs_history = []
+        self._obs_frames = env_params.additional_params["obs_frames"]
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -191,7 +197,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self.num_rl * 5,),
+            shape=(5 * self._obs_frames * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -265,8 +271,11 @@ class AVEnv(Env):
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 0.1
-                reward += reward_scale * np.mean(vel) ** 2
+                reward_scale = 5e-7
+                avg_speed = np.mean(vel)
+                density = num_vehicles \
+                          / (self._control_range[1] - self._control_range[0])
+                reward += reward_scale * (avg_speed * density * 3600) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -294,7 +303,7 @@ class AVEnv(Env):
         self.follower = []
 
         # Initialize a set on empty observations
-        obs = [0 for _ in range(5 * self.num_rl)]
+        obs = [0 for _ in range(self._obs_frames * self.num_rl)]
 
         for i, v_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
@@ -308,13 +317,13 @@ class AVEnv(Env):
 
         # Add the observation to the observation history to the
         self._obs_history.append(obs)
-        if len(self._obs_history) > 25:
-            self._obs_history = self._obs_history[-25:]
+        if len(self._obs_history) > 5 * self._obs_frames:
+            self._obs_history = self._obs_history[-5 * self._obs_frames:]
 
         # Concatenate the past n samples for a given time delta and return as
         # the final observation.
         obs_t = np.concatenate(self._obs_history[::-5])
-        obs = np.array([0. for _ in range(25 * self.num_rl)])
+        obs = np.array([0. for _ in range(5 * self._obs_frames * self.num_rl)])
         obs[:len(obs_t)] = obs_t
 
         return obs
@@ -380,6 +389,8 @@ class AVClosedEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * ring_length: range for the lengths allowed in the network. If set to
       None, the ring length is not modified from its initial value.
     """
@@ -503,6 +514,8 @@ class AVOpenEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
