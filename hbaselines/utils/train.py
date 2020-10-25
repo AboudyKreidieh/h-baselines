@@ -201,6 +201,10 @@ def parse_options(description,
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
+    parser_algorithm.add_argument(
+        '--log_dir', type=str, default=None,
+        help='the directory to log the data. Defaults to the current '
+             'directory.')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)

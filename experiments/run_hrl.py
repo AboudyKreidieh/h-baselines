@@ -75,6 +75,9 @@ def run_exp(env,
 
 def main(args, base_dir):
     """Execute multiple training operations."""
+    if args.log_dir is not None:
+        base_dir = os.path.join(args.log_dir, base_dir)
+
     for i in range(args.n_training):
         # value of the next seed
         seed = args.seed + i
