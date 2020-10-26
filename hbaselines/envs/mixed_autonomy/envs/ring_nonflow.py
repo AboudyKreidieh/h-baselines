@@ -144,8 +144,8 @@ class RingEnv(gym.Env):
         self.sims_per_step = sims_per_step
         self.min_gap = min_gap
         self.gen_emission = gen_emission
+        self.num_rl = len(rl_ids) if rl_ids is not None else 0
         self.rl_ids = np.asarray(rl_ids)
-        self.num_rl = len(self.rl_ids)
         self.warmup_steps = warmup_steps
         self._time_log = None
         self._v_eq = None
@@ -480,7 +480,10 @@ class RingEnv(gym.Env):
             info.update({"v_eq_frac": speed / self._v_eq})
             info.update({"speed": np.mean(self._mean_speeds)})
 
-        return self.get_state(), self.compute_reward(action or [0]), done, info
+        obs = np.asarray(self.get_state())
+        reward = self.compute_reward(action if action is not None else [0])
+
+        return obs, reward, done, info
 
     def reset(self):
         """See parent class.
@@ -618,7 +621,7 @@ class RingSingleAgentEnv(RingEnv):
         return Box(
             low=-0.5,
             high=0.5,
-            shape=(1,),
+            shape=(self.num_rl,),
             dtype=np.float32)
 
     @property
@@ -627,7 +630,7 @@ class RingSingleAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25,),
+            shape=(25 * self.num_rl,),
             dtype=np.float32)
 
     def get_state(self):
@@ -826,9 +829,9 @@ class RingMultiAgentEnv(RingEnv):
 
 
 if __name__ == "__main__":
-    res = defaultdict(list)
     for scale in range(1, 11):
-        for ring_length in range(scale * 260, scale * 271, scale * 1):
+        res = defaultdict(list)
+        for ring_length in range(scale * 220, scale * 271, scale * 1):
             print(ring_length)
             for ix in range(10):
                 print(ix)
