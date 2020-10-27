@@ -7,6 +7,7 @@ We implement the following exploration strategies here:
 from hbaselines.exploration_strategies.base import ExplorationStrategy
 import numpy as np
 from hbaselines.exploration_strategies.density_models import GaussianMixtureModel
+import tensorflow as tf
 
 
 class DensityCountingExploration(ExplorationStrategy):
@@ -56,9 +57,10 @@ class DensityCountingExploration(ExplorationStrategy):
         """
         prob = self.density_model.probability(obs)
         recoding_prob = self.density_model.recoding_probability(obs)
-        prediction_gain = np.log(recoding_prob) - np.log(prob)
-        pseudo_count = 1 / (np.exp(prediction_gain) - 1)
-        bonus_reward = np.power(pseudo_count, -0.5)
+        prediction_gain = tf.math.log(recoding_prob) - tf.math.log(prob)
+        pseudo_count = 1 / (tf.math.exp(prediction_gain) - 1)
+        bonus_reward = tf.math.pow(pseudo_count, -0.5)
+        bonus_reward = tf.cast(bonus_reward, tf.float32)
         return loss - bonus_reward
 
 
