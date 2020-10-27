@@ -315,8 +315,9 @@ class AVMultiAgentEnv(MultiEnv):
                 del self._obs_history[key]
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Compute the relative observation of each vehicle.
-            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            # Add relative observation of each vehicle.
+            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
+            obs[veh_id] = np.asarray(obs[veh_id])
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
@@ -930,40 +931,29 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     def get_state(self):
         """See class definition."""
-        obs = {}
         self.leader = []
         self.follower = []
+
+        # Initialize a set on empty observations
+        obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
+               for i in range(self._num_lanes)}
 
         for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
-            # Initialize a set on empty observations
-            obs_lane = [0 for _ in range(5 * self.num_rl)]
-
             for i, veh_id in enumerate(rl_ids):
                 # Add relative observation of each vehicle.
-                obs_lane[5 * i: 5 * (i + 1)], leader, follower = \
-                    get_relative_obs(self, veh_id)
+                obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
+                    leader, follower = get_relative_obs(self, veh_id)
+                obs["lane_{}".format(lane)] = np.asarray(
+                    obs["lane_{}".format(lane)])
 
                 # Append to the leader/follower lists.
                 if leader not in ["", None]:
                     self.leader.append(leader)
                 if follower not in ["", None]:
                     self.follower.append(follower)
-
-            # Add the observation to the observation history to the
-            self._obs_history[lane].append(obs_lane)
-            if len(self._obs_history[lane]) > 25:
-                self._obs_history[lane] = self._obs_history[lane][-25:]
-
-            # Concatenate the past n samples for a given time delta and return
-            # as the final observation.
-            obs_t = np.concatenate(self._obs_history[lane][::-5])
-            obs_lane = np.array([0. for _ in range(25 * self.num_rl)])
-            obs_lane[:len(obs_t)] = obs_t
-
-            obs["lane_{}".format(lane)] = obs_lane
 
         return obs
 

@@ -206,6 +206,10 @@ def parse_options(description,
         choices = ['DensityCountingExploration'],
         help='The exploration strategy used for this training.'
              'Default to not using any explorations.')
+    parser_algorithm.add_argument(
+        '--log_dir', type=str, default=None,
+        help='the directory to log the data. Defaults to the current '
+             'directory.')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
