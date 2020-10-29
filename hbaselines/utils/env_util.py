@@ -841,7 +841,7 @@ def _get_ring_env_attributes(scale):
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 2,
+            high=5 if relative_goals else 10,
             shape=(1,),
             dtype=np.float32
         ),

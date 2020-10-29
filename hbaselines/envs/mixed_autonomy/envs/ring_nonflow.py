@@ -16,7 +16,7 @@ VEHICLE_LENGTH = 5
 # a normalizing term for the vehicle headways
 MAX_HEADWAY = 20
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 5
+MAX_SPEED = 1
 
 
 class RingEnv(gym.Env):
