@@ -840,13 +840,13 @@ ENV_ATTRIBUTES = {
 def _get_ring_env_attributes(scale):
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
-            shape=(1,),
+            low=-0.5 if relative_goals else 0,
+            high=0.5 if relative_goals else 1,
+            shape=(1 if multiagent else scale,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
-            5 * i for i in range(scale)],
+            3 * i for i in range(scale)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
