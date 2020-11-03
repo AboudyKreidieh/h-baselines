@@ -858,7 +858,8 @@ def _get_ring_env_attributes(scale):
             multiagent=multiagent,
             shared=shared,
             maddpg=maddpg,
-        ) if evaluate else RingSingleAgentEnv(
+        ) if evaluate else
+        (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
             length=[260 * scale, 270 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
@@ -983,21 +984,16 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         return None, None
 
     elif isinstance(env, str):
-        if env in ENV_ATTRIBUTES.keys() or env.startswith("multiagent"):
-            # Handle multi-agent environments.
-            multiagent = env.startswith("multiagent")
-            if multiagent:
-                env = env[11:]
+        # Handle multi-agent environments.
+        multiagent = env.startswith("multiagent")
+        if multiagent:
+            env = env[11:]
 
+        if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, multiagent, shared, maddpg)
 
         elif env in ["ring-v{}-fast".format(i) for i in range(10)]:
-            # Handle multi-agent environments.
-            multiagent = env.startswith("multiagent")
-            if multiagent:
-                env = env[11:]
-
             scale = int(env[6]) + 1
             env = _get_ring_env_attributes(scale)["env"](
                 evaluate, render, multiagent, shared, maddpg)

@@ -480,7 +480,12 @@ class RingEnv(gym.Env):
             info.update({"v_eq_frac": speed / self._v_eq})
             info.update({"speed": np.mean(self._mean_speeds)})
 
-        obs = np.asarray(self.get_state())
+        obs = self.get_state()
+        if isinstance(obs, dict):
+            obs = {key: np.asarray(obs[key]) for key in obs.keys()}
+        else:
+            obs = np.asarray(self.get_state())
+
         reward = self.compute_reward(action if action is not None else [0])
 
         return obs, reward, done, info
