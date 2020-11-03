@@ -14,7 +14,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20
+MAX_HEADWAY = 20  # 100
+# a normalizing term for the vehicle speeds
+MAX_SPEED = 5  # 1, 10
 
 
 class RingEnv(gym.Env):
@@ -142,8 +144,8 @@ class RingEnv(gym.Env):
         self.sims_per_step = sims_per_step
         self.min_gap = min_gap
         self.gen_emission = gen_emission
+        self.num_rl = len(rl_ids) if rl_ids is not None else 0
         self.rl_ids = np.asarray(rl_ids)
-        self.num_rl = len(self.rl_ids)
         self.warmup_steps = warmup_steps
         self._time_log = None
         self._v_eq = None
@@ -478,7 +480,15 @@ class RingEnv(gym.Env):
             info.update({"v_eq_frac": speed / self._v_eq})
             info.update({"speed": np.mean(self._mean_speeds)})
 
-        return self.get_state(), self.compute_reward(action or [0]), done, info
+        obs = self.get_state()
+        if isinstance(obs, dict):
+            obs = {key: np.asarray(obs[key]) for key in obs.keys()}
+        else:
+            obs = np.asarray(self.get_state())
+
+        reward = self.compute_reward(action if action is not None else [0])
+
+        return obs, reward, done, info
 
     def reset(self):
         """See parent class.
@@ -616,7 +626,7 @@ class RingSingleAgentEnv(RingEnv):
         return Box(
             low=-0.5,
             high=0.5,
-            shape=(1,),
+            shape=(self.num_rl,),
             dtype=np.float32)
 
     @property
@@ -625,27 +635,23 @@ class RingSingleAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25,),
+            shape=(15 * self.num_rl,),
             dtype=np.float32)
 
     def get_state(self):
         """See parent class."""
         # Initialize a set on empty observations
-        obs = [0 for _ in range(5 * self.num_rl)]
+        obs = [0 for _ in range(3 * self.num_rl)]
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add relative observation of each vehicle.
-            obs[5*i: 5*(i+1)] = [
+            obs[3*i: 3*(i+1)] = [
                 # ego speed
-                self.speeds[veh_id],
+                self.speeds[veh_id] / MAX_SPEED,
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],
+                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 self.headways[veh_id] / MAX_HEADWAY,
-                # follow speed
-                self.speeds[(veh_id - 1) % self.num_vehicles],
-                # follow gap
-                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
 
         # Add the observation to the observation history to the
@@ -656,14 +662,14 @@ class RingSingleAgentEnv(RingEnv):
         # Concatenate the past n samples for a given time delta and return as
         # the final observation.
         obs_t = np.concatenate(self._obs_history[::-5])
-        obs = np.array([0. for _ in range(25 * self.num_rl)])
+        obs = np.array([0. for _ in range(15 * self.num_rl)])
         obs[:len(obs_t)] = obs_t
 
         return obs
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
+        reward_scale = 0.001  # 0.01, 0.1
         reward = reward_scale * np.mean(self.speeds) ** 2
 
         return reward
@@ -757,7 +763,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25,),
+            shape=(15,),
             dtype=np.float32)
 
     def step(self, action):
@@ -777,15 +783,11 @@ class RingMultiAgentEnv(RingEnv):
         for veh_id in self.rl_ids:
             obs_vehicle = [
                 # ego speed
-                self.speeds[veh_id],
+                self.speeds[veh_id] / MAX_SPEED,
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles],
+                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 self.headways[veh_id] / MAX_HEADWAY,
-                # follow speed
-                self.speeds[(veh_id - 1) % self.num_vehicles],
-                # follow gap
-                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
 
             # Add the observation to the observation history to the
@@ -796,7 +798,7 @@ class RingMultiAgentEnv(RingEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[veh_id][::-5])
-            obs_vehicle = np.array([0. for _ in range(25)])
+            obs_vehicle = np.array([0. for _ in range(15)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
@@ -805,7 +807,7 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
+        reward_scale = 0.001
         reward = {
             key: reward_scale * np.mean(self.speeds) ** 2
             for key in self.rl_ids
@@ -824,25 +826,26 @@ class RingMultiAgentEnv(RingEnv):
 
 
 if __name__ == "__main__":
-    res = defaultdict(list)
-    for ring_length in range(2100, 2710, 10):
-        print(ring_length)
-        for ix in range(10):
-            print(ix)
-            env = RingEnv(
-                length=ring_length,
-                num_vehicles=200,
-                dt=0.2,
-                horizon=1500,
-                gen_emission=False,
-                rl_ids=None,
-                warmup_steps=500,
-                initial_state="random",
-                sims_per_step=3,
-            )
+    for scale in range(1, 11):
+        res = defaultdict(list)
+        for ring_length in range(scale * 220, scale * 271, scale * 1):
+            print(ring_length)
+            for ix in range(10):
+                print(ix)
+                env = RingEnv(
+                    length=ring_length,
+                    num_vehicles=scale * 22,
+                    dt=0.2,
+                    horizon=1500,
+                    gen_emission=False,
+                    rl_ids=None,
+                    warmup_steps=500,
+                    initial_state="random",
+                    sims_per_step=1,
+                )
 
-            _ = env.reset()
-            xy = zip(env.positions, env.speeds)
-            res[ring_length].append(sorted(xy))
-        with open("initial_states.json", "w") as out_fp:
-            json.dump(res, out_fp)
+                _ = env.reset()
+                xy = zip(env.positions, env.speeds)
+                res[ring_length].append(sorted(xy))
+            with open("initial_states/ring-v{}.json".format(scale - 1), "w") as out_fp:
+                json.dump(res, out_fp)

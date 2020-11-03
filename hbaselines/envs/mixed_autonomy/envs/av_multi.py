@@ -148,6 +148,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
+        self._std_speeds = []
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -269,7 +270,7 @@ class AVMultiAgentEnv(MultiEnv):
             acceleration_penalty = params["acceleration_penalty"]
 
             num_vehicles = len(veh_ids)
-            vel = np.array(self.k.vehicle.get_speed(veh_ids))
+            vel = np.array(self.k.vehicle.get_speed(rl_ids))
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
                 # in case of collisions or an empty network
                 reward = 0
@@ -280,7 +281,7 @@ class AVMultiAgentEnv(MultiEnv):
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 0.1
+                reward_scale = 0.025
                 reward += reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
@@ -315,9 +316,9 @@ class AVMultiAgentEnv(MultiEnv):
                 del self._obs_history[key]
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Add relative observation of each vehicle.
-            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
-            obs[veh_id] = np.asarray(obs[veh_id])
+            # Compute the relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            obs_vehicle = np.asarray(obs_vehicle)
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
@@ -336,7 +337,7 @@ class AVMultiAgentEnv(MultiEnv):
             obs_vehicle = np.array([0. for _ in range(25)])
             obs_vehicle[:len(obs_t)] = obs_t
 
-            obs[veh_id] = obs_vehicle
+            obs[veh_id] = np.copy(obs_vehicle)
 
         return obs
 
@@ -356,10 +357,12 @@ class AVMultiAgentEnv(MultiEnv):
 
         if self.time_counter > \
                 self.env_params.warmup_steps * self.env_params.sims_per_step:
-            self._mean_speeds.append(np.mean(
-                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+            vel = self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)
+            self._mean_speeds.append(np.mean(vel))
+            self._std_speeds.append(np.std(vel))
 
-            info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"speed_mean": np.mean(self._mean_speeds)})
+            info.update({"speed_std": np.mean(self._std_speeds)})
 
         return obs, rew, done, info
 
@@ -370,6 +373,7 @@ class AVMultiAgentEnv(MultiEnv):
         emptied before they are used by the new rollout.
         """
         self._mean_speeds = []
+        self._std_speeds = []
         self.leader = []
         self.follower = []
         return super().reset(new_inflow_rate)
@@ -683,8 +687,10 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                 if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
             ]
             self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
+            self._std_speeds[-1] = np.std(kv.get_speed(veh_ids, error=0))
 
-            info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"speed_mean": np.mean(self._mean_speeds)})
+            info.update({"speed_std": np.mean(self._std_speeds)})
 
         return obs, rew, done, info
 

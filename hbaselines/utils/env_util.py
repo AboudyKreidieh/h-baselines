@@ -461,76 +461,6 @@ ENV_ATTRIBUTES = {
         ),
     },
 
-    "ring-v0-fast": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
-            shape=(1,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [0],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring(
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ) if evaluate else RingSingleAgentEnv(
-            length=[220, 270],
-            num_vehicles=22,
-            dt=0.2,
-            horizon=1500,
-            gen_emission=False,
-            rl_ids=[0],
-            warmup_steps=0,
-            initial_state=os.path.join(
-                hbaselines_config.PROJECT_PATH,
-                "hbaselines/envs/mixed_autonomy/envs/ring-v0.json"),
-            sims_per_step=1,
-        ),
-    },
-
-    "ring-v1-fast": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 2,
-            shape=(1,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [0] if multiagent else [
-            5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
-            flow_params=ring(
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ) if evaluate else
-        (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
-            length=[2200, 2700],
-            num_vehicles=200,
-            dt=0.2,
-            horizon=1500,
-            gen_emission=False,
-            rl_ids=20 * np.arange(10),
-            warmup_steps=0,
-            initial_state=os.path.join(
-                hbaselines_config.PROJECT_PATH,
-                "hbaselines/envs/mixed_autonomy/envs/ring-v1.json"),
-            sims_per_step=2,
-        ),
-    },
-
     "merge-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-.5 if relative_goals else 0,
@@ -602,8 +532,8 @@ ENV_ATTRIBUTES = {
 
     "highway-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -616,6 +546,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
+                obs_frames=5 if multiagent else 1,
             ),
             render=render,
             multiagent=multiagent,
@@ -626,8 +557,8 @@ ENV_ATTRIBUTES = {
 
     "highway-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(1 if multiagent else 10,),
             dtype=np.float32
         ),
@@ -640,6 +571,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
+                obs_frames=5 if multiagent else 1,
             ),
             render=render,
             multiagent=multiagent,
@@ -650,13 +582,13 @@ ENV_ATTRIBUTES = {
 
     "highway-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
-            shape=(1 if multiagent else 10,),
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            5 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -664,6 +596,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=False,
                 use_follower_stopper=False,
                 multiagent=multiagent,
+                obs_frames=5 if multiagent else 1,
             ),
             render=render,
             multiagent=multiagent,
@@ -688,6 +621,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=True,
                 multiagent=multiagent,
+                obs_frames=5 if multiagent else 1,
             ),
             render=render,
             multiagent=multiagent,
@@ -698,8 +632,8 @@ ENV_ATTRIBUTES = {
 
     "i210-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -722,8 +656,8 @@ ENV_ATTRIBUTES = {
 
     "i210-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -746,8 +680,8 @@ ENV_ATTRIBUTES = {
 
     "i210-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -770,8 +704,8 @@ ENV_ATTRIBUTES = {
 
     "i210-v3": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-1 if relative_goals else 0,
+            high=1 if relative_goals else 2,
             shape=(10 if multiagent else 50,),
             dtype=np.float32
         ),
@@ -835,6 +769,7 @@ ENV_ATTRIBUTES = {
                 use_follower_stopper=False,
                 evaluate=evaluate,
                 multiagent=multiagent,
+                obs_frames=5,
                 imitation=True,
             ),
             render=render,
@@ -902,6 +837,45 @@ ENV_ATTRIBUTES = {
 }
 
 
+def _get_ring_env_attributes(scale):
+    return {
+        "meta_ac_space": lambda relative_goals, multiagent: Box(
+            low=-0.5 if relative_goals else 0,
+            high=0.5 if relative_goals else 1,
+            shape=(1 if multiagent else scale,),
+            dtype=np.float32
+        ),
+        "state_indices": lambda multiagent: [0] if multiagent else [
+            3 * i for i in range(scale)],
+        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+            flow_params=ring(
+                stopping_penalty=False,
+                acceleration_penalty=False,
+                evaluate=evaluate,
+                multiagent=multiagent,
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        ) if evaluate else
+        (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
+            length=[260 * scale, 270 * scale],
+            num_vehicles=22 * scale,
+            dt=0.2,
+            horizon=1500,
+            gen_emission=False,
+            rl_ids=[22 * i for i in range(scale)],
+            warmup_steps=0,
+            initial_state=os.path.join(
+                hbaselines_config.PROJECT_PATH,
+                "hbaselines/envs/mixed_autonomy/envs/initial_states/"
+                "ring-v{}.json".format(scale - 1)),
+            sims_per_step=1,
+        ),
+    }
+
+
 def get_meta_ac_space(ob_space, relative_goals, env_name):
     """Compute the action space for the higher level policies.
 
@@ -929,6 +903,10 @@ def get_meta_ac_space(ob_space, relative_goals, env_name):
 
     if env_name in ENV_ATTRIBUTES.keys():
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
+            relative_goals, multiagent)
+    elif env_name in ["ring-v{}-fast".format(i) for i in range(10)]:
+        scale = int(env_name[6]) + 1
+        meta_ac_space = _get_ring_env_attributes(scale)["meta_ac_space"](
             relative_goals, multiagent)
     else:
         meta_ac_space = ob_space
@@ -963,6 +941,10 @@ def get_state_indices(ob_space, env_name):
 
     if env_name in ENV_ATTRIBUTES.keys():
         state_indices = ENV_ATTRIBUTES[env_name]["state_indices"](multiagent)
+    elif env_name in ["ring-v{}-fast".format(i) for i in range(10)]:
+        scale = int(env_name[6]) + 1
+        state_indices = _get_ring_env_attributes(scale)["state_indices"](
+            multiagent)
     else:
         # All observations are presented in the goal.
         state_indices = list(np.arange(0, ob_space.shape[0]))
@@ -1002,13 +984,18 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         return None, None
 
     elif isinstance(env, str):
-        if env in ENV_ATTRIBUTES.keys() or env.startswith("multiagent"):
-            # Handle multi-agent environments.
-            multiagent = env.startswith("multiagent")
-            if multiagent:
-                env = env[11:]
+        # Handle multi-agent environments.
+        multiagent = env.startswith("multiagent")
+        if multiagent:
+            env = env[11:]
 
+        if env in ENV_ATTRIBUTES.keys():
             env = ENV_ATTRIBUTES[env]["env"](
+                evaluate, render, multiagent, shared, maddpg)
+
+        elif env in ["ring-v{}-fast".format(i) for i in range(10)]:
+            scale = int(env[6]) + 1
+            env = _get_ring_env_attributes(scale)["env"](
                 evaluate, render, multiagent, shared, maddpg)
 
         elif env.startswith("flow:"):

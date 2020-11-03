@@ -42,6 +42,7 @@ def get_flow_params(fixed_boundary,
                     stopping_penalty,
                     acceleration_penalty,
                     use_follower_stopper,
+                    obs_frames,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
@@ -57,6 +58,9 @@ def get_flow_params(fixed_boundary,
         whether to include a regularizing penalty for accelerations by the AVs
     use_follower_stopper : bool
         whether to use the follower-stopper controller for the AVs
+    obs_frames : int
+        number of observation frames to use. Additional frames are provided
+        from previous time steps.
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -199,18 +203,19 @@ def get_flow_params(fixed_boundary,
             evaluate=evaluate,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
-            sims_per_step=3,
+            sims_per_step=1,
             done_at_exit=False,
             additional_params={
-                "max_accel": 0.5,
-                "max_decel": 0.5,
+                "max_accel": 0.25,
+                "max_decel": 0.25,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
+                "obs_frames": obs_frames,
                 "use_follower_stopper": use_follower_stopper,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": float("inf") if multiagent else 10,
+                "num_rl": float("inf") if multiagent else 5,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
