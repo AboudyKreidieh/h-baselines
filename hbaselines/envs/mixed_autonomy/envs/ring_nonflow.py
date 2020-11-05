@@ -14,9 +14,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20  # 100
+MAX_HEADWAY = 20  # 50
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 5  # 1, 10
+MAX_SPEED = 1  # 5
 
 
 class RingEnv(gym.Env):
@@ -669,7 +669,7 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.001  # 0.01, 0.1
+        reward_scale = 0.1  # 0.1  # 0.001
         reward = reward_scale * np.mean(self.speeds) ** 2
 
         return reward
