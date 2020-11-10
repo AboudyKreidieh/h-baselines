@@ -14,9 +14,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20  # 50
+MAX_HEADWAY = 100  # 50
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 1  # 5
+MAX_SPEED = 10  # 5
 
 
 class RingEnv(gym.Env):
@@ -632,8 +632,8 @@ class RingSingleAgentEnv(RingEnv):
     def action_space(self):
         """See class definition."""
         return Box(
-            low=-0.5,
-            high=0.5,
+            low=-0.1,
+            high=0.1,
             shape=(self.num_rl,),
             dtype=np.float32)
 
@@ -651,28 +651,28 @@ class RingSingleAgentEnv(RingEnv):
         # Initialize a set on empty observations.
         obs = np.array([0 for _ in range(3 * self.num_rl)])
 
-        for i, veh_id in enumerate(self.rl_ids):
+        for i, veh in enumerate(self.rl_ids):
+            # # Add relative observation of each vehicle.
+            # obs[3*i: 3*(i+1)] = [
+            #     # ego speed
+            #     self.speeds[veh_id] / MAX_SPEED,
+            #     # lead speed
+            #     self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
+            #     # lead gap
+            #     self.headways[veh_id] / MAX_HEADWAY,
+            # ]
             # Add relative observation of each vehicle.
             obs[3*i: 3*(i+1)] = [
                 # ego speed
-                self.speeds[veh_id] / MAX_SPEED,
+                2 * self.speeds[veh] / MAX_SPEED - 1,
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
+                2 * self.speeds[(veh + 1) % self.num_vehicles] / MAX_SPEED - 1,
                 # lead gap
-                self.headways[veh_id] / MAX_HEADWAY,
+                2 * self.headways[veh] / MAX_HEADWAY - 1,
             ]
-        #     # Add relative observation of each vehicle.
-        #     obs[3*i: 3*(i+1)] = [
-        #         # ego speed
-        #         2 * self.speeds[veh] / MAX_SPEED - 1,
-        #         # lead speed
-        #         2 * self.speeds[(veh+1) % self.num_vehicles] / MAX_SPEED - 1,
-        #         # lead gap
-        #         2 * self.headways[veh] / MAX_HEADWAY - 1,
-        #     ]
-        #
-        # # Clip within observation bounds.
-        # obs = np.asarray(obs).clip(min=-1, max=1)
+
+        # Clip within observation bounds.
+        obs = np.asarray(obs).clip(min=-1, max=1)
 
         # Add the observation to the observation history to the
         self._obs_history.append(obs)
