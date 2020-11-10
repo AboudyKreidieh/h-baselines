@@ -197,7 +197,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self._obs_frames * self.num_rl,),
+            shape=(3 * self._obs_frames * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -273,8 +273,8 @@ class AVEnv(Env):
 
                 reward_scale = 5e-7
                 avg_speed = np.mean(vel)
-                density = num_vehicles \
-                          / (self._control_range[1] - self._control_range[0])
+                density = num_vehicles / (
+                    self._control_range[1] - self._control_range[0])
                 reward += reward_scale * (avg_speed * density * 3600) ** 2
 
                 # =========================================================== #
@@ -303,11 +303,11 @@ class AVEnv(Env):
         self.follower = []
 
         # Initialize a set on empty observations
-        obs = [0 for _ in range(self._obs_frames * self.num_rl)]
+        obs = [0 for _ in range(3 * self.num_rl)]
 
         for i, v_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
-            obs[5*i: 5*(i+1)], leader, follower = get_relative_obs(self, v_id)
+            obs[3*i: 3*(i+1)], leader, follower = get_relative_obs(self, v_id)
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
@@ -323,7 +323,7 @@ class AVEnv(Env):
         # Concatenate the past n samples for a given time delta and return as
         # the final observation.
         obs_t = np.concatenate(self._obs_history[::-5])
-        obs = np.array([0. for _ in range(5 * self._obs_frames * self.num_rl)])
+        obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
         obs[:len(obs_t)] = obs_t
 
         return obs

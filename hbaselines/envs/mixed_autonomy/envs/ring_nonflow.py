@@ -61,6 +61,8 @@ class RingEnv(gym.Env):
         speeds of all vehicles in the network
     headways : array_like
         bumper-to-bumper gaps of all vehicles in the network
+    accelerations : array_like
+        previous step accelerations by the individual vehicles
     v0 : float
         desirable velocity, in m/s
     T : float
@@ -150,6 +152,7 @@ class RingEnv(gym.Env):
         self._time_log = None
         self._v_eq = None
         self._mean_speeds = None
+        self._mean_accels = None
 
         # simulation parameters
         self.t = 0
@@ -160,6 +163,7 @@ class RingEnv(gym.Env):
             min_gap=self.min_gap,
         )
         self.headways = self._compute_headway()
+        self.accelerations = None
         self._emission_data = []
 
         # human-driver model parameters
@@ -169,11 +173,11 @@ class RingEnv(gym.Env):
         self.b = 2.0
         self.delta = 4
         self.s0 = 2
-        self.noise = 0.2
+        self.noise = 0.0
 
         # failsafe parameters
         self.decel = 4.5
-        self.delay = 0
+        self.delay = self.dt
 
     @staticmethod
     def _set_length(length):
@@ -431,11 +435,11 @@ class RingEnv(gym.Env):
             self.t += 1
 
             # Compute the accelerations.
-            accelerations = self._get_accel(vel=self.speeds, h=self.headways)
+            self.accelerations = self._get_accel(self.speeds, self.headways)
 
             # Compute the accelerations for RL vehicles.
             if self.rl_ids is not None and action is not None:
-                accelerations[self.rl_ids] = self._get_rl_accel(
+                self.accelerations[self.rl_ids] = self._get_rl_accel(
                     accel=action,
                     vel=self.speeds[self.rl_ids],
                 )
@@ -444,7 +448,7 @@ class RingEnv(gym.Env):
             self.positions, self.speeds = self._update_state(
                 pos=self.positions,
                 vel=self.speeds,
-                accel=accelerations,
+                accel=self.accelerations,
             )
             self.headways = self._compute_headway()
 
@@ -475,10 +479,13 @@ class RingEnv(gym.Env):
         if self.t > self.warmup_steps * self.sims_per_step:
             speed = np.mean(self.speeds)
             self._mean_speeds.append(speed)
+            self._mean_accels.append(np.mean(np.abs(self.accelerations)))
 
             info.update({"v_eq": self._v_eq})
-            info.update({"v_eq_frac": speed / self._v_eq})
+            info.update({"v_eq_frac": np.mean(self._mean_speeds) / self._v_eq})
+            info.update({"v_eq_frac_final": speed / self._v_eq})
             info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"abs_accel": np.mean(self._mean_accels)})
 
         obs = self.get_state()
         if isinstance(obs, dict):
@@ -502,6 +509,7 @@ class RingEnv(gym.Env):
         self._v_eq = fsolve(v_eq_function, np.array(v_guess),
                             args=(self.num_vehicles, self.length))[0]
         self._mean_speeds = []
+        self._mean_accels = []
 
         print('\n-----------------------')
         print('ring length:', self.length)
@@ -640,8 +648,8 @@ class RingSingleAgentEnv(RingEnv):
 
     def get_state(self):
         """See parent class."""
-        # Initialize a set on empty observations
-        obs = [0 for _ in range(3 * self.num_rl)]
+        # Initialize a set on empty observations.
+        obs = np.array([0 for _ in range(3 * self.num_rl)])
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add relative observation of each vehicle.
@@ -653,6 +661,18 @@ class RingSingleAgentEnv(RingEnv):
                 # lead gap
                 self.headways[veh_id] / MAX_HEADWAY,
             ]
+        #     # Add relative observation of each vehicle.
+        #     obs[3*i: 3*(i+1)] = [
+        #         # ego speed
+        #         2 * self.speeds[veh] / MAX_SPEED - 1,
+        #         # lead speed
+        #         2 * self.speeds[(veh+1) % self.num_vehicles] / MAX_SPEED - 1,
+        #         # lead gap
+        #         2 * self.headways[veh] / MAX_HEADWAY - 1,
+        #     ]
+        #
+        # # Clip within observation bounds.
+        # obs = np.asarray(obs).clip(min=-1, max=1)
 
         # Add the observation to the observation history to the
         self._obs_history.append(obs)
@@ -671,6 +691,11 @@ class RingSingleAgentEnv(RingEnv):
         """See parent class."""
         reward_scale = 0.1  # 0.1  # 0.001
         reward = reward_scale * np.mean(self.speeds) ** 2
+        # reward_scale = 0.1
+        # v_des = self._v_eq
+        # reward = reward_scale * (
+        #     np.linalg.norm([v_des] * len(self.speeds))
+        #     - np.linalg.norm(v_des - self.speeds))
 
         return reward
 
@@ -752,8 +777,8 @@ class RingMultiAgentEnv(RingEnv):
     def action_space(self):
         """See class definition."""
         return Box(
-            low=-0.5,
-            high=0.5,
+            low=-0.1,
+            high=0.1,
             shape=(1,),
             dtype=np.float32)
 
@@ -847,5 +872,5 @@ if __name__ == "__main__":
                 _ = env.reset()
                 xy = zip(env.positions, env.speeds)
                 res[ring_length].append(sorted(xy))
-            with open("initial_states/ring-v{}.json".format(scale - 1), "w") as out_fp:
+            with open("ring-v{}.json".format(scale - 1), "w") as out_fp:
                 json.dump(res, out_fp)

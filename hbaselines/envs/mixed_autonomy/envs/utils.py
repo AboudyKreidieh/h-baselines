@@ -13,7 +13,7 @@ EXTRA_LANE_EDGES = [
 # a normalizing term for the vehicle headways
 MAX_HEADWAY = 20
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 5
+MAX_SPEED = 1
 
 
 def get_relative_obs(env, veh_id):
@@ -46,7 +46,7 @@ def get_relative_obs(env, veh_id):
     str
         the ID of the follower
     """
-    obs = [None for _ in range(5)]
+    obs = [None for _ in range(3)]
 
     # used to handle missing observations of adjacent vehicles
     max_speed = env.k.network.max_speed()
@@ -64,26 +64,24 @@ def get_relative_obs(env, veh_id):
     else:
         lead_speed = env.k.vehicle.get_speed(leader, 0) / MAX_SPEED
         lead_head = env.k.vehicle.get_headway(veh_id, 0) / MAX_HEADWAY
-        env.leader.append(leader)
 
     obs[1] = lead_speed
     obs[2] = lead_head
 
-    # Add the speed and bumper-to-bumper headway of following vehicles.
-    follower = env.k.vehicle.get_follower(veh_id)
-    if follower in ["", None]:
-        # in case follower is not visible
-        follow_speed = max_speed / MAX_SPEED
-        follow_head = max_length / MAX_HEADWAY
-    else:
-        follow_speed = env.k.vehicle.get_speed(follower, 0) / MAX_SPEED
-        follow_head = env.k.vehicle.get_headway(follower, 0) / MAX_HEADWAY
-        env.follower.append(follower)
+    # # Add the speed and bumper-to-bumper headway of following vehicles.
+    # follower = env.k.vehicle.get_follower(veh_id)
+    # if follower in ["", None]:
+    #     # in case follower is not visible
+    #     follow_speed = 1
+    #     follow_head = 1
+    # else:
+    #     follow_speed = 2 * env.k.vehicle.get_speed(follower, 0) / MAX_SPEED - 1
+    #     follow_head = 2 * env.k.vehicle.get_headway(follower, 0) / MAX_HEADWAY - 1
+    #
+    # obs[3] = follow_speed
+    # obs[4] = follow_head
 
-    obs[3] = follow_speed
-    obs[4] = follow_head
-
-    return obs, leader, follower
+    return obs, leader, None
 
 
 def update_rl_veh(env,

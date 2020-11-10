@@ -851,6 +851,7 @@ def _get_ring_env_attributes(scale):
             flow_params=ring(
                 stopping_penalty=False,
                 acceleration_penalty=False,
+                scale=scale,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
@@ -862,7 +863,7 @@ def _get_ring_env_attributes(scale):
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
             length=[260 * scale, 270 * scale],
             num_vehicles=22 * scale,
-            dt=0.2,
+            dt=0.4,
             horizon=1500,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
