@@ -663,18 +663,6 @@ class RingSingleAgentEnv(RingEnv):
                 # lead gap
                 min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
             ]
-        #     # Add relative observation of each vehicle.
-        #     obs[3*i: 3*(i+1)] = [
-        #         # ego speed
-        #         2 * self.speeds[veh] / MAX_SPEED - 1,
-        #         # lead speed
-        #         2 * self.speeds[(veh + 1) % self.num_vehicles] / MAX_SPEED - 1,
-        #         # lead gap
-        #         2 * self.headways[veh] / MAX_HEADWAY - 1,
-        #     ]
-        #
-        # # Clip within observation bounds.
-        # obs = np.asarray(obs).clip(min=-1, max=1)
 
         # Add the observation to the observation history to the
         self._obs_history.append(obs)
@@ -691,8 +679,8 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1  # 0.1  # 0.001
-        reward = reward_scale * np.mean(self.speeds) ** 2
+        reward_scale = 0.2  # 0.1  # 0.001
+        reward = reward_scale * np.mean(self.speeds[self.rl_ids])
         # reward_scale = 0.1
         # v_des = self._v_eq
         # reward = reward_scale * (

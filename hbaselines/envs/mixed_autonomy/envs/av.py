@@ -146,7 +146,6 @@ class AVEnv(Env):
         # used for visualization: the vehicles behind and after RL vehicles
         # (ie the observed vehicles) will have a different color
         self.leader = []
-        self.follower = []
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
@@ -300,20 +299,17 @@ class AVEnv(Env):
     def get_state(self):
         """See class definition."""
         self.leader = []
-        self.follower = []
 
         # Initialize a set on empty observations
         obs = [0 for _ in range(3 * self.num_rl)]
 
         for i, v_id in enumerate(self.rl_ids()):
             # Add relative observation of each vehicle.
-            obs[3*i: 3*(i+1)], leader, follower = get_relative_obs(self, v_id)
+            obs[3*i: 3*(i+1)], leader = get_relative_obs(self, v_id)
 
-            # Append to the leader/follower lists.
+            # Append to the leader lists.
             if leader not in ["", None]:
                 self.leader.append(leader)
-            if follower not in ["", None]:
-                self.follower.append(follower)
 
         # Add the observation to the observation history to the
         self._obs_history.append(obs)
@@ -334,7 +330,7 @@ class AVEnv(Env):
         Define which vehicles are observed for visualization purposes.
         """
         # specify observed vehicles
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def step(self, rl_actions):
@@ -359,7 +355,6 @@ class AVEnv(Env):
         """
         self._mean_speeds = []
         self.leader = []
-        self.follower = []
         return super().reset()
 
 
@@ -738,7 +733,6 @@ class AVOpenEnv(AVEnv):
             self.net_params = new_net_params
 
         self.leader = []
-        self.follower = []
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()

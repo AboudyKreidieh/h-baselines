@@ -144,7 +144,6 @@ class AVMultiAgentEnv(MultiEnv):
         # used for visualization: the vehicles behind and after RL vehicles
         # (ie the observed vehicles) will have a different color
         self.leader = []
-        self.follower = []
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
@@ -308,7 +307,6 @@ class AVMultiAgentEnv(MultiEnv):
         """See class definition."""
         obs = {}
         self.leader = []
-        self.follower = []
 
         # Remove observations from vehicles that have left the network.
         for key in list(self._obs_history.keys()):
@@ -317,14 +315,12 @@ class AVMultiAgentEnv(MultiEnv):
 
         for i, veh_id in enumerate(self.rl_ids()):
             # Compute the relative observation of each vehicle.
-            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            obs_vehicle, leader = get_relative_obs(self, veh_id)
             obs_vehicle = np.asarray(obs_vehicle)
 
             # Append to the leader/follower lists.
             if leader not in ["", None]:
                 self.leader.append(leader)
-            if follower not in ["", None]:
-                self.follower.append(follower)
 
             # Add the observation to the observation history to the
             self._obs_history[veh_id].append(obs_vehicle)
@@ -347,7 +343,7 @@ class AVMultiAgentEnv(MultiEnv):
         Define which vehicles are observed for visualization purposes.
         """
         # specify observed vehicles
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def step(self, rl_actions):
@@ -375,7 +371,6 @@ class AVMultiAgentEnv(MultiEnv):
         self._mean_speeds = []
         self._std_speeds = []
         self.leader = []
-        self.follower = []
         return super().reset(new_inflow_rate)
 
 
@@ -785,7 +780,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     def _clear_attributes(self):
         """Clear all AV-related attributes."""
         self.leader = []
-        self.follower = []
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()
@@ -939,7 +933,6 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         """See class definition."""
         obs = {}
         self.leader = []
-        self.follower = []
 
         for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
@@ -950,15 +943,13 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
             for i, veh_id in enumerate(rl_ids):
                 # Add relative observation of each vehicle.
-                obs_lane[5*i: 5*(i+1)], leader, follower = get_relative_obs(
+                obs_lane[5*i: 5*(i+1)], leader = get_relative_obs(
                     self, veh_id)
                 obs[5*i: 5*(i+1)] = np.asarray(obs[5*i: 5*(i+1)])
 
                 # Append to the leader/follower lists.
                 if leader not in ["", None]:
                     self.leader.append(leader)
-                if follower not in ["", None]:
-                    self.follower.append(follower)
 
             # Add the observation to the observation history to the
             self._obs_history[lane].append(obs_lane)
@@ -1046,13 +1037,12 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
         # Specify observed vehicles.
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def _clear_attributes(self):
         """Clear all AV-related attributes."""
         self.leader = []
-        self.follower = []
         self.rl_veh = [[] for _ in range(self._num_lanes)]
         self.removed_veh = []
         self.rl_queue = [collections.deque() for _ in range(self._num_lanes)]

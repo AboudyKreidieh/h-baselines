@@ -82,7 +82,7 @@ def get_flow_params(stopping_penalty,
             acceleration_controller=(IDMController, {
                 "a": 1.3,
                 "b": 2.0,
-                "noise": 0.0
+                "noise": 0.2,
             }),
             routing_controller=(ContinuousRouter, {}),
             car_following_params=SumoCarFollowingParams(
