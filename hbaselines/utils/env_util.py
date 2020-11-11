@@ -532,13 +532,13 @@ ENV_ATTRIBUTES = {
 
     "highway-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-1 if relative_goals else 0,
-            high=1 if relative_goals else 2,
-            shape=(1 if multiagent else 10,),
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            5 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -546,7 +546,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5 if multiagent else 1,
+                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
@@ -557,13 +557,13 @@ ENV_ATTRIBUTES = {
 
     "highway-v1": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-1 if relative_goals else 0,
-            high=1 if relative_goals else 2,
-            shape=(1 if multiagent else 10,),
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            5 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
@@ -571,7 +571,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5 if multiagent else 1,
+                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
@@ -582,8 +582,8 @@ ENV_ATTRIBUTES = {
 
     "highway-v2": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-1 if relative_goals else 0,
-            high=1 if relative_goals else 2,
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
@@ -596,7 +596,7 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=False,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5 if multiagent else 1,
+                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
