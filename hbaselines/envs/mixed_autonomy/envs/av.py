@@ -182,8 +182,8 @@ class AVEnv(Env):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(self.num_rl,),
                 dtype=np.float32)
 
@@ -205,7 +205,8 @@ class AVEnv(Env):
                 self._av_controller.v_des = rl_actions[i]
                 accelerations.append(self._av_controller.get_action(self))
         else:
-            accelerations = deepcopy(rl_actions)
+            accelerations = np.array(deepcopy(rl_actions)) * \
+                self.env_params.additional_params["max_accel"]
 
             # Redefine the accelerations if below a speed threshold so that all
             # actions result in non-negative desired speeds.
@@ -261,8 +262,6 @@ class AVEnv(Env):
                 # in case of collisions or an empty network
                 reward = 0
             else:
-                reward = 0
-
                 # =========================================================== #
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
