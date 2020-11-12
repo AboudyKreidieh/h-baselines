@@ -299,6 +299,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.pretrain_worker = pretrain_worker
         self.pretrain_path = pretrain_path
         self.pretrain_ckpt = pretrain_ckpt
+        self._t = 0
 
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
@@ -602,7 +603,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
-            if kwargs['update_meta'][i] and not self.pretrain_worker:
+            if kwargs['update_meta'][i] and not (
+                    self.pretrain_worker and
+                    self._t <= 2e5 * (self.num_levels-i-1) / (self.num_levels-1)):
                 # Replace the goals with the most likely goals.
                 if self.off_policy_corrections and i == 0:  # FIXME
                     meta_act = self._sample_best_meta_action(
@@ -649,10 +652,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
+        self._t += 1
+        num_levels = self.num_levels
+
         # Loop through the policies in the hierarchy.
         for i in range(self.num_levels - 1):
             if self._update_meta(i, env_num):
-                if self.pretrain_worker:
+                if self.pretrain_worker and \
+                        self._t <= 2e5 * (num_levels-i-1) / (num_levels-1):
                     # Sample goals randomly when performing pre-training.
                     self.meta_action[env_num][i] = np.array([
                         self.policy[i].ac_space.sample()])
