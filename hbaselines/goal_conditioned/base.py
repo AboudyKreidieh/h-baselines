@@ -598,7 +598,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # intrinsic rewards (these the policies to terminate early).
         if self._negative_reward_fn():
             for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
+                done[i+1] = np.array([False] * len(done[i+1]))
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
@@ -705,7 +705,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             # Compute the intrinsic rewards and append them to the list of
             # rewards.
             self._rewards[env_num][-i][-1] += \
-                self.intrinsic_reward_scale[i - 1] * \
+                self.intrinsic_reward_scale[-i] * \
                 self.intrinsic_reward_fn(
                     states=obs0,
                     goals=self.meta_action[env_num][-i].flatten(),
