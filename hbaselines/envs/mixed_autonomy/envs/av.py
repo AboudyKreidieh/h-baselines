@@ -310,7 +310,7 @@ class AVEnv(Env):
             if veh_id in self.rl_ids():
                 # Add to the environment observation.
                 indx_veh = self.rl_ids().index(veh_id)
-                for i in range(np.floor(len(self._obs_history[veh_id]) / 5)):
+                for i in range(int(len(self._obs_history[veh_id]) / 5)):
                     obs[3*indx_veh + 15*i: 3*(indx_veh+1) + 15*i] = \
                         self._obs_history[veh_id][-5 * i]
 
@@ -319,7 +319,7 @@ class AVEnv(Env):
                     self.leader.append(leader)
 
         # Remove vehicles that exited the network.
-        for veh_id in self._obs_history.keys():
+        for veh_id in list(self._obs_history.keys()):
             if veh_id not in self.k.vehicle.get_rl_ids():
                 del self._obs_history[veh_id]
 
