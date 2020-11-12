@@ -527,8 +527,11 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--meta_period",
         type=int,
+        nargs="+",
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
-        help="meta-policy action period")
+        help="meta-policy action period. For multi-level hierarchies, a "
+             "separate meta period can be provided for each level (indexed "
+             "from highest to lowest)")
     parser.add_argument(
         "--intrinsic_reward_type",
         type=str,
@@ -538,6 +541,7 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,
+        nargs="+",
         default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_scale"],
         help="the value that the intrinsic reward should be scaled by")
     parser.add_argument(

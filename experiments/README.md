@@ -121,12 +121,14 @@ respective policies.
 
 * `--num_levels` (*int*): the number of levels within the hierarchy. Must be
   greater than 1. Defaults to 2.
-* `--meta_period` (*int*): the meta-policy action period. Defaults to 10.
+* `--meta_period` (*int or [int]*): the meta-policy action period. For 
+  multi-level hierarchies, a separate meta period can be provided for each
+  level (indexed from highest to lowest) Defaults to 10.
 * `--intrinsic_reward_type` (*str*): the reward function to be used by the 
   lower-level policies. See the base goal-conditioned policy for a description.
   Defaults to "negative_distance".
-* `--intrinsic_reward_scale` (*int*): the value that the intrinsic reward
-  should be scaled by. Defaults to 1.
+* `--intrinsic_reward_scale` (*[float]*): the value that the intrinsic reward
+  should be scaled by. One for each meta-level. Defaults to 1.
 * `--relative_goals` (*store_true*): whether the goal issued by the
   higher-level policies is meant to be a relative or absolute goal. 
 * `--off_policy_corrections` (*store_true*): whether to use off-policy

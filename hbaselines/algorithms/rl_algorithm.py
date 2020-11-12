@@ -180,7 +180,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # goal-conditioned policy for a description.
     intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
-    intrinsic_reward_scale=1,
+    intrinsic_reward_scale=1.,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -1098,13 +1098,13 @@ class RLAlgorithm(object):
                 # policies based on the meta and actor update frequencies
                 kwargs = {
                     "update_meta": [
-                        train_itr % self.meta_update_freq ** i == 0
-                        for i in range(1, num_levels)
+                        train_itr % self.meta_update_freq == 0
+                        for _ in range(1, num_levels)
                     ],
                     "update_meta_actor": [
-                        train_itr % (self.meta_update_freq ** i *
+                        train_itr % (self.meta_update_freq *
                                      self.actor_update_freq) == 0
-                        for i in range(1, num_levels)
+                        for _ in range(1, num_levels)
                     ]
                 }
             else:

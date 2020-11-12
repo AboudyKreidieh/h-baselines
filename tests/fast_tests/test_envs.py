@@ -2279,7 +2279,6 @@ def test_observed(env_class,
     env.reset()
     env.step(None)
     env.additional_command()
-    print(env.k.vehicle.get_observed_ids())
     test_mask = np.all(
         np.array(env.k.vehicle.get_observed_ids()) ==
         np.array(expected_observed)

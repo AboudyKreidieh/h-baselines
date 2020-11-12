@@ -83,13 +83,16 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the lower-level policies. See the
             base goal-conditioned policy for a description.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each meta-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-levels policies is
             meant to be a relative or absolute goal, i.e. specific state or
