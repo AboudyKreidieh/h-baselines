@@ -113,9 +113,6 @@ class AVEnv(Env):
     leader : list of str
         the names of the vehicles leading the RL vehicles at any given step.
         Used for visualization.
-    follower : list of str
-        the names of the vehicles following the RL vehicles at any given step.
-        Used for visualization.
     num_rl : int
         a fixed term to represent the number of RL vehicles in the network. In
         closed networks, this is the original number of RL vehicles. Otherwise,
@@ -149,7 +146,7 @@ class AVEnv(Env):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
-        self._obs_history = []
+        self._obs_history = defaultdict(list)
         self._obs_frames = env_params.additional_params["obs_frames"]
 
         # dynamics controller for controlled RL vehicles. Only relevant if
@@ -270,11 +267,9 @@ class AVEnv(Env):
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 5e-7
-                avg_speed = np.mean(vel)
-                density = num_vehicles / (
-                    self._control_range[1] - self._control_range[0])
-                reward += reward_scale * (avg_speed * density * 3600) ** 2
+                reward_scale = 0.1
+                reward = reward_scale * np.mean(
+                    self.k.vehicle.get_speed(self.rl_ids())) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -301,26 +296,33 @@ class AVEnv(Env):
         self.leader = []
 
         # Initialize a set on empty observations
-        obs = [0 for _ in range(3 * self.num_rl)]
-
-        for i, v_id in enumerate(self.rl_ids()):
-            # Add relative observation of each vehicle.
-            obs[3*i: 3*(i+1)], leader = get_relative_obs(self, v_id)
-
-            # Append to the leader lists.
-            if leader not in ["", None]:
-                self.leader.append(leader)
-
-        # Add the observation to the observation history to the
-        self._obs_history.append(obs)
-        if len(self._obs_history) > 5 * self._obs_frames:
-            self._obs_history = self._obs_history[-5 * self._obs_frames:]
-
-        # Concatenate the past n samples for a given time delta and return as
-        # the final observation.
-        obs_t = np.concatenate(self._obs_history[::-5])
         obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
-        obs[:len(obs_t)] = obs_t
+
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Add relative observation of each vehicle.
+            obs_vehicle, leader = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > 5 * self._obs_frames:
+                self._obs_history[veh_id] = self._obs_history[veh_id][
+                    -5 * self._obs_frames:]
+
+            if veh_id in self.rl_ids():
+                # Add to the environment observation.
+                indx_veh = self.rl_ids().index(veh_id)
+                for i in range(np.floor(len(self._obs_history[veh_id]) / 5)):
+                    obs[3*indx_veh + 15*i: 3*(indx_veh+1) + 15*i] = \
+                        self._obs_history[veh_id][-5 * i]
+
+                # Append to the leader lists.
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+
+        # Remove vehicles that exited the network.
+        for veh_id in self._obs_history.keys():
+            if veh_id not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[veh_id]
 
         return obs
 

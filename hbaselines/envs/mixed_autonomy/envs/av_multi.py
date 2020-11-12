@@ -108,9 +108,6 @@ class AVMultiAgentEnv(MultiEnv):
     leader : list of str
         the names of the vehicles leading the RL vehicles at any given step.
         Used for visualization.
-    follower : list of str
-        the names of the vehicles following the RL vehicles at any given step.
-        Used for visualization.
     num_rl : int
         a fixed term to represent the number of RL vehicles in the network. In
         closed networks, this is the original number of RL vehicles. Otherwise,
@@ -318,7 +315,7 @@ class AVMultiAgentEnv(MultiEnv):
             obs_vehicle, leader = get_relative_obs(self, veh_id)
             obs_vehicle = np.asarray(obs_vehicle)
 
-            # Append to the leader/follower lists.
+            # Append to the leader lists.
             if leader not in ["", None]:
                 self.leader.append(leader)
 
@@ -947,7 +944,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                     self, veh_id)
                 obs[5*i: 5*(i+1)] = np.asarray(obs[5*i: 5*(i+1)])
 
-                # Append to the leader/follower lists.
+                # Append to the leader lists.
                 if leader not in ["", None]:
                     self.leader.append(leader)
 

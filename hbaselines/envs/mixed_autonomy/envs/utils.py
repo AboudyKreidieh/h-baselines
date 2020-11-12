@@ -26,11 +26,8 @@ def get_relative_obs(env, veh_id):
     1. the ego speed
     2. the headway
     3. the speed of the leader
-    4. the tailway
-    5. the speed of the follower
 
-    This also adds the leaders and followers to the vehicle class for
-    visualization purposes.
+    This also adds the leaders to the vehicle class for visualization purposes.
 
     Parameters
     ----------

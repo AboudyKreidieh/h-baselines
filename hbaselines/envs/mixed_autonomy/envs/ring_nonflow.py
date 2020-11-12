@@ -679,8 +679,8 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.2  # 0.1  # 0.001
-        reward = reward_scale * np.mean(self.speeds[self.rl_ids])
+        reward_scale = 0.1  # 0.1  # 0.001
+        reward = reward_scale * np.mean(self.speeds[self.rl_ids]) ** 2
         # reward_scale = 0.1
         # v_des = self._v_eq
         # reward = reward_scale * (
