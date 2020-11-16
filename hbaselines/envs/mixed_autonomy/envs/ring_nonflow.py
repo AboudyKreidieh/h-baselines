@@ -208,7 +208,7 @@ class RingEnv(gym.Env):
 
     @staticmethod
     def _set_initial_state(length, num_vehicles, initial_state, min_gap):
-        """Choose an initial state for all vehicles in the network
+        """Choose an initial state for all vehicles in the network.
 
         Parameters
         ----------
