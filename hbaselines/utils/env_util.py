@@ -44,7 +44,7 @@ except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
 
 try:
     from hbaselines.envs.point2d import Point2DEnv
-except (ImportError, ModuleNotFoundError):
+except (ImportError, ModuleNotFoundError, AttributeError):
     pass
 
 
