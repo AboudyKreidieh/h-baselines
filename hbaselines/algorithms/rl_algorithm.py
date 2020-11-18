@@ -247,6 +247,8 @@ class RLAlgorithm(object):
         for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
+    total_steps : int
+        the total number of samples to train on
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -314,7 +316,7 @@ class RLAlgorithm(object):
         environment.
     episodes : int
         the total number of rollouts performed since training began
-    total_steps : int
+    steps : int
         the total number of steps that have been executed since training began
     epoch_episode_rewards : list of float
         a list of cumulative rollout rewards from the most recent training
@@ -352,6 +354,7 @@ class RLAlgorithm(object):
     def __init__(self,
                  policy,
                  env,
+                 total_steps,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -375,6 +378,8 @@ class RLAlgorithm(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        total_steps : int
+            the total number of samples to train on
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -452,6 +457,7 @@ class RLAlgorithm(object):
             else env.__str__()
         self.eval_env, _ = create_env(
             eval_env, render_eval, shared, maddpg, evaluate=True)
+        self.total_steps = total_steps
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -481,6 +487,7 @@ class RLAlgorithm(object):
         if is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
+            self.policy_kwargs['total_steps'] = total_steps
 
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
@@ -510,7 +517,7 @@ class RLAlgorithm(object):
         self.summary = None
         self.episode_step = [0 for _ in range(num_envs)]
         self.episodes = 0
-        self.total_steps = 0
+        self.steps = 0
         self.epoch_episode_steps = []
         self.epoch_episode_rewards = []
         self.epoch_episodes = 0
@@ -793,7 +800,6 @@ class RLAlgorithm(object):
         )
 
     def learn(self,
-              total_steps,
               log_dir=None,
               seed=None,
               log_interval=2000,
@@ -804,8 +810,6 @@ class RLAlgorithm(object):
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         log_dir : str
             the directory where the training and evaluation statistics, as well
             as the tensorboard log, should be stored
@@ -838,7 +842,7 @@ class RLAlgorithm(object):
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_steps // save_interval)
+            max_to_keep=self.total_steps // save_interval)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -875,7 +879,7 @@ class RLAlgorithm(object):
 
             # Reset total statistics variables.
             self.episodes = 0
-            self.total_steps = 0
+            self.steps = 0
             self.episode_rew_history = deque(maxlen=100)
             self.info_at_done = {
                 key: deque(maxlen=100) for key in self._info_keys}
@@ -889,7 +893,7 @@ class RLAlgorithm(object):
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps >= total_steps:
+                    if self.steps >= self.total_steps:
                         return
 
                     # Perform rollouts.
@@ -903,7 +907,7 @@ class RLAlgorithm(object):
 
                 # Evaluate.
                 if self.eval_env is not None and \
-                        (self.total_steps - eval_steps_incr) >= eval_interval:
+                        (self.steps - eval_steps_incr) >= eval_interval:
                     eval_steps_incr += eval_interval
 
                     # Run the evaluation operations over the evaluation env(s).
@@ -942,10 +946,10 @@ class RLAlgorithm(object):
                         for key in self.info_ph.keys()
                     })
                     summary = self.sess.run(self.summary, td_map)
-                    writer.add_summary(summary, self.total_steps)
+                    writer.add_summary(summary, self.steps)
 
                 # Save a checkpoint of the model.
-                if (self.total_steps - save_steps_incr) >= save_interval:
+                if (self.steps - save_steps_incr) >= save_interval:
                     save_steps_incr += save_interval
                     self.save(os.path.join(log_dir, "checkpoints/itr"))
 
@@ -960,12 +964,12 @@ class RLAlgorithm(object):
         save_path : str
             Prefix of filenames created for the checkpoint
         """
-        self.saver.save(self.sess, save_path, global_step=self.total_steps)
+        self.saver.save(self.sess, save_path, global_step=self.steps)
 
         # Save data from the replay buffer.
         if self.save_replay_buffer:
             self.policy_tf.replay_buffer.save(
-                save_path + "-{}.rb".format(self.total_steps))
+                save_path + "-{}.rb".format(self.steps))
 
     def load(self, load_path):
         """Load model parameters from a checkpoint.
@@ -1059,7 +1063,7 @@ class RLAlgorithm(object):
                 )
 
                 # Book-keeping.
-                self.total_steps += 1
+                self.steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
                     self.episode_reward[num] += np.mean(
@@ -1090,7 +1094,7 @@ class RLAlgorithm(object):
         if is_td3_policy(self.policy) or is_sac_policy(self.policy):
             # Added to adjust the actor update frequency based on the rate at
             # which training occurs.
-            train_itr = int(self.total_steps / self.nb_rollout_steps)
+            train_itr = int(self.steps / self.nb_rollout_steps)
             num_levels = getattr(self.policy_tf, "num_levels", 2)
 
             if is_goal_conditioned_policy(self.policy):
@@ -1145,7 +1149,7 @@ class RLAlgorithm(object):
         dict
             additional information that is meant to be logged
         """
-        num_steps = deepcopy(self.total_steps)
+        num_steps = deepcopy(self.steps)
         eval_episode_rewards = []
         eval_episode_successes = []
         ret_info = {'initial': [], 'final': [], 'average': []}
@@ -1303,9 +1307,9 @@ class RLAlgorithm(object):
 
             # Total statistics.
             'total/epochs': self.epoch + 1,
-            'total/steps': self.total_steps,
+            'total/steps': self.steps,
             'total/duration': duration,
-            'total/steps_per_second': self.total_steps / duration,
+            'total/steps_per_second': self.steps / duration,
             'total/episodes': self.episodes,
         }
 
@@ -1368,7 +1372,7 @@ class RLAlgorithm(object):
 
             evaluation_stats = {
                 "duration": duration,
-                "total_step": self.total_steps,
+                "total_step": self.steps,
                 "success_rate": success_rate,
                 "average_return": np.mean(rew)
             }
