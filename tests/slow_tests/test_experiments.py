@@ -242,6 +242,34 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
 
+    def test_run_hrl_td3_multilevel(self):
+        # Run the script; verify it executes without failure.
+        args = parse_train_options(
+            '', '',
+            args=[
+                "MountainCarContinuous-v0",
+                "--initial_exploration_steps", "1",
+                "--batch_size", "32",
+                "--meta_period", "5",
+                "--num_level", "3",
+                "--meta_period", "2", "5",
+                "--total_steps", "500",
+                "--log_interval", "500",
+            ],
+            multiagent=False,
+            hierarchical=True,
+        )
+        run_hrl(args, 'data/goal-conditioned')
+
+        # Check that the folders were generated.
+        self.assertTrue(os.path.isdir(
+            os.path.join(
+                os.getcwd(),
+                "data/goal-conditioned/MountainCarContinuous-v0")))
+
+        # Clear anything that was generated.
+        shutil.rmtree(os.path.join(os.getcwd(), "data"))
+
     def test_run_hrl_sac(self):
         # Run the script; verify it executes without failure.
         args = parse_train_options(
