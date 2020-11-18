@@ -52,6 +52,7 @@ class AntMazeEnv(gym.Env):
                  manual_collision=False,
                  ant_fall=False,
                  evaluate=False,
+                 num_levels=1,
                  *args,
                  **kwargs):
         """Instantiate the environment.
@@ -90,14 +91,24 @@ class AntMazeEnv(gym.Env):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
         """
         self._maze_id = maze_id
 
         model_cls = self.__class__.MODEL_CLASS
         if model_cls is None:
             raise AssertionError("MODEL_CLASS unspecified!")
-        xml_path = os.path.join(
-            MODEL_DIR, "double_ant.xml" if evaluate else "ant.xml")
+
+        if evaluate and num_levels == 2:
+            xml_file = "ant.xml"
+        elif evaluate and num_levels == 3:
+            xml_file = "triple_ant.xml"
+        else:
+            xml_file = "ant.xml"
+
+        xml_path = os.path.join(MODEL_DIR, xml_file)
+
         tree = ET.parse(xml_path)
         worldbody = tree.find(".//worldbody")
 
