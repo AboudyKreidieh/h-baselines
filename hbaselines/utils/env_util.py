@@ -993,17 +993,19 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         # No environment (for evaluation environments).
         return None, None
 
-    # Handle multi-agent environments.
-    multiagent = env.startswith("multiagent")
-    if multiagent:
-        env = env[11:]
-
     elif isinstance(env, str):
+        # Handle multi-agent environments.
+        multiagent = env.startswith("multiagent")
+        if multiagent:
+            env = env[11:]
+
         if env in ENV_ATTRIBUTES.keys():
+            # environments whose attributes are defined under ENV_ATTRIBUTES
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, multiagent, shared, maddpg)
 
         elif env in ["ring-v{}-fast".format(i) for i in range(5)]:
+            # fast ring environments
             scale = int(env[6]) + 1
             env = _get_ring_env_attributes(scale)["env"](
                 evaluate, render, multiagent, shared, maddpg)
