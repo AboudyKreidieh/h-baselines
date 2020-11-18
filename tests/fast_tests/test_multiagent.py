@@ -263,6 +263,7 @@ class TestMultiActorCriticPolicy(unittest.TestCase):
         """
         policy_params = self.policy_params_shared.copy()
         policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
+        policy_params["total_steps"] = 1
         policy_params["num_envs"] = 2
         policy_params["n_agents"] = 5
         policy = TD3MultiGoalConditionedPolicy(**policy_params)
@@ -2509,6 +2510,7 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params_shared.update(TD3_PARAMS.copy())
         self.policy_params_shared.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -2532,6 +2534,7 @@ class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params_independent.update(TD3_PARAMS.copy())
         self.policy_params_independent.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -3177,6 +3180,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-3, high=3, shape=(3,)),
             'all_ob_space': Box(low=-3, high=3, shape=(10,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params_shared.update(SAC_PARAMS.copy())
         self.policy_params_shared.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -3200,6 +3204,7 @@ class TestSACMultiGoalConditionedPolicy(unittest.TestCase):
             },
             'all_ob_space': Box(low=-6, high=6, shape=(18,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params_independent.update(SAC_PARAMS.copy())
         self.policy_params_independent.update(GOAL_CONDITIONED_PARAMS.copy())

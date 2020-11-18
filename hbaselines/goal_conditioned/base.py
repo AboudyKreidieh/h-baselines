@@ -602,7 +602,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
-            if kwargs['update_meta'][i] and not self.pretrain_worker:
+            if kwargs['update_meta'][i] and not self._pretrain_level(i):
                 # Replace the goals with the most likely goals.
                 if self.off_policy_corrections and i == 0:  # FIXME
                     meta_act = self._sample_best_meta_action(
@@ -878,7 +878,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         pretrain_steps = self.total_steps * \
             (self.num_levels - level - 1) / (self.num_levels - 1)
 
-        return self.pretrain_worker and (self._steps < pretrain_steps)
+        if level == 0:
+            # bug fix for the final step
+            return self.pretrain_worker
+        else:
+            return self.pretrain_worker and (self._steps < pretrain_steps)
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #

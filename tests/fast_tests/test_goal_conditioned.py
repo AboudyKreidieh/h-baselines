@@ -24,6 +24,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -935,6 +936,94 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         del policy, policy_params
         tf.compat.v1.reset_default_graph()
 
+    def test_pretrain_level(self):
+        """Validate the functionality of the _pretrain_level method.
+
+        This is done for the following cases (in a 3-level hierarchy):
+
+        1. total_steps = 200000, _steps = 0, level = 0
+        2. total_steps = 200000, _steps = 0, level = 1
+        3. total_steps = 200000, _steps = 50000, level = 0
+        4. total_steps = 200000, _steps = 50000, level = 1
+        5. total_steps = 200000, _steps = 100000, level = 0
+        6. total_steps = 200000, _steps = 100000, level = 1
+        7. total_steps = 200000, _steps = 200000, level = 0
+        8. total_steps = 200000, _steps = 200000, level = 1
+        """
+        policy_params = self.policy_params.copy()
+        policy_params['sess'] = tf.compat.v1.Session()
+        policy_params['env_name'] = "AntGather"
+        policy_params['num_levels'] = 3
+        policy_params['total_steps'] = 200000
+        policy_params["pretrain_worker"] = True
+
+        # Initialize the policy.
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        policy._steps = 0
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        policy._steps = 0
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        policy._steps = 50000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        policy._steps = 50000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 5                                                         #
+        # =================================================================== #
+
+        policy._steps = 100000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 6                                                         #
+        # =================================================================== #
+
+        policy._steps = 100000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), False)
+
+        # =================================================================== #
+        # test case 7                                                         #
+        # =================================================================== #
+
+        policy._steps = 200000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 8                                                         #
+        # =================================================================== #
+
+        policy._steps = 200000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), False)
+
 
 class TestTD3GoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
@@ -946,6 +1035,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1305,6 +1395,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
