@@ -128,7 +128,7 @@ respective policies.
   lower-level policies. See the base goal-conditioned policy for a description.
   Defaults to "negative_distance".
 * `--intrinsic_reward_scale` (*[float]*): the value that the intrinsic reward
-  should be scaled by. One for each meta-level. Defaults to 1.
+  should be scaled by. One for each lower-level. Defaults to 1.
 * `--relative_goals` (*store_true*): whether the goal issued by the
   higher-level policies is meant to be a relative or absolute goal. 
 * `--off_policy_corrections` (*store_true*): whether to use off-policy

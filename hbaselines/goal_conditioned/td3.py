@@ -103,7 +103,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             base goal-conditioned policy for a description.
         intrinsic_reward_scale : [float]
             the value that the intrinsic reward should be scaled by. One for
-            each meta-level.
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-level policies is
             meant to be a relative or absolute goal, i.e. specific state or
