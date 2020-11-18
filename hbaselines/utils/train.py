@@ -16,6 +16,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 def get_hyperparameters(args, policy):
     """Return the hyperparameters of a training algorithm from the parser."""
     algorithm_params = {
+        "total_steps": args.total_steps,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
@@ -181,9 +182,6 @@ def parse_options(description,
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
     parser_algorithm.add_argument(
-        '--total_steps',  type=int, default=1000000,
-        help='Total number of timesteps used during training.')
-    parser_algorithm.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
     parser_algorithm.add_argument(
@@ -231,6 +229,9 @@ def parse_options(description,
 
 def create_algorithm_parser(parser):
     """Add the algorithm hyperparameters to the parser."""
+    parser.add_argument(
+        '--total_steps',  type=int, default=1000000,
+        help='Total number of timesteps used during training.')
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')

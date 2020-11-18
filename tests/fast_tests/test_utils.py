@@ -115,6 +115,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -250,6 +251,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -362,6 +364,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -510,6 +513,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -623,6 +627,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -730,6 +735,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -849,6 +855,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -986,6 +993,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1119,6 +1127,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1248,6 +1257,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -1356,6 +1366,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1491,6 +1502,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,

@@ -43,6 +43,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -136,6 +137,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -168,6 +172,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,

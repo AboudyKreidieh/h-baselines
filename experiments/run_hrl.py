@@ -14,7 +14,6 @@ EXAMPLE_USAGE = 'python run_hrl.py "HalfCheetah-v2" --meta_period 10'
 def run_exp(env,
             policy,
             hp,
-            steps,
             dir_name,
             evaluate,
             seed,
@@ -32,8 +31,6 @@ def run_exp(env,
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
-    steps : int
-        total number of training steps
     dir_name : str
         the location the results files are meant to be stored
     evaluate : bool
@@ -63,7 +60,6 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
@@ -116,7 +112,6 @@ def main(args, base_dir):
             env=args.env_name,
             policy=GoalConditionedPolicy,
             hp=hp,
-            steps=args.total_steps,
             dir_name=dir_name,
             evaluate=args.evaluate,
             seed=seed,
