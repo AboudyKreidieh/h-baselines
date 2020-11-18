@@ -545,11 +545,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         "Shape mismatch for {}, {} != {}".format(
                             var_name, var_shape, current_shape)
 
-            # Import the lowest-level policy parameters.
+            # Import the lower-level policy parameters.
             current_vars = {v.name: v for v in get_trainable_vars()}
             for var in var_list:
                 var_name, var_shape = var
-                if var_name.startswith("level_{}".format(self.num_levels-1)):
+                if any(var_name.startswith("level_{}".format(level))
+                       for level in range(1, self.num_levels)):
                     value = ckpt_reader.get_tensor(var_name)
                     var_name = "{}:0".format(var_name)
                     self.sess.run(
@@ -605,7 +606,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         for i in range(self.num_levels - 1):
             if kwargs['update_meta'][i] and (
                     (not self.pretrain_worker)
-                    or (i == 1 and self._t > 250000)):
+                    or (i == 1 and self._t > 100000)):
                 # Replace the goals with the most likely goals.
                 if self.off_policy_corrections and i == 0:  # FIXME
                     meta_act = self._sample_best_meta_action(
@@ -657,7 +658,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # Loop through the policies in the hierarchy.
         for i in range(self.num_levels - 1):
             if self._update_meta(i, env_num):
-                if self.pretrain_worker and not (i == 1 and self._t > 250000):
+                if self.pretrain_worker and not (i == 1 and self._t > 100000):
                     # Sample goals randomly when performing pre-training.
                     self.meta_action[env_num][i] = np.array([
                         self.policy[i].ac_space.sample()])
