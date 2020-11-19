@@ -64,8 +64,9 @@ except (ImportError, ModuleNotFoundError, AttributeError):
 #   the higher level policies
 # - state_indices: a list that assigns the indices that correspond to goals in
 #   the Worker's state space
-# - env: a lambda term that takes an input (evaluate, render, multiagent,
-#   shared, maddpg) and return an environment or list of environments
+# - env: a lambda term that takes an input (evaluate, render, num_levels,
+#   multiagent, shared, maddpg) and return an environment or list of
+#   environments
 ENV_ATTRIBUTES = {
 
     # ======================================================================= #
