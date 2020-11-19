@@ -767,8 +767,8 @@ class RingMultiAgentEnv(RingEnv):
     def action_space(self):
         """See class definition."""
         return Box(
-            low=-0.1,
-            high=0.1,
+            low=-1.,
+            high=1.,
             shape=(1,),
             dtype=np.float32)
 
@@ -778,7 +778,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(15,),
+            shape=(25,),
             dtype=np.float32)
 
     def step(self, action):
@@ -802,7 +802,12 @@ class RingMultiAgentEnv(RingEnv):
                 # lead speed
                 self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
-                self.headways[veh_id] / MAX_HEADWAY,
+                min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
+                # follower speed
+                self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
+                # lead gap
+                min(self.headways[(veh_id - 1) % self.num_vehicles]
+                    / MAX_HEADWAY, 5.0),
             ]
 
             # Add the observation to the observation history to the
@@ -813,7 +818,7 @@ class RingMultiAgentEnv(RingEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[veh_id][::-5])
-            obs_vehicle = np.array([0. for _ in range(15)])
+            obs_vehicle = np.array([0. for _ in range(25)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
@@ -822,7 +827,7 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.001
+        reward_scale = 0.1
         reward = {
             key: reward_scale * np.mean(self.speeds) ** 2
             for key in self.rl_ids
