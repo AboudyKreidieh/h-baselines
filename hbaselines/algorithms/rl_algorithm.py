@@ -448,6 +448,16 @@ class RLAlgorithm(object):
                 print("WARNING: nb_train_steps is not utilized when running"
                       " PPO. Ignoring.")
 
+        # Check for the number of levels in the network, for visualization
+        # purposes.
+        if is_goal_conditioned_policy(policy):
+            num_levels = GOAL_CONDITIONED_PARAMS["num_levels"] \
+                if policy_kwargs is None \
+                else policy_kwargs.get("num_levels",
+                                       GOAL_CONDITIONED_PARAMS["num_levels"])
+        else:
+            num_levels = 1
+
         # Instantiate the ray instance.
         if num_envs > 1:
             ray.init(num_cpus=num_envs+1, ignore_reinit_error=True)
@@ -456,7 +466,7 @@ class RLAlgorithm(object):
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
         self.eval_env, _ = create_env(
-            eval_env, render_eval, shared, maddpg, evaluate=True)
+            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True)
         self.total_steps = total_steps
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
