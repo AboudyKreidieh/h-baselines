@@ -451,8 +451,10 @@ class RLAlgorithm(object):
         # Check for the number of levels in the network, for visualization
         # purposes.
         if is_goal_conditioned_policy(policy):
-            num_levels = policy_kwargs.get(
-                "num_levels", GOAL_CONDITIONED_PARAMS["num_levels"])
+            num_levels = GOAL_CONDITIONED_PARAMS["num_levels"] \
+                if policy_kwargs is None \
+                else policy_kwargs.get("num_levels",
+                                       GOAL_CONDITIONED_PARAMS["num_levels"])
         else:
             num_levels = 1
 
