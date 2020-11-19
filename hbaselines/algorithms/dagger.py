@@ -42,7 +42,7 @@ GOAL_CONDITIONED_PARAMS.update(dict(
     # meta-policy action period
     meta_period=10,
     # the value that the intrinsic reward should be scaled by
-    intrinsic_reward_scale=1,
+    intrinsic_reward_scale=1.,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,

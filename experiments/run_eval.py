@@ -54,6 +54,11 @@ POLICY_DICT = {
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
     "ring-v0",
+    "ring-v0-fast",
+    "ring-v1-fast",
+    "ring-v2-fast",
+    "ring-v3-fast",
+    "ring-v4-fast",
     "merge-v0",
     "merge-v1",
     "merge-v2",
@@ -255,7 +260,7 @@ def main(args):
                         if policy.relative_goals else 0)
                     env.set_goal(goal)
 
-                new_obs, reward, done, _ = env.step(action)
+                new_obs, reward, done, info = env.step(action)
                 if not flags.no_render:
                     if flags.save_video:
                         if alg.env_name == "AntGather":
@@ -300,6 +305,8 @@ def main(args):
             # Print total returns from a given episode.
             episode_rewards.append(total_reward)
             print("Round {}, return: {}".format(episode_num, total_reward))
+            for key in info.keys():
+                print("Round {}, {}: {}".format(episode_num, key, info[key]))
 
             # Save the video.
             if not flags.no_render and env_name not in FLOW_ENV_NAMES \
