@@ -614,6 +614,62 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         env.wrapped_env.terminate()
 
     # ======================================================================= #
+    #                                 ring-v0                                 #
+    # ======================================================================= #
+
+    def test_single_agent_ring_v0_fast(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("ring-v0-fast")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
+            expected_size=1,
+        )
+
+    def test_multi_agent_ring_v0_fast(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-ring-v0-fast")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertListEqual(
+            sorted(env.rl_ids),
+            [0]
+        )
+
+    # ======================================================================= #
     #                             ring-imitation                              #
     # ======================================================================= #
 
