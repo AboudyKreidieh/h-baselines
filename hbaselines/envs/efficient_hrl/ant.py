@@ -228,5 +228,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             the desired position of the agent
         """
         goal = deepcopy(goal)
-        self.physics.data.qpos.flat[15:] = goal
-        self.physics.data.qpos.flat[17] = 8
+        num_levels = len(goal)
+        for i in range(num_levels):
+            self.physics.data.qpos.flat[15*(i+1):15*(i+2)] = goal[i]
+            self.physics.data.qpos.flat[15*(i+1) + 2] = 8
