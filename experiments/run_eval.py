@@ -260,7 +260,7 @@ def main(args):
                         policy.meta_action[0][i] +
                         (obs[policy.goal_indices]
                          if policy.relative_goals else 0)
-                        for i in range(policy.num_levels)
+                        for i in range(policy.num_levels - 1)
                     ])
                     env.set_goal(goal)
 
