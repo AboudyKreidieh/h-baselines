@@ -2163,6 +2163,191 @@ class TestPoint2D(unittest.TestCase):
             [[0, 1, 2, 3], [1, 2, 3, 4], [1, 1, 2, 4]])
 
 
+class TestRingNonFlow(unittest.TestCase):
+    """Test the functionality of features in ring_nonflow.py."""
+
+    def test_base_env(self):
+        """Validate the functionality of the RingEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
+    def test_single_agent_env(self):
+        """Validate the functionality of the RingSingleAgentEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
+    def test_multi_agent_env(self):
+        """Validate the functionality of the RingMultiAgentEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+        # test case 4
+        pass  # TODO
+
+    def test_set_length(self):
+        """Validates the functionality of the _set_length method.
+
+        This is done for the following cases
+
+        1. length = 260
+        2. length = [260, 270]
+        3. length = [260, 265, 270]
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+    def test_set_initial_state(self):
+        """Validates the functionality of the _set_initial_state method.
+
+        This is done for the following cases
+
+        1. initial_state = None
+        2. initial_state = "random"
+        3. initial_state = < some appropriate list >
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+    def test_update_state(self):
+        """Validates the functionality of the _update_state method.
+
+        An initial state and action is passed to the method, and the output is
+        checked to match expected values.
+        """
+        pass  # TODO
+
+    def test_compute_headway(self):
+        """Validates the functionality of the _compute_headway method.
+
+        Positions are passed to the vehicles and the output is checked to match
+        expected values.
+        """
+        pass  # TODO
+
+    def test_get_accel(self):
+        """Validates the functionality of the _get_accel method.
+
+        Positions and speeds are passed to the vehicles and the output is
+        checked to match expected values.
+        """
+        pass  # TODO
+
+    def test_get_rl_accel(self):
+        """Validates the functionality of the _get_rl_accel method.
+
+        This is done for the following cases
+
+        1. accel = some value
+        2. accel = some *small* value
+        3. accel = some dict value
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+    def test_step(self):
+        """Validates the functionality of the step method.
+
+        The positions and speeds are initialized and the output from the step
+        method is checked for the following cases:
+
+        1. the next positions and speeds match expected values
+        2. the info_dict is checked to match expected values
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+    def test_blank(self):
+        """Validates the functionality of the rest method.
+
+        The positions, speeds, and network length are checked after the resets
+        for the following cases:
+
+        1. initial_state = None,      length = 260
+        2. initial_state = None,      length = [260, 270]
+        3. initial_state = some file, length = ...
+        """
+        # test case 1
+        pass  # TODO
+
+        # test case 2
+        pass  # TODO
+
+        # test case 3
+        pass  # TODO
+
+
 ###############################################################################
 #                              Utility methods                                #
 ###############################################################################
