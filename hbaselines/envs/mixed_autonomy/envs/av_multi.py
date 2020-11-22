@@ -14,6 +14,7 @@ from flow.core.params import InFlows
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
+from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
@@ -21,10 +22,8 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 
 BASE_ENV_PARAMS = dict(
-    # maximum acceleration for autonomous vehicles, in m/s^2
+    # scaling factor for the AV accelerations, in m/s^2
     max_accel=1,
-    # maximum deceleration for autonomous vehicles, in m/s^2
-    max_decel=1,
     # whether to use the follower-stopper controller for the AVs
     use_follower_stopper=False,
     # desired velocity for all vehicles in the network, in m/s
@@ -66,8 +65,7 @@ class AVMultiAgentEnv(MultiEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -154,7 +152,6 @@ class AVMultiAgentEnv(MultiEnv):
             veh_id="av",
             v_des=30,
             max_accel=1,
-            max_decel=2,
             display_warnings=False,
             fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
             car_following_params=self.k.vehicle.type_parameters[human_type][
@@ -179,8 +176,8 @@ class AVMultiAgentEnv(MultiEnv):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(1,),
                 dtype=np.float32)
 
@@ -204,24 +201,17 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
-            for veh_id in rl_actions.keys():
-                # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[veh_id][0])
+            acceleration = get_rl_accel(
+                accel=[deepcopy(rl_actions[veh_id][0])
+                       for veh_id in rl_actions.keys()],
+                vel=self.k.vehicle.get_speed(rl_actions.keys()),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
-                # Redefine if below a speed threshold so that all actions
-                # result in non-negative desired speeds.
-                ac_range = self.action_space.high - self.action_space.low
-                speed = self.k.vehicle.get_speed(veh_id)
-                if speed < 0.5 * ac_range * self.sim_step:
-                    acceleration += 0.5 * ac_range - speed / self.sim_step
-
-                # Run the action through the controller, to include failsafe
-                # actions.
-                acceleration = self.k.vehicle.get_acc_controller(
-                    veh_id).get_action(self, acceleration=acceleration)
-
-                # Apply the action via the simulator.
-                self.k.vehicle.apply_acceleration(veh_id, acceleration)
+            # Apply the action via the simulator.
+            self.k.vehicle.apply_acceleration(
+                acceleration, veh_ids=list(rl_actions.keys()))
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -380,8 +370,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -501,8 +490,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -805,8 +793,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -850,8 +837,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(self.num_rl,),
                 dtype=np.float32)
 
@@ -871,7 +858,12 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             lane = int(key.split("_")[-1])
 
             # Get the acceleration for the given lane.
-            acceleration = deepcopy(rl_actions[key])
+            acceleration = get_rl_accel(
+                accel=deepcopy(rl_actions[key]),
+                vel=self.k.vehicle.get_speed(self.rl_ids()[lane]),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
             # Apply the actions to the given lane.
             self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])

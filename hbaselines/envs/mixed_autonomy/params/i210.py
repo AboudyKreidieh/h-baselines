@@ -192,7 +192,6 @@ def get_flow_params(fixed_boundary,
             sims_per_step=3,
             additional_params={
                 "max_accel": 0.5,
-                "max_decel": 0.5,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,

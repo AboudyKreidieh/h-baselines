@@ -159,7 +159,6 @@ def get_flow_params(num_automated=1,
             evaluate=evaluate,
             additional_params={
                 "max_accel": MAX_ACCEL,
-                "max_decel": MAX_DECEL,
                 "ring_length": ring_length or [220, 270],
                 "full_observation_fn": full_observation_fn
             },
