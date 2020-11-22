@@ -1137,7 +1137,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             env.action_space,
             expected_min=np.array([-1.0 for _ in range(50)]),
             expected_max=np.array([1.0 for _ in range(50)]),
-            expected_size=1,
+            expected_size=50,
         )
         self.assertEqual(
             env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
