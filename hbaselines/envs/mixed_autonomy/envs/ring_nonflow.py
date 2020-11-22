@@ -14,9 +14,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5.0
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20.0  # 50
+MAX_HEADWAY = 20.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 1.0  # 5
+MAX_SPEED = 1.0
 
 
 class RingEnv(gym.Env):
@@ -208,7 +208,7 @@ class RingEnv(gym.Env):
 
     @staticmethod
     def _set_initial_state(length, num_vehicles, initial_state, min_gap):
-        """Choose an initial state for all vehicles in the network
+        """Choose an initial state for all vehicles in the network.
 
         Parameters
         ----------
@@ -679,13 +679,8 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1  # 0.1  # 0.001
-        reward = reward_scale * np.mean(self.speeds[self.rl_ids]) ** 2
-        # reward_scale = 0.1
-        # v_des = self._v_eq
-        # reward = reward_scale * (
-        #     np.linalg.norm([v_des] * len(self.speeds))
-        #     - np.linalg.norm(v_des - self.speeds))
+        reward_scale = 0.1
+        reward = reward_scale * np.mean(self.speeds) ** 2
 
         return reward
 
@@ -767,8 +762,8 @@ class RingMultiAgentEnv(RingEnv):
     def action_space(self):
         """See class definition."""
         return Box(
-            low=-0.1,
-            high=0.1,
+            low=-1.,
+            high=1.,
             shape=(1,),
             dtype=np.float32)
 
@@ -802,7 +797,7 @@ class RingMultiAgentEnv(RingEnv):
                 # lead speed
                 self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
-                self.headways[veh_id] / MAX_HEADWAY,
+                min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
             ]
 
             # Add the observation to the observation history to the
@@ -822,7 +817,7 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.001
+        reward_scale = 0.1
         reward = {
             key: reward_scale * np.mean(self.speeds) ** 2
             for key in self.rl_ids

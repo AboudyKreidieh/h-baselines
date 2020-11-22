@@ -38,6 +38,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  shared,
                  maddpg,
                  n_agents,
@@ -149,6 +150,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -203,6 +207,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 pretrain_worker=pretrain_worker,
                 pretrain_path=pretrain_path,
                 pretrain_ckpt=pretrain_ckpt,
+                total_steps=total_steps,
                 env_name=env_name,
             ),
         )

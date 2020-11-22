@@ -115,6 +115,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -250,6 +251,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -362,6 +364,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -510,6 +513,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -623,6 +627,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -730,6 +735,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -849,6 +855,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -986,6 +993,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1119,6 +1127,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1248,6 +1257,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -1356,6 +1366,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1491,6 +1502,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -1631,6 +1643,98 @@ class TestEnvUtil(unittest.TestCase):
             expected_max=np.array([5 for _ in range(5)]),
             expected_size=5,
         )
+
+        # test for ring-v0-fast
+        ac_space = get_meta_ac_space(env_name="ring-v0-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([10 for _ in range(1)]),
+            expected_size=1,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v0-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(1)]),
+            expected_max=np.array([5 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test for ring-v1-fast
+        self.assertRaises(
+            AssertionError,
+            get_meta_ac_space, env_name="ring-v1-fast", **params)
+        # ac_space = get_meta_ac_space(env_name="ring-v1-fast", **params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([0 for _ in range(2)]),
+        #     expected_max=np.array([10 for _ in range(2)]),
+        #     expected_size=2,
+        # )
+        # ac_space = get_meta_ac_space(env_name="ring-v1-fast", **rel_params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([-5 for _ in range(2)]),
+        #     expected_max=np.array([5 for _ in range(2)]),
+        #     expected_size=2,
+        # )
+
+        # test for ring-v2-fast
+        self.assertRaises(
+            AssertionError,
+            get_meta_ac_space, env_name="ring-v2-fast", **params)
+        # ac_space = get_meta_ac_space(env_name="ring-v2-fast", **params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([0 for _ in range(3)]),
+        #     expected_max=np.array([10 for _ in range(3)]),
+        #     expected_size=3,
+        # )
+        # ac_space = get_meta_ac_space(env_name="ring-v2-fast", **rel_params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([-5 for _ in range(3)]),
+        #     expected_max=np.array([5 for _ in range(3)]),
+        #     expected_size=3,
+        # )
+
+        # test for ring-v3-fast
+        self.assertRaises(
+            AssertionError,
+            get_meta_ac_space, env_name="ring-v3-fast", **params)
+        # ac_space = get_meta_ac_space(env_name="ring-v3-fast", **params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([0 for _ in range(4)]),
+        #     expected_max=np.array([10 for _ in range(4)]),
+        #     expected_size=4,
+        # )
+        # ac_space = get_meta_ac_space(env_name="ring-v3-fast", **rel_params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([-5 for _ in range(4)]),
+        #     expected_max=np.array([5 for _ in range(4)]),
+        #     expected_size=4,
+        # )
+
+        # test for ring-v4-fast
+        self.assertRaises(
+            AssertionError,
+            get_meta_ac_space, env_name="ring-v4-fast", **params)
+        # ac_space = get_meta_ac_space(env_name="ring-v4-fast", **params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([0 for _ in range(5)]),
+        #     expected_max=np.array([10 for _ in range(5)]),
+        #     expected_size=5,
+        # )
+        # ac_space = get_meta_ac_space(env_name="ring-v4-fast", **rel_params)
+        # test_space(
+        #     ac_space,
+        #     expected_min=np.array([-5 for _ in range(5)]),
+        #     expected_max=np.array([5 for _ in range(5)]),
+        #     expected_size=5,
+        # )
 
         # test for ring-imitation
         ac_space = get_meta_ac_space(env_name="ring-imitation", **params)
@@ -1888,6 +1992,48 @@ class TestEnvUtil(unittest.TestCase):
             get_state_indices(env_name="ring-v0", **params),
             [0]
         )
+
+        # test for ring-v0-fast
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v0-fast", **params),
+            [0]
+        )
+
+        # test for ring-v1-fast
+        self.assertRaises(
+            AssertionError,
+            get_state_indices, env_name="ring-v1-fast", **params)
+        # self.assertListEqual(
+        #     get_state_indices(env_name="ring-v1-fast", **params),
+        #     [0, 5]
+        # )
+
+        # test for ring-v2-fast
+        self.assertRaises(
+            AssertionError,
+            get_state_indices, env_name="ring-v2-fast", **params)
+        # self.assertListEqual(
+        #     get_state_indices(env_name="ring-v2-fast", **params),
+        #     [0, 5, 10]
+        # )
+
+        # test for ring-v3-fast
+        self.assertRaises(
+            AssertionError,
+            get_state_indices, env_name="ring-v3-fast", **params)
+        # self.assertListEqual(
+        #     get_state_indices(env_name="ring-v3-fast", **params),
+        #     [0, 5, 10, 15]
+        # )
+
+        # test for ring-v4-fast
+        self.assertRaises(
+            AssertionError,
+            get_state_indices, env_name="ring-v4-fast", **params)
+        # self.assertListEqual(
+        #     get_state_indices(env_name="ring-v4-fast", **params),
+        #     [0, 5, 10, 15, 20]
+        # )
 
         # test for ring-imitation
         self.assertListEqual(
