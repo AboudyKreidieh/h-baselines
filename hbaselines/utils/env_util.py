@@ -1058,11 +1058,6 @@ def create_env(env,
             env = _get_ring_env_attributes(scale)["env"](
                 evaluate, render, multiagent, shared, maddpg)
 
-        elif env in ["ring-v{}-fast".format(i) for i in range(10)]:
-            scale = int(env[6]) + 1
-            env = _get_ring_env_attributes(scale)["env"](
-                evaluate, render, multiagent, shared, maddpg)
-
         elif env.startswith("flow:"):
             # environments in flow/examples
             env = import_flow_env(env, render, shared, maddpg, evaluate)
