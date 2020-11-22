@@ -157,6 +157,7 @@ def get_flow_params(exp_num=1,
             warmup_steps=0,
             additional_params={
                 "max_accel": 1.5,
+                "max_decel": 1.5,
                 "target_velocity": 20,
                 "num_rl": num_rl,
             },

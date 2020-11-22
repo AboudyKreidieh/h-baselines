@@ -207,6 +207,12 @@ class AVEnv(Env):
                 dt=self.sim_step,
             )
 
+            # Run the action through the controller, to include failsafe
+            # actions.
+            for i, veh_id in enumerate(self.rl_ids()):
+                accelerations[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=accelerations[i])
+
         # Apply the actions via the simulator.
         self.k.vehicle.apply_acceleration(
             self.rl_ids(),

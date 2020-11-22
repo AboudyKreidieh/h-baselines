@@ -201,17 +201,24 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
+            rl_ids = list(rl_actions.keys())
+
             acceleration = get_rl_accel(
-                accel=[deepcopy(rl_actions[veh_id][0])
-                       for veh_id in rl_actions.keys()],
-                vel=self.k.vehicle.get_speed(rl_actions.keys()),
+                accel=[deepcopy(rl_actions[veh_id][0]) for veh_id in rl_ids],
+                vel=self.k.vehicle.get_speed(rl_ids),
                 max_accel=self.env_params.additional_params["max_accel"],
                 dt=self.sim_step,
             )
 
+            # Run the action through the controller, to include failsafe
+            # actions.
+            for i, veh_id in enumerate(rl_ids):
+                acceleration[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=acceleration[i])
+
             # Apply the action via the simulator.
             self.k.vehicle.apply_acceleration(
-                acceleration, veh_ids=list(rl_actions.keys()))
+                acc=acceleration, veh_ids=list(rl_actions.keys()))
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -885,18 +892,16 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 self._av_controller.v_des = rl_actions[i]
                 accelerations.append(self._av_controller.get_action(self))
         else:
-            accelerations = deepcopy(rl_actions)
+            accelerations = get_rl_accel(
+                accel=deepcopy(rl_actions),
+                vel=self.k.vehicle.get_speed(veh_ids),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
-            # Redefine the accelerations if below a speed threshold so that all
-            # actions result in non-negative desired speeds.
+            # Run the action through the controller, to include failsafe
+            # actions.
             for i, veh_id in enumerate(veh_ids):
-                ac_range = self.action_space.high[i] - self.action_space.low[i]
-                speed = self.k.vehicle.get_speed(veh_id)
-                if speed < 0.5 * ac_range * self.sim_step:
-                    accelerations[i] += 0.5 * ac_range - speed / self.sim_step
-
-                # Run the action through the controller, to include failsafe
-                # actions.
                 accelerations[i] = self.k.vehicle.get_acc_controller(
                     veh_id).get_action(self, acceleration=accelerations[i])
 
