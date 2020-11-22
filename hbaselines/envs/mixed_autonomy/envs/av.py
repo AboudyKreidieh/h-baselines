@@ -14,6 +14,7 @@ from flow.core.params import InFlows
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
+from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
@@ -21,10 +22,8 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 
 BASE_ENV_PARAMS = dict(
-    # maximum acceleration for autonomous vehicles, in m/s^2
+    # scaling factor for the AV accelerations, in m/s^2
     max_accel=1,
-    # maximum deceleration for autonomous vehicles, in m/s^2
-    max_decel=1,
     # whether to use the follower-stopper controller for the AVs
     use_follower_stopper=False,
     # desired velocity for all vehicles in the network, in m/s
@@ -66,8 +65,7 @@ class AVEnv(Env):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -179,8 +177,8 @@ class AVEnv(Env):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(self.num_rl,),
                 dtype=np.float32)
 
@@ -202,18 +200,16 @@ class AVEnv(Env):
                 self._av_controller.v_des = rl_actions[i]
                 accelerations.append(self._av_controller.get_action(self))
         else:
-            accelerations = deepcopy(rl_actions)
+            accelerations = get_rl_accel(
+                accel=deepcopy(rl_actions),
+                vel=self.k.vehicle.get_speed(self.rl_ids()),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
-            # Redefine the accelerations if below a speed threshold so that all
-            # actions result in non-negative desired speeds.
+            # Run the action through the controller, to include failsafe
+            # actions.
             for i, veh_id in enumerate(self.rl_ids()):
-                ac_range = self.action_space.high[i] - self.action_space.low[i]
-                speed = self.k.vehicle.get_speed(veh_id)
-                if speed < 0.5 * ac_range * self.sim_step:
-                    accelerations[i] += 0.5 * ac_range - speed / self.sim_step
-
-                # Run the action through the controller, to include failsafe
-                # actions.
                 accelerations[i] = self.k.vehicle.get_acc_controller(
                     veh_id).get_action(self, acceleration=accelerations[i])
 
@@ -366,8 +362,7 @@ class AVClosedEnv(AVEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
@@ -487,8 +482,7 @@ class AVOpenEnv(AVEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
     * target_velocity: whether to use the follower-stopper controller for the
