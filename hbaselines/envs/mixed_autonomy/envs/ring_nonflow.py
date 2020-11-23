@@ -776,6 +776,16 @@ class RingMultiAgentEnv(RingEnv):
             shape=(25,),
             dtype=np.float32)
 
+    @property
+    def all_observation_space(self):
+        """Return the shape of the full observation space."""
+        return Box(
+            low=-float("inf"),
+            high=float("inf"),
+            shape=(25 * self.num_rl,),
+            dtype=np.float32,
+        )
+
     def step(self, action):
         """See parent class.
 
