@@ -2254,6 +2254,7 @@ class TestRingNonFlow(unittest.TestCase):
             warmup_steps=0,
             initial_state=None,
             sims_per_step=1,
+            maddpg=False,
         )
 
         self._initial_state_path = os.path.join(
@@ -2342,7 +2343,10 @@ class TestRingNonFlow(unittest.TestCase):
         2. observation_space
         3. get_state
         4. compute_reward
+        5. obs after reset and step when maddpg=True
         """
+        set_seed(0)
+
         # Create the environment.
         init_parameters = deepcopy(self._init_parameters)
         init_parameters["rl_ids"] = [0, 11]
@@ -2387,6 +2391,55 @@ class TestRingNonFlow(unittest.TestCase):
         env.speeds = [i for i in range(22)]
         self.assertDictEqual(
             env.compute_reward(action=None), {0: 11.025, 11: 11.025})
+
+        # Create the environment.
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["rl_ids"] = [0, 11]
+        init_parameters["maddpg"] = True
+        env = RingMultiAgentEnv(**init_parameters)
+
+        # test case 5
+        obs = env.reset()
+        np.testing.assert_almost_equal(
+            obs["obs"][0],
+            [0., 0., 0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["obs"][11],
+            [0., 0., 0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["all_obs"],
+            [0., 0., 0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+
+        )
+
+        obs, _, _, _ = env.step({0: [0], 11: [1]})
+        np.testing.assert_almost_equal(
+            obs["obs"][0],
+            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["obs"][11],
+            [0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["all_obs"],
+            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0.]
+        )
 
     def test_set_length(self):
         """Validates the functionality of the _set_length method.
@@ -2514,32 +2567,6 @@ class TestRingNonFlow(unittest.TestCase):
             [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
              1., 1., 1., 1., 1., 129.]
         )
-
-    def test_get_accel(self):
-        """Validates the functionality of the _get_accel method.
-
-        Positions and speeds are passed to the vehicles and the output is
-        checked to match expected values.
-        """
-        pass  # TODO
-
-    def test_get_rl_accel(self):
-        """Validates the functionality of the _get_rl_accel method.
-
-        This is done for the following cases
-
-        1. accel = some value
-        2. accel = some *small* value
-        3. accel = some dict value
-        """
-        # test case 1
-        pass  # TODO
-
-        # test case 2
-        pass  # TODO
-
-        # test case 3
-        pass  # TODO
 
     def test_step(self):
         """Validates the functionality of the step method.

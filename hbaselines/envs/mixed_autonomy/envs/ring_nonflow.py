@@ -56,6 +56,8 @@ class RingEnv(gym.Env):
     warmup_steps : int
         number of steps performed before the initialization of training during
         a rollout
+    maddpg : bool
+        whether to use a variant that is compatible with MADDPG
     t : int
         number of simulation steps since the start of the current rollout
     positions : array_like
@@ -98,7 +100,8 @@ class RingEnv(gym.Env):
                  gen_emission=False,
                  rl_ids=None,
                  warmup_steps=0,
-                 initial_state=None):
+                 initial_state=None,
+                 maddpg=False):
         """Instantiate the environment class.
 
         Parameters
@@ -134,6 +137,8 @@ class RingEnv(gym.Env):
               minimum gap between vehicles specified by "min_gap"
             * str: A string that is not "random" is assumed to be a path to a
               json file specifying initial vehicle positions and speeds
+        maddpg : bool
+            whether to use a variant that is compatible with MADDPG
         """
         self._length = length
 
@@ -156,6 +161,7 @@ class RingEnv(gym.Env):
         self.num_rl = len(rl_ids) if rl_ids is not None else 0
         self.rl_ids = np.asarray(rl_ids)
         self.warmup_steps = warmup_steps
+        self.maddpg = maddpg
         self._time_log = None
         self._v_eq = None
         self._mean_speeds = None
@@ -560,7 +566,8 @@ class RingSingleAgentEnv(RingEnv):
                  gen_emission=False,
                  rl_ids=None,
                  warmup_steps=0,
-                 initial_state=None):
+                 initial_state=None,
+                 maddpg=False):
         """Instantiate the environment class.
 
         Parameters
@@ -594,6 +601,8 @@ class RingSingleAgentEnv(RingEnv):
               minimum gap between vehicles specified by "min_gap"
             * str: A string that is not "random" is assumed to be a path to a
               json file specifying initial vehicle positions and speeds
+        maddpg : bool
+            whether to use a variant that is compatible with MADDPG
         """
         super(RingSingleAgentEnv, self).__init__(
             length=length,
@@ -606,6 +615,7 @@ class RingSingleAgentEnv(RingEnv):
             rl_ids=rl_ids,
             warmup_steps=warmup_steps,
             initial_state=initial_state,
+            maddpg=maddpg,
         )
 
         # observations from previous time steps
@@ -693,7 +703,8 @@ class RingMultiAgentEnv(RingEnv):
                  gen_emission=False,
                  rl_ids=None,
                  warmup_steps=0,
-                 initial_state=None):
+                 initial_state=None,
+                 maddpg=False):
         """Instantiate the environment class.
 
         Parameters
@@ -727,6 +738,8 @@ class RingMultiAgentEnv(RingEnv):
               minimum gap between vehicles specified by "min_gap"
             * str: A string that is not "random" is assumed to be a path to a
               json file specifying initial vehicle positions and speeds
+        maddpg : bool
+            whether to use a variant that is compatible with MADDPG
         """
         super(RingMultiAgentEnv, self).__init__(
             length=length,
@@ -739,6 +752,7 @@ class RingMultiAgentEnv(RingEnv):
             rl_ids=rl_ids,
             warmup_steps=warmup_steps,
             initial_state=initial_state,
+            maddpg=maddpg,
         )
 
         # observations from previous time steps
@@ -762,6 +776,16 @@ class RingMultiAgentEnv(RingEnv):
             shape=(25,),
             dtype=np.float32)
 
+    @property
+    def all_observation_space(self):
+        """Return the shape of the full observation space."""
+        return Box(
+            low=-float("inf"),
+            high=float("inf"),
+            shape=(25 * self.num_rl,),
+            dtype=np.float32,
+        )
+
     def step(self, action):
         """See parent class.
 
@@ -770,6 +794,12 @@ class RingMultiAgentEnv(RingEnv):
         """
         obs, rew, done, info = super(RingMultiAgentEnv, self).step(action)
         done = {"__all__": done}
+
+        if self.maddpg:
+            obs = {
+                "obs": obs.copy(),
+                "all_obs": self._full_obs(obs),
+            }
 
         return obs, rew, done, info
 
@@ -806,6 +836,10 @@ class RingMultiAgentEnv(RingEnv):
 
         return obs
 
+    def _full_obs(self, obs):
+        """Return the full state observation."""
+        return np.concatenate([obs[key] for key in self.rl_ids], axis=0)
+
     def compute_reward(self, action):
         """See parent class."""
         reward_scale = 0.1
@@ -823,11 +857,17 @@ class RingMultiAgentEnv(RingEnv):
         # observations from previous time steps
         self._obs_history = defaultdict(list)
 
+        if self.maddpg:
+            obs = {
+                "obs": obs.copy(),
+                "all_obs": self._full_obs(obs),
+            }
+
         return obs
 
 
 if __name__ == "__main__":
-    for scale in range(1, 11):
+    for scale in range(1, 6):
         res = defaultdict(list)
         for ring_length in range(scale * 220, scale * 271, scale * 1):
             print(ring_length)
