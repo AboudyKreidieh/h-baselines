@@ -332,7 +332,7 @@ class AVMultiAgentEnv(MultiEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[veh_id][::-1])
-            obs_vehicle = np.array([0. for _ in range(5 * self.obs_frames)])
+            obs_vehicle = np.array([0. for _ in range(5 * self._obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
