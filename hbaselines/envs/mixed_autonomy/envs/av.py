@@ -30,6 +30,9 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
+    # number of observation frames to use. Additional frames are provided from
+    # previous time steps.
+    obs_frames=1,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -69,6 +72,8 @@ class AVEnv(Env):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
@@ -139,6 +144,8 @@ class AVEnv(Env):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
+        self._obs_history = defaultdict(list)
+        self._obs_frames = env_params.additional_params["obs_frames"]
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -184,7 +191,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self.num_rl,),
+            shape=(5 * self._obs_frames * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -282,18 +289,36 @@ class AVEnv(Env):
         self.leader = []
         self.follower = []
 
-        # Initialize a set on empty observations
-        obs = [0 for _ in range(self.observation_space.shape[0])]
-
-        for i, v_id in enumerate(self.rl_ids()):
+        for veh_id in self.k.vehicle.get_rl_ids():
             # Add relative observation of each vehicle.
-            obs[5*i: 5*(i+1)], leader, follower = get_relative_obs(self, v_id)
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
 
             # Append to the leader/follower lists.
-            if leader not in ["", None]:
-                self.leader.append(leader)
-            if follower not in ["", None]:
-                self.follower.append(follower)
+            if veh_id in self.rl_ids():
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+                if follower not in ["", None]:
+                    self.follower.append(follower)
+
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
+        # Initialize a set of empty observations.
+        obs = np.array([0. for _ in range(5 * self._obs_frames * self.num_rl)])
+
+        for i, veh_id in enumerate(self.rl_ids()):
+            # Concatenate the past n samples for a given time delta in the
+            # output observations.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs[5*self._obs_frames*i:5*self._obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
@@ -329,6 +354,7 @@ class AVEnv(Env):
         self._mean_speeds = []
         self.leader = []
         self.follower = []
+        self._obs_history = defaultdict(list)
         return super().reset()
 
 
@@ -355,6 +381,8 @@ class AVClosedEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * ring_length: range for the lengths allowed in the network. If set to
       None, the ring length is not modified from its initial value.
     """
@@ -418,6 +446,8 @@ class AVClosedEnv(AVEnv):
                 initial_config=self._network_initial_config,
                 traffic_lights=self._network_traffic_lights,
             )
+            self.net_params = new_net_params
+
             # solve for the velocity upper bound of the ring
             v_guess = 4
             self._v_eq = fsolve(v_eq_function, np.array(v_guess),
@@ -473,6 +503,8 @@ class AVOpenEnv(AVEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
