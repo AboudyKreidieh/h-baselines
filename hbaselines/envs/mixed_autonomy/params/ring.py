@@ -165,6 +165,7 @@ def get_flow_params(stopping_penalty,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,
+                "obs_frames": 5,
                 "ring_length": RING_LENGTH,
                 "expert_model": (IDMController, {
                     "a": 1.3,

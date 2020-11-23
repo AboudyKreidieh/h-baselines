@@ -30,6 +30,9 @@ BASE_ENV_PARAMS = dict(
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
+    # number of observation frames to use. Additional frames are provided from
+    # previous time steps.
+    obs_frames=1,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -69,6 +72,8 @@ class AVMultiAgentEnv(MultiEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
@@ -139,6 +144,8 @@ class AVMultiAgentEnv(MultiEnv):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
+        self._obs_history = defaultdict(list)
+        self._obs_frames = env_params.additional_params["obs_frames"]
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -183,7 +190,7 @@ class AVMultiAgentEnv(MultiEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5,),
+            shape=(5 * self._obs_frames,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -296,19 +303,39 @@ class AVMultiAgentEnv(MultiEnv):
         self.leader = []
         self.follower = []
 
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Add relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
+
+            # Append to the leader/follower lists.
+            if veh_id in self.rl_ids():
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+                if follower not in ["", None]:
+                    self.follower.append(follower)
+
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
         # Initialize a set on empty observations
         obs = {key: None for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Add relative observation of each vehicle.
-            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
-            obs[veh_id] = np.asarray(obs[veh_id])
+            # Concatenate the past n samples for a given time delta and return
+            # as the final observation.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_vehicle = np.array([0. for _ in range(5 * self._obs_frames)])
+            obs_vehicle[:len(obs_t)] = obs_t
 
-            # Append to the leader/follower lists.
-            if leader not in ["", None]:
-                self.leader.append(leader)
-            if follower not in ["", None]:
-                self.follower.append(follower)
+            obs[veh_id] = obs_vehicle
 
         return obs
 
@@ -344,6 +371,7 @@ class AVMultiAgentEnv(MultiEnv):
         self._mean_speeds = []
         self.leader = []
         self.follower = []
+        self._obs_history = defaultdict(list)
         return super().reset(new_inflow_rate)
 
 
@@ -370,6 +398,8 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * ring_length: range for the lengths allowed in the network. If set to
       None, the ring length is not modified from its initial value.
     """
@@ -488,6 +518,8 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
@@ -789,6 +821,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
@@ -896,26 +930,45 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self.leader = []
         self.follower = []
 
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Add relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
+
+            # Append to the leader/follower lists.
+            if veh_id in self.rl_ids():
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+                if follower not in ["", None]:
+                    self.follower.append(follower)
+
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
         # Initialize a set on empty observations
-        obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
-               for i in range(self._num_lanes)}
+        obs = {
+            "lane_{}".format(i):
+                np.array([0 for _ in range(5*self._obs_frames*self.num_rl)])
+            for i in range(self._num_lanes)
+        }
 
         for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
             for i, veh_id in enumerate(rl_ids):
-                # Add relative observation of each vehicle.
-                obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
-                    leader, follower = get_relative_obs(self, veh_id)
-                obs["lane_{}".format(lane)] = np.asarray(
-                    obs["lane_{}".format(lane)])
-
-                # Append to the leader/follower lists.
-                if leader not in ["", None]:
-                    self.leader.append(leader)
-                if follower not in ["", None]:
-                    self.follower.append(follower)
+                # Concatenate the past n samples for a given time delta in the
+                # output observations.
+                ob_t = np.concatenate(self._obs_history[veh_id][::-1])
+                obs["lane_{}".format(lane)][
+                    5*self._obs_frames*i:5*self._obs_frames*i+len(ob_t)] = ob_t
 
         return obs
 

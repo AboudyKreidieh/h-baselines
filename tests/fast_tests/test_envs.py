@@ -565,9 +565,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -593,9 +593,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space["rl_0"],
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -689,9 +689,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -811,9 +811,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -839,9 +839,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -883,9 +883,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -911,9 +911,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -955,9 +955,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -983,9 +983,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -1027,9 +1027,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -1053,9 +1053,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(25)]),
+            expected_max=np.array([float("inf") for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
@@ -1095,9 +1095,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -1127,9 +1127,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(1250)]),
+            expected_max=np.array([float("inf") for _ in range(1250)]),
+            expected_size=1250,
         )
 
         # test case 2
@@ -1155,9 +1155,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space["lane_0"],
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -1193,9 +1193,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(1250)]),
+            expected_max=np.array([float("inf") for _ in range(1250)]),
+            expected_size=1250,
         )
 
         # test case 2
@@ -1221,9 +1221,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space["lane_0"],
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -1259,9 +1259,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(1250)]),
+            expected_max=np.array([float("inf") for _ in range(1250)]),
+            expected_size=1250,
         )
 
         # test case 2
@@ -1287,9 +1287,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space["lane_0"],
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(250)]),
+            expected_max=np.array([float("inf") for _ in range(250)]),
+            expected_size=250,
         )
 
         # test case 2
@@ -1377,6 +1377,7 @@ class TestAV(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                 },
             )
         )
@@ -1439,6 +1440,7 @@ class TestAV(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "ring_length": [220, 270],
                 },
             )
@@ -1483,6 +1485,7 @@ class TestAV(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1611,6 +1614,7 @@ class TestAVMulti(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                 },
             )
         )
@@ -1673,6 +1677,7 @@ class TestAVMulti(unittest.TestCase):
                     "stopping_penalty": True,
                     "use_follower_stopper": True,
                     "acceleration_penalty": True,
+                    "obs_frames": 5,
                     "ring_length": [220, 270],
                 },
             )
@@ -1717,6 +1722,7 @@ class TestAVMulti(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1779,6 +1785,7 @@ class TestAVMulti(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1899,6 +1906,7 @@ class TestAVImitation(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
@@ -1971,6 +1979,7 @@ class TestAVImitation(unittest.TestCase):
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "ring_length": [220, 270],
                     "expert_model": (IDMController, {
                         "a": 0.3,
@@ -2027,6 +2036,7 @@ class TestAVImitation(unittest.TestCase):
                     "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
+                    "obs_frames": 5,
                     "num_rl": 5,
                     "control_range": [500, 700],
                     "expert_model": (IDMController, {
@@ -2321,8 +2331,8 @@ class TestRingNonFlow(unittest.TestCase):
         env.speeds = [i for i in range(22)]
         np.testing.assert_almost_equal(
             env.get_state(),
-            [0., 1., 0., 21., 5., 11., 12., 2.75, 10., 2.5, 0., 0., 0., 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+            [0., 1., 0., 21., 5., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 11., 12., 2.75, 10., 2.5, 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0., 0., 0.]
         )
@@ -2416,29 +2426,28 @@ class TestRingNonFlow(unittest.TestCase):
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
-
         )
 
         obs, _, _, _ = env.step({0: [0], 11: [1]})
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0.]
+            [0.1, 0.23762844, 0.34159723, 0.23762844, 0.34022095, 0., 0.,
+             0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0.]
+            [0.2, 0.23762844, 0.34109723, 0.23762844, 0.34072095, 0., 0.,
+             0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0.]
+            [0.1, 0.23762844, 0.34159723, 0.23762844, 0.34022095, 0., 0.,
+             0.34090909, 0., 0.34090909, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0.2, 0.23762844, 0.34109723, 0.23762844,
+             0.34072095, 0., 0., 0.34090909, 0., 0.34090909, 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
     def test_set_length(self):
@@ -2566,47 +2575,6 @@ class TestRingNonFlow(unittest.TestCase):
             env._compute_headway(),
             [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
              1., 1., 1., 1., 1., 129.]
-        )
-
-    def test_step(self):
-        """Validates the functionality of the step method.
-
-        The positions and speeds are initialized and the output from the step
-        method is checked for the following cases:
-
-        1. the next positions and speeds match expected values
-        2. the info_dict is checked to match expected values
-        """
-        # Set a random seed.
-        set_seed(0)
-
-        # Create the environment.
-        env = RingEnv(**self._init_parameters)
-
-        env.reset()
-        _, _, _, info = env.step(action=None)
-
-        # test case 1
-        np.testing.assert_almost_equal(
-            env.positions,
-            [0.030819053828315107, 11.843545291459732, 23.664041432744504,
-             35.4872718717867, 47.30396034913232, 59.11076282383403,
-             70.93665410720546, 82.75043014288399, 94.56880451449182,
-             106.38904160208855, 118.20615720054728, 130.0295799384723,
-             141.84498881352684, 153.66061318087404, 165.4800837519209,
-             177.29782481448123, 189.12064825164617, 200.9320331204803,
-             212.75228784252377, 224.5658010069418, 236.37718724881748,
-             248.2081955006444]
-        )
-
-        # test case 2
-        self.assertDictEqual(
-            info,
-            {'v_eq': 4.815917477178448,
-             'v_eq_frac': 0.05292410419000554,
-             'v_eq_frac_final': 0.05292410419000554,
-             'speed': 0.2548781183326608,
-             'abs_accel': 1.2743905916633036}
         )
 
     def test_reset(self):
