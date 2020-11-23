@@ -9,6 +9,7 @@ from scipy.optimize import fsolve
 from collections import defaultdict
 from gym.spaces import Box
 
+from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 # the length of the individual vehicles
@@ -41,6 +42,8 @@ class RingEnv(gym.Env):
         the environment time horizon, in steps
     sims_per_step : int
         the number of simulation steps per environment step
+    max_accel : float
+        scaling factor for the AV accelerations, in m/s^2
     min_gap : float
         the minimum allowable gap by all vehicles. This is used during the
         failsafe computations.
@@ -92,6 +95,7 @@ class RingEnv(gym.Env):
                  dt,
                  horizon,
                  sims_per_step,
+                 max_accel=0.5,
                  min_gap=1.0,
                  gen_emission=False,
                  rl_ids=None,
@@ -113,6 +117,8 @@ class RingEnv(gym.Env):
             the environment time horizon, in steps
         sims_per_step : int
             the number of simulation steps per environment step
+        max_accel : float
+            scaling factor for the AV accelerations, in m/s^2
         min_gap : float
             the minimum allowable gap by all vehicles. This is used during the
             failsafe computations.
@@ -149,6 +155,7 @@ class RingEnv(gym.Env):
         self.dt = dt
         self.horizon = horizon
         self.sims_per_step = sims_per_step
+        self.max_accel = max_accel
         self.min_gap = min_gap
         self.gen_emission = gen_emission
         self.num_rl = len(rl_ids) if rl_ids is not None else 0
@@ -329,42 +336,6 @@ class RingEnv(gym.Env):
 
         return accel
 
-    def _get_rl_accel(self, accel, vel):
-        """Compute the RL acceleration from the desired acceleration.
-
-        We reduce the decelerations at smaller speeds to smooth of the effects.
-
-        Parameters
-        ----------
-        accel : array_like or dict
-            the RL actions
-        vel : array_like
-            the speed of the RL vehicles
-
-        Returns
-        -------
-        array_like
-            the updated acceleration values
-        """
-        # for multi-agent environments
-        if isinstance(accel, dict):
-            accel = [accel[key][0] for key in self.rl_ids]
-
-        accel = np.array(accel) / 2.0
-
-        # Redefine if below a speed threshold so that all actions result in
-        # non-negative desired speeds.
-        for i, veh_id in enumerate(self.rl_ids):
-            ac_range = self.action_space.high[0] - self.action_space.low[0]
-            speed = self.speeds[veh_id]
-            if speed < 0.5 * ac_range * self.dt:
-                accel[i] += 0.5 * ac_range - speed / self.dt
-
-        accel_min = - vel / self.dt
-        accel_max = self._failsafe(self.rl_ids)
-
-        return np.clip(accel, a_max=accel_max, a_min=accel_min)
-
     def _failsafe(self, veh_ids):
         """Compute the failsafe maximum acceleration.
 
@@ -445,12 +416,22 @@ class RingEnv(gym.Env):
             # Compute the accelerations.
             self.accelerations = self._get_accel(self.speeds, self.headways)
 
-            # Compute the accelerations for RL vehicles.
             if self.rl_ids is not None and action is not None:
-                self.accelerations[self.rl_ids] = self._get_rl_accel(
+                # Compute the accelerations for RL vehicles.
+                self.accelerations[self.rl_ids] = get_rl_accel(
                     accel=action,
                     vel=self.speeds[self.rl_ids],
+                    max_accel=self.max_accel,
+                    dt=self.dt,
                 )
+
+                # Clip by safe, non-negative bounds.
+                accel_min = - self.speeds[self.rl_ids] / self.dt
+                accel_max = self._failsafe(self.rl_ids)
+                self.accelerations[self.rl_ids] = np.clip(
+                    self.accelerations[self.rl_ids],
+                    a_max=accel_max,
+                    a_min=accel_min)
 
             # Update the speeds, positions, and headways.
             self.positions, self.speeds = self._update_state(
