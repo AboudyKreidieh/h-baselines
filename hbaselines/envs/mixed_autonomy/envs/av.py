@@ -284,34 +284,34 @@ class AVEnv(Env):
         """See class definition."""
         self.leader = []
 
-        # Initialize a set on empty observations
-        obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
-
         for veh_id in self.k.vehicle.get_rl_ids():
             # Add relative observation of each vehicle.
-            obs_vehicle, leader = get_relative_obs(self, veh_id)
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > 5 * self._obs_frames:
-                self._obs_history[veh_id] = self._obs_history[veh_id][
-                    -5 * self._obs_frames:]
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
 
+            # Append to the leader/follower lists.
             if veh_id in self.rl_ids():
-                # Add to the environment observation.
-                indx_veh = self.rl_ids().index(veh_id)
-                for i in range(int(len(self._obs_history[veh_id]) / 5)):
-                    obs[3*indx_veh + 15*i: 3*(indx_veh+1) + 15*i] = \
-                        self._obs_history[veh_id][-5 * i]
-
-                # Append to the leader lists.
                 if leader not in ["", None]:
                     self.leader.append(leader)
 
-        # Remove vehicles that exited the network.
-        for veh_id in list(self._obs_history.keys()):
-            if veh_id not in self.k.vehicle.get_rl_ids():
-                del self._obs_history[veh_id]
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
+        # Initialize a set of empty observations.
+        obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
+
+        for i, veh_id in enumerate(self.rl_ids()):
+            # Concatenate the past n samples for a given time delta in the
+            # output observations.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs[3*self._obs_frames*i:3*self._obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
@@ -346,6 +346,7 @@ class AVEnv(Env):
         """
         self._mean_speeds = []
         self.leader = []
+        self._obs_history = defaultdict(list)
         return super().reset()
 
 

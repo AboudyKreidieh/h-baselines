@@ -42,7 +42,6 @@ def get_flow_params(fixed_boundary,
                     stopping_penalty,
                     acceleration_penalty,
                     use_follower_stopper,
-                    obs_frames,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
@@ -58,9 +57,6 @@ def get_flow_params(fixed_boundary,
         whether to include a regularizing penalty for accelerations by the AVs
     use_follower_stopper : bool
         whether to use the follower-stopper controller for the AVs
-    obs_frames : int
-        number of observation frames to use. Additional frames are provided
-        from previous time steps.
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -209,7 +205,7 @@ def get_flow_params(fixed_boundary,
                 "max_accel": 0.5,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
-                "obs_frames": obs_frames,
+                "obs_frames": 5,
                 "use_follower_stopper": use_follower_stopper,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,

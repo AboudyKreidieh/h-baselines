@@ -101,7 +101,8 @@ class RingEnv(gym.Env):
                  rl_ids=None,
                  warmup_steps=0,
                  initial_state=None,
-                 maddpg=False):
+                 maddpg=False,
+                 obs_frames=5):
         """Instantiate the environment class.
 
         Parameters
@@ -139,6 +140,9 @@ class RingEnv(gym.Env):
               json file specifying initial vehicle positions and speeds
         maddpg : bool
             whether to use a variant that is compatible with MADDPG
+        obs_frames : int
+            number of observation frames to use. Additional frames are
+            provided from previous time steps.
         """
         self._length = length
 
@@ -162,10 +166,14 @@ class RingEnv(gym.Env):
         self.rl_ids = np.asarray(rl_ids)
         self.warmup_steps = warmup_steps
         self.maddpg = maddpg
+        self.obs_frames = obs_frames
         self._time_log = None
         self._v_eq = None
         self._mean_speeds = None
         self._mean_accels = None
+
+        # observations from previous time steps
+        self._obs_history = defaultdict(list)
 
         # simulation parameters
         self.t = 0
@@ -546,6 +554,9 @@ class RingEnv(gym.Env):
         for _ in range(self.warmup_steps):
             self.step(action=None)
 
+        # observations from previous time steps
+        self._obs_history = defaultdict(list)
+
         return self.get_state()
 
     def render(self, mode='human'):
@@ -555,71 +566,6 @@ class RingEnv(gym.Env):
 
 class RingSingleAgentEnv(RingEnv):
     """Single agent variant of the ring environment."""
-
-    def __init__(self,
-                 length,
-                 num_vehicles,
-                 dt,
-                 horizon,
-                 sims_per_step,
-                 min_gap=1.0,
-                 gen_emission=False,
-                 rl_ids=None,
-                 warmup_steps=0,
-                 initial_state=None,
-                 maddpg=False):
-        """Instantiate the environment class.
-
-        Parameters
-        ----------
-        length : float or [float, float]
-            the length of the ring if a float, and a range of [min, max] length
-            values that are sampled from during the reset procedure
-        num_vehicles : int
-            total number of vehicles in the network
-        dt : float
-            seconds per simulation step
-        horizon : int
-            the environment time horizon, in steps
-        sims_per_step : int
-            the number of simulation steps per environment step
-        min_gap : float
-            the minimum allowable gap by all vehicles. This is used during the
-            failsafe computations.
-        gen_emission : bool
-            whether to generate the emission file
-        rl_ids : list of int or None
-            the indices of vehicles that are treated as automated, or RL,
-            vehicles
-        warmup_steps : int
-            number of steps performed before the initialization of training
-            during a rollout
-        initial_state : str or None
-            the initial state. Must be one of the following:
-            * None: in this case, vehicles are evenly distributed
-            * "random": in this case, vehicles are randomly placed with a
-              minimum gap between vehicles specified by "min_gap"
-            * str: A string that is not "random" is assumed to be a path to a
-              json file specifying initial vehicle positions and speeds
-        maddpg : bool
-            whether to use a variant that is compatible with MADDPG
-        """
-        super(RingSingleAgentEnv, self).__init__(
-            length=length,
-            num_vehicles=num_vehicles,
-            dt=dt,
-            horizon=horizon,
-            sims_per_step=sims_per_step,
-            min_gap=min_gap,
-            gen_emission=gen_emission,
-            rl_ids=rl_ids,
-            warmup_steps=warmup_steps,
-            initial_state=initial_state,
-            maddpg=maddpg,
-        )
-
-        # observations from previous time steps
-        self._obs_history = []
 
     @property
     def action_space(self):
@@ -642,11 +588,11 @@ class RingSingleAgentEnv(RingEnv):
     def get_state(self):
         """See parent class."""
         # Initialize a set on empty observations.
-        obs = np.array([0. for _ in range(3 * self.num_rl)])
+        obs = np.array([0. for _ in range(3 * self.obs_frames * self.num_rl)])
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add relative observation of each vehicle.
-            obs[3*i: 3*(i+1)] = [
+            obs_vehicle = [
                 # ego speed
                 self.speeds[veh_id] / MAX_SPEED,
                 # lead speed
@@ -654,17 +600,17 @@ class RingSingleAgentEnv(RingEnv):
                 # lead gap
                 min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
             ]
+            self._obs_history[veh_id].append(obs_vehicle)
 
-        # Add the observation to the observation history to the
-        self._obs_history.append(obs)
-        if len(self._obs_history) > 25:
-            self._obs_history = self._obs_history[-25:]
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self.obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][-self.obs_frames:]
 
-        # Concatenate the past n samples for a given time delta and return as
-        # the final observation.
-        obs_t = np.concatenate(self._obs_history[::-5])
-        obs = np.array([0. for _ in range(15 * self.num_rl)])
-        obs[:len(obs_t)] = obs_t
+            # Concatenate the past n samples for a given time delta in the
+            # output observations.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs[3*self.obs_frames*i:3*self.obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
@@ -675,83 +621,9 @@ class RingSingleAgentEnv(RingEnv):
 
         return reward
 
-    def reset(self):
-        """See parent class."""
-        obs = super(RingSingleAgentEnv, self).reset()
-
-        # observations from previous time steps
-        self._obs_history = []
-
-        return obs
-
 
 class RingMultiAgentEnv(RingEnv):
     """Multi-agent variant of the ring environment."""
-
-    def __init__(self,
-                 length,
-                 num_vehicles,
-                 dt,
-                 horizon,
-                 sims_per_step,
-                 min_gap=1.0,
-                 gen_emission=False,
-                 rl_ids=None,
-                 warmup_steps=0,
-                 initial_state=None,
-                 maddpg=False):
-        """Instantiate the environment class.
-
-        Parameters
-        ----------
-        length : float or [float, float]
-            the length of the ring if a float, and a range of [min, max] length
-            values that are sampled from during the reset procedure
-        num_vehicles : int
-            total number of vehicles in the network
-        dt : float
-            seconds per simulation step
-        horizon : int
-            the environment time horizon, in steps
-        sims_per_step : int
-            the number of simulation steps per environment step
-        min_gap : float
-            the minimum allowable gap by all vehicles. This is used during the
-            failsafe computations.
-        gen_emission : bool
-            whether to generate the emission file
-        rl_ids : list of int or None
-            the indices of vehicles that are treated as automated, or RL,
-            vehicles
-        warmup_steps : int
-            number of steps performed before the initialization of training
-            during a rollout
-        initial_state : str or None
-            the initial state. Must be one of the following:
-            * None: in this case, vehicles are evenly distributed
-            * "random": in this case, vehicles are randomly placed with a
-              minimum gap between vehicles specified by "min_gap"
-            * str: A string that is not "random" is assumed to be a path to a
-              json file specifying initial vehicle positions and speeds
-        maddpg : bool
-            whether to use a variant that is compatible with MADDPG
-        """
-        super(RingMultiAgentEnv, self).__init__(
-            length=length,
-            num_vehicles=num_vehicles,
-            dt=dt,
-            horizon=horizon,
-            sims_per_step=sims_per_step,
-            min_gap=min_gap,
-            gen_emission=gen_emission,
-            rl_ids=rl_ids,
-            warmup_steps=warmup_steps,
-            initial_state=initial_state,
-            maddpg=maddpg,
-        )
-
-        # observations from previous time steps
-        self._obs_history = defaultdict(list)
 
     @property
     def action_space(self):
@@ -810,16 +682,17 @@ class RingMultiAgentEnv(RingEnv):
                 # lead gap
                 min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
             ]
-
-            # Add the observation to the observation history to the
             self._obs_history[veh_id].append(obs_vehicle)
-            if len(self._obs_history[veh_id]) > 25:
-                self._obs_history[veh_id] = self._obs_history[veh_id][-25:]
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self.obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][-self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-5])
-            obs_vehicle = np.array([0. for _ in range(15)])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_vehicle = np.array([0. for _ in range(3 * self.obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
@@ -843,9 +716,6 @@ class RingMultiAgentEnv(RingEnv):
     def reset(self):
         """See parent class."""
         obs = super(RingMultiAgentEnv, self).reset()
-
-        # observations from previous time steps
-        self._obs_history = defaultdict(list)
 
         if self.maddpg:
             obs = {
