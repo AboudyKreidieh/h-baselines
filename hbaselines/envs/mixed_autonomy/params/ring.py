@@ -162,7 +162,6 @@ def get_flow_params(stopping_penalty,
             evaluate=evaluate,
             additional_params={
                 "max_accel": 0.5,
-                "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,

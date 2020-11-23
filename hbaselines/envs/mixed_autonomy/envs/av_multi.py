@@ -26,8 +26,6 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # whether to use the follower-stopper controller for the AVs
     use_follower_stopper=False,
-    # desired velocity for all vehicles in the network, in m/s
-    target_velocity=30,
     # whether to include a stopping penalty
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
@@ -68,8 +66,6 @@ class AVMultiAgentEnv(MultiEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -268,21 +264,12 @@ class AVMultiAgentEnv(MultiEnv):
                 # in case of collisions or an empty network
                 reward = 0
             else:
-                reward = 0
-
                 # =========================================================== #
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 0.01
-
-                # Compute a positive form of the two-norm from a desired target
-                # velocity.
-                target = self.env_params.additional_params['target_velocity']
-                max_cost = np.array([target] * num_vehicles)
-                max_cost = np.linalg.norm(max_cost)
-                cost = np.linalg.norm(vel - target)
-                reward += reward_scale * max(max_cost - cost, 0)
+                reward_scale = 0.1
+                reward = reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -380,8 +367,6 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -500,8 +485,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -803,8 +786,6 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
