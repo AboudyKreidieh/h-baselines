@@ -859,6 +859,7 @@ def _get_ring_env_attributes(scale):
             length=[260 * scale, 270 * scale],
             num_vehicles=22 * scale,
             dt=0.4,
+            max_accel=0.25,
             horizon=1500,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
