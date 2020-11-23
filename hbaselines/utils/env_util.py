@@ -826,8 +826,6 @@ def _get_ring_env_attributes(scale):
     dict
         see ENV_ATTRIBUTES
     """
-    assert scale == 1  # TODO: temporary
-
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,

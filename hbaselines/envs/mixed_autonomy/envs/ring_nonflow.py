@@ -827,7 +827,7 @@ class RingMultiAgentEnv(RingEnv):
 
 
 if __name__ == "__main__":
-    for scale in range(1, 11):
+    for scale in range(1, 6):
         res = defaultdict(list)
         for ring_length in range(scale * 220, scale * 271, scale * 1):
             print(ring_length)
@@ -836,7 +836,7 @@ if __name__ == "__main__":
                 env = RingEnv(
                     length=ring_length,
                     num_vehicles=scale * 22,
-                    dt=0.2,
+                    dt=0.4,
                     horizon=1500,
                     gen_emission=False,
                     rl_ids=None,
