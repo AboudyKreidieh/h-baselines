@@ -1374,7 +1374,6 @@ class TestAV(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1437,7 +1436,6 @@ class TestAV(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1482,7 +1480,6 @@ class TestAV(unittest.TestCase):
                 network=self.network_open,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1611,7 +1608,6 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1674,7 +1670,6 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "use_follower_stopper": True,
                     "acceleration_penalty": True,
@@ -1719,7 +1714,6 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_open,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1782,7 +1776,6 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_lane,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1903,7 +1896,6 @@ class TestAVImitation(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -1976,7 +1968,6 @@ class TestAVImitation(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
@@ -2031,7 +2022,6 @@ class TestAVImitation(unittest.TestCase):
                 network=self.network_open,
                 additional_params={
                     "max_accel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
