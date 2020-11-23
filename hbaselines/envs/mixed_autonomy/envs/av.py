@@ -26,8 +26,6 @@ BASE_ENV_PARAMS = dict(
     max_accel=1,
     # whether to use the follower-stopper controller for the AVs
     use_follower_stopper=False,
-    # desired velocity for all vehicles in the network, in m/s
-    target_velocity=30,
     # whether to include a stopping penalty
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
@@ -71,8 +69,6 @@ class AVEnv(Env):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -252,7 +248,7 @@ class AVEnv(Env):
             acceleration_penalty = params["acceleration_penalty"]
 
             num_vehicles = len(veh_ids)
-            vel = np.array(self.k.vehicle.get_speed(veh_ids))
+            vel = np.array(self.k.vehicle.get_speed(self.rl_ids()))
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
                 # in case of collisions or an empty network
                 reward = 0
@@ -262,8 +258,7 @@ class AVEnv(Env):
                 # =========================================================== #
 
                 reward_scale = 0.1
-                reward = reward_scale * np.mean(
-                    self.k.vehicle.get_speed(self.rl_ids())) ** 2
+                reward = reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -374,8 +369,6 @@ class AVClosedEnv(AVEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
@@ -498,8 +491,6 @@ class AVOpenEnv(AVEnv):
     * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
