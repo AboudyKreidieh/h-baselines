@@ -324,7 +324,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -338,7 +338,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -348,7 +348,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -363,7 +363,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -373,7 +373,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -394,7 +394,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -409,7 +409,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -419,7 +419,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -435,7 +435,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -467,7 +467,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--maddpg",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -482,7 +482,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -492,7 +492,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--maddpg",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -508,7 +508,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -518,7 +518,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--maddpg",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -540,7 +540,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--maddpg",
                 "--initial_exploration_steps", "1",
@@ -556,7 +556,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -566,7 +566,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--maddpg",
                 "--initial_exploration_steps", "1",
@@ -583,7 +583,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-fcnet/multiagent-ring_small")))
+                "data/multi-fcnet/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -616,7 +616,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -630,7 +630,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-goal-conditioned/multiagent-ring_small")))
+                "data/multi-goal-conditioned/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -640,7 +640,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -655,7 +655,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-goal-conditioned/multiagent-ring_small")))
+                "data/multi-goal-conditioned/multiagent-ring-v0")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -665,7 +665,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
                 "--log_interval", "500",
@@ -686,7 +686,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -701,7 +701,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-goal-conditioned/multiagent-ring_small")))
+                "data/multi-goal-conditioned/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
@@ -711,7 +711,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         args = parse_train_options(
             '', '',
             args=[
-                "multiagent-ring_small",
+                "multiagent-ring-v0-fast",
                 "--shared",
                 "--initial_exploration_steps", "1",
                 "--total_steps", "500",
@@ -727,7 +727,7 @@ class TestExperimentRunnerScripts(unittest.TestCase):
         self.assertTrue(os.path.isdir(
             os.path.join(
                 os.getcwd(),
-                "data/multi-goal-conditioned/multiagent-ring_small")))
+                "data/multi-goal-conditioned/multiagent-ring-v0-fast")))
 
         # Clear anything that was generated.
         shutil.rmtree(os.path.join(os.getcwd(), "data"))
