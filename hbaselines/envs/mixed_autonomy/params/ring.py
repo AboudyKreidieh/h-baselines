@@ -1,5 +1,6 @@
 """Flow-specific parameters for the ring scenario."""
 import os
+import numpy as np
 
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
@@ -16,6 +17,23 @@ from flow.networks.ring import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
+
+
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the speeds and bumper-to-bumper headways of
+    all automated vehicles in the network.
+    """
+    # Initialize a set on empty observations
+    obs = [0 for _ in range(env.observation_space.shape[0])]
+
+    # Add relative observation of each vehicle.
+    for i, v_id in enumerate(env.rl_ids()):
+        obs[5 * i: 5 * (i + 1)], leader, follower = get_relative_obs(env, v_id)
+
+    return np.asarray(obs)
 
 
 def get_flow_params(stopping_penalty,
@@ -141,8 +159,7 @@ def get_flow_params(stopping_penalty,
             sims_per_step=1,
             evaluate=evaluate,
             additional_params={
-                "max_accel": 0.1,
-                "max_decel": 0.1,
+                "max_accel": 0.5,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
@@ -153,6 +170,7 @@ def get_flow_params(stopping_penalty,
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "full_observation_fn": full_observation_fn,
             },
         ),
 
