@@ -2345,6 +2345,8 @@ class TestRingNonFlow(unittest.TestCase):
         4. compute_reward
         5. obs after reset and step when maddpg=True
         """
+        set_seed(0)
+
         # Create the environment.
         init_parameters = deepcopy(self._init_parameters)
         init_parameters["rl_ids"] = [0, 11]
@@ -2391,7 +2393,6 @@ class TestRingNonFlow(unittest.TestCase):
             env.compute_reward(action=None), {0: 11.025, 11: 11.025})
 
         # Create the environment.
-        set_seed(0)
         init_parameters = deepcopy(self._init_parameters)
         init_parameters["rl_ids"] = [0, 11]
         init_parameters["maddpg"] = True
@@ -2421,21 +2422,21 @@ class TestRingNonFlow(unittest.TestCase):
         obs, _, _, _ = env.step({0: [0], 11: [1]})
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0.2, 0.25363473, 0.34117726, 0.26377319, 0.34059022, 0., 0., 0.,
+            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0.3, 0.26806995, 0.34074944, 0.24339019, 0.34119214, 0., 0., 0.,
+            [0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0., 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0.2, 0.25363473, 0.34117726, 0.26377319, 0.34059022, 0., 0., 0.,
+            [0.1, 0.25363473, 0.34167726, 0.26377319, 0.34009022, 0., 0., 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0.3, 0.26806995, 0.34074944, 0.24339019, 0.34119214, 0., 0.,
+             0., 0.2, 0.26806995, 0.34124944, 0.24339019, 0.34069214, 0., 0.,
              0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0., 0.]
         )
