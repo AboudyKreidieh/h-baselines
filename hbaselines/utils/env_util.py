@@ -826,8 +826,6 @@ def _get_ring_env_attributes(scale):
     dict
         see ENV_ATTRIBUTES
     """
-    assert scale == 1  # TODO: temporary
-
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
@@ -836,7 +834,7 @@ def _get_ring_env_attributes(scale):
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
-            3 * i for i in range(scale)],
+            5 * i for i in range(scale)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,

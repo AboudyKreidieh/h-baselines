@@ -876,7 +876,7 @@ if __name__ == "__main__":
                 env = RingEnv(
                     length=ring_length,
                     num_vehicles=scale * 22,
-                    dt=0.2,
+                    dt=0.4,
                     horizon=1500,
                     gen_emission=False,
                     rl_ids=None,
