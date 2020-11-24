@@ -174,6 +174,7 @@ def main(args):
         policy=policy,
         env=env_name,
         eval_env=env_name,
+        total_steps=1,
         **hp
     )
 
@@ -252,12 +253,15 @@ def main(args):
                     action = action[0]
 
                 # Visualize the sub-goals of the hierarchical policy.
-                if hasattr(policy, "_meta_action") \
+                if hasattr(policy, "meta_action") \
                         and policy.meta_action is not None \
                         and hasattr(env, "set_goal"):
-                    goal = policy.meta_action[0][0] + (
-                        obs[policy.goal_indices]
-                        if policy.relative_goals else 0)
+                    goal = np.array([
+                        policy.meta_action[0][i] +
+                        (obs[policy.goal_indices]
+                         if policy.relative_goals else 0)
+                        for i in range(policy.num_levels - 1)
+                    ])
                     env.set_goal(goal)
 
                 new_obs, reward, done, info = env.step(action)

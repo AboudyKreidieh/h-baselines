@@ -31,8 +31,6 @@ try:
         import get_flow_params as merge
     from hbaselines.envs.mixed_autonomy.params.ring \
         import get_flow_params as ring
-    from hbaselines.envs.mixed_autonomy.params.ring_small \
-        import get_flow_params as ring_small
     from hbaselines.envs.mixed_autonomy.params.highway \
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
@@ -64,8 +62,9 @@ except (ImportError, ModuleNotFoundError, AttributeError):
 #   the higher level policies
 # - state_indices: a list that assigns the indices that correspond to goals in
 #   the Worker's state space
-# - env: a lambda term that takes an input (evaluate, render, multiagent,
-#   shared, maddpg) and return an environment or list of environments
+# - env: a lambda term that takes an input (evaluate, render, num_levels,
+#   multiagent, shared, maddpg) and return an environment or list of
+#   environments
 ENV_ATTRIBUTES = {
 
     # ======================================================================= #
@@ -81,27 +80,31 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             AntMaze(
                 use_contexts=True,
                 context_range=[16, 0],
                 evaluate=True,
+                num_levels=n_levels,
             ),
             AntMaze(
                 use_contexts=True,
                 context_range=[16, 16],
                 evaluate=True,
+                num_levels=n_levels,
             ),
             AntMaze(
                 use_contexts=True,
                 context_range=[0, 16],
                 evaluate=True,
+                num_levels=n_levels,
             )
         ] if evaluate else AntMaze(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-4, 20), (-4, 20)],
             evaluate=False,
+            num_levels=n_levels,
         ),
     },
 
@@ -133,7 +136,7 @@ ENV_ATTRIBUTES = {
                            1.0472, 1.0472, 0.872665,
                            1.48353, 1.48353, 0.872665]), dtype=np.float32),
         "state_indices": lambda multiagent: list(range(24)),
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
                 context_range=[8, 0]
@@ -161,7 +164,7 @@ ENV_ATTRIBUTES = {
             low=np.array([-2.0, -2.0]),
             high=np.array([10.0, 10.0]), dtype=np.float32),
         "state_indices": lambda multiagent: list(range(2)),
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
                 context_range=[8, 0]
@@ -190,12 +193,13 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [32*32*3 + i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             ImageAntMaze(
                 use_contexts=True,
                 context_range=[16, 0],
                 image_size=32,
                 evaluate=True,
+                num_levels=n_levels,
             ),
             ImageAntMaze(
                 use_contexts=True,
@@ -208,6 +212,7 @@ ENV_ATTRIBUTES = {
                 context_range=[0, 16],
                 image_size=32,
                 evaluate=True,
+                num_levels=n_levels,
             )
         ] if evaluate else ImageAntMaze(
             use_contexts=True,
@@ -215,6 +220,7 @@ ENV_ATTRIBUTES = {
             context_range=[(-4, 20), (-4, 20)],
             image_size=32,
             evaluate=False,
+            num_levels=n_levels,
         ),
     },
 
@@ -227,16 +233,19 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: AntPush(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        AntPush(
             use_contexts=True,
             context_range=[0, 19],
             evaluate=True,
+            num_levels=n_levels,
         ) if evaluate else AntPush(
             use_contexts=True,
             context_range=[0, 19],
             # random_contexts=True,
             # context_range=[(-16, 16), (-4, 20)])
             evaluate=False,
+            num_levels=n_levels,
         ),
     },
 
@@ -249,16 +258,19 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: AntFall(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        AntFall(
             use_contexts=True,
             context_range=[0, 27, 4.5],
             evaluate=True,
+            num_levels=n_levels,
         ) if evaluate else AntFall(
             use_contexts=True,
             context_range=[0, 27, 4.5],
             # random_contexts=True,
             # context_range=[(-4, 12), (-4, 28), (0, 5)])
             evaluate=False,
+            num_levels=n_levels,
         ),
     },
 
@@ -271,27 +283,31 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             AntFourRooms(
                 use_contexts=True,
                 context_range=[20, 0],
                 evaluate=True,
+                num_levels=n_levels,
             ),
             AntFourRooms(
                 use_contexts=True,
                 context_range=[0, 20],
                 evaluate=True,
+                num_levels=n_levels,
             ),
             AntFourRooms(
                 use_contexts=True,
                 context_range=[20, 20],
                 evaluate=True,
+                num_levels=n_levels,
             )
         ] if evaluate else AntFourRooms(
             use_contexts=True,
             random_contexts=False,
             context_range=[[20, 0], [0, 20], [20, 20]],
             evaluate=False,
+            num_levels=n_levels,
         ),
     },
 
@@ -306,7 +322,7 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         SwimmerGatherEnv(),
     },
 
@@ -319,7 +335,7 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(7)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         SnakeGatherEnv(),
     },
 
@@ -332,7 +348,7 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(15)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         AntGatherEnv(),
     },
 
@@ -347,7 +363,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: None,
-        "env": lambda evaluate, render, multiagent, shared, maddpg: UR5(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        UR5(
             use_contexts=True,
             random_contexts=True,
             context_range=[(-np.pi, np.pi), (-np.pi / 4, 0),
@@ -369,7 +386,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0, 2],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: Pendulum(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        Pendulum(
             use_contexts=True,
             context_range=[0, 0],
             show=render
@@ -385,60 +403,6 @@ ENV_ATTRIBUTES = {
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
 
-    "ring_small": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-.5 if relative_goals else 0,
-            high=.5 if relative_goals else 1,
-            shape=(1,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [0],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: [
-            FlowEnv(
-                flow_params=ring_small(
-                    ring_length=[230, 230],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            ),
-            FlowEnv(
-                flow_params=ring_small(
-                    ring_length=[260, 260],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            ),
-            FlowEnv(
-                flow_params=ring_small(
-                    ring_length=[290, 290],
-                    evaluate=True,
-                    multiagent=multiagent,
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            )
-        ] if evaluate else FlowEnv(
-            flow_params=ring_small(
-                evaluate=evaluate,
-                multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
     "ring-v0": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
@@ -447,7 +411,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=ring(
                 stopping_penalty=True,
                 acceleration_penalty=True,
@@ -470,7 +435,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=merge(
                 exp_num=0,
                 horizon=6000,
@@ -493,7 +459,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 13)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=merge(
                 exp_num=1,
                 horizon=6000,
@@ -516,7 +483,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 17)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=merge(
                 exp_num=2,
                 horizon=6000,
@@ -539,7 +507,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=True,
@@ -563,7 +532,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=False,
@@ -587,7 +557,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=False,
@@ -611,7 +582,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(1 if multiagent else 10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=True,
@@ -635,7 +607,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(10 if multiagent else 50)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=True,
@@ -659,7 +632,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(10 if multiagent else 50)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=False,
@@ -683,7 +657,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(10 if multiagent else 50)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=False,
@@ -707,7 +682,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             5 * i for i in range(10 if multiagent else 50)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=True,
@@ -734,7 +710,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [5 * i for i in range(5)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
                 acceleration_penalty=False,
@@ -757,7 +734,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [5 * i for i in range(10)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=highway(
                 fixed_boundary=True,
                 stopping_penalty=False,
@@ -787,7 +765,7 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         BipedalSoccer(render=render),
     },
 
@@ -798,7 +776,7 @@ ENV_ATTRIBUTES = {
             dtype=np.float32),
         "state_indices": lambda multiagent: [i + 1024 for i in [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52]],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         BipedalObstacles(render=render),
     },
 
@@ -813,7 +791,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0, 1],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        Point2DEnv(
             images_in_obs=False
         ),
     },
@@ -825,7 +804,8 @@ ENV_ATTRIBUTES = {
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [3072, 3073],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: Point2DEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        Point2DEnv(
             images_in_obs=True
         ),
     },
@@ -846,8 +826,6 @@ def _get_ring_env_attributes(scale):
     dict
         see ENV_ATTRIBUTES
     """
-    assert scale == 1  # TODO: temporary
-
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
@@ -856,7 +834,7 @@ def _get_ring_env_attributes(scale):
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
-            3 * i for i in range(scale)],
+            5 * i for i in range(scale)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
@@ -870,6 +848,7 @@ def _get_ring_env_attributes(scale):
             maddpg=maddpg,
         ) if evaluate else
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
+            maddpg=maddpg,
             length=[260 * scale, 270 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
@@ -962,7 +941,12 @@ def get_state_indices(ob_space, env_name):
     return state_indices
 
 
-def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
+def create_env(env,
+               render=False,
+               num_levels=1,
+               shared=False,
+               maddpg=False,
+               evaluate=False):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -971,6 +955,8 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         the environment, or the name of a registered environment.
     render : bool
         whether to render the environment
+    num_levels : int
+        number of levels in the policy. 1 refers to non-hierarchical models.
     shared : bool
         specifies whether agents in an environment are meant to share policies.
         This is solely used by multi-agent Flow environments.
@@ -1002,7 +988,7 @@ def create_env(env, render=False, shared=False, maddpg=False, evaluate=False):
         if env in ENV_ATTRIBUTES.keys():
             # environments whose attributes are defined under ENV_ATTRIBUTES
             env = ENV_ATTRIBUTES[env]["env"](
-                evaluate, render, multiagent, shared, maddpg)
+                evaluate, render, num_levels, multiagent, shared, maddpg)
 
         elif env in ["ring-v{}-fast".format(i) for i in range(5)]:
             # fast ring environments

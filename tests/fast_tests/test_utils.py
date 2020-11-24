@@ -1661,80 +1661,68 @@ class TestEnvUtil(unittest.TestCase):
         )
 
         # test for ring-v1-fast
-        self.assertRaises(
-            AssertionError,
-            get_meta_ac_space, env_name="ring-v1-fast", **params)
-        # ac_space = get_meta_ac_space(env_name="ring-v1-fast", **params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([0 for _ in range(2)]),
-        #     expected_max=np.array([10 for _ in range(2)]),
-        #     expected_size=2,
-        # )
-        # ac_space = get_meta_ac_space(env_name="ring-v1-fast", **rel_params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([-5 for _ in range(2)]),
-        #     expected_max=np.array([5 for _ in range(2)]),
-        #     expected_size=2,
-        # )
+        ac_space = get_meta_ac_space(env_name="ring-v1-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(2)]),
+            expected_max=np.array([10 for _ in range(2)]),
+            expected_size=2,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v1-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(2)]),
+            expected_max=np.array([5 for _ in range(2)]),
+            expected_size=2,
+        )
 
         # test for ring-v2-fast
-        self.assertRaises(
-            AssertionError,
-            get_meta_ac_space, env_name="ring-v2-fast", **params)
-        # ac_space = get_meta_ac_space(env_name="ring-v2-fast", **params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([0 for _ in range(3)]),
-        #     expected_max=np.array([10 for _ in range(3)]),
-        #     expected_size=3,
-        # )
-        # ac_space = get_meta_ac_space(env_name="ring-v2-fast", **rel_params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([-5 for _ in range(3)]),
-        #     expected_max=np.array([5 for _ in range(3)]),
-        #     expected_size=3,
-        # )
+        ac_space = get_meta_ac_space(env_name="ring-v2-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(3)]),
+            expected_max=np.array([10 for _ in range(3)]),
+            expected_size=3,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v2-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
 
         # test for ring-v3-fast
-        self.assertRaises(
-            AssertionError,
-            get_meta_ac_space, env_name="ring-v3-fast", **params)
-        # ac_space = get_meta_ac_space(env_name="ring-v3-fast", **params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([0 for _ in range(4)]),
-        #     expected_max=np.array([10 for _ in range(4)]),
-        #     expected_size=4,
-        # )
-        # ac_space = get_meta_ac_space(env_name="ring-v3-fast", **rel_params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([-5 for _ in range(4)]),
-        #     expected_max=np.array([5 for _ in range(4)]),
-        #     expected_size=4,
-        # )
+        ac_space = get_meta_ac_space(env_name="ring-v3-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(4)]),
+            expected_max=np.array([10 for _ in range(4)]),
+            expected_size=4,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v3-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(4)]),
+            expected_max=np.array([5 for _ in range(4)]),
+            expected_size=4,
+        )
 
         # test for ring-v4-fast
-        self.assertRaises(
-            AssertionError,
-            get_meta_ac_space, env_name="ring-v4-fast", **params)
-        # ac_space = get_meta_ac_space(env_name="ring-v4-fast", **params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([0 for _ in range(5)]),
-        #     expected_max=np.array([10 for _ in range(5)]),
-        #     expected_size=5,
-        # )
-        # ac_space = get_meta_ac_space(env_name="ring-v4-fast", **rel_params)
-        # test_space(
-        #     ac_space,
-        #     expected_min=np.array([-5 for _ in range(5)]),
-        #     expected_max=np.array([5 for _ in range(5)]),
-        #     expected_size=5,
-        # )
+        ac_space = get_meta_ac_space(env_name="ring-v4-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
+            expected_size=5,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v4-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
+        )
 
         # test for ring-imitation
         ac_space = get_meta_ac_space(env_name="ring-imitation", **params)
@@ -2000,40 +1988,28 @@ class TestEnvUtil(unittest.TestCase):
         )
 
         # test for ring-v1-fast
-        self.assertRaises(
-            AssertionError,
-            get_state_indices, env_name="ring-v1-fast", **params)
-        # self.assertListEqual(
-        #     get_state_indices(env_name="ring-v1-fast", **params),
-        #     [0, 5]
-        # )
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v1-fast", **params),
+            [0, 5]
+        )
 
         # test for ring-v2-fast
-        self.assertRaises(
-            AssertionError,
-            get_state_indices, env_name="ring-v2-fast", **params)
-        # self.assertListEqual(
-        #     get_state_indices(env_name="ring-v2-fast", **params),
-        #     [0, 5, 10]
-        # )
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v2-fast", **params),
+            [0, 5, 10]
+        )
 
         # test for ring-v3-fast
-        self.assertRaises(
-            AssertionError,
-            get_state_indices, env_name="ring-v3-fast", **params)
-        # self.assertListEqual(
-        #     get_state_indices(env_name="ring-v3-fast", **params),
-        #     [0, 5, 10, 15]
-        # )
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v3-fast", **params),
+            [0, 5, 10, 15]
+        )
 
         # test for ring-v4-fast
-        self.assertRaises(
-            AssertionError,
-            get_state_indices, env_name="ring-v4-fast", **params)
-        # self.assertListEqual(
-        #     get_state_indices(env_name="ring-v4-fast", **params),
-        #     [0, 5, 10, 15, 20]
-        # )
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v4-fast", **params),
+            [0, 5, 10, 15, 20]
+        )
 
         # test for ring-imitation
         self.assertListEqual(
