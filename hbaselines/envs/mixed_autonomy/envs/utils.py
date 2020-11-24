@@ -12,9 +12,9 @@ EXTRA_LANE_EDGES = [
     "119257908#3",
 ]
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20
+MAX_HEADWAY = 20.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 1
+MAX_SPEED = 1.0
 
 
 def get_relative_obs(env, veh_id):
@@ -183,7 +183,7 @@ def get_rl_accel(accel, vel, max_accel, dt):
     # Redefine if below a speed threshold so that all actions result in
     # non-negative desired speeds.
     for i in range(len(vel)):
-        ac_range = 2 * max_accel
+        ac_range = 2. * max_accel
         if vel[i] < 0.5 * ac_range * dt:
             accel[i] += 0.5 * ac_range - vel[i] / dt
 

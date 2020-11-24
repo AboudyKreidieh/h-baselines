@@ -286,13 +286,13 @@ class AVEnv(Env):
 
         for veh_id in self.k.vehicle.get_rl_ids():
             # Add relative observation of each vehicle.
-            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            obs_vehicle, leader = get_relative_obs(self, veh_id)
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
             if len(self._obs_history[veh_id]) > self._obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][self._obs_frames:]
+                    self._obs_history[veh_id][-self._obs_frames:]
 
             # Append to the leader/follower lists.
             if veh_id in self.rl_ids():
