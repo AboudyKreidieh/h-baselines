@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Mon Sep  7 10:13:20 2020 by Eclipse SUMO Version v1_1_0+0000-2147d155b1
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="/home/aboudy/Documents/flow/flow/core/kernel/network/debug/cfg/highway-single_20200907-1012501599498770.744264.net.xml"/>
+        <route-files value="/home/aboudy/Documents/flow/flow/core/kernel/network/debug/cfg/highway-single_20200907-1012501599498770.744264.rou.xml"/>
+        <additional-files value="/home/aboudy/Documents/flow/flow/core/kernel/network/debug/cfg/highway-single_20200907-1012501599498770.744264.add.xml"/>
+    </input>
+
+    <output>
+        <save-state.times value="600"/>
+        <save-state.files value="warmup/4.xml"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <step-length value="0.4"/>
+    </time>
+
+    <processing>
+        <step-method.ballistic value="true"/>
+        <collision.check-junctions value="true"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+
+    <report>
+        <no-step-log value="true"/>
+    </report>
+
+    <traci_server>
+        <remote-port value="55881"/>
+        <num-clients value="1"/>
+    </traci_server>
+
+    <gui_only>
+        <gui-settings-file value="/home/aboudy/Documents/flow/flow/core/kernel/network/debug/cfg/highway-single_20200907-1012501599498770.744264.gui.cfg"/>
+        <tracker-interval value="0.4"/>
+    </gui_only>
+
+</configuration>
+-->
+
+<snapshot xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/state_file.xsd" version="v1_1_0+0000-2147d155b1" time="600.00">
+    <route id="routehighway_0_0" state="1" edges="highway_0 highway_1 highway_end"/>
+    <route id="routehighway_1_0" state="1" edges="highway_1 highway_end"/>
+    <route id="routehighway_end_0" state="1" edges="highway_end"/>
+    <flowState id="idm_inflow_00" index="350"/>
+    <delay number="167" begin="350" end="183" depart="0.00" time="39804.40"/>
+    <vType id="DEFAULT_BIKETYPE" vClass="bicycle"/>
+    <vType id="DEFAULT_PEDTYPE" vClass="pedestrian"/>
+    <vType id="DEFAULT_VEHTYPE"/>
+    <vType id="av" minGap="0.50" maxSpeed="30.00" speedFactor="normc(1.00,0.10,0.20,2.00)" impatience="0.50" laneChangeModel="LC2013" lcStrategic="1.0" lcCooperative="1.0" lcSpeedGain="1.0" lcKeepRight="1.0" carFollowModel="IDM" accel="2.6" decel="4.5" tau="1.0"/>
+    <vType id="human" minGap="0.50" maxSpeed="30.00" speedFactor="normc(1.00,0.10,0.20,2.00)" impatience="0.50" laneChangeModel="LC2013" lcStrategic="1.0" lcCooperative="1.0" lcSpeedGain="1.0" lcKeepRight="1.0" carFollowModel="IDM" accel="2.6" decel="4.5" tau="1.0"/>
+    <vehicle id="idm_inflow_00.183" type="human" depart="314.66" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.08" state="314400 2 5.10 0 599600" pos="298.39" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.184" type="human" depart="316.38" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.94" state="316000 2 5.10 0 599600" pos="285.91" speed="4.96" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.185" type="human" depart="318.09" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.92" state="318000 2 5.10 0 599600" pos="273.84" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.186" type="human" depart="319.80" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.08" state="319600 2 5.10 0 599600" pos="261.73" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.187" type="human" depart="321.52" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.89" state="321200 2 5.10 0 599600" pos="249.81" speed="4.95" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.188" type="human" depart="323.23" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="323200 2 5.10 0 599600" pos="237.85" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.189" type="human" depart="324.95" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="324800 2 5.10 0 599600" pos="225.87" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.190" type="human" depart="326.66" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.90" state="326400 2 5.10 0 599600" pos="213.73" speed="4.96" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.191" type="human" depart="328.37" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.93" state="328000 2 5.10 0 599600" pos="201.96" speed="4.73" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.192" type="human" depart="330.09" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="330000 2 5.10 0 599600" pos="189.59" speed="4.93" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.193" type="human" depart="331.80" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="331600 2 5.10 0 599600" pos="177.75" speed="4.82" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.194" type="human" depart="333.52" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="333200 2 5.10 0 599600" pos="165.78" speed="4.88" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.195" type="human" depart="335.23" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.84" state="335200 2 5.10 0 599600" pos="153.39" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.196" type="human" depart="336.94" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.03" state="336800 2 5.10 0 599600" pos="141.14" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.197" type="human" depart="338.66" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="338400 2 5.10 0 599600" pos="128.95" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.198" type="human" depart="340.37" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.06" state="340000 2 5.10 0 599600" pos="116.95" speed="4.97" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.199" type="human" depart="342.09" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.83" state="342000 2 5.10 0 599600" pos="104.69" speed="4.85" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.200" type="human" depart="343.80" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.95" state="343600 2 5.10 0 599600" pos="92.64" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.201" type="human" depart="345.51" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="345200 2 5.10 0 599600" pos="80.40" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.202" type="human" depart="347.23" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="347200 2 5.10 0 599600" pos="68.30" speed="4.82" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.203" type="human" depart="348.94" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="348800 2 5.10 0 599600" pos="56.18" speed="4.99" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.204" type="human" depart="350.66" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="350400 2 5.10 0 599600" pos="44.16" speed="4.95" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.205" type="human" depart="352.37" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="352000 2 5.10 0 599600" pos="32.32" speed="4.97" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.206" type="human" depart="354.08" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="354000 2 5.10 0 599600" pos="20.27" speed="4.70" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.207" type="human" depart="355.80" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="355600 2 5.10 0 599600" pos="8.32" speed="4.61" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.208" type="human" depart="357.51" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="357200 1 5.10 0 599600" pos="1247.05" speed="4.55" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.209" type="human" depart="359.23" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="359200 1 5.10 0 599600" pos="1234.98" speed="5.06" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.210" type="human" depart="360.94" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="360800 1 5.10 0 599600" pos="1223.10" speed="4.76" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.211" type="human" depart="362.65" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="362400 1 5.10 0 599600" pos="1211.32" speed="4.45" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.212" type="human" depart="364.37" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="364000 1 5.10 0 599600" pos="1199.90" speed="4.25" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.213" type="human" depart="366.08" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="366000 1 5.10 0 599600" pos="1188.79" speed="4.59" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.214" type="human" depart="367.80" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.83" state="367600 1 5.10 0 599600" pos="1177.21" speed="4.66" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.215" type="human" depart="369.51" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.09" state="369200 1 5.10 0 599600" pos="1165.51" speed="4.78" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.216" type="human" depart="371.22" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="371200 1 5.10 0 599600" pos="1153.66" speed="4.99" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.217" type="human" depart="372.94" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="372800 1 5.10 0 599600" pos="1141.37" speed="5.07" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.218" type="human" depart="374.65" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="374400 1 5.10 0 599600" pos="1129.21" speed="5.10" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.219" type="human" depart="376.37" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.91" state="376000 1 5.10 0 599600" pos="1116.55" speed="5.17" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.220" type="human" depart="378.08" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="378000 1 5.10 0 599600" pos="1104.19" speed="5.31" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.221" type="human" depart="379.79" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.15" state="379600 1 5.10 0 599600" pos="1092.10" speed="4.82" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.222" type="human" depart="381.51" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.84" state="381200 1 5.10 0 599600" pos="1080.36" speed="4.64" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.223" type="human" depart="383.22" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.06" state="383200 1 5.10 0 599600" pos="1068.54" speed="4.71" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.224" type="human" depart="384.94" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="384800 1 5.10 0 599600" pos="1057.24" speed="4.42" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.225" type="human" depart="386.65" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="386400 1 5.10 0 599600" pos="1046.10" speed="4.27" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.226" type="human" depart="388.36" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.24" state="388000 1 5.10 0 599600" pos="1034.68" speed="4.78" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.227" type="human" depart="390.08" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="390000 1 5.10 0 599600" pos="1022.91" speed="4.63" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.228" type="human" depart="391.79" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.09" state="391600 1 5.10 0 599600" pos="1011.16" speed="4.84" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.229" type="human" depart="393.51" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="393200 1 5.10 0 599600" pos="999.74" speed="4.58" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.230" type="human" depart="395.22" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="395200 1 5.10 0 599600" pos="987.96" speed="4.80" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.231" type="human" depart="396.93" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.14" state="396800 1 5.10 0 599600" pos="976.19" speed="4.92" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.232" type="human" depart="398.65" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="398400 1 5.10 0 599600" pos="964.47" speed="4.92" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.233" type="human" depart="400.36" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.15" state="400000 1 5.10 0 599600" pos="952.38" speed="5.09" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.234" type="human" depart="402.08" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.91" state="402000 1 5.10 0 599600" pos="940.28" speed="5.22" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.235" type="human" depart="403.79" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="403600 1 5.10 0 599600" pos="928.19" speed="5.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.236" type="human" depart="405.50" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="405200 1 5.10 0 599600" pos="916.13" speed="5.39" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.237" type="human" depart="407.22" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.88" state="407200 1 5.10 0 599600" pos="903.99" speed="5.23" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.238" type="human" depart="408.93" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="408800 1 5.10 0 599600" pos="891.35" speed="5.56" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.239" type="human" depart="410.65" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="410400 1 5.10 0 599600" pos="878.40" speed="5.67" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.240" type="human" depart="412.36" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.95" state="412000 1 5.10 0 599600" pos="865.63" speed="5.54" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.241" type="human" depart="414.07" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="414000 1 5.10 0 599600" pos="853.19" speed="5.20" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.242" type="human" depart="415.79" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="415600 1 5.10 0 599600" pos="840.96" speed="4.98" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.243" type="human" depart="417.50" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="417200 1 5.10 0 599600" pos="829.10" speed="4.47" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.244" type="human" depart="419.22" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="419200 1 5.10 0 599600" pos="817.61" speed="4.18" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.245" type="human" depart="420.93" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="420800 1 5.10 0 599600" pos="806.52" speed="4.26" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.246" type="human" depart="422.64" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="422400 1 5.10 0 599600" pos="795.32" speed="4.33" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.247" type="human" depart="424.36" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="424000 1 5.10 0 599600" pos="783.84" speed="5.09" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.248" type="human" depart="426.07" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.14" state="426000 1 5.10 0 599600" pos="771.39" speed="5.44" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.249" type="human" depart="427.79" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="427600 1 5.10 0 599600" pos="758.29" speed="5.95" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.250" type="human" depart="429.50" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.93" state="429200 1 5.10 0 599600" pos="745.01" speed="5.69" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.251" type="human" depart="431.21" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.88" state="431200 1 5.10 0 599600" pos="732.40" speed="5.22" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.252" type="human" depart="432.93" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="432800 1 5.10 0 599600" pos="720.68" speed="4.69" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.253" type="human" depart="434.64" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="434400 1 5.10 0 599600" pos="709.19" speed="4.46" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.254" type="human" depart="436.36" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.88" state="436000 1 5.10 0 599600" pos="698.04" speed="4.42" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.255" type="human" depart="438.07" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.94" state="438000 1 5.10 0 599600" pos="686.63" speed="4.56" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.256" type="human" depart="439.78" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="439600 1 5.10 0 599600" pos="674.37" speed="5.31" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.257" type="human" depart="441.50" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.30" state="441200 1 5.10 0 599600" pos="661.26" speed="6.68" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.258" type="human" depart="443.21" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="443200 1 5.10 0 599600" pos="646.35" speed="8.18" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.259" type="human" depart="444.93" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.84" state="444800 1 5.10 0 599600" pos="629.32" speed="9.70" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.260" type="human" depart="446.64" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="446400 1 5.10 0 599600" pos="610.48" speed="10.46" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.261" type="human" depart="448.35" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="448000 1 5.10 0 599600" pos="590.99" speed="10.29" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.262" type="human" depart="450.07" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="450000 1 5.10 0 599600" pos="570.20" speed="9.96" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.263" type="human" depart="451.78" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="451600 1 5.10 0 599600" pos="551.25" speed="9.02" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.264" type="human" depart="453.50" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="453200 1 5.10 0 599600" pos="534.11" speed="7.83" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.265" type="human" depart="455.21" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="455200 1 5.10 0 599600" pos="518.16" speed="6.65" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.266" type="human" depart="456.92" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="456800 1 5.10 0 599600" pos="503.65" speed="5.31" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.267" type="human" depart="458.64" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.92" state="458400 1 5.10 0 599600" pos="491.24" speed="4.46" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.268" type="human" depart="460.35" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="460000 1 5.10 0 599600" pos="479.93" speed="3.72" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.269" type="human" depart="462.07" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.26" state="462000 1 5.10 0 599600" pos="469.47" speed="2.99" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.270" type="human" depart="463.78" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="463600 1 5.10 0 599600" pos="459.20" speed="2.90" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.271" type="human" depart="465.49" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="465200 1 5.10 0 599600" pos="449.01" speed="2.28" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.272" type="human" depart="467.21" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.05" state="467200 1 5.10 0 599600" pos="439.65" speed="1.47" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.273" type="human" depart="468.92" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="468800 1 5.10 0 599600" pos="431.23" speed="0.76" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.274" type="human" depart="470.64" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.85" state="470400 1 5.10 0 599600" pos="423.76" speed="0.16" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.275" type="human" depart="472.35" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="472000 1 5.10 2000 599600" pos="416.85" speed="0.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.276" type="human" depart="474.06" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="474000 1 5.10 800 599600" pos="409.99" speed="0.00" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.277" type="human" depart="475.78" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.21" state="475600 1 5.10 0 599600" pos="402.96" speed="0.45" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.278" type="human" depart="477.49" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="477200 1 5.10 0 599600" pos="395.38" speed="0.94" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.279" type="human" depart="479.21" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="479200 1 5.10 0 599600" pos="386.72" speed="2.32" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.280" type="human" depart="480.92" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="480800 1 5.10 0 599600" pos="376.16" speed="4.08" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.281" type="human" depart="482.63" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.08" state="482400 1 5.10 0 599600" pos="363.72" speed="5.81" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.282" type="human" depart="484.35" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.95" state="484000 1 5.10 0 599600" pos="349.07" speed="7.43" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.283" type="human" depart="486.06" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="486000 1 5.10 0 599600" pos="332.84" speed="8.08" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.284" type="human" depart="487.78" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.08" state="487600 1 5.10 0 599600" pos="317.24" speed="7.32" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.285" type="human" depart="489.49" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="489200 1 5.10 0 599600" pos="302.58" speed="6.48" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.286" type="human" depart="491.20" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="491200 1 5.10 0 599600" pos="288.88" speed="5.87" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.287" type="human" depart="492.92" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.89" state="492800 1 5.10 0 599600" pos="275.41" speed="5.49" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.288" type="human" depart="494.63" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="494400 1 5.10 0 599600" pos="262.44" speed="5.07" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.289" type="human" depart="496.35" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.19" state="496000 1 5.10 0 599600" pos="249.75" speed="4.66" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.290" type="human" depart="498.06" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="498000 1 5.10 0 599600" pos="238.02" speed="3.58" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.291" type="human" depart="499.77" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.97" state="499600 1 5.10 0 599600" pos="227.17" speed="3.08" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.292" type="human" depart="501.49" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.09" state="501200 1 5.10 0 599600" pos="216.78" speed="2.05" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.293" type="human" depart="503.20" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.14" state="503200 1 5.10 0 599600" pos="207.78" speed="1.47" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.294" type="human" depart="504.92" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.05" state="504800 1 5.10 0 599600" pos="199.40" speed="1.04" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.295" type="human" depart="506.63" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="506400 1 5.10 0 599600" pos="191.19" speed="0.82" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.296" type="human" depart="508.34" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.10" state="508000 1 5.10 0 599600" pos="183.62" speed="0.85" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.297" type="human" depart="510.06" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="510000 1 5.10 0 599600" pos="175.77" speed="1.21" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.298" type="human" depart="511.77" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="511600 1 5.10 0 599600" pos="166.84" speed="2.76" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.299" type="human" depart="513.49" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.16" state="513200 1 5.10 0 599600" pos="155.81" speed="4.44" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.300" type="human" depart="515.20" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="515200 1 5.10 0 599600" pos="141.94" speed="7.03" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.301" type="human" depart="516.91" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.94" state="516800 1 5.10 0 599600" pos="124.68" speed="9.68" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.302" type="human" depart="518.63" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="518400 1 5.10 0 599600" pos="103.78" speed="12.51" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.303" type="human" depart="520.34" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.04" state="520000 1 5.10 0 599600" pos="79.12" speed="14.59" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.304" type="human" depart="522.06" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="522000 1 5.10 0 599600" pos="53.58" speed="14.86" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.305" type="human" depart="523.77" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="523600 1 5.10 0 599600" pos="29.15" speed="13.88" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.306" type="human" depart="525.48" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.06" state="525200 1 5.10 0 599600" pos="5.74" speed="13.07" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.307" type="human" depart="527.20" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="526800 0 5.10 0 599600" pos="1232.79" speed="12.03" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.308" type="human" depart="528.91" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.99" state="528800 0 5.10 0 599600" pos="1211.81" speed="10.42" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.309" type="human" depart="530.63" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.05" state="530400 0 5.10 0 599600" pos="1192.11" speed="9.19" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.310" type="human" depart="532.34" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.90" state="532000 0 5.10 0 599600" pos="1174.03" speed="8.08" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.311" type="human" depart="534.05" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.09" state="534000 0 5.10 0 599600" pos="1158.35" speed="7.03" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.312" type="human" depart="535.77" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="535600 0 5.10 0 599600" pos="1144.34" speed="6.05" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.313" type="human" depart="537.48" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.07" state="537200 0 5.10 0 599600" pos="1130.86" speed="5.32" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.314" type="human" depart="539.20" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.21" state="538800 0 5.10 0 599600" pos="1118.36" speed="4.72" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.315" type="human" depart="540.91" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.15" state="540800 0 5.10 0 599600" pos="1105.84" speed="4.47" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.316" type="human" depart="542.62" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="542400 0 5.10 0 599600" pos="1092.83" speed="3.44" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.317" type="human" depart="544.34" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="544000 0 5.10 0 599600" pos="1082.10" speed="2.81" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.318" type="human" depart="546.05" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.18" state="546000 0 5.10 0 599600" pos="1071.91" speed="1.53" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.319" type="human" depart="547.77" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="547600 0 5.10 0 599600" pos="1063.74" speed="0.84" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.320" type="human" depart="549.48" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.16" state="549200 0 5.10 0 599600" pos="1056.26" speed="0.46" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.321" type="human" depart="551.19" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="550800 0 5.10 0 599600" pos="1048.77" speed="0.46" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.322" type="human" depart="552.91" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.87" state="552800 0 5.10 0 599600" pos="1041.14" speed="1.19" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.323" type="human" depart="554.62" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.82" state="554400 0 5.10 0 599600" pos="1031.46" speed="2.92" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.324" type="human" depart="556.34" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.94" state="556000 0 5.10 0 599600" pos="1018.44" speed="6.02" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.325" type="human" depart="558.05" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="558000 0 5.10 0 599600" pos="1000.60" speed="9.58" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.326" type="human" depart="559.76" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.93" state="559600 0 5.10 0 599600" pos="977.63" speed="13.77" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.327" type="human" depart="561.48" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.95" state="561200 0 5.10 0 599600" pos="947.85" speed="17.77" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.328" type="human" depart="563.19" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="562800 0 5.10 0 599600" pos="913.27" speed="21.23" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.329" type="human" depart="564.91" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.90" state="564800 0 5.10 0 599600" pos="873.43" speed="23.72" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.330" type="human" depart="566.62" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="566400 0 5.10 0 599600" pos="832.00" speed="24.55" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.331" type="human" depart="568.33" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="568000 0 5.10 0 599600" pos="790.46" speed="24.79" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.332" type="human" depart="570.05" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.01" state="570000 0 5.10 0 599600" pos="747.53" speed="25.05" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.333" type="human" depart="571.76" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.93" state="571600 0 5.10 0 599600" pos="704.42" speed="25.09" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.334" type="human" depart="573.48" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.18" state="573200 0 5.10 0 599600" pos="662.12" speed="25.09" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.335" type="human" depart="575.19" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.89" state="574800 0 5.10 0 599600" pos="619.78" speed="25.03" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.336" type="human" depart="576.90" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.16" state="576800 0 5.10 0 599600" pos="574.73" speed="25.15" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.337" type="human" depart="578.62" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.02" state="578400 0 5.10 0 599600" pos="531.32" speed="24.98" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.338" type="human" depart="580.33" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.96" state="580000 0 5.10 0 599600" pos="490.22" speed="24.95" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.339" type="human" depart="582.05" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.17" state="582000 0 5.10 0 599600" pos="445.67" speed="25.05" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.340" type="human" depart="583.76" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="583600 0 5.10 0 599600" pos="403.04" speed="25.02" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.341" type="human" depart="585.47" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.86" state="585200 0 5.10 0 599600" pos="361.69" speed="25.31" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.342" type="human" depart="587.19" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.00" state="586800 0 5.10 0 599600" pos="319.79" speed="25.04" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.343" type="human" depart="588.90" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.95" state="588800 0 5.10 0 599600" pos="273.30" speed="25.39" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.344" type="human" depart="590.62" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.98" state="590400 0 5.10 0 599600" pos="231.16" speed="25.07" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.345" type="human" depart="592.33" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.94" state="592000 0 5.10 0 599600" pos="190.01" speed="24.65" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.346" type="human" depart="594.04" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.11" state="594000 0 5.10 0 599600" pos="142.73" speed="24.67" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.347" type="human" depart="595.76" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.82" state="595600 0 5.10 0 599600" pos="102.18" speed="24.59" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.348" type="human" depart="597.47" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="1.13" state="597200 0 5.10 0 599600" pos="63.16" speed="24.14" posLat="0.00"/>
+    <vehicle id="idm_inflow_00.349" type="human" depart="599.19" departLane="free" departSpeed="24.10" route="routehighway_0_0" speedFactor="0.90" state="598800 0 5.10 0 599600" pos="24.41" speed="24.05" posLat="0.00"/>
+    <lane id=":edge_1_0_0">
+        <vehicles value=""/>
+    </lane>
+    <lane id=":edge_2_0_0">
+        <vehicles value=""/>
+    </lane>
+    <lane id="highway_0_0">
+        <vehicles value="idm_inflow_00.349 idm_inflow_00.348 idm_inflow_00.347 idm_inflow_00.346 idm_inflow_00.345 idm_inflow_00.344 idm_inflow_00.343 idm_inflow_00.342 idm_inflow_00.341 idm_inflow_00.340 idm_inflow_00.339 idm_inflow_00.338 idm_inflow_00.337 idm_inflow_00.336 idm_inflow_00.335 idm_inflow_00.334 idm_inflow_00.333 idm_inflow_00.332 idm_inflow_00.331 idm_inflow_00.330 idm_inflow_00.329 idm_inflow_00.328 idm_inflow_00.327 idm_inflow_00.326 idm_inflow_00.325 idm_inflow_00.324 idm_inflow_00.323 idm_inflow_00.322 idm_inflow_00.321 idm_inflow_00.320 idm_inflow_00.319 idm_inflow_00.318 idm_inflow_00.317 idm_inflow_00.316 idm_inflow_00.315 idm_inflow_00.314 idm_inflow_00.313 idm_inflow_00.312 idm_inflow_00.311 idm_inflow_00.310 idm_inflow_00.309 idm_inflow_00.308 idm_inflow_00.307"/>
+    </lane>
+    <lane id="highway_1_0">
+        <vehicles value="idm_inflow_00.306 idm_inflow_00.305 idm_inflow_00.304 idm_inflow_00.303 idm_inflow_00.302 idm_inflow_00.301 idm_inflow_00.300 idm_inflow_00.299 idm_inflow_00.298 idm_inflow_00.297 idm_inflow_00.296 idm_inflow_00.295 idm_inflow_00.294 idm_inflow_00.293 idm_inflow_00.292 idm_inflow_00.291 idm_inflow_00.290 idm_inflow_00.289 idm_inflow_00.288 idm_inflow_00.287 idm_inflow_00.286 idm_inflow_00.285 idm_inflow_00.284 idm_inflow_00.283 idm_inflow_00.282 idm_inflow_00.281 idm_inflow_00.280 idm_inflow_00.279 idm_inflow_00.278 idm_inflow_00.277 idm_inflow_00.276 idm_inflow_00.275 idm_inflow_00.274 idm_inflow_00.273 idm_inflow_00.272 idm_inflow_00.271 idm_inflow_00.270 idm_inflow_00.269 idm_inflow_00.268 idm_inflow_00.267 idm_inflow_00.266 idm_inflow_00.265 idm_inflow_00.264 idm_inflow_00.263 idm_inflow_00.262 idm_inflow_00.261 idm_inflow_00.260 idm_inflow_00.259 idm_inflow_00.258 idm_inflow_00.257 idm_inflow_00.256 idm_inflow_00.255 idm_inflow_00.254 idm_inflow_00.253 idm_inflow_00.252 idm_inflow_00.251 idm_inflow_00.250 idm_inflow_00.249 idm_inflow_00.248 idm_inflow_00.247 idm_inflow_00.246 idm_inflow_00.245 idm_inflow_00.244 idm_inflow_00.243 idm_inflow_00.242 idm_inflow_00.241 idm_inflow_00.240 idm_inflow_00.239 idm_inflow_00.238 idm_inflow_00.237 idm_inflow_00.236 idm_inflow_00.235 idm_inflow_00.234 idm_inflow_00.233 idm_inflow_00.232 idm_inflow_00.231 idm_inflow_00.230 idm_inflow_00.229 idm_inflow_00.228 idm_inflow_00.227 idm_inflow_00.226 idm_inflow_00.225 idm_inflow_00.224 idm_inflow_00.223 idm_inflow_00.222 idm_inflow_00.221 idm_inflow_00.220 idm_inflow_00.219 idm_inflow_00.218 idm_inflow_00.217 idm_inflow_00.216 idm_inflow_00.215 idm_inflow_00.214 idm_inflow_00.213 idm_inflow_00.212 idm_inflow_00.211 idm_inflow_00.210 idm_inflow_00.209 idm_inflow_00.208"/>
+    </lane>
+    <lane id="highway_end_0">
+        <vehicles value="idm_inflow_00.207 idm_inflow_00.206 idm_inflow_00.205 idm_inflow_00.204 idm_inflow_00.203 idm_inflow_00.202 idm_inflow_00.201 idm_inflow_00.200 idm_inflow_00.199 idm_inflow_00.198 idm_inflow_00.197 idm_inflow_00.196 idm_inflow_00.195 idm_inflow_00.194 idm_inflow_00.193 idm_inflow_00.192 idm_inflow_00.191 idm_inflow_00.190 idm_inflow_00.189 idm_inflow_00.188 idm_inflow_00.187 idm_inflow_00.186 idm_inflow_00.185 idm_inflow_00.184 idm_inflow_00.183"/>
+    </lane>
+</snapshot>

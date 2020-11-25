@@ -31,7 +31,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  top_down_view=False,
                  image_size=32,
                  horizon=500,
-                 ant_fall=False):
+                 ant_fall=False,
+                 evaluate=False):
         """Initialize the Universal environment.
 
         Parameters
@@ -65,6 +66,9 @@ class UniversalAntMazeEnv(AntMazeEnv):
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
             conditions for the agent need to be accordingly offset.
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -86,6 +90,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             image_size=image_size,
             manual_collision=False,
             ant_fall=ant_fall,
+            evaluate=evaluate,
         )
 
         self.horizon = horizon
@@ -178,7 +183,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             extra information dictionary
         """
         # Run environment update.
-        obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
+        obs, rew, done, _ = super(UniversalAntMazeEnv, self).step(action)
+        info = {}
 
         if self.use_contexts:
             # Add success to the info dict
@@ -187,6 +193,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 next_states=obs,
                 goals=self.current_context,
             )
+            info["goal_distance"] = dist / REWARD_SCALE
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
@@ -276,6 +283,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             values between some range
         context_range : [float] or [(float, float)] or [[float]]
             one of the following three:
+
             1. the desired context / goal
             2. the (lower, upper) bound tuple for each dimension of the goal
             3. a list of desired contexts / goals. Goals are sampled from these
@@ -306,7 +314,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             put_spin_near_agent=False,
             top_down_view=top_down_view,
             image_size=image_size,
-            manual_collision=False
+            manual_collision=False,
         )
 
         self.horizon = horizon
@@ -405,16 +413,16 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
             action)
 
         if self.use_contexts:
-            # Add success to the info dict
-            dist = self.contextual_reward(
+            # Replace the reward with the contextual reward.
+            rew = self.contextual_reward(
                 states=self.prev_obs,
                 next_states=obs,
                 goals=self.current_context,
             )
-            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
-            # Replace the reward with the contextual reward.
-            rew = dist
+            # Add success to the info dict
+            dist = 7.2 * np.log(rew)
+            info["is_success"] = abs(dist) < DISTANCE_THRESHOLD
 
         # Check if the time horizon has been met.
         self.step_number += 1
@@ -479,7 +487,8 @@ class AntMaze(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Maze environment.
 
         Parameters
@@ -493,6 +502,9 @@ class AntMaze(UniversalAntMazeEnv):
         context_range : [float] or [(float, float)] or [[float]]
             the desired context / goal, or the (lower, upper) bound tuple for
             each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -520,7 +532,9 @@ class AntMaze(UniversalAntMazeEnv):
             random_contexts=random_contexts,
             context_range=context_range,
             top_down_view=False,
-            maze_size_scaling=8)
+            maze_size_scaling=8,
+            evaluate=evaluate,
+        )
 
 
 class HumanoidMaze(UniversalHumanoidMazeEnv):
@@ -568,7 +582,7 @@ class HumanoidMaze(UniversalHumanoidMazeEnv):
                 state_indices=[0, 1],
                 relative_context=False,
                 offset=0.0,
-                reward_scales=(2.0 / 11.313708499),
+                reward_scales=1/7.2,
                 output_activation=np.exp)
 
         super(HumanoidMaze, self).__init__(
@@ -595,7 +609,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 image_size=32):
+                 image_size=32,
+                 evaluate=False):
         """Initialize the Image Ant Maze environment.
 
         Parameters
@@ -611,6 +626,9 @@ class ImageAntMaze(UniversalAntMazeEnv):
             each dimension of the goal
         image_size : int
             determines the width and height of the rendered image
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
 
         Raises
         ------
@@ -641,6 +659,70 @@ class ImageAntMaze(UniversalAntMazeEnv):
             maze_size_scaling=8,
             top_down_view=True,
             image_size=image_size,
+            evaluate=evaluate,
+        )
+
+
+class ImageHumanoidMaze(UniversalAntMazeEnv):
+    """Visual Humanoid Maze Environment.
+
+    In this task, immovable blocks are placed to confine the agent to a
+    U-shaped corridor. That is, blocks are placed everywhere except at (0,0),
+    (8,0), (16,0), (16,8), (16,16), (8,16), and (0,16). The agent is
+    initialized at position (0,0) and tasked at reaching a specific target
+    position. "Success" in this environment is defined as being within an L2
+    distance of 5 from the target.
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None,
+                 image_size=32):
+        """Initialize the Image Humanoid Maze environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "Maze"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[image_size*image_size*3 + 0,
+                               image_size*image_size*3 + 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(ImageHumanoidMaze, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=8,
+            top_down_view=True,
+            image_size=image_size,
+            ant_fall=False,
         )
 
 
@@ -659,8 +741,74 @@ class AntPush(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Push environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "Push"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[0, 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(AntPush, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=8,
+            ant_fall=False,
+            top_down_view=False,
+            evaluate=evaluate,
+        )
+
+
+class HumanoidPush(UniversalHumanoidMazeEnv):
+    """Humanoid Push Environment.
+
+    In this task, immovable blocks are placed every where except at (0,0),
+    (-8,0), (-8,8), (0,8), (8,8), (16,8), and (0,16), and a movable block is
+    placed at (0,8). The agent is initialized at position (0,0), and is tasked
+    with the objective of reaching position (0,19). Therefore, the agent must
+    first move to the left, push the movable block to the right, and then
+    finally navigate to the target. "Success" in this environment is defined as
+    being within an L2 distance of 5 from the target.
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None):
+        """Initialize the Humanoid Push environment.
 
         Parameters
         ----------
@@ -693,15 +841,13 @@ class AntPush(UniversalAntMazeEnv):
                 reward_scales=REWARD_SCALE
             )
 
-        super(AntPush, self).__init__(
+        super(HumanoidPush, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
-            ant_fall=False,
-            top_down_view=False,
         )
 
 
@@ -722,8 +868,76 @@ class AntFall(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Fall environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "Fall"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[0, 1, 2],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(AntFall, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=8,
+            ant_fall=True,
+            top_down_view=False,
+            evaluate=evaluate,
+        )
+
+
+class HumanoidFall(UniversalHumanoidMazeEnv):
+    """Humanoid Fall Environment.
+
+    In this task, the agent is initialized on a platform of height 4. Immovable
+    blocks are placed everywhere except at (-8,0), (0,0), (-8,8), (0,8),
+    (-8,16), (0,16), (-8,24), and (0,24). The raised platform is absent in the
+    region [-4,12]x[12,20], and a movable block is placed at (8,8). The agent
+    is initialized at position (0,0,4.5), and is with the objective of reaching
+    position (0,27,4.5). Therefore, to achieve this, the agent must first push
+    the movable block into the chasm and walk on top of it before navigating to
+    the target. "Success" in this environment is defined as being within an L2
+    distance of 5 from the target.
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None):
+        """Initialize the Humanoid Fall environment.
 
         Parameters
         ----------
@@ -756,15 +970,13 @@ class AntFall(UniversalAntMazeEnv):
                 reward_scales=REWARD_SCALE
             )
 
-        super(AntFall, self).__init__(
+        super(HumanoidFall, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=8,
-            ant_fall=True,
-            top_down_view=False,
         )
 
 
@@ -795,8 +1007,68 @@ class AntFourRooms(UniversalAntMazeEnv):
     def __init__(self,
                  use_contexts=False,
                  random_contexts=False,
-                 context_range=None):
+                 context_range=None,
+                 evaluate=False):
         """Initialize the Ant Four Rooms environment.
+
+        Parameters
+        ----------
+        use_contexts : bool, optional
+            specifies whether to add contexts to the observations and add the
+            contextual rewards
+        random_contexts : bool
+            specifies whether the context is a single value, or a random set of
+            values between some range
+        context_range : [float] or [(float, float)] or [[float]]
+            the desired context / goal, or the (lower, upper) bound tuple for
+            each dimension of the goal
+        evaluate : bool
+            whether to run an evaluation. In this case an additional goal agent
+            is placed in the environment for visualization purposes.
+
+        Raises
+        ------
+        AssertionError
+            If the context_range is not the right form based on whether
+            contexts are a single value or random across a range.
+        """
+        maze_id = "FourRooms"
+
+        def contextual_reward(states, goals, next_states):
+            return negative_distance(
+                states=states,
+                goals=goals,
+                next_states=next_states,
+                state_indices=[0, 1],
+                relative_context=False,
+                offset=0.0,
+                reward_scales=REWARD_SCALE
+            )
+
+        super(AntFourRooms, self).__init__(
+            maze_id=maze_id,
+            contextual_reward=contextual_reward,
+            use_contexts=use_contexts,
+            random_contexts=random_contexts,
+            context_range=context_range,
+            maze_size_scaling=2,
+            ant_fall=False,
+            top_down_view=False,
+            evaluate=evaluate,
+        )
+
+
+class HumanoidFourRooms(UniversalHumanoidMazeEnv):
+    """Humanoid Four Rooms Environment.
+
+    Need to add description. TODO
+    """
+
+    def __init__(self,
+                 use_contexts=False,
+                 random_contexts=False,
+                 context_range=None):
+        """Initialize the Humanoid Four Rooms environment.
 
         Parameters
         ----------
@@ -829,13 +1101,11 @@ class AntFourRooms(UniversalAntMazeEnv):
                 reward_scales=REWARD_SCALE
             )
 
-        super(AntFourRooms, self).__init__(
+        super(HumanoidFourRooms, self).__init__(
             maze_id=maze_id,
             contextual_reward=contextual_reward,
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
             maze_size_scaling=3,
-            ant_fall=False,
-            top_down_view=False,
         )

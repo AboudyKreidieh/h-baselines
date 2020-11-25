@@ -35,7 +35,7 @@ class ExplorationStrategy(object):
         """
         raise NotImplementedError
 
-    def update(self):
+    def update(self, **kwargs):
         """
 
         :return:

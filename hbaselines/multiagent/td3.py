@@ -7,7 +7,8 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
-from hbaselines.utils.tf_util import layer
+from hbaselines.utils.tf_util import create_fcnet
+from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 
@@ -85,17 +86,17 @@ class MultiFeedForwardPolicy(BasePolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 l2_penalty,
+                 model_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
                  shared,
                  maddpg,
+                 n_agents,
                  all_ob_space=None,
-                 n_agents=1,
+                 num_envs=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -105,7 +106,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             the current TensorFlow session
         ob_space : gym.spaces.*
             the observation space of the environment
-        ac_space : gym.spaces.*
+        ac_space : gym.spaces.* or dict < gym.spaces.* >
             the action space of the environment
         co_space : gym.spaces.*
             the context space of the environment
@@ -124,16 +125,14 @@ class MultiFeedForwardPolicy(BasePolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -152,9 +151,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -212,14 +210,14 @@ class MultiFeedForwardPolicy(BasePolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
+            model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
+            num_envs=num_envs,
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
@@ -656,32 +654,44 @@ class MultiFeedForwardPolicy(BasePolicy):
         tf.Variable
             the output from the actor
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            pi_h = create_conv(
+                obs=obs,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
+            )
+        else:
             pi_h = obs
 
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                pi_h = layer(
-                    pi_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
+        # Create the model.
+        policy = create_fcnet(
+            obs=pi_h,
+            layers=self.model_params["layers"],
+            num_output=ac_space.shape[0],
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            scope=scope,
+            reuse=reuse,
+        )
 
-            # create the output layer
-            policy = layer(
-                pi_h, ac_space.shape[0], 'output',
-                act_fun=tf.nn.tanh,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+        # Scaling terms to the output from the policy.
+        ac_means = (ac_space.high + ac_space.low) / 2.
+        ac_magnitudes = (ac_space.high - ac_space.low) / 2.
 
-            # scaling terms to the output from the policy
-            ac_means = (ac_space.high + ac_space.low) / 2.
-            ac_magnitudes = (ac_space.high - ac_space.low) / 2.
-
-            policy = ac_means + ac_magnitudes * tf.to_float(policy)
-
-        return policy
+        # Apply squashing and scale by action space.
+        return ac_means + ac_magnitudes * tf.nn.tanh(policy)
 
     def make_critic(self, obs, action, reuse=False, scope="qf"):
         """Create a critic tensor.
@@ -695,33 +705,45 @@ class MultiFeedForwardPolicy(BasePolicy):
         reuse : bool
             whether or not to reuse parameters
         scope : str
-            an outer scope term
+            the scope name of the actor
 
         Returns
         -------
         tf.Variable
             the output from the critic
         """
-        with tf.compat.v1.variable_scope(scope, reuse=reuse):
-            # concatenate the observations and actions
-            qf_h = tf.concat([obs, action], axis=-1)
+        # Concatenate the observations and actions.
+        qf_h = tf.concat([obs, action], axis=-1)
 
-            # create the hidden layers
-            for i, layer_size in enumerate(self.layers):
-                qf_h = layer(
-                    qf_h,  layer_size, 'fc{}'.format(i),
-                    act_fun=self.act_fun,
-                    layer_norm=self.layer_norm
-                )
-
-            # create the output layer
-            qvalue_fn = layer(
-                qf_h, 1, 'qf_output',
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
+        # Initial image pre-processing (for convolutional policies).
+        if self.model_params["model_type"] == "conv":
+            qf_h = create_conv(
+                obs=qf_h,
+                image_height=self.model_params["image_height"],
+                image_width=self.model_params["image_width"],
+                image_channels=self.model_params["image_channels"],
+                ignore_flat_channels=self.model_params["ignore_flat_channels"],
+                ignore_image=self.model_params["ignore_image"],
+                filters=self.model_params["filters"],
+                kernel_sizes=self.model_params["kernel_sizes"],
+                strides=self.model_params["strides"],
+                act_fun=self.model_params["act_fun"],
+                layer_norm=self.model_params["layer_norm"],
+                scope=scope,
+                reuse=reuse,
             )
 
-        return qvalue_fn
+        return create_fcnet(
+            obs=qf_h,
+            layers=self.model_params["layers"],
+            num_output=1,
+            stochastic=False,
+            act_fun=self.model_params["act_fun"],
+            layer_norm=self.model_params["layer_norm"],
+            output_pre="qf_",
+            scope=scope,
+            reuse=reuse,
+        )
 
     def _setup_critic_update(self,
                              critic,
@@ -854,6 +876,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         # compute the actor loss
         actor_loss = -tf.reduce_mean(critic_with_actor_tf[0])
 
+        # Add a regularization penalty.
+        actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # create an optimizer object
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
 
@@ -926,7 +951,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
-                return {"policy": [0, 0]}, {"policy": 0}
+                return
 
             # Get a batch.
             obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
@@ -937,14 +962,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             done1 = done1.reshape(-1, 1)
 
             # Update operations for the critic networks.
-            step_ops = [self.critic_loss,
-                        self.critic_optimizer[0],
+            step_ops = [self.critic_optimizer[0],
                         self.critic_optimizer[1]]
 
             if update_actor:
                 # Actor updates and target soft update operation.
-                step_ops += [self.actor_loss,
-                             self.actor_optimizer,
+                step_ops += [self.actor_optimizer,
                              self.target_soft_updates]
 
             # Prepare the feed_dict information.
@@ -964,28 +987,18 @@ class MultiFeedForwardPolicy(BasePolicy):
             feed_dict.update({
                 self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
 
-            # Perform the update operations and collect the critic loss.
-            critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-            critic_loss = {"policy": critic_loss}
-
-            # Extract the actor loss.
-            actor_loss = _vals[2] if update_actor else 0
-            actor_loss = {"policy": actor_loss}
+            # Perform the update operations.
+            self.sess.run(step_ops, feed_dict=feed_dict)
 
         # =================================================================== #
         #                    Independent update procedure                     #
         # =================================================================== #
 
         else:
-            actor_loss = {}
-            critic_loss = {}
-
             # Loop through all agent.
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():
-                    actor_loss[key] = 0
-                    critic_loss[key] = [0, 0]
                     continue
 
                 # Get a batch.
@@ -997,14 +1010,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                 done1 = done1.reshape(-1, 1)
 
                 # Update operations for the critic networks.
-                step_ops = [self.critic_loss[key],
-                            self.critic_optimizer[key][0],
+                step_ops = [self.critic_optimizer[key][0],
                             self.critic_optimizer[key][1]]
 
                 if update_actor:
                     # Actor updates and target soft update operation.
-                    step_ops += [self.actor_loss[key],
-                                 self.actor_optimizer[key],
+                    step_ops += [self.actor_optimizer[key],
                                  self.target_soft_updates[key]]
 
                 # Prepare the feed_dict information.
@@ -1019,14 +1030,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.terminals1[key]: done1
                 }
 
-                # Perform the update operations and collect the critic loss.
-                critic_loss[key], *_vals = self.sess.run(
-                    step_ops, feed_dict=feed_dict)
-
-                # Extract the actor loss.
-                actor_loss[key] = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+                # Perform the update operations.
+                self.sess.run(step_ops, feed_dict=feed_dict)
 
     def _get_action_maddpg(self,
                            obs,

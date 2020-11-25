@@ -222,7 +222,7 @@ class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            0.7788007830667997
+            0.8216682531742017
         )
 
     def test_context_space(self):
@@ -535,11 +535,10 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
     1. the observation space matches its expected values
     2. the action space matches its expected values
-    3. the reward function returns its expected value
 
     For the multi-agent environments, we also perform the following tests:
 
-    4. the agent IDs match their expected values
+    3. the agent IDs match their expected values
     """
 
     def setUp(self):
@@ -559,23 +558,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.910458790391056
+            expected_min=np.array([-0.5 for _ in range(1)]),
+            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_size=1,
         )
 
         # kill the environment
@@ -590,7 +583,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # test case 1
         test_space(
-            env.observation_space["rl_0_0"],
+            env.observation_space["rl_0"],
             expected_min=np.array([-float("inf") for _ in range(5)]),
             expected_max=np.array([float("inf") for _ in range(5)]),
             expected_size=5,
@@ -598,191 +591,16 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # test case 2
         test_space(
-            env.action_space["rl_0_0"],
-            expected_min=np.array([-1]),
-            expected_max=np.array([1]),
+            env.action_space["rl_0"],
+            expected_min=np.array([-0.5]),
+            expected_max=np.array([0.5]),
             expected_size=1,
         )
 
         # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([1]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_0_0': 8.716569383965638,
-             'rl_0_1': 8.716569383965638,
-             'rl_0_2': 8.716569383965638,
-             'rl_0_3': 8.716569383965638,
-             'rl_0_4': 8.716569383965638}
-        )
-
-        # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # ======================================================================= #
-    #                                 ring-v1                                 #
-    # ======================================================================= #
-
-    def test_single_agent_ring_v1(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("ring-v1")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            8.910458790391056
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_multi_agent_ring_v1(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("multiagent-ring-v1")
-
-        # test case 1
-        test_space(
-            env.observation_space["rl_0_0"],
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space["rl_0_0"],
-            expected_min=np.array([-1]),
-            expected_max=np.array([1]),
-            expected_size=1,
-        )
-
-        # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([1]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_0_0': 8.716569383965638,
-             'rl_0_1': 8.716569383965638,
-             'rl_0_2': 8.716569383965638,
-             'rl_0_3': 8.716569383965638,
-             'rl_0_4': 8.716569383965638}
-        )
-
-        # test case 4
-        self.assertListEqual(
-            sorted(env.agents),
-            ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # ======================================================================= #
-    #                                 ring-v2                                 #
-    # ======================================================================= #
-
-    def test_single_agent_ring_v2(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("ring-v2")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.910458790391056
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_multi_agent_ring_v2(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("multiagent-ring-v2")
-
-        # test case 1
-        test_space(
-            env.observation_space["rl_0_0"],
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space["rl_0_0"],
-            expected_min=np.array([-1]),
-            expected_max=np.array([1]),
-            expected_size=1,
-        )
-
-        # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([1]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_0_0': 13.716569383965638,
-             'rl_0_1': 13.716569383965638,
-             'rl_0_2': 13.716569383965638,
-             'rl_0_3': 13.716569383965638,
-             'rl_0_4': 13.716569383965638}
-        )
-
-        # test case 4
-        self.assertListEqual(
-            sorted(env.agents),
-            ['rl_0_0', 'rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4']
+            ['rl_0']
         )
 
         # kill the environment
@@ -802,23 +620,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
-            expected_size=5,
-        )
-
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1] * 5), fail=False),
-            13.910458790391056
+            expected_min=np.array([-0.5 for _ in range(1)]),
+            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_size=1,
         )
 
         # kill the environment
@@ -851,12 +663,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=5,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1.5] * 5), fail=False),
-            0
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -885,12 +691,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_min=np.array([-1.5 for _ in range(13)]),
             expected_max=np.array([1.5 for _ in range(13)]),
             expected_size=13,
-        )
-
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1.5] * 13), fail=False),
-            0
         )
 
         # kill the environment
@@ -923,12 +723,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=17,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([1.5] * 17), fail=False),
-            0
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -959,12 +753,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=10,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            -2.5
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -992,18 +780,15 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         )
 
         # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([0.5]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
-        )
-
-        # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1036,12 +821,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=10,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            -2.5
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -1069,18 +848,15 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         )
 
         # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([0.5]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_highway_inflow_10.0': -0.5, 'rl_highway_inflow_10.1': -0.5}
-        )
-
-        # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1113,12 +889,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=10,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            0.0
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -1146,18 +916,83 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         )
 
         # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([0.5]) for key in env.agents},
-                fail=False,
-            ),
-            {'rl_highway_inflow_10.0': 0.0, 'rl_highway_inflow_10.1': 0.0}
-        )
-
-        # test case 4
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_highway_inflow_10.0', 'rl_highway_inflow_10.1']
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    # ======================================================================= #
+    #                               highway-v3                                #
+    # ======================================================================= #
+
+    def test_single_agent_highway_v3(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("highway-v3")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(50)]),
+            expected_max=np.array([float("inf") for _ in range(50)]),
+            expected_size=50,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([0 for _ in range(10)]),
+            expected_max=np.array([15 for _ in range(10)]),
+            expected_size=10,
+        )
+
+        # kill the environment
+        env.wrapped_env.terminate()
+
+    def test_multi_agent_highway_v3(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-highway-v3", shared=True)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(5)]),
+            expected_max=np.array([float("inf") for _ in range(5)]),
+            expected_size=5,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([15 for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        self.assertListEqual(
+            sorted(env.agents),
+            ['idm_inflow_00.233',
+             'idm_inflow_00.245',
+             'idm_inflow_00.257',
+             'idm_inflow_00.269',
+             'idm_inflow_00.281',
+             'idm_inflow_00.293',
+             'idm_inflow_00.305']
         )
 
         # kill the environment
@@ -1190,12 +1025,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=10,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([0.5] * 10), fail=False),
-            0.0
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -1226,12 +1055,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=50,
         )
 
-        # test case 3
-        self.assertAlmostEqual(
-            env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-            -12.5
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -1259,19 +1082,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         )
 
         # test case 3
-        self.assertDictEqual(
-            env.wrapped_env.compute_reward(
-                {key: np.array([0.5] * 10) for key in env.agents},
-                fail=False,
-            ),
-            {'lane_0': 0.0,
-             'lane_1': 0.0,
-             'lane_2': 0.0,
-             'lane_3': 0.0,
-             'lane_4': 0.0}
-        )
-
-        # test case 4
         self.assertListEqual(
             sorted(env.agents),
             ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
@@ -1307,12 +1117,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #         expected_size=50,
     #     )
     #
-    #     # test case 3
-    #     self.assertAlmostEqual(
-    #         env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-    #         6.791321863445345
-    #     )
-    #
     #     # kill the environment
     #     env.wrapped_env.terminate()
     #
@@ -1340,15 +1144,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     )
     #
     #     # test case 3
-    #     self.assertDictEqual(
-    #         env.wrapped_env.compute_reward(
-    #             {key: np.array([0.5] * 10) for key in env.agents},
-    #             fail=False,
-    #         ),
-    #         {}
-    #     )
-    #
-    #     # test case 4
     #     self.assertListEqual(
     #         sorted(env.agents),
     #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
@@ -1384,12 +1179,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #         expected_size=50,
     #     )
     #
-    #     # test case 3
-    #     self.assertAlmostEqual(
-    #         env.wrapped_env.compute_reward(np.array([0.5] * 50), fail=False),
-    #         11.005385206055989
-    #     )
-    #
     #     # kill the environment
     #     env.wrapped_env.terminate()
     #
@@ -1417,15 +1206,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     )
     #
     #     # test case 3
-    #     self.assertDictEqual(
-    #         env.wrapped_env.compute_reward(
-    #             {key: np.array([0.5] * 10) for key in env.agents},
-    #             fail=False,
-    #         ),
-    #         {}
-    #     )
-    #
-    #     # test case 4
     #     self.assertListEqual(
     #         sorted(env.agents),
     #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
@@ -1440,7 +1220,6 @@ class TestAV(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
         ))["sim"]
@@ -1448,7 +1227,6 @@ class TestAV(unittest.TestCase):
 
         # for AVClosedEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
         ))
@@ -1467,6 +1245,7 @@ class TestAV(unittest.TestCase):
             fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
         ))
 
         self.network_open = flow_params_open["network"](
@@ -1502,6 +1281,7 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                 },
             )
         )
@@ -1540,8 +1320,7 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=['human_0', 'human_20']
             )
         )
 
@@ -1566,9 +1345,8 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
-                    "num_vehicles": [50, 75],
-                    "even_distribution": False,
-                    "sort_vehicles": True,
+                    "use_follower_stopper": True,
+                    "ring_length": [220, 270],
                 },
             )
         )
@@ -1585,14 +1363,11 @@ class TestAV(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicle
-        self.assertEqual(env.k.vehicle.num_vehicles, 50)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 230.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 54)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 58)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 268.4)
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenEnv class.
@@ -1616,10 +1391,12 @@ class TestAV(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -1662,7 +1439,6 @@ class TestAVMulti(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1671,7 +1447,6 @@ class TestAVMulti(unittest.TestCase):
 
         # for AVClosedMultiAgentEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=False,
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
@@ -1692,6 +1467,7 @@ class TestAVMulti(unittest.TestCase):
             stopping_penalty=True,
             acceleration_penalty=True,
             multiagent=True,
+            use_follower_stopper=False,
         ))
 
         self.network_open = flow_params_open["network"](
@@ -1708,6 +1484,7 @@ class TestAVMulti(unittest.TestCase):
             fixed_boundary=False,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
             multiagent=True,
         ))
 
@@ -1744,6 +1521,7 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                 },
             )
         )
@@ -1762,7 +1540,7 @@ class TestAVMulti(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=env_single.initial_vehicles.num_rl_vehicles,
+            expected_size=5,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -1782,8 +1560,7 @@ class TestAVMulti(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=['human_0', 'human_20']
             )
         )
 
@@ -1801,16 +1578,15 @@ class TestAVMulti(unittest.TestCase):
             test_additional_params(
                 env_class=AVClosedMultiAgentEnv,
                 sim_params=self.sim_params,
-                network=self.network_open,
+                network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
                     "max_decel": 3,
                     "target_velocity": 30,
                     "stopping_penalty": True,
+                    "use_follower_stopper": True,
                     "acceleration_penalty": True,
-                    "num_vehicles":  [50, 75],
-                    "even_distribution": False,
-                    "sort_vehicles": True,
+                    "ring_length": [220, 270],
                 },
             )
         )
@@ -1827,14 +1603,11 @@ class TestAVMulti(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.vehicle.num_vehicles, 50)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 230.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 54)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 58)
-        self.assertEqual(env.k.vehicle.num_rl_vehicles, 5)
+        self.assertEqual(env.k.network.length(), 268.4)
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenMultiAgentEnv class.
@@ -1858,10 +1631,12 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -1920,10 +1695,12 @@ class TestAVMulti(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
                     "control_range": [500, 2500],
+                    "warmup_path": None,
                 },
             )
         )
@@ -1943,7 +1720,7 @@ class TestAVMulti(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 1913 if veh_type == "human" else 136
+            expected_rate = 1879 if veh_type == "human" else 170
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1966,7 +1743,6 @@ class TestAVImitation(unittest.TestCase):
 
     def setUp(self):
         self.sim_params = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             imitation=True,
@@ -1975,7 +1751,6 @@ class TestAVImitation(unittest.TestCase):
 
         # for AVClosedEnv
         flow_params_closed = deepcopy(ring(
-            fixed_density=True,
             stopping_penalty=True,
             acceleration_penalty=True,
             imitation=True,
@@ -1994,6 +1769,7 @@ class TestAVImitation(unittest.TestCase):
             fixed_boundary=True,
             stopping_penalty=True,
             acceleration_penalty=True,
+            use_follower_stopper=False,
             imitation=True,
         ))
 
@@ -2022,7 +1798,6 @@ class TestAVImitation(unittest.TestCase):
            values
            a. for the single lane case
            b. for the multi-lane case
-        5. the the query_expert method returns the expected values
         """
         env_params = deepcopy(self.env_params_closed)
         env_params.additional_params["expert_model"] = (IDMController, {
@@ -2042,6 +1817,7 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
@@ -2064,7 +1840,7 @@ class TestAVImitation(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=25,
+            expected_size=5,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -2072,7 +1848,7 @@ class TestAVImitation(unittest.TestCase):
         # test case 3
         test_space(
             gym_space=env_single.action_space,
-            expected_size=5,
+            expected_size=1,
             expected_min=-1,
             expected_max=1,
         )
@@ -2084,22 +1860,8 @@ class TestAVImitation(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=env_params,
-                expected_observed=['rl_0_1', 'rl_0_2', 'rl_0_3', 'rl_0_4',
-                                   'human_0_0', 'human_0_44', 'rl_0_0']
+                expected_observed=['human_0', 'human_20']
             )
-        )
-
-        # test case 5
-        env = AVImitationEnv(
-            sim_params=self.sim_params,
-            network=self.network_closed,
-            env_params=env_params,
-        )
-        env.reset()
-
-        np.testing.assert_almost_equal(
-            env.query_expert(None),
-            [-0.0359733, -0.0419105, -0.0042745,  0.0236156, -0.0198828]
         )
 
     def test_closed_env(self):
@@ -2110,7 +1872,6 @@ class TestAVImitation(unittest.TestCase):
         1. that additional_env_params cause an Exception to be raised if not
            properly passed
         2. that the number of vehicles is properly modified in between resets
-        3. the the query_expert method returns the expected values
         """
         env_params = deepcopy(self.env_params_closed)
         env_params.additional_params["expert_model"] = (IDMController, {
@@ -2130,9 +1891,8 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
-                    "num_vehicles": [50, 75],
-                    "even_distribution": False,
-                    "sort_vehicles": True,
+                    "use_follower_stopper": True,
+                    "ring_length": [220, 270],
                     "expert_model": (IDMController, {
                         "a": 0.3,
                         "b": 2.0,
@@ -2153,27 +1913,11 @@ class TestAVImitation(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.vehicle.num_vehicles, 50)
-        self.assertEqual(env.num_rl, 5)
+        self.assertEqual(env.k.network.length(), 230.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 54)
-        self.assertEqual(env.num_rl, 5)
+        self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
-        self.assertEqual(env.k.vehicle.num_vehicles, 58)
-        self.assertEqual(env.num_rl, 5)
-
-        # test case 3
-        env = AVClosedImitationEnv(
-            sim_params=self.sim_params,
-            network=self.network_closed,
-            env_params=env_params,
-        )
-        env.reset()
-
-        np.testing.assert_almost_equal(
-            env.query_expert(None),
-            [-0.0266911, -0.0908724, -0.0835323, -0.0679369, -0.0327296]
-        )
+        self.assertEqual(env.k.network.length(), 268.4)
 
     def test_open_env(self):
         """Validate the functionality of the AVOpenImitationEnv class.
@@ -2203,6 +1947,7 @@ class TestAVImitation(unittest.TestCase):
                     "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
+                    "use_follower_stopper": True,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -2211,6 +1956,7 @@ class TestAVImitation(unittest.TestCase):
                         "a": 0.3,
                         "b": 2.0,
                     }),
+                    "warmup_path": None,
                 },
             )
         )
@@ -2533,6 +2279,7 @@ def test_observed(env_class,
     env.reset()
     env.step(None)
     env.additional_command()
+    print(env.k.vehicle.get_observed_ids())
     test_mask = np.all(
         np.array(env.k.vehicle.get_observed_ids()) ==
         np.array(expected_observed)

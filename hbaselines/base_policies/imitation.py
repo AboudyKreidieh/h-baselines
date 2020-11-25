@@ -100,13 +100,7 @@ class ImitationLearningPolicy(object):
         self.stochastic = stochastic
 
     def update(self):
-        """Perform a gradient update step.
-
-        Returns
-        -------
-        float
-            policy loss
-        """
+        """Perform a gradient update step."""
         raise NotImplementedError
 
     def get_action(self, obs, context):

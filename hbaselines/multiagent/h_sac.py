@@ -18,10 +18,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 l2_penalty,
+                 model_params,
                  target_entropy,
                  num_levels,
                  meta_period,
@@ -33,12 +32,16 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
                  shared,
                  maddpg,
+                 n_agents,
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -67,16 +70,14 @@ class MultiGoalConditionedPolicy(BasePolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the Neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -127,6 +128,19 @@ class MultiGoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -136,9 +150,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -154,15 +167,15 @@ class MultiGoalConditionedPolicy(BasePolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
+            model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
+            num_envs=n_agents * num_envs if shared else num_envs,
             scope=scope,
             additional_params=dict(
                 target_entropy=target_entropy,
@@ -176,8 +189,11 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                cg_delta=cg_delta,
+                pretrain_worker=pretrain_worker,
+                pretrain_path=pretrain_path,
+                pretrain_ckpt=pretrain_ckpt,
                 env_name=env_name,
-                num_envs=num_envs,
             ),
         )
 

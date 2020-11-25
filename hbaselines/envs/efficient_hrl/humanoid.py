@@ -82,7 +82,6 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         c = 0.01
         qpos = self.np_random.uniform(low=-c, high=c, size=self.model.nq)
         qvel = self.np_random.uniform(low=-c, high=c, size=self.model.nv)
-        qvel[0] = 2.0  # set the agent to have a forward momentum
         self.set_state(self.init_qpos + qpos, self.init_qvel + qvel)
         return self._get_obs()
 
