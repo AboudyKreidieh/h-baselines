@@ -203,6 +203,10 @@ def parse_options(description,
         '--log_dir', type=str, default=None,
         help='the directory to log the data. Defaults to the current '
              'directory.')
+    parser_algorithm.add_argument(
+        '--exploration_strategy', type=str, default=None,
+        help='The exploration strategy used for this training.'
+             'Default to not using any explorations.')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
