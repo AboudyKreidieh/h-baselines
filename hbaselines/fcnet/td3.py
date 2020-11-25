@@ -560,6 +560,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 # clip by bounds
                 action = np.clip(action, self.ac_space.low, self.ac_space.high)
 
+        # use the exploration_strategy
+        if self.exploration_strategy:
+            action = self.exploration_strategy.apply_noise(action)
+
         return action
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
