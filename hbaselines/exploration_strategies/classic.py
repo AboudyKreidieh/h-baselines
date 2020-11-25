@@ -8,7 +8,7 @@ import numpy as np
 import random
 
 from hbaselines.exploration_strategies.base import ExplorationStrategy
-from hbaselines.exploration_strategies.utils import argmax_random
+# from hbaselines.exploration_strategies.utils import argmax_random
 
 
 class EpsilonGreedy(ExplorationStrategy):

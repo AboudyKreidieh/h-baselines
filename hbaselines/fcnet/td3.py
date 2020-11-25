@@ -195,7 +195,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             try:
                 ep_class = getattr(hbaselines.exploration_strategies, exploration_params['exploration_strategy'])
                 self.exploration_strategy = ep_class(ac_space)
-            except AttributeError e:
+            except AttributeError:
                 print("Requested exploration strategies is not supported, will default to no exploration")
 
         # =================================================================== #
