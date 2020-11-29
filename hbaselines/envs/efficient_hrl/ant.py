@@ -135,13 +135,13 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             obs = np.concatenate([
                 self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
                 self.physics.data.qvel.flat[:14],
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
+                # np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
         else:
             obs = np.concatenate([
                 self.physics.data.qpos.flat[2:15],
                 self.physics.data.qvel.flat[:14],
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
+                # np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
 
         if self._expose_body_coms is not None:
