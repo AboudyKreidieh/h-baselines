@@ -39,6 +39,8 @@ try:
         import RingSingleAgentEnv
     from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
         import RingMultiAgentEnv
+    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
+        import MAX_SPEED
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
@@ -834,8 +836,8 @@ def _get_ring_env_attributes(scale):
     """
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 if relative_goals else 0,
-            high=5 if relative_goals else 10,
+            low=-5 / MAX_SPEED if relative_goals else 0 / MAX_SPEED,
+            high=5 / MAX_SPEED if relative_goals else 10 / MAX_SPEED,
             shape=(1 if multiagent else scale,),
             dtype=np.float32
         ),
