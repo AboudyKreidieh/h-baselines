@@ -842,7 +842,7 @@ def _get_ring_env_attributes(scale):
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
-            5 * i for i in range(scale)],
+            15 * i for i in range(scale)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
@@ -861,7 +861,7 @@ def _get_ring_env_attributes(scale):
             length=[260 * scale, 270 * scale],
             num_vehicles=22 * scale,
             dt=0.4,
-            max_accel=0.25,
+            max_accel=0.1,
             horizon=1500,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
