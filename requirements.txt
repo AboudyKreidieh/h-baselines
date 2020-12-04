@@ -7,7 +7,6 @@ matplotlib
 pygame
 opencv-python
 dm-tree
-ray[tune]
 pandas
 scipy
 # mujoco-py==1.50.1.68
