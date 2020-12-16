@@ -671,6 +671,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     # policy if the time period requires is.
                     self.meta_action[env_num][i] = self.policy[i].get_action(
                         obs, context_i, apply_noise, random_actions)
+                    if self.exploration_strategy:
+                        self.meta_action[env_num][i] = self.exploration_strategy[1].apply_noise(self.meta_action[env_num][i])
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
@@ -691,7 +693,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # use the exploration_strategy
         if self.exploration_strategy:
-            action = self.exploration_strategy.apply_noise(action)
+            action = self.exploration_strategy[0].apply_noise(action)
 
         return action
 
