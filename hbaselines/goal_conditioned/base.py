@@ -11,6 +11,8 @@ from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 from hbaselines.utils.tf_util import get_trainable_vars
 
+import hbaselines.exploration_strategies
+
 
 class GoalConditionedPolicy(ActorCriticPolicy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
@@ -686,6 +688,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             context=self.meta_action[env_num][-1],
             apply_noise=apply_noise,
             random_actions=random_actions and self.pretrain_path is None)
+
+        # use the exploration_strategy
+        if self.exploration_strategy:
+            action = self.exploration_strategy.apply_noise(action)
 
         return action
 

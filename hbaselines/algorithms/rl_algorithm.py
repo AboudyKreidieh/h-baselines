@@ -490,6 +490,8 @@ class RLAlgorithm(object):
 
         # Update exploration_params according to the arguments
         FEEDFORWARD_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
+        # Update exploration_params according to the arguments
+        GOAL_CONDITIONED_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs, self._info_keys = \
