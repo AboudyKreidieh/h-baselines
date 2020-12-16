@@ -154,7 +154,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  num_envs=1,
                  meta_policy=None,
                  worker_policy=None,
-                 additional_params=None):
+                 additional_params=None,
+                 exploration_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters

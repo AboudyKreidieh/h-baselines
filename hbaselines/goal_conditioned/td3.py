@@ -7,6 +7,8 @@ from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.utils.tf_util import get_trainable_vars
 
+import hbaselines.exploration_strategies
+
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     """TD3-compatible goal-conditioned hierarchical policy."""
@@ -46,7 +48,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  total_steps,
                  scope=None,
                  env_name="",
-                 num_envs=1):
+                 num_envs=1,
+                 exploration_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -179,6 +182,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 target_noise_clip=target_noise_clip,
             ),
         )
+
+        # Initialize the exploration strategy
+        self.exploration_strategy = None
+        if exploration_params is not None and exploration_params['exploration_strategy'] is not None:
+            try:
+                ep_class = getattr("hbaselines.exploration_strategies", exploration_params['exploration_strategy'])
+                self.exploration_strategy = ep_class(ac_space)
+            except AttributeError:
+                print("Requested exploration strategies is not supported, will default to no exploration")
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #
