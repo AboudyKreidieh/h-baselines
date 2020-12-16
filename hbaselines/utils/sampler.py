@@ -49,8 +49,9 @@ class Sampler(object):
             initial_action = {key: self.env.action_space[key].sample()
                               for key in self.env.action_space.keys()}
         elif env_name.startswith("multiagent") and shared:
+            init_obs = self._init_obs["obs"] if maddpg else self._init_obs
             initial_action = {key: self.env.action_space.sample()
-                              for key in self._init_obs.keys()}
+                              for key in init_obs.keys()}
         else:
             initial_action = self.env.action_space.sample()
         _, _, _, info_dict = self.env.step(initial_action)

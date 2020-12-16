@@ -587,8 +587,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Specifies the levels to collect data from, corresponding to the
         # levels that will be trained. This also helps speedup the operation.
-        collect_levels = [i for i in range(self.num_levels - 1) if
-                          kwargs["update_meta"][i]] + [self.num_levels - 1]
+        collect_levels = [i for i in range(self.num_levels - 1)
+                          if kwargs["update_meta"][i]
+                          and not self.pretrain_worker] + [self.num_levels - 1]
 
         # Get a batch.
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(

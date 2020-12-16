@@ -1,5 +1,6 @@
 """Flow-specific parameters for the ring scenario."""
 import os
+import numpy as np
 
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
@@ -16,15 +17,28 @@ from flow.networks.ring import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 
-# Number of vehicles in the network
-RING_LENGTH = [220, 270]
-# number of automated (RL) vehicles
-NUM_AUTOMATED = 1
+
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the speeds and bumper-to-bumper headways of
+    all automated vehicles in the network.
+    """
+    # Initialize a set on empty observations
+    obs = [0 for _ in range(env.observation_space.shape[0])]
+
+    # Add relative observation of each vehicle.
+    for i, v_id in enumerate(env.rl_ids()):
+        obs[5 * i: 5 * (i + 1)], leader, follower = get_relative_obs(env, v_id)
+
+    return np.asarray(obs)
 
 
 def get_flow_params(stopping_penalty,
                     acceleration_penalty,
+                    scale=1,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
@@ -80,30 +94,32 @@ def get_flow_params(stopping_penalty,
     warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
 
     vehicles = VehicleParams()
-    vehicles.add(
-        veh_id="human",
-        acceleration_controller=(IDMController, {
-            "a": 1.3,
-            "b": 2.0,
-            "noise": 0.2
-        }),
-        routing_controller=(ContinuousRouter, {}),
-        car_following_params=SumoCarFollowingParams(
-            speed_mode=25,
-            min_gap=0.5,
-        ),
-        num_vehicles=21)
-    vehicles.add(
-        veh_id="rl",
-        acceleration_controller=(RLController, {}),
-        routing_controller=(ContinuousRouter, {}),
-        car_following_params=SumoCarFollowingParams(
-            min_gap=0.5,
-            speed_mode=25,
-        ),
-        num_vehicles=1)
+    for i in range(scale):
+        vehicles.add(
+            veh_id="human_{}".format(i),
+            acceleration_controller=(IDMController, {
+                "a": 1.3,
+                "b": 2.0,
+                "noise": 0.2,
+            }),
+            routing_controller=(ContinuousRouter, {}),
+            car_following_params=SumoCarFollowingParams(
+                speed_mode=25,
+                min_gap=0.5,
+            ),
+            num_vehicles=21)
+        vehicles.add(
+            veh_id="rl_{}".format(i),
+            acceleration_controller=(RLController, {}),
+            routing_controller=(ContinuousRouter, {}),
+            car_following_params=SumoCarFollowingParams(
+                min_gap=0.5,
+                speed_mode=25,
+            ),
+            num_vehicles=1)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
+    additional_net_params["length"] = 260 * scale
 
     if multiagent:
         if imitation:
@@ -133,7 +149,7 @@ def get_flow_params(stopping_penalty,
         sim=SumoParams(
             use_ballistic=True,
             render=False,
-            sim_step=0.2,
+            sim_step=0.4,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
@@ -143,17 +159,17 @@ def get_flow_params(stopping_penalty,
             sims_per_step=1,
             evaluate=evaluate,
             additional_params={
-                "max_accel": 0.5,
-                "max_decel": 0.5,
-                "target_velocity": 10,
+                "max_accel": 0.25,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,
-                "ring_length": RING_LENGTH,
+                "ring_length": [250 * scale, 270 * scale],
+                "obs_frames": 5,
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "full_observation_fn": full_observation_fn,
             },
         ),
 
@@ -170,8 +186,9 @@ def get_flow_params(stopping_penalty,
         # parameters specifying the positioning of vehicles upon init/reset
         # (see flow.core.params.InitialConfig)
         initial=InitialConfig(
-            spacing="random",
+            # spacing="random",
+            perturbation=0.5,
             min_gap=0.5,
-            shuffle=True,
+            # shuffle=True,
         ),
     )
