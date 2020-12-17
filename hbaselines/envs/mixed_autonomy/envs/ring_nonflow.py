@@ -188,17 +188,17 @@ class RingEnv(gym.Env):
         self._emission_data = []
 
         # human-driver model parameters
-        self.v0 = 30
-        self.T = 1
+        self.v0 = 30.
+        self.T = 1.
         self.a = 1.3
-        self.b = 2.0
-        self.delta = 4
-        self.s0 = 2
-        self.noise = 0.0
+        self.b = 2.
+        self.delta = 4.
+        self.s0 = 2.
+        self.noise = 0.2
 
         # failsafe parameters
         self.decel = 4.5
-        self.delay = self.dt
+        self.delay = 0.
 
     @staticmethod
     def _set_length(length):
@@ -571,8 +571,8 @@ class RingSingleAgentEnv(RingEnv):
     def action_space(self):
         """See class definition."""
         return Box(
-            low=-1.0,
-            high=1.0,
+            low=-self.max_accel,
+            high=self.max_accel,
             shape=(self.num_rl,),
             dtype=np.float32)
 
@@ -598,23 +598,22 @@ class RingSingleAgentEnv(RingEnv):
                 # lead speed
                 self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
-                min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
+                self.headways[veh_id] / MAX_HEADWAY,
                 # follower speed
                 self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
-                min(self.headways[(veh_id - 1) % self.num_vehicles]
-                    / MAX_HEADWAY, 5.0),
+                self.headways[(veh_id - 1) % self.num_vehicles] / MAX_HEADWAY,
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self.obs_frames:
+            if len(self._obs_history[veh_id]) > 5 * self.obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self.obs_frames:]
+                    self._obs_history[veh_id][-5 * self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta in the
             # output observations.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-5])
             obs[5*self.obs_frames*i:5*self.obs_frames*i+len(obs_t)] = obs_t
 
         return obs

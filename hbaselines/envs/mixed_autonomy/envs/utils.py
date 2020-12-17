@@ -197,13 +197,10 @@ def get_rl_accel(accel, vel, max_accel, dt):
     if isinstance(accel, dict):
         accel = [accel[key][0] for key in accel.keys()]
 
-    # Scale to the range of accelerations.
-    accel = max_accel * np.array(accel)
-
     # Redefine if below a speed threshold so that all actions result in
     # non-negative desired speeds.
     for i in range(len(vel)):
-        ac_range = 2 * max_accel
+        ac_range = 2. * max_accel
         if vel[i] < 0.5 * ac_range * dt:
             accel[i] += 0.5 * ac_range - vel[i] / dt
 
