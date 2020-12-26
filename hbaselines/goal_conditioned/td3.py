@@ -298,7 +298,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 for _ in range(self.num_levels - 1)]
         else:
             self.cg_weights = [
-                self.cg_weights for _ in range(self.num_levels - 1)]
+                np.log(self.cg_weights).astype(np.float32)
+                for _ in range(self.num_levels - 1)]
 
         self.cg_loss = []
         self.cg_optimizer = []
