@@ -26,6 +26,7 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
 
+# TODO
 OBJECT_OFFSET = 1
 
 # dictionary that maps policy names to policy objects
