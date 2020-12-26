@@ -174,7 +174,6 @@ def main(args):
         policy=policy,
         env=env_name,
         eval_env=env_name,
-        total_steps=1,
         **hp
     )
 
