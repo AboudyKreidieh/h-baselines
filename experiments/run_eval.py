@@ -1,55 +1,16 @@
 """An evaluator script for pre-trained policies."""
 import os
 import sys
-import argparse
 import random
 import numpy as np
 import tensorflow as tf
-import json
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
 from hbaselines.algorithms import RLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy \
-    as TD3FeedForwardPolicy
-from hbaselines.fcnet.sac import FeedForwardPolicy \
-    as SACFeedForwardPolicy
-from hbaselines.fcnet.ppo import FeedForwardPolicy \
-    as PPOFeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
-    as TD3GoalConditionedPolicy
-from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
-    as SACGoalConditionedPolicy
-from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
-    as TD3MultiFeedForwardPolicy
-from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
-    as SACMultiFeedForwardPolicy
-from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
-    as TD3MultiGoalConditionedPolicy
-from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
-    as SACMultiGoalConditionedPolicy
-
-
-# dictionary that maps policy names to policy objects
-POLICY_DICT = {
-    "FeedForwardPolicy": {
-        "TD3": TD3FeedForwardPolicy,
-        "SAC": SACFeedForwardPolicy,
-        "PPO": PPOFeedForwardPolicy,
-    },
-    "GoalConditionedPolicy": {
-        "TD3": TD3GoalConditionedPolicy,
-        "SAC": SACGoalConditionedPolicy,
-    },
-    "MultiFeedForwardPolicy": {
-        "TD3": TD3MultiFeedForwardPolicy,
-        "SAC": SACMultiFeedForwardPolicy,
-    },
-    "MultiGoalConditionedPolicy": {
-        "TD3": TD3MultiGoalConditionedPolicy,
-        "SAC": SACMultiGoalConditionedPolicy,
-    },
-}
+from hbaselines.utils.eval import parse_options
+from hbaselines.utils.eval import get_hyperparameters_from_dir
+from hbaselines.utils.eval import TrajectoryLogger
 
 # name of Flow environments. These are rendered differently
 FLOW_ENV_NAMES = [
@@ -69,89 +30,6 @@ FLOW_ENV_NAMES = [
     "i210-v1",
     "i210-v2",
 ]
-
-
-def parse_options(args):
-    """Parse training options user can specify in command line.
-
-    Returns
-    -------
-    argparse.Namespace
-        the output parser object
-    """
-    parser = argparse.ArgumentParser(
-        description='Run evaluation episodes of a given checkpoint.',
-        epilog='python run_eval "/path/to/dir_name" ckpt_num')
-
-    # required input parameters
-    parser.add_argument(
-        'dir_name', type=str, help='the path to the checkpoints folder')
-
-    # optional arguments
-    parser.add_argument(
-        '--ckpt_num', type=int, default=None,
-        help='the checkpoint number. If not specified, the last checkpoint is '
-             'used.')
-    parser.add_argument(
-        '--num_rollouts', type=int, default=1,
-        help='number of eval episodes')
-    parser.add_argument(
-        '--video', type=str, default='output',
-        help='path to the video to render')
-    parser.add_argument(
-        '--save_video', action='store_true',
-        help='whether to save the rendering')
-    parser.add_argument(
-        '--no_render', action='store_true',
-        help='shuts off rendering')
-    parser.add_argument(
-        '--random_seed', action='store_true',
-        help='whether to run the simulation on a random seed. If not added, '
-             'the original seed is used.')
-
-    return parser.parse_args(args)
-
-
-def get_hyperparameters_from_dir(ckpt_path):
-    """Collect the algorithm-specific hyperparameters from the checkpoint.
-
-    Parameters
-    ----------
-    ckpt_path : str
-        the path to the checkpoints folder
-
-    Returns
-    -------
-    str
-        environment name
-    hbaselines.goal_conditioned.*
-        policy object
-    dict
-        algorithm and policy hyperparaemters
-    int
-        the seed value
-    """
-    # import the dictionary of hyperparameters
-    with open(os.path.join(ckpt_path, 'hyperparameters.json'), 'r') as f:
-        hp = json.load(f)
-
-    # collect the policy object
-    policy_name = hp['policy_name']
-    alg_name = hp['algorithm']
-    policy = POLICY_DICT[policy_name][alg_name]
-
-    # collect the environment name
-    env_name = hp['env_name']
-
-    # collect the seed value
-    seed = hp['seed']
-
-    # remove unnecessary features from hp dict
-    hp = hp.copy()
-    del hp['policy_name'], hp['env_name'], hp['seed']
-    del hp['algorithm'], hp['date/time']
-
-    return env_name, policy, hp, seed
 
 
 def main(args):
@@ -203,6 +81,11 @@ def main(args):
     policy = alg.policy_tf
     env = alg.eval_env
 
+    if flags.save_trajectory:
+        logger = TrajectoryLogger(env_name)
+    else:
+        logger = None
+
     # Perform the evaluation procedure.
     episode_rewards = []
 
@@ -227,6 +110,9 @@ def main(args):
                 out = None
 
             obs, total_reward = env.reset(), 0
+
+            if flags.save_trajectory:
+                logger.reset(env)
 
             while True:
                 context = [env.current_context] \
@@ -263,7 +149,13 @@ def main(args):
                     ])
                     env.set_goal(goal)
 
+                # Advance the simulation by one step.
                 new_obs, reward, done, info = env.step(action)
+
+                if flags.save_trajectory:
+                    logger.log_sample(new_obs, policy)
+
+                # Render the new step.
                 if not flags.no_render:
                     if flags.save_video:
                         if alg.env_name == "AntGather":
@@ -315,6 +207,11 @@ def main(args):
             if not flags.no_render and env_name not in FLOW_ENV_NAMES \
                     and flags.save_video:
                 out.close()
+
+            # Save logged trajectory data.
+            if flags.save_trajectory:
+                logger.save(
+                    "log_{}_{}".format(env_num, episode_num), plot=True)
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(

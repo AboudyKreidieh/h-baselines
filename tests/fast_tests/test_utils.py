@@ -5,6 +5,8 @@ import numpy as np
 import random
 from gym.spaces import Box
 
+from hbaselines.utils.eval import parse_options as parse_eval_options
+from hbaselines.utils.eval import get_hyperparameters_from_dir
 from hbaselines.utils.train import parse_options
 from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
@@ -1990,25 +1992,25 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v1-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v1-fast", **params),
-            [0, 5]
+            [0, 25]
         )
 
         # test for ring-v2-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v2-fast", **params),
-            [0, 5, 10]
+            [0, 25, 50]
         )
 
         # test for ring-v3-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v3-fast", **params),
-            [0, 5, 10, 15]
+            [0, 25, 50, 75]
         )
 
         # test for ring-v4-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v4-fast", **params),
-            [0, 5, 10, 15, 20]
+            [0, 25, 50, 75, 100]
         )
 
         # test for ring-imitation
@@ -2038,25 +2040,25 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-imitation
@@ -2068,37 +2070,37 @@ class TestEnvUtil(unittest.TestCase):
         # test for i210-v0
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for Point2DEnv
@@ -2455,6 +2457,58 @@ class TestTFUtil(unittest.TestCase):
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
+
+
+class TestEval(unittest.TestCase):
+    """Unit tests for the classes and methods in utils/eval.py."""
+
+    def test_parse_options(self):
+        """Test the functionality of parse_options method.
+
+        """
+        """Test the parse_options method.
+
+        This is done for the following cases:
+
+        1. default case
+        2. custom case
+        """
+        # test case 1
+        args = parse_eval_options(["AntMaze"])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': None,
+            'num_rollouts': 1,
+            'video': 'output',
+            'save_video': False,
+            'save_trajectory': False,
+            'no_render': False,
+            'random_seed': False,
+        }
+        self.assertDictEqual(vars(args), expected_args)
+
+        # test case 2
+        args = parse_eval_options([
+            "AntMaze",
+            '--ckpt_num', '1',
+            '--num_rollouts', '2',
+            '--video', '3',
+            '--save_video',
+            '--save_trajectory',
+            '--no_render',
+            '--random_seed',
+        ])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': 1,
+            'num_rollouts': 2,
+            'video': '3',
+            'save_video': True,
+            'save_trajectory': True,
+            'no_render': True,
+            'random_seed': True,
+        }
+        self.assertDictEqual(vars(args), expected_args)
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):
