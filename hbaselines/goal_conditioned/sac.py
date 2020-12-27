@@ -7,15 +7,7 @@ from hbaselines.fcnet.sac import FeedForwardPolicy
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
-    """SAC-compatible goal-conditioned hierarchical policy.
-
-    TODO: description of off-policy corrections
-
-    TODO: description of connected gradients
-
-    Descriptions of the base goal-conditioned policy can be found in
-    hbaselines/goal_conditioned/base.py.
-    """
+    """SAC-compatible goal-conditioned hierarchical policy."""
 
     def __init__(self,
                  sess,
@@ -29,10 +21,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 l2_penalty,
+                 model_params,
                  target_entropy,
                  num_levels,
                  meta_period,
@@ -42,12 +33,16 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  off_policy_corrections,
                  hindsight,
                  subgoal_testing_rate,
-                 connected_gradients,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
+                 cooperative_gradients,
                  cg_weights,
-                 env_name=""):
+                 cg_delta,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
+                 total_steps,
+                 scope=None,
+                 env_name="",
+                 num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -75,16 +70,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -111,21 +104,29 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         subgoal_testing_rate : float
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
-        connected_gradients : bool
-            whether to use the connected gradient update actor update procedure
-            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+        cooperative_gradients : bool
+            whether to use the cooperative gradient update procedure for the
+            higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
-            used if `connected_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
+            used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from its
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         """
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
@@ -139,10 +140,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             verbose=verbose,
             tau=tau,
             gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
+            model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,
@@ -151,12 +151,16 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             off_policy_corrections=off_policy_corrections,
             hindsight=hindsight,
             subgoal_testing_rate=subgoal_testing_rate,
-            connected_gradients=connected_gradients,
+            cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
-            use_fingerprints=use_fingerprints,
-            fingerprint_range=fingerprint_range,
-            centralized_value_functions=centralized_value_functions,
+            cg_delta=cg_delta,
+            scope=scope,
             env_name=env_name,
+            pretrain_worker=pretrain_worker,
+            pretrain_path=pretrain_path,
+            pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
+            num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
             additional_params=dict(
@@ -168,7 +172,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
-    # FIXME
+    # TODO
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 
@@ -263,21 +267,22 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         return np.array(fitness)
 
     # ======================================================================= #
-    #                      Auxiliary methods for HRL-CG                       #
+    #                       Auxiliary methods for CHER                        #
     # ======================================================================= #
 
-    def _setup_connected_gradients(self):
-        """Create the connected gradients meta-policy optimizer."""
+    def _setup_cooperative_gradients(self):
+        """Create the cooperative gradients meta-policy optimizer."""
         raise NotImplementedError  # TODO
 
-    def _connected_gradients_update(self,
-                                    obs0,
-                                    actions,
-                                    rewards,
-                                    obs1,
-                                    terminals1,
-                                    update_actor=True):
-        """Perform the gradient update procedure for the HRL-CG algorithm.
+    def _cooperative_gradients_update(self,
+                                      obs0,
+                                      actions,
+                                      rewards,
+                                      obs1,
+                                      terminals1,
+                                      level_num,
+                                      update_actor=True):
+        """Perform the gradient update procedure for the CHER algorithm.
 
         This procedure is similar to update_from_batch, expect it runs the
         self.cg_optimizer operation instead of the policy object's optimizer,
@@ -298,6 +303,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             (batch_size,) vector of rewards for every level in the hierarchy
         terminals1 : list of numpy bool
             (batch_size,) vector of done masks for every level in the hierarchy
+        level_num : int
+            the hierarchy level number of the policy to optimize
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.

@@ -1,4 +1,7 @@
-"""Flow-specific parameters for the multi-lane ring scenario."""
+"""Flow-specific parameters for the ring scenario."""
+import os
+import numpy as np
+
 from flow.controllers import IDMController
 from flow.controllers import ContinuousRouter
 from flow.controllers import RLController
@@ -8,41 +11,58 @@ from flow.core.params import InitialConfig
 from flow.core.params import NetParams
 from flow.core.params import VehicleParams
 from flow.core.params import SumoCarFollowingParams
-from flow.core.params import SumoLaneChangeParams
 from flow.networks.ring import RingNetwork
 from flow.networks.ring import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 
 # Number of vehicles in the network
-NUM_VEHICLES = 50
-# Length of the ring (in meters)
-RING_LENGTH = 1500
-# Number of lanes in the ring
-NUM_LANES = 1
+RING_LENGTH = [220, 270]
+# number of automated (RL) vehicles
+NUM_AUTOMATED = 1
 
 
-def get_flow_params(num_automated=5,
-                    simulator="traci",
+def full_observation_fn(env):
+    """Compute the full state observation.
+
+    This observation consists of the speeds and bumper-to-bumper headways of
+    all automated vehicles in the network.
+    """
+    # Initialize a set on empty observations
+    obs = [0 for _ in range(env.observation_space.shape[0])]
+
+    # Add relative observation of each vehicle.
+    for i, v_id in enumerate(env.rl_ids()):
+        obs[5 * i: 5 * (i + 1)], leader, follower = get_relative_obs(env, v_id)
+
+    return np.asarray(obs)
+
+
+def get_flow_params(stopping_penalty,
+                    acceleration_penalty,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
     """Return the flow-specific parameters of the ring road network.
 
-    This scenario consists of 50-75 vehicles (50 of which are automated) are
-    placed on a sing-lane circular track of length 1500 m. In the absence of
-    the automated vehicle, the 22 human-driven vehicles exhibit stop-and-go
-    instabilities brought about by the string-unstable characteristic of human
-    car-following dynamics.
+    This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
+    which are automated) are placed on a sing-lane circular track of length
+    1500m. In the absence of the automated vehicle, the human-driven vehicles
+    exhibit stop-and-go instabilities brought about by the string-unstable
+    characteristic of human car-following dynamics. Within this setting, the
+    RL vehicles are tasked with dissipating the formation and propagation of
+    stop-and-go waves via an objective function that rewards maximizing
+    system-level speeds.
 
     Parameters
     ----------
-    num_automated : int
-        number of automated (RL) vehicles
-    simulator : str
-        the simulator used, one of {'traci', 'aimsun'}
+    stopping_penalty : bool
+        whether to include a stopping penalty
+    acceleration_penalty : bool
+        whether to include a regularizing penalty for accelerations by the AVs
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -73,42 +93,39 @@ def get_flow_params(num_automated=5,
         * tls (optional): traffic lights to be introduced to specific nodes
           (see flow.core.params.TrafficLightParams)
     """
+    # steps to run before the agent is allowed to take control (set to lower
+    # value during testing)
+    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+
     vehicles = VehicleParams()
-    for i in range(num_automated):
-        vehicles.add(
-            veh_id="human_{}".format(i),
-            acceleration_controller=(IDMController, {
-                "a": 0.3,
-                "b": 2.0,
-                "noise": 0.5,
-            }),
-            routing_controller=(ContinuousRouter, {}),
-            car_following_params=SumoCarFollowingParams(
-                min_gap=0.5,
-            ),
-            lane_change_params=SumoLaneChangeParams(
-                lane_change_mode="strategic",
-            ),
-            num_vehicles=NUM_VEHICLES - num_automated if i == 0 else 0)
-        vehicles.add(
-            veh_id="rl_{}".format(i),
-            acceleration_controller=(RLController, {}),
-            routing_controller=(ContinuousRouter, {}),
-            car_following_params=SumoCarFollowingParams(
-                min_gap=0.5,
-            ),
-            lane_change_params=SumoLaneChangeParams(
-                lane_change_mode=0,  # no lane changes by automated vehicles
-            ),
-            num_vehicles=num_automated if i == 0 else 0)
+    vehicles.add(
+        veh_id="human",
+        acceleration_controller=(IDMController, {
+            "a": 1.3,
+            "b": 2.0,
+            "noise": 0.2
+        }),
+        routing_controller=(ContinuousRouter, {}),
+        car_following_params=SumoCarFollowingParams(
+            speed_mode=25,
+            min_gap=0.5,
+        ),
+        num_vehicles=21)
+    vehicles.add(
+        veh_id="rl",
+        acceleration_controller=(RLController, {}),
+        routing_controller=(ContinuousRouter, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            speed_mode=25,
+        ),
+        num_vehicles=1)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
-    additional_net_params["length"] = RING_LENGTH
-    additional_net_params["lanes"] = NUM_LANES
 
     if multiagent:
         if imitation:
-            env_name = None  # FIXME
+            env_name = None  # to be added later
         else:
             env_name = AVClosedMultiAgentEnv
     else:
@@ -119,7 +136,7 @@ def get_flow_params(num_automated=5,
 
     return dict(
         # name of the experiment
-        exp_tag='multilane-ring',
+        exp_tag='ring',
 
         # name of the flow environment the experiment is running on
         env_name=env_name,
@@ -128,34 +145,33 @@ def get_flow_params(num_automated=5,
         network=RingNetwork,
 
         # simulator that is used by the experiment
-        simulator=simulator,
+        simulator="traci",
 
         # sumo-related parameters (see flow.core.params.SumoParams)
         sim=SumoParams(
             use_ballistic=True,
             render=False,
-            sim_step=0.5,
+            sim_step=0.2,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
-            horizon=1800,
-            warmup_steps=50,
-            sims_per_step=2,
+            horizon=1500,
+            warmup_steps=warmup_steps,
+            sims_per_step=1,
             evaluate=evaluate,
             additional_params={
-                "max_accel": 1,
-                "max_decel": 1,
-                "target_velocity": 30,
-                "penalty_type": "acceleration",
-                "penalty": 1,
-                "num_vehicles": [50, 75],
-                "even_distribution": False,
-                "sort_vehicles": True,
+                "max_accel": 0.5,
+                "stopping_penalty": stopping_penalty,
+                "acceleration_penalty": acceleration_penalty,
+                "use_follower_stopper": False,
+                "obs_frames": 5,
+                "ring_length": RING_LENGTH,
                 "expert_model": (IDMController, {
-                    "a": 0.3,
+                    "a": 1.3,
                     "b": 2.0,
                 }),
+                "full_observation_fn": full_observation_fn,
             },
         ),
 

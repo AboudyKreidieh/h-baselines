@@ -93,6 +93,40 @@ class HierReplayBuffer(object):
         """
         return len(self) >= self.batch_size
 
+    def save(self, save_path):
+        """Save parameters for the replay buffer."""
+        np.save(save_path + '.obs_t.npy', self._obs_t)
+        np.save(save_path + '.context_t.npy', self._context_t)
+        np.save(save_path + '.action_t.npy', self._action_t)
+        np.save(save_path + '.reward_t.npy', self._reward_t)
+        np.save(save_path + '.done_t.npy', self._done_t)
+        np.save(save_path + '.config.npy', np.array([
+            self.buffer_size,
+            self.batch_size,
+            self.meta_period,
+            self.obs_dim,
+            self.ac_dim,
+            self.co_dim,
+            self.goal_dim,
+            self.num_levels,
+        ]))
+
+    def load(self, save_path):
+        """Load parameters for the replay buffer."""
+        self._obs_t = np.load(save_path + '.obs_t.npy')
+        self._context_t = np.load(save_path + '.context_t.npy')
+        self._action_t = np.load(save_path + '.action_t.npy')
+        self._reward_t = np.load(save_path + '.reward_t.npy')
+        self._done_t = np.load(save_path + '.done_t.npy')
+        (self.buffer_size,
+         self.batch_size,
+         self.meta_period,
+         self.obs_dim,
+         self.ac_dim,
+         self.co_dim,
+         self.goal_dim,
+         self.num_levels) = np.load(save_path + '.config.npy')
+
     def is_full(self):
         """Check whether the replay buffer is full or not.
 
@@ -130,7 +164,7 @@ class HierReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self.buffer_size
         self._size = min(self._size + 1, self.buffer_size)
 
-    def sample(self, with_additional):
+    def sample(self, with_additional, collect_levels=None):
         """Sample a batch of experiences.
 
         An example for how a sample is collected from the list of observations/
@@ -243,6 +277,9 @@ class HierReplayBuffer(object):
             specifies whether to remove additional data from the replay buffer
             sampling procedure. Since only a subset of algorithms use
             additional data, removing it can speedup the other algorithms.
+        collect_levels : list of int
+            the levels in the hierarchy to collect data for. This is to avoid
+            passing variables that are unused by the operation calling it.
 
         Returns
         -------
@@ -265,13 +302,14 @@ class HierReplayBuffer(object):
         """
         meta_period = self.meta_period
         num_levels = self.num_levels
-        obses = [[] for _ in range(self.num_levels)]
-        contexts = [[] for _ in range(self.num_levels)]
-        actions = [[] for _ in range(self.num_levels)]
-        next_obses = [[] for _ in range(self.num_levels)]
-        next_contexts = [[] for _ in range(self.num_levels)]
-        rewards = [[] for _ in range(self.num_levels)]
-        dones = [[] for _ in range(self.num_levels)]
+        collect_levels = collect_levels or list(range(num_levels))
+        obses = [[] for _ in range(num_levels)]
+        contexts = [[] for _ in range(num_levels)]
+        actions = [[] for _ in range(num_levels)]
+        next_obses = [[] for _ in range(num_levels)]
+        next_contexts = [[] for _ in range(num_levels)]
+        rewards = [[] for _ in range(num_levels)]
+        dones = [[] for _ in range(num_levels)]
 
         # Do not encode additional information information in samples if it is
         # not needed. Waste of compute resources.
@@ -299,46 +337,63 @@ class HierReplayBuffer(object):
             candidate_reward = self._reward_t[indx]
             candidate_done = self._done_t[indx]
 
-            obses[0].append(candidate_obs[0])
-            contexts[0].append(candidate_context[0])
-            actions[0].append(candidate_action[0][0])
-            next_obses[0].append(candidate_obs[-1])
-            next_contexts[0].append(candidate_context[-1])
-            rewards[0].append(candidate_reward[0][0])
-            dones[0].append(candidate_done[-1])
+            # Collect the sample information for the highest level policy. This
+            # will be the first or last element in the list, depended on if the
+            # element represents the start of end of a sample (e.g. next_obs).
+            if 0 in collect_levels:
+                obses[0].append(candidate_obs[0])
+                contexts[0].append(candidate_context[0])
+                actions[0].append(candidate_action[0][0])
+                next_obses[0].append(candidate_obs[-1])
+                next_contexts[0].append(candidate_context[-1])
+                rewards[0].append(candidate_reward[0][0])
+                dones[0].append(candidate_done[-1])
 
-            idx_val = random.randint(0, len(candidate_obs) - 2)
+            # Choose a subsample taking a specific point in time.
+            total_time = len(candidate_obs) - 1
+            sample_time = int(random.random() * (total_time - 1))
 
-            for i in reversed(range(1, self.num_levels)):
-                obses[i].append(
-                    candidate_obs[idx_val])
-                contexts[i].append(candidate_action[i - 1][
-                    int(idx_val / meta_period ** (num_levels - i - 1))])
-                actions[i].append(candidate_action[i][
-                    int(idx_val / meta_period ** max(num_levels - i - 2, 0))])
-                next_obses[i].append(candidate_obs[
-                    idx_val + meta_period ** (num_levels-i-1)])
-                next_contexts[i].append(candidate_action[i - 1][
-                    int(idx_val / meta_period ** (num_levels - i - 1)) + 1])
-                rewards[i].append(candidate_reward[i][
-                    int(idx_val / meta_period ** (num_levels-i-1))])
-                dones[i].append(
-                    candidate_done[idx_val])
+            # Collect samples for each level.
+            for i in reversed(range(1, num_levels)):
+                # Compute the level number, with zero corresponding to the
+                # lowest (worker) policy.
+                level_num = num_levels - i - 1
+                level_period = meta_period ** level_num
 
-                idx_val -= idx_val % self.meta_period ** (self.num_levels - i)
+                if i in collect_levels:
+                    obses[i].append(candidate_obs[sample_time])
+                    dones[i].append(candidate_done[sample_time])
 
-            # FIXME: only works for two level hierarchies.
+                    indx_next_obs = min(sample_time + level_period, total_time)
+                    next_obses[i].append(candidate_obs[indx_next_obs])
+
+                    indx_context = int(sample_time / level_period)
+                    contexts[i].append(candidate_action[i - 1][indx_context])
+                    next_contexts[i].append(
+                        candidate_action[i - 1][indx_context + 1])
+
+                    indx_actions = int(
+                        sample_time / meta_period ** max(level_num - 1, 0))
+                    actions[i].append(candidate_action[i][indx_actions])
+
+                    indx_rewards = indx_context
+                    rewards[i].append(candidate_reward[i][indx_rewards])
+
+                # Update the sample time to match the start of the meta period
+                # for the next higher-level.
+                sample_time -= sample_time % meta_period ** (num_levels - i)
+
+            # TODO: only works for two level hierarchies.
             if with_additional:
                 for j in range(len(candidate_obs)):
-                    additional["worker_obses"][k, :, j] = \
-                        np.array(self._get_obs(
-                            candidate_obs[j], candidate_action[0][j], 0))
+                    additional["worker_obses"][k, :, j] = self._get_obs(
+                        candidate_obs[j], candidate_action[0][j], 0)
                 for j in range(len(candidate_action[-1])):
                     additional["worker_actions"][k, :, j] = \
                         candidate_action[-1][j]
 
         # Convert everything to an array.
-        for i in range(self.num_levels):
+        for i in collect_levels:
             obses[i] = self._get_obs(obses[i], contexts[i], 1)
             next_obses[i] = self._get_obs(next_obses[i], next_contexts[i], 1)
             actions[i] = np.asarray(actions[i])
@@ -374,9 +429,9 @@ class HierReplayBuffer(object):
         array_like
             the processed observation
         """
-        obs = np.array(obs)
+        obs = np.asarray(obs)
         if context[0] is not None:
-            context = np.array(context)
+            context = np.asarray(context)
             context = context.flatten() if axis == 0 else context
             obs = np.concatenate((obs, context), axis=axis)
         return obs

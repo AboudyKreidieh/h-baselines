@@ -1,8 +1,8 @@
 """Script containing the environment sampler method."""
+import ray
 from gym.spaces import Box
 
 from hbaselines.algorithms.utils import get_obs
-from hbaselines.algorithms.utils import add_fingerprint
 from hbaselines.utils.env_util import create_env
 
 
@@ -15,7 +15,7 @@ class Sampler(object):
         the training / evaluation environment
     """
 
-    def __init__(self, env_name, render, shared, maddpg, evaluate):
+    def __init__(self, env_name, render, shared, maddpg, evaluate, env_num):
         """Instantiate the sampler object.
 
         Parameters
@@ -32,6 +32,9 @@ class Sampler(object):
             MADDPG algorithm
         evaluate : bool
             specifies whether this is a training or evaluation environment
+        env_num : int
+            the environment number. Used to handle situations when multiple
+            parallel environments are being used.
         """
         self.env, self._init_obs = create_env(
             env=env_name,
@@ -40,11 +43,26 @@ class Sampler(object):
             maddpg=maddpg,
             evaluate=evaluate,
         )
+
+        # Collect the key for the info_dict variable.
+        if isinstance(self.env.action_space, dict):
+            initial_action = {key: self.env.action_space[key].sample()
+                              for key in self.env.action_space.keys()}
+        elif env_name.startswith("multiagent") and shared:
+            init_obs = self._init_obs["obs"] if maddpg else self._init_obs
+            initial_action = {key: self.env.action_space.sample()
+                              for key in init_obs.keys()}
+        else:
+            initial_action = self.env.action_space.sample()
+        _, _, _, info_dict = self.env.step(initial_action)
+
+        self._env_num = env_num
         self._render = render
+        self._info_keys = list(info_dict.keys())
 
     def get_init_obs(self):
         """Return the initial observation from the environment."""
-        return self._init_obs.copy()
+        return self._init_obs.copy(), self._info_keys
 
     def get_context(self):
         """Collect the contextual term. None if it is not passed."""
@@ -79,12 +97,7 @@ class Sampler(object):
         else:
             raise ValueError("Horizon attribute not found.")
 
-    def collect_sample(self,
-                       action,
-                       multiagent,
-                       steps,
-                       total_steps,
-                       use_fingerprints):
+    def collect_sample(self, action):
         """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
@@ -96,17 +109,6 @@ class Sampler(object):
         ----------
         action : array_like
             the action to be performed by the agent(s) within the environment
-        multiagent : bool
-             whether the policy is multi-agent
-        steps : int
-            the total number of steps that have been executed since training
-            began
-        total_steps : int
-            the total number of samples to train on. Used by the fingerprint
-            element
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
 
         Returns
         -------
@@ -122,6 +124,7 @@ class Sampler(object):
             * action : the action performed by the agent(s)
             * reward : the reward from the most recent step
             * done : the done mask
+            * env_num : the environment number
             * all_obs : the most recent full-state observation. This consists
               of a single observation if no reset occured, and a tuple of (last
               observation from the previous rollout, first observation of the
@@ -132,26 +135,20 @@ class Sampler(object):
         obs, all_obs = get_obs(obs)
 
         # Visualize the current step.
-        if self._render:
+        if self._render and self._env_num == 0:
             self.env.render()  # pragma: no cover
 
         # Get the contextual term.
         context = getattr(self.env, "current_context", None)
 
-        # Add the fingerprint term to this observation, if needed.
-        obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
-
         # Done mask for multi-agent policies is slightly different.
-        if multiagent:
+        if isinstance(done, dict):
             done = done["__all__"]
 
         if done:
             # Reset the environment.
             reset_obs = self.env.reset()
             reset_obs, reset_all_obs = get_obs(reset_obs)
-
-            # Add the fingerprint term, if needed.
-            obs = add_fingerprint(obs, steps, total_steps, use_fingerprints)
         else:
             reset_obs = None
             reset_all_obs = None
@@ -162,5 +159,17 @@ class Sampler(object):
             "action": action,
             "reward": reward,
             "done": done,
+            "env_num": self._env_num,
             "all_obs": all_obs if not done else (all_obs, reset_all_obs),
+            "info": info,
         }
+
+
+@ray.remote
+class RaySampler(Sampler):
+    """Ray-compatible variant of the environment sampler object.
+
+    Used to collect samples in parallel.
+    """
+
+    pass

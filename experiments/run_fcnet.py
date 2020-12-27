@@ -6,7 +6,7 @@ import sys
 
 from hbaselines.utils.misc import ensure_dir
 from hbaselines.utils.train import parse_options, get_hyperparameters
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 
 EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 
@@ -14,7 +14,6 @@ EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 def run_exp(env,
             policy,
             hp,
-            steps,
             dir_name,
             evaluate,
             seed,
@@ -28,12 +27,10 @@ def run_exp(env,
     ----------
     env : str or gym.Env
         the training/testing environment
-    policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+    policy : type [ hbaselines.base_policies.Policy ]
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
-    steps : int
-        total number of training steps
     dir_name : str
         the location the results files are meant to be stored
     evaluate : bool
@@ -54,7 +51,7 @@ def run_exp(env,
     """
     eval_env = env if evaluate else None
 
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env,
         eval_env=eval_env,
@@ -63,7 +60,6 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
@@ -75,6 +71,9 @@ def run_exp(env,
 
 def main(args, base_dir):
     """Execute multiple training operations."""
+    if args.log_dir is not None:
+        base_dir = os.path.join(args.log_dir, base_dir)
+
     for i in range(args.n_training):
         # value of the next seed
         seed = args.seed + i
@@ -91,6 +90,8 @@ def main(args, base_dir):
             from hbaselines.fcnet.td3 import FeedForwardPolicy
         elif args.alg == "SAC":
             from hbaselines.fcnet.sac import FeedForwardPolicy
+        elif args.alg == "PPO":
+            from hbaselines.fcnet.ppo import FeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
@@ -113,7 +114,6 @@ def main(args, base_dir):
             env=args.env_name,
             policy=FeedForwardPolicy,
             hp=hp,
-            steps=args.total_steps,
             dir_name=dir_name,
             evaluate=args.evaluate,
             seed=seed,
@@ -130,7 +130,9 @@ if __name__ == '__main__':
             description='Test the performance of fully connected network '
                         'models on various environments.',
             example_usage=EXAMPLE_USAGE,
-            args=sys.argv[1:]
+            args=sys.argv[1:],
+            hierarchical=False,
+            multiagent=False,
         ),
         'data/fcnet'
     )

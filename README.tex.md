@@ -5,43 +5,47 @@
 # h-baselines
 
 `h-baselines` is a repository of high-performing and benchmarked 
-hierarchical reinforcement learning models and algorithms.
+hierarchical reinforcement learning models and algorithms. This repository is 
+motivated by, and partially adapted from, the 
+[baselines](https://github.com/openai/baselines) and 
+[stable-baselines](https://github.com/hill-a/stable-baselines) repositories.
 
 The models and algorithms supported within this repository can be found 
-[here](#supported-modelsalgorithms), and benchmarking results are 
+[here](#2-supported-modelsalgorithms), and benchmarking results are 
 available [here]().
 
 ## Contents
 
-* [Setup Instructions](#setup-instructions)
-  * [Basic Installation](#basic-installation)
-  * [Installing MuJoCo](#installing-mujoco)
-  * [Importing AntGather](#importing-antgather)
-* [Supported Models/Algorithms](#supported-modelsalgorithms)
-  * [Off-Policy RL Algorithms](#off-policy-rl-algorithms)
-  * [Fully Connected Neural Networks](#fully-connected-neural-networks)
-  * [Multi-Agent Fully Connected Networks](#multi-agent-fully-connected-networks)
-  * [Goal-Conditioned HRL](#goal-conditioned-hrl)
-  * [Meta Period](#meta-period)
-  * [Intrinsic Rewards](#intrinsic-rewards)
-  * [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#hiro-data-efficient-hierarchical-reinforcement-learning)
-  * [HAC (Learning Multi-level Hierarchies With Hindsight)](#hac-learning-multi-level-hierarchies-with-hindsight)
-  * [HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#hrl-cg-inter-level-cooperation-in-hierarchical-reinforcement-learning)
-* [Environments](#environments)
-  * [MuJoCo Environments](#mujoco-environments)
-  * [Flow Environments](#flow-environments)
-* [Citing](#citing)
-* [Bibliography](#bibliography)
-* [Useful Links](#useful-links)
+1. [Setup Instructions](#1-setup-instructions)  
+    1.1. [Basic Installation](#11-basic-installation)  
+    1.2. [Installing MuJoCo](#12-installing-mujoco)  
+    1.3. [Importing AntGather](#13-importing-antgather)  
+    1.4. [Installing Flow](#14-installing-flow)  
+2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
+    2.1. [RL Algorithms](#21-rl-algorithms)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
+    2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
+    2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.1. [Meta Period](#231-meta-period)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.2. [Intrinsic Rewards](#232-intrinsic-rewards)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.3. [HIRO (Data Efficient Hierarchical Reinforcement Learning)](#233-hiro-data-efficient-hierarchical-reinforcement-learning)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.4. [HAC (Learning Multi-level Hierarchies With Hindsight)](#234-hac-learning-multi-level-hierarchies-with-hindsight)  
+        &nbsp; &nbsp; &nbsp;&nbsp; 2.3.5. [CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)](#235-cher-inter-level-cooperation-in-hierarchical-reinforcement-learning)  
+    2.4. [Multi-Agent Policies](#24-multi-agent-policies)  
+3. [Environments](#3-environments)  
+    3.1. [MuJoCo Environments](#31-mujoco-environments)  
+    3.2. [Flow Environments](#32-flow-environments)  
+4. [Citing](#4-citing)
+5. [Bibliography](#5-bibliography)
 
-## Setup Instructions
+# 1. Setup Instructions
 
-### Basic Installation
+## 1.1 Basic Installation
 
 To install the h-baselines repository, begin by opening a terminal and set the
 working directory of the terminal to match
 
-```bash
+```shell script
 cd path/to/h-baselines
 ```
 
@@ -51,7 +55,7 @@ recommended. If you do not have Anaconda on your device, refer to the provided
 links to install either [Anaconda](https://www.anaconda.com/download) or
 [Miniconda](https://conda.io/miniconda.html).
 
-```bash
+```shell script
 conda env create -f environment.yml
 source activate h-baselines
 ```
@@ -59,14 +63,14 @@ source activate h-baselines
 Finally, install the contents of the repository onto your conda environment (or
 your local python build) by running the following command:
 
-```bash
+```shell script
 pip install -e .
 ```
 
 If you would like to (optionally) validate that the repository was successfully
 installed and is running, you can do so by executing the unit tests as follows:
 
-```bash
+```shell script
 nose2
 ```
 
@@ -77,7 +81,7 @@ The test should return a message along the lines of:
 
     OK
 
-### Installing MuJoCo
+## 1.2 Installing MuJoCo
 
 In order to run the MuJoCo environments described within the README, you
 will need to install MuJoCo and the mujoco-py package. To install both
@@ -87,13 +91,13 @@ with all versions of MuJoCo (with some changes likely to the version of
 `gym` provided); however, the algorithms have been benchmarked to 
 perform well on `mujoco-py==1.50.1.68`.
 
-### Importing AntGather
+## 1.3 Importing AntGather
 
 To properly import and run the AntGather environment, you will need to 
 first clone and install the `rllab` library. You can do so running the 
 following commands:
 
-```
+```shell script
 git clone https://github.com/rll/rllab.git
 cd rllab
 python setup.py develop
@@ -105,31 +109,100 @@ require MuJoCo-1.3.1. You may also need to install some missing packages
 as well that are required by rllab. If you're installation is 
 successful, the following command should not fail:
 
-```
+```shell script
 python experiments/run_fcnet.py "AntGather"
 ```
 
-## Supported Models/Algorithms
+When benchmarking this environment, we modified the control range and frame 
+skip to match those used for the other Ant environments. If you would like to 
+recreate these results and replay any pretrained policies, you will need to 
+modify the rllab module such that the `git diff` of the repository returns
+the following:
+
+```
+--- a/rllab/envs/mujoco/mujoco_env.py
++++ b/rllab/envs/mujoco/mujoco_env.py
+@@ -82,6 +82,7 @@ class MujocoEnv(Env):
+             size = self.model.numeric_size.flat[init_qpos_id]
+             init_qpos = self.model.numeric_data.flat[addr:addr + size]
+             self.init_qpos = init_qpos
++        self.frame_skip = 5
+         self.dcom = None
+         self.current_com = None
+         self.reset()
+diff --git a/vendor/mujoco_models/ant.xml b/vendor/mujoco_models/ant.xml
+index 1ee575e..906f350 100644
+--- a/vendor/mujoco_models/ant.xml
++++ b/vendor/mujoco_models/ant.xml
+@@ -68,13 +68,13 @@
+     </body>
+   </worldbody>
+   <actuator>
+-    <motor joint="hip_4" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_4" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_1" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_1" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_2" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_2" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="hip_3" ctrlrange="-150.0 150.0" ctrllimited="true" />
+-    <motor joint="ankle_3" ctrlrange="-150.0 150.0" ctrllimited="true" />
++    <motor joint="hip_4" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_4" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_1" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_1" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_2" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_2" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="hip_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
++    <motor joint="ankle_3" ctrlrange="-30.0 30.0" ctrllimited="true" />
+   </actuator>
+ </mujoco>
+```
+
+## 1.4 Installing Flow
+
+In order to run any of the mixed-autonomy traffic flow tasks describe 
+[here](#32-flow-environments), you fill need to install the 
+[flow](https://github.com/flow-project/flow) library, along with any necessary 
+third-party tools. To do so, following the commands located on this 
+[link](https://flow.readthedocs.io/en/latest/flow_setup.html#local-installation).
+If your installation was successful, should run without failing:
+
+```shell script
+python experiments/run_fcnet.py "ring-v0"
+```
+
+Once you've installed Flow, you will also be able to run all training 
+environments located in the flow/examples folder from this repository as well. 
+These can be accessed by appending "flow:" to the environment name when running
+the scripts in h-baselines/experiments. For example, if you would like to run 
+the "singleagent_ring" environment in flow/example/rl/exp_configs, run:
+
+```shell script
+python experiments/run_fcnet.py "flow:singleagent_ring"
+```
+
+# 2. Supported Models/Algorithms
 
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-### Off-Policy RL Algorithms
+## 2.1 RL Algorithms
 
-This repository supports the training of policies via two state-of-the-art 
-off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
-[SAC](https://arxiv.org/pdf/1801.01290.pdf).
+This repository supports the training of policies via two off-policy RL 
+algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
+[SAC](https://arxiv.org/pdf/1801.01290.pdf), as well as one on-policy RL 
+algorithm: [PPO](https://arxiv.org/pdf/1707.06347.pdf).
 
-To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
+To train a policy using this algorithm, create a `RLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
 along the process:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
+alg = RLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -137,17 +210,18 @@ alg.learn(total_timesteps=1000000)
 
 The specific algorithm that is executed is defined by the policy that is 
 provided. If, for example, you would like to switch the above script to train 
-a feed-forward policy using the SAC algorithm, then the policy must simply be 
-changed to:
+a feed-forward policy using the SAC or PPO algorithms, then the policy must 
+simply be changed to:
 
 ```python
-from hbaselines.fcnet.sac import FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy  # for SAC
+from hbaselines.fcnet.ppo import FeedForwardPolicy  # for PPO
 ```
 
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.base_policies.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.base_policies.Policy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
@@ -166,18 +240,49 @@ follows:
 * **reward_scale** (float) : the value the reward should be scaled by
 * **render** (bool) : enable rendering of the training environment
 * **render_eval** (bool) : enable rendering of the evaluation environment
+* **num_envs** (int) : number of environments used to run simulations in 
+  parallel. Each environment is run on a separate CPUS and uses the same policy
+  as the rest. Must be less than or equal to nb_rollout_steps. This term is 
+  covered in the following [section](#211-synchronous-updates).
 * **verbose** (int) : the verbosity level: 0 none, 1 training 
   information, 2 tensorflow debug
 * **policy_kwargs** (dict) : policy-specific hyperparameters
 
-### Fully Connected Neural Networks
+### 2.1.1 Synchronous Updates
+
+This repository supports parallelism via synchronous updates to speed up 
+training for environments that are relatively slow to simulate. In order to do 
+so, a specified number of environments are instantiated and updated in parallel
+for a number of rollout steps before calling the next policy update operation, 
+as seen in the figure below. The number of environments in this case must be 
+less than or equal to the number of rollout steps, as specified under 
+`nb_rollout_steps`.
+
+<p align="center"><img src="docs/img/synchronous-updates.png" align="middle" width="50%"/></p>
+
+To assign multiple CPUs/environments for a given training algorithm, set the
+`num_envs` term as seen below:
+
+```python
+from hbaselines.algorithms import RLAlgorithm
+
+alg = RLAlgorithm(
+    ...,
+    # set num_envs as seen in the above figure
+    num_envs=3,
+    # set nb_rollout step as seen in the above figure
+    nb_rollout_steps=5,
+)
+```
+
+## 2.2 Fully Connected Neural Networks
 
 We include a generic feed-forward neural network within the repository 
 to validate the performance of typically used neural network model on 
 the benchmarked environments. This consists of a pair of actor and 
 critic fully connected networks with a tanh nonlinearity at the output 
-layer of the actor. The output of the actors are also scaled to match 
-the desired action space. 
+layer of the actor. The output of the actors for the off-policy algorithms (TD3
+and SAC) are also scaled to match the desired action space. 
 
 The feed-forward policy can be imported by including the following 
 script:
@@ -188,6 +293,9 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # for SAC
 from hbaselines.fcnet.sac import FeedForwardPolicy
+
+# for PPO
+from hbaselines.fcnet.ppo import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -199,24 +307,43 @@ The modifiable parameters of this policy are as follows:
 * **ob_space** (gym.spaces.*) : the observation space of the environment
 * **ac_space** (gym.spaces.*) : the action space of the environment
 * **co_space** (gym.spaces.*) : the context space of the environment
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **l2_penalty** (float) : L2 regularization penalty. This is applied to the
+  policy network.
+* **model_params** (dict) : dictionary of model-specific parameters, including:
+  * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
+    "conv"}.
+  * **layers** (list of int) :the size of the Neural network for the policy
+  * **layer_norm** (bool) : enable layer normalisation
+  * **act_fun** (tf.nn.*) : the activation function to use in the neural 
+    network
+  * **ignore_image** (bool) : observation includes an image but should it be 
+    ignored. Required if "model_type" is set to "conv".
+  * **image_height** (int) : the height of the image in the observation. 
+    Required if "model_type" is set to "conv".
+  * **image_width** (int) : the width of the image in the observation. Required
+    if "model_type" is set to "conv".
+  * **image_channels** (int) : the number of channels of the image in the
+    observation. Required if "model_type" is set to "conv".
+  * **kernel_sizes** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **strides** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **filters** (list of int) : the channels of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+
+Additionally, TD3 policy parameters are:
+
 * **buffer_size** (int) : the max number of transitions to store
 * **batch_size** (int) : SGD batch size
 * **actor_lr** (float) : actor learning rate
 * **critic_lr** (float) : critic learning rate
-* **verbose** (int) : the verbosity level: 0 none, 1 training 
-  information, 2 tensorflow debug
 * **tau** (float) : target update rate
 * **gamma** (float) : discount factor
-* **layer_norm** (bool) : enable layer normalisation
-* **layers** (list of int) :the size of the Neural network for the policy
-* **act_fun** (tf.nn.*) : the activation function to use in the neural 
-  network
 * **use_huber** (bool) : specifies whether to use the huber distance 
   function as the loss for the critic. If set to False, the mean-squared 
   error metric is used instead
-
-Additionally, TD3 policy parameters are:
-
 * **noise** (float) : scaling term to the range of the action space, 
   that is subsequently used as the standard deviation of Gaussian noise 
   added to the action if `apply_noise` is set to True in `get_action`
@@ -225,10 +352,38 @@ Additionally, TD3 policy parameters are:
 * **target_noise_clip** (float) : clipping term for the noise injected 
   in the target actor policy
 
-And SAC policy parameters are:
+SAC policy parameters are:
 
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
 * **target_entropy** (float): target entropy used when learning the entropy 
   coefficient. If set to None, a heuristic value is used.
+
+And PPO policy parameters are:
+
+* **learning_rate** (float) : the learning rate
+* **n_minibatches** (int) : number of training minibatches per update
+* **n_opt_epochs** (int) : number of training epochs per update procedure
+* **gamm** (float) : the discount factor
+* **lam** (float) : factor for trade-off of bias vs variance for Generalized 
+  Advantage Estimator
+* **ent_coef** (float) : entropy coefficient for the loss calculation
+* **vf_coef** (float) : value function coefficient for the loss calculation
+* **max_grad_norm** (float) : the maximum value for the gradient clipping
+* **cliprange** (float) : clipping parameter, it can be a function
+* **cliprange_vf** (float) : clipping parameter for the value function, it can 
+  be a function. This is a parameter specific to the OpenAI implementation. If 
+  None is passed (default), then `cliprange` (that is used for the policy) will
+  be used. IMPORTANT: this clipping depends on the reward scaling. To deactivate
+  value function clipping (and recover the original PPO implementation), you 
+  have to pass a negative value (e.g. -1).
 
 These parameters can be assigned when using the algorithm object by 
 assigning them via the `policy_kwargs` term. For example, if you would 
@@ -236,11 +391,11 @@ like to train a fully connected network using the TD3 algorithm with a hidden
 size of [64, 64], this could be done as such:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
     policy_kwargs={
@@ -257,7 +412,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -266,97 +421,19 @@ following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
-### Multi-Agent Fully Connected Networks
-
-In order to train multiple workers in a triangular hierarchical structure, this
-repository also supports the training of multi-agent policies as well. These 
-policies are import via the following commands:
-
-```python
-# for TD3
-from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy
-
-# for SAC
-from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy
-```
-
-These policy supports training off-policy variants of three popular multi-agent
-algorithms:
-
-* **Independent learners**: Independent (or Naive) learners provide a separate
-  policy with independent parameters to each agent in an environment.
-  Within this setting, agents are provided separate observations and reward
-  signals, and store their samples and perform updates separately. A review
-  of independent learners in reinforcement learning can be found here:
-  https://hal.archives-ouvertes.fr/hal-00720669/document
-
-  To train a policy using independent learners, do not modify any
-  policy-specific attributes:
-
-  ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-
-  alg = OffPolicyRLAlgorithm(
-      policy=MultiFeedForwardPolicy,
-      env="...",  # replace with an appropriate environment
-      policy_kwargs={}
-  )
-  ```
-
-* **Shared policies**: Unlike the independent learners formulation, shared
-  policies utilize a single policy with shared parameters for all agents
-  within the network. Moreover, the samples experienced by all agents are
-  stored within one unified replay buffer. See the following link for an
-  early review of the benefit of shared policies:
-  https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.8066&rep=rep1&type=pdf
-
-  To train a policy using the shared policy feature, set the `shared`
-  attribute to True:
-  
-  ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  
-  alg = OffPolicyRLAlgorithm(
-      policy=MultiFeedForwardPolicy,
-      env="...",  # replace with an appropriate environment
-      policy_kwargs={
-          "shared": True,
-      }
-  )
-  ```
-
-* **MADDPG**: We implement algorithmic-variants of MAPPG for all supported
-  off-policy RL algorithms. See: https://arxiv.org/pdf/1706.02275.pdf
-
-  To train a policy using their MADDPG variants as opposed to independent
-  learners, algorithm, set the `maddpg` attribute to True:
-  
-  ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
-  
-    alg = OffPolicyRLAlgorithm(
-      policy=MultiFeedForwardPolicy,
-      env="...",  # replace with an appropriate environment
-      policy_kwargs={
-          "maddpg": True,
-          "shared": False,  # or True
-      }
-  )
-  ```
-
-  This works for both shared and non-shared policies. For shared policies,
-  we use a single centralized value function instead of a value function
-  for each agent.
-
-### Goal-Conditioned HRL
+## 2.3 Goal-Conditioned HRL
 
 Goal-conditioned HRL models, also known as feudal models, are a variant 
 of hierarchical models that have been widely studied in the HRL
@@ -385,7 +462,7 @@ the environmental reward function $r_m(s_t,c)$.
 <p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
 
 All of the parameters specified within the 
-[Fully Connected Neural Networks](#fully-connected-neural-networks) 
+[Fully Connected Neural Networks](#22-fully-connected-neural-networks) 
 section are valid for this policy as well. Further parameters are 
 described in the subsequent sections below.
 
@@ -393,7 +470,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -402,27 +479,31 @@ default policy parameters can be found via the following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
-### Meta Period
+### 2.3.1 Meta Period
 
 The meta-policy action period, $k$, can be specified to the policy during 
 training by passing the term under the `meta_period` policy parameter. 
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # specify the meta-policy action period
         "meta_period": 10
@@ -430,7 +511,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### Intrinsic Rewards
+### 2.3.2 Intrinsic Rewards
 
 The intrinsic rewards, or $r_w(s_t, g_t, s_{t+1})$, define the rewards assigned
 to the lower level policies for achieving goals assigned by the policies 
@@ -448,7 +529,7 @@ reward functions:
   $$r_w(s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2$$
 
   if `relative_goals` is set to True. This attribute is described in the 
-[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
+[section on HIRO](#233-hiro-data-efficient-hierarchical-reinforcement-learning).
 
 * **non_negative_distance**: This reward function is designed to maintain a 
   positive value within the intrinsic rewards to prevent the lower-level agents
@@ -464,7 +545,7 @@ reward functions:
   $$r_w(s_t, g_t, s_{t+1}) = ||(g_\text{max} - g_\text{min})||_2 - ||s_t + g_t - s_{t+1}||_2$$
 
   if `relative_goals` is set to True. This attribute is described in the 
-[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
+[section on HIRO](#233-hiro-data-efficient-hierarchical-reinforcement-learning).
 
 * **exp_negative_distance**: This reward function is designed to maintain the 
   reward between 0 and 1 for environments that may terminate prematurely. This 
@@ -477,7 +558,7 @@ reward functions:
   $$r_w(s_t, g_t, s_{t+1}) = exp(-(||s_t + g_t - s_{t+1}||_2)^2)$$
 
   if `relative_goals` is set to True. This attribute is described in the 
-[section on HIRO](#hiro-data-efficient-hierarchical-reinforcement-learning).
+[section on HIRO](#233-hiro-data-efficient-hierarchical-reinforcement-learning).
 
 Intrinsic rewards of the form above are not scaled by the any term, and as such
 may be dominated by the largest term in the goal space. To circumvent this, we 
@@ -497,12 +578,12 @@ set the `intrinsic_reward_type` attribute to the type of intrinsic reward you
 would like to use:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # assign the intrinsic reward you would like to use
         "intrinsic_reward_type": "scaled_negative_distance"
@@ -511,7 +592,7 @@ alg = OffPolicyRLAlgorithm(
 ```
 
 
-### HIRO (Data Efficient Hierarchical Reinforcement Learning)
+### 2.3.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
 The HIRO [3] algorithm provides two primary contributions to improve 
 training of generic goal-conditioned hierarchical policies. 
@@ -519,7 +600,7 @@ training of generic goal-conditioned hierarchical policies.
 First of all, the HIRO algorithm redefines the assigned goals from 
 absolute desired states to relative changes in states. This is done by 
 redefining the reward intrinsic rewards provided to the Worker policies 
-(see the [Intrinsic Rewards](#intrinsic-rewards) section). In order to 
+(see the [Intrinsic Rewards](#232-intrinsic-rewards) section). In order to 
 maintain the same absolute position of the goal regardless of state 
 change, a fixed goal-transition function 
 $h(s_t,g_t,s_{t+1}) = s_t + g_t - s_{t+1}$ is used in between
@@ -540,12 +621,12 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # add this line to include HIRO-style relative goals
         "relative_goals": True
@@ -567,12 +648,12 @@ when training a hierarchical policy, set the `off_policy_corrections` parameter
 to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # add this line to include HIRO-style off policy corrections
         "off_policy_corrections": True
@@ -580,7 +661,7 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### HAC (Learning Multi-level Hierarchies With Hindsight)
+### 2.3.4 HAC (Learning Multi-level Hierarchies With Hindsight)
 
 The HAC algorithm [5] attempts to address non-stationarity between levels of a 
 goal-conditioned hierarchy by employing various forms of hindsight to samples 
@@ -677,7 +758,7 @@ modifying the relevant worker-specific features as follows:
             ...
             a_{k-1}
         ],
-        "intrinsic rewards": [ <----------------
+        "intrinsic rewards": [ <-------------
             r_w(s_0, \bar{g}_0, s_1),       |
             r_w(s_1, \bar{g}_1,, s_2),      |---- the changed components
             ...                             |
@@ -696,12 +777,12 @@ In order to use hindsight action and goal transitions when training a
 hierarchical policy, set the `hindsight` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
         # include hindsight action and goal transitions in the replay buffer
         "hindsight": True,
@@ -711,11 +792,11 @@ alg = OffPolicyRLAlgorithm(
 )
 ```
 
-### HRL-CG (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
+### 2.3.5 CHER (Inter-Level Cooperation in Hierarchical Reinforcement Learning)
 
-The HRL-CG algorithm [4] attempts to promote cooperation between Manager
+The CHER algorithm [4] attempts to promote cooperation between Manager
 and Worker policies in a goal-conditioned hierarchy by including a 
-weighted *connected gradient* term to the Manager's gradient update 
+weighted *cooperative gradient* term to the Manager's gradient update 
 procedure (see the right figure below).
 
 <p align="center"><img src="docs/img/hrl-cg.png" align="middle" width="90%"/></p>
@@ -727,41 +808,139 @@ Under this formulation, the Manager's update step is defined as:
     & + \lambda \mathbb{E}_{s\sim p_\pi} \bigg[ \nabla_{\theta_m} g_t \nabla_g \big(r(g,s_t,\pi_w(g_t,s_t)) + \pi_w (g,s_t) \nabla_a Q_w(g_t,s_t,a)|_{a=\pi_w(g_t,s_t)}\vphantom{\int} \big) \bigg\rvert_{g=g_t} \bigg]
 \end{aligned}
 
-To use the connected gradient update procedure, set the 
-`connected_gradients` term in `policy_kwargs` to True. The weighting 
+To use the cooperative gradient update procedure, set the 
+`cooperative_gradients` term in `policy_kwargs` to True. The weighting 
 term ($\lambda$ in the above equation), can be modified via the 
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
-    policy=GoalConditionedPolicy,
+alg = RLAlgorithm(
     ...,
+    policy=GoalConditionedPolicy,
     policy_kwargs={
-        # add this line to include the connected gradient actor update 
-        # procedure to the higher-level policies
-        "connected_gradients": True,
-        # specify the connected gradient (lambda) weight
+        # add this line to include the cooperative gradient update procedure
+        # for the higher-level policies
+        "cooperative_gradients": True,
+        # specify the cooperative gradient (lambda) weight
         "cg_weights": 0.01
     }
 )
 ```
 
-## Environments
+## 2.4 Multi-Agent Policies
+
+This repository also supports the training of multi-agent variant of both the 
+fully connected and goal-conditioned policies. The fully-connected policies are
+import via the following commands:
+
+```python
+# for TD3
+from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
+
+# for SAC
+from hbaselines.multiagent.sac import MultiFeedForwardPolicy
+```
+
+Moreover, the hierarchical variants are import via the following commands:
+
+```python
+# for TD3
+from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy
+
+# for SAC
+from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy
+```
+
+These policies supports training off-policy variants of three popular 
+multi-agent algorithms:
+
+* **Independent learners**: Independent (or Naive) learners provide a separate
+  policy with independent parameters to each agent in an environment.
+  Within this setting, agents are provided separate observations and reward
+  signals, and store their samples and perform updates separately. A review
+  of independent learners in reinforcement learning can be found here:
+  https://hal.archives-ouvertes.fr/hal-00720669/document
+
+  To train a policy using independent learners, do not modify any
+  policy-specific attributes:
+
+  ```python
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
+  
+  alg = RLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={}
+  )
+  ```
+
+* **Shared policies**: Unlike the independent learners formulation, shared
+  policies utilize a single policy with shared parameters for all agents
+  within the network. Moreover, the samples experienced by all agents are
+  stored within one unified replay buffer. See the following link for an
+  early review of the benefit of shared policies:
+  https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.8066&rep=rep1&type=pdf
+
+  To train a policy using the shared policy feature, set the `shared`
+  attribute to True:
+  
+  ```python
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
+  
+  alg = RLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={
+          "shared": True,
+      }
+  )
+  ```
+
+* **MADDPG**: We implement algorithmic-variants of MAPPG for all supported
+  off-policy RL algorithms. See: https://arxiv.org/pdf/1706.02275.pdf
+
+  To train a policy using their MADDPG variants as opposed to independent
+  learners, algorithm, set the `maddpg` attribute to True:
+  
+  ```python
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
+  from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
+  
+  alg = RLAlgorithm(
+      policy=MultiFeedForwardPolicy,
+      env="...",  # replace with an appropriate environment
+      policy_kwargs={
+          "maddpg": True,
+          "shared": False,  # or True
+      }
+  )
+  ```
+
+  This works for both shared and non-shared policies. For shared policies,
+  we use a single centralized value function instead of a value function
+  for each agent.
+
+  *Note:* MADDPG variants of the goal-conditioned hierarchies are currently not
+  supported.
+
+# 3. Environments
 
 We benchmark the performance of all algorithms on a set of standardized 
-[Mujoco](https://github.com/openai/mujoco-py) (robotics) and 
-[Flow](https://github.com/flow-project/flow) (mixed-autonomy traffic) 
+[Mujoco](https://github.com/openai/mujoco-py) [7] (robotics) and 
+[Flow](https://github.com/flow-project/flow) [8] (mixed-autonomy traffic) 
 benchmarks. A description of each of the studied environments can be 
 found below.
 
-### MuJoCo Environments
+## 3.1 MuJoCo Environments
 
 <img src="docs/img/mujoco-envs.png"/>
 
-**AntGather**
+#### AntGather
 
 This task was initially provided by [6].
 
@@ -769,7 +948,7 @@ In this task, a quadrupedal (Ant) agent is placed in a 20x20 space with 8
 apples and 8 bombs. The agent receives a reward of +1 or collecting an apple 
 and -1 for collecting a bomb. All other actions yield a reward of 0.
 
-**AntMaze**
+#### AntMaze
 
 This task was initially provided by [3].
 
@@ -779,7 +958,7 @@ U-shaped corridor. That is, blocks are placed everywhere except at (0,0), (8,0),
 position (0,0) and tasked at reaching a specific target position. "Success" in 
 this environment is defined as being within an L2 distance of 5 from the target.
 
-**AntPush**
+#### AntPush
 
 This task was initially provided by [3].
 
@@ -791,7 +970,7 @@ to the left, push the movable block to the right, and then finally navigate to
 the target. "Success" in this environment is defined as being within an L2 
 distance of 5 from the target.
 
-**AntFall**
+#### AntFall
 
 This task was initially provided by [3].
 
@@ -805,164 +984,128 @@ movable block into the chasm and walk on top of it before navigating to the
 target. "Success" in this environment is defined as being within an L2 distance 
 of 5 from the target.
 
-### Flow Environments
+## 3.2 Flow Environments
 
-<img src="docs/img/flow-envs.png"/>
+We also explore the use of hierarchical policies on a suite of mixed-autonomy
+traffic control tasks, built off the [Flow](https://github.com/flow-project/flow.git) 
+[8] framework for RL in microscopic (vehicle-level) traffic simulators. Within 
+these environments, a subset of vehicles in any given network are replaced with
+"automated" vehicles whose actions are provided on an RL policy. A description 
+of the attributes of the MDP within these tasks is provided in the following 
+sub-sections. Additional information can be found through the 
+[environment classes](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/envs) 
+and 
+[flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-**Ring**
+<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="90%"/></p>
 
-This task was initially provided by [7].
+The below table describes all available tasks within this repository to train 
+on. Any of these environments can be used by passing the environment name to 
+the `env` parameter in the algorithm class. The multi-agent variants of these 
+environments can also be trained by adding "multiagent-" to the start of the 
+environment name (e.g. "multiagent-ring-v0").
 
-In this network, 22 vehicles are placed in a variable length single lane
-ring road. In the absence of autonomous vehicles, perturbations to the 
-accelerations of individuals vehicles along with the string unstable
-behavior of human driving dynamics leads to the formation and 
-propagation of stop-and-go waves in the network.
+| Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
+|---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
+| [ring](#ring)       | ring-v0          |       1       |        22      |     1/22    |          --          |          yes         |        yes       |
+| [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
+|                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
+|                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        yes       |
+|                     | highway-v1       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        no        |
+|                     | highway-v2       |      ~10      |      ~150      |     1/12    |         2215         |          no          |        no        |
+| [I-210](#i-210)     | i210-v0          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        yes       |
+|                     | i210-v1          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        no        |
+|                     | i210-v2          |      ~50      |      ~800      |     1/15    |         10250        |          no          |        no        |
 
-In the mixed-autonomy setting, a portion of vehicles are treated as AVs 
-with the objective of regulating the dissipating the prevalence of 
-stop-ang-go waves. The components of the MDP for this benchmark are 
-defined as follows:
+### States
 
-* States: The state consists of the relative speed and bumper-to-bumper 
-  gap of the vehicles immediately preceding the AVs, as well as
-  the speed of the AVs, i.e. 
-  $s := (\Delta v_i, h_i, v_i) \in \mathbb{R}^{3k}$, where $k$ is the 
-  number of AVs.
-* Actions: The actions consist of a list of bounded accelerations for 
-  each CAV, i.e. $a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{k}$, 
-  where $a_\text{min}$ and $a_\text{max}$ are the minimum and maximum 
-  accelerations, respectively.
-* Rewards: We choose a reward function that promotes high velocities 
-  while penalizing accelerations which are symptomatic of stop-and-go 
-  behavior. The reward function is accordingly:
-  
-  \begin{equation*}
-    r := \eta_1 v_\text{mean} - \eta_2 * \sum_i |a_i|
-  \end{equation*}
-  
-  where $\eta_1$ and $\eta_2$ are weighting terms.
+The state for any of these environments consists of the speeds and 
+bumper-to-bumper gaps of the vehicles immediately preceding and following the 
+AVs, as well as the speed of the AVs, i.e. 
+$s := (v_{i,\text{lead}},v_{i,\text{lag}}, h_{i,\text{lead}}, h_{i,\text{lag}}, v_i), \ i \in AV$.
+In single agent settings, these observations are concatenated in a single 
+observation that is passed to a centralized policy.
 
-This benchmark consists of the following variations:
+In order to account for variability in the number of AVs ($n_\text{AV}$) in the
+single agent seeting, a constant $n_\text{RL}$ term is defined. When 
+$n_\text{AV} > n_\text{RL}$, information from the extra CAVs are not included 
+in the state. Moreover, if $n_\text{CAV} < n_\text{RL}$ the state is padded 
+with zeros.
 
-* ring_small: 21 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{3}$, 
-  $\mathcal{A} \in \mathbb{R}^1$, $T=3000$).
+### Actions
 
-**Figure Eight**
+The actions consist of a list of bounded accelerations for each AV, i.e. 
+$a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{1}$, where $a_\text{min}$ and 
+$a_\text{max}$ are the minimum and maximum accelerations, respectively. In the 
+single agent setting, all actions are provided as an output from a single 
+policy.
 
-This task was initially provided by [8].
+Once again, an $n_\text{RL}$ term is used to handle variable numbers of AVs in
+the single agent setting. If $n_\text{AV} > n_\text{RL}$ the extra AVs are 
+treated as human-driven vehicles and their states are updated using human 
+driver models. Moreover, if $n_\text{AV} < n_\text{RL}$, the extra actions are
+ignored.
 
-The figure eight network acts as a closed representation of an 
-intersection. In a figure eight network containing a total of 14 
-vehicles, we witness the formation of queues resulting from vehicles 
-arriving simultaneously at the intersection and slowing down to obey 
-right-of-way rules. This behavior significantly reduces the average 
-speed of vehicles in the network.
+### Rewards
 
-In a mixed-autonomy setting, a portion of vehicles are treated as CAVs 
-with the objective of regulating the flow of vehicles through the 
-intersection in order to improve system-level velocities. The components
-of the MDP for this benchmark are defined as follows:
+The reward provided by the environment is equal to the negative vector normal 
+of the distance between the speed of all vehicles in the network and a desired 
+speed, and is offset by largest possible negative term to ensure non-negativity
+if environments terminate prematurely. The exact mathematical formulation of 
+this reward is:
 
-* States: The state consists of a vector of velocities and positions for
-  each vehicle in the network,ordered by the position of each vehicle,
-  $s:= (v_i,x_i)_{i=0:k−1} \in \mathbb{R}^{2k}$, where $k$ is the number
-  of vehicles in the network. Note that the position is defined relative
-  to a pre-specified starting point.
-* Actions: The actions are a list of accelerations for each CAV, 
-  $a \in \mathbb{R}_{[a_\text{min},a_\text{max}]}^n$, where $n$ is the 
-  number of CAVs, and $a_\text{min}$ and $a_\text{max}$ are the minimum
-  and maximum accelerations, respectively.
-* Reward: The objective of the learning agent is to achieve high speeds
-  while penalizing collisions. Accordingly, the reward function is 
-  defined as follows:
+\begin{equation*}
+    r(v) = max\{ 0, ||v_\text{des} \cdot 1^n ||_2 - || v - v_\text{des} \cdot 1^n ||_2 \}
+\end{equation*}
 
-  \begin{equation*}
-      r := \max \Big(||v_\text{des}\cdot \mathbbm{1}^k||_2 - ||v_\text{des} - v||_2, \ 0 \Big) \ / \ ||v_\text{des}\cdot \mathbbm{1}^k||_2
-  \end{equation*}
+where $v$ is the speed of the individual vehicles, $v_\text{des}$ is the 
+desired speed, and $n$ is the number of vehicles in the network.
 
-  where $v_\text{des}$ is an arbitrary large velocity used to encourage 
-  high speeds and $v \in \mathbb{R}^k$ is the velocities of all vehicles
-  in the network.
+This reward may only include two penalties:
 
-This benchmark consists of the following variations:
+* **acceleration penalty:** If set to True in env_params, the negative of the 
+  sum of squares of the accelerations by the AVs is added to the reward.
+* **stopping penalty:** If set to True in env_params, a penalty of -5 is added 
+  to the reward for every RL vehicle that is not moving.
 
-* figureight0: 13 humans, 1 CAV ($\mathcal{S} \in \mathbb{R}^{28}$, 
-  $\mathcal{A} \in \mathbb{R}^1$, $T=1500$).
-* figureight1: 7 humans, 7 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
-  $\mathcal{A} \in \mathbb{R}^7$, $T=1500$).
-* figureight2: 0 human, 14 CAVs ($\mathcal{S} \in \mathbb{R}^{28}$, 
-  $\mathcal{A} \in \mathbb{R}^{14}$, $T=1500$).
+### Networks
 
-**Merge**
+We investigate the performance of our algorithms on a variety of network 
+configurations demonstrating diverse traffic instabilities and forms of 
+congestion. This networks are detailed below.
 
-This task was initially provided by [8].
+#### ring
 
-The merge network highlights the effect of disturbances on vehicles in a
-single lane highway network. Specifically, perturbations resulting from
-vehicles arriving from the on-merge lead to the formation of backwards 
-propagating stop-and-go waves, thereby reducing the throughput of 
-vehicles in the network. This phenomenon is known as convective 
-instability.
+This scenario consists of 22 vehicles (1 of which are automated) on a sing-lane
+circular track of length 220-270 m. In the absence of the automated vehicle, 
+the human-driven vehicles exhibit stop-and-go instabilities brought about by 
+the string-unstable characteristic of human car-following dynamics.
 
-In a mixed-autonomy setting, a percentage of vehicles in the main lane 
-are tasked with the objective of dissipating the formation and 
-propagation of stop-and-go waves from locally observable information. 
-Moreover, given the open nature of the network, the total number of CAVs
-within the network may vary at any given time. Taking these into 
-account, we characterize our MDP as follows:
+#### merge
 
-* States: The state consists of the speeds and bumper-to-bumper gaps of
-  the vehicles immediately preceding and following the CAVs, as well as
-  the speed of the CAVs, i.e. 
-  $s := (v_{i,\text{lead}},v_{i,\text{lag}}, h_{i,\text{lag}}, h_{i,\text{lag}}, v_i) \in \mathbb{R}^{n_\text{RL}}$.
-  In order to account for variability in the number of CAVs 
-  ($n_\text{CAV}$), a constant $n_\text{RL}$ term is defined. When 
-  $n_\text{CAV} > n_\text{RL}$, information from the extra CAVs are not
-  included in the state. Moreover, if $n_\text{CAV} < n_\text{RL}$ the 
-  state is padded with zeros.
-* Actions: The actions consist of a list of bounded accelerations for 
-  each CAV, i.e. 
-  $a\in\mathbb{R}_{[a_\text{min},a_\text{max}]}^{n_\text{RL}}$. Once 
-  again, an $n_\text{RL}$ term is used to handle variable numbers of 
-  CAVs. If $n_\text{CAV} > n_\text{RL}$ the extra CAVs are treated as
-  human-driven vehicles and their states are updated using human driver
-  models. Moreover, if $n_\text{CAV} < n_\text{RL}$, the extra actions 
-  are ignored.
-* Reward: The objective in this problem is, once again, improving 
-  mobility, either via the speed of vehicles in the network or by 
-  maximizing the number of vehicles that pass through the network.
-  Accordingly, we use an augmented version of the reward function 
-  presented for the figure eight network.
+This scenarios is adapted from the following article [9]. It consists of a 
+single-lane highway network with an on-ramp used to generate periodic 
+perturbations to sustain congested behavior. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
-  \begin{equation*}
-      r := \max \Big(||v_\text{des}\cdot \mathbbm{1}^k||_2 - ||v_\text{des} - v||_2, \ 0 \Big) \ / \ ||v_\text{des}\cdot \mathbbm{1}^k||_2 - \alpha \sum_{i \in CAV} \max \big[ h_{\text{max}} - h_i(t), 0 \big]
-  \end{equation*}
+#### highway
 
-  The added term penalizes small headways among the CAVs; it is minimal
-  when all CAVs are spaced at $h_\text{max}$. This discourages dense
-  states that lead to the formation of stop-and-go traffic.
+This scenario consists of a single lane highway in which downstream traffic 
+instabilities brought about by an edge with a reduced speed limit generate 
+congestion in the form of stop-and-go waves. In order to model the effect of p%
+AV penetration on the network, every 100/pth vehicle is replaced with an 
+automated vehicle whose actions are sampled from an RL policy.
 
-This benchmark consists of the following variations:
+#### I-210
 
-* merge0: 10% CAV penetration rate ($S \in \mathbb{R}^{25}$, 
-  $A \in \mathbb{R}^5$, $T=6000$).
-* merge1: 25% CAV penetration rate ($S \in \mathbb{R}^{65}$, 
-  $A \in \mathbb{R}^{13}$, $T=6000$).
-* merge2: 33.3% CAV penetration rate ($S \in \mathbb{R}^{85}$, 
-  $A \in \mathbb{R}^{17}$, $T=6000$).
+This scenario is a recreation of a subsection of the I-210 network in Los 
+Angeles, CA. For the moment, the on-ramps and off-ramps are disabled within 
+this network, rendering it similar to a multi-lane variant of the highway 
+network.
 
-**Highway**
-
-This task was initially provided by [9].
-
-TODO
-
-This benchmark consists of the following variations:
-
-* highway0: TODO
-
-## Citing
+# 4. Citing
 
 To cite this repository in publications, use the following:
 
@@ -977,7 +1120,7 @@ To cite this repository in publications, use the following:
 }
 ```
 
-## Bibliography
+# 5. Bibliography
 
 [1] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning." 
 Advances in neural information processing systems. 1993.
@@ -999,19 +1142,14 @@ Reinforcement Learning". arXiv preprint arXiv:1912.02368 (2019).
 networks for hierarchical reinforcement learning." arXiv preprint 
 arXiv:1704.03012 (2017).
 
-[7] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
+[7] Todorov, Emanuel, Tom Erez, and Yuval Tassa. "Mujoco: A physics engine for 
+model-based control." 2012 IEEE/RSJ International Conference on Intelligent 
+Robots and Systems. IEEE, 2012.
+
+[8] Wu, Cathy, et al. "Flow: A Modular Learning Framework for Autonomy 
 in Traffic." arXiv preprint arXiv:1710.05465 (2017).
 
-[8] Vinitsky, Eugene, et al. "Benchmarks for reinforcement learning in 
-mixed-autonomy traffic." Conference on Robot Learning. 2018.
-
-[9] TODO: highway paper
-
-## Useful Links
-
-The following bullet points contain links developed either by developers of
-this repository or external parties that may be of use to individuals
-interested in further developing their understanding of hierarchical
-reinforcement learning:
-
-* https://thegradient.pub/the-promise-of-hierarchical-reinforcement-learning/
+[9] Kreidieh, Abdul Rahman, Cathy Wu, and Alexandre M. Bayen. "Dissipating 
+stop-and-go waves in closed and open networks via deep reinforcement learning."
+2018 21st International Conference on Intelligent Transportation Systems 
+(ITSC). IEEE, 2018.
