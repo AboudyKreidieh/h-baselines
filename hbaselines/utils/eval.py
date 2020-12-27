@@ -1,11 +1,10 @@
-"""TODO."""
+"""Utility methods when performing evaluations."""
 import json
 import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from PIL import Image
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy \
     as TD3FeedForwardPolicy
@@ -26,7 +25,7 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
 
-# TODO
+# offset used to positions when drawing trajectories
 OBJECT_OFFSET = 1
 
 # dictionary that maps policy names to policy objects
@@ -85,9 +84,6 @@ def parse_options(args):
         '--save_trajectory', action='store_true',
         help='whether to save the per-step trajectory data')
     parser.add_argument(
-        '--plot_trajectory', action='store_true',
-        help='whether to plot the per-step trajectory data')
-    parser.add_argument(
         '--no_render', action='store_true',
         help='shuts off rendering')
     parser.add_argument(
@@ -141,29 +137,32 @@ def get_hyperparameters_from_dir(ckpt_path):
 
 
 class TrajectoryLogger(object):
-    """TODO.
+    """Logger object for evaluation trajectory data.
+
+    This method logs, save, and plots trajectory data during evaluations for a
+    number of tasks.
 
     Attributes
     ----------
     env_name : str
-        TODO
+        the name of the environment
     data : dict
-        TODO
+        a dictionary containing the data to log/visualize
     """
 
     def __init__(self, env_name):
-        """TODO.
+        """Instantiate the logger object.
 
         Parameters
         ----------
         env_name : str
-            TODO
+            the name of the environment
         """
         self.env_name = env_name
         self.data = {}
 
     def reset(self, env):
-        """TODO."""
+        """Reset the stored sample data-points."""
         if self.env_name == "AntGather":
             # Save the initial position of the objects (apples and bombs).
             self.data = {
@@ -179,21 +178,24 @@ class TrajectoryLogger(object):
                 "goal": [],
             }
         elif self.env_name.startswith("ring-v"):  # ring-v{0,1,2,3,4}{-fast}
-            # TODO
-            self.data = {}  # TODO
+            # Save the speeds and goal speeds.
+            self.data = {
+                "speed": [],
+                "goal": [],
+            }
         else:
             raise NotImplementedError("Unknown environment: {}".format(
                 self.env_name))
 
     def log_sample(self, obs, policy):
-        """TODO.
+        """Update the dataset with current step data.
 
         Parameters
         ----------
-        obs : TODO
-            TODO
-        policy : TODO
-            TODO
+        obs : array_like
+            the current observation
+        policy : hbaselines.base_policies.Policy
+            the policy object
         """
         if self.env_name in ["AntGather", "AntMaze", "AntFourRooms"]:
             # Log the agent position.
@@ -217,17 +219,18 @@ class TrajectoryLogger(object):
                 self.env_name))
 
     def save(self, fp, plot=False):
-        """TODO.
+        """Save, and potential plot, the trajectory data.
 
         Parameters
         ----------
         fp : str
-            TODO
+            the path to save the data to
         plot : bool
-            TODO
+            Whether to plot the data
         """
         # Save the data dict under a json file.
-        pass  # TODO
+        with open(fp, 'w') as f:
+            json.dump(self.data, f, sort_keys=True, indent=4)
 
         # Plot trajectories.
         if plot:
@@ -258,18 +261,21 @@ class TrajectoryLogger(object):
 
 
 def draw_antgather(objects, traj, goals, save_path):
-    """TODO.
+    """Draw the trajectory when using the AntGather environment.
 
     Parameters
     ----------
-    objects : TODO
-        TODO
-    traj : TODO
-        TODO
-    goals : TODO
-        TODO
+    objects : list of (float, float, int)
+        list of apples/bombs data-points, described as follows:
+          1. the x-coordinate
+          2. the y-coordinate
+          3. 0 if apple, 1 if bomb
+    traj : array_like
+        the (x,y) coordinates of the agent at every step
+    goals : array_like
+        the desired (x,y) coordinates of the agent at every step
     save_path : str
-        TODO
+        the path to save the plot to
     """
     traj = np.asarray(traj)
 
@@ -284,11 +290,11 @@ def draw_antgather(objects, traj, goals, save_path):
     ax.add_patch(rect)
     rect = patches.Rectangle(
         (-11, -11), 22, 1,
-        linewidth=1, edgecolor= 'none', facecolor='lightgrey')
+        linewidth=1, edgecolor='none', facecolor='lightgrey')
     ax.add_patch(rect)
     rect = patches.Rectangle(
         (-11, 10), 22, 1,
-        linewidth=1,edgecolor='none',facecolor='lightgrey')
+        linewidth=1, edgecolor='none', facecolor='lightgrey')
     ax.add_patch(rect)
     rect = patches.Rectangle(
         (10, -11), 1, 22,
@@ -345,18 +351,18 @@ def draw_antgather(objects, traj, goals, save_path):
 
 
 def draw_antfourrooms(context, traj, goals, save_path):
-    """TODO.
+    """Draw the trajectory when using the AntFourRooms environment.
 
     Parameters
     ----------
-    context : TODO
-        TODO
-    traj : TODO
-        TODO
-    goals : TODO
-        TODO
+    context : [float, float]
+        the (x,y) coordinates of the overall goal for the agent
+    traj : array_like
+        the (x,y) coordinates of the agent at every step
+    goals : array_like
+        the desired (x,y) coordinates of the agent at every step
     save_path : str
-        TODO
+        the path to save the plot to
     """
     traj = np.asarray(traj)
 
@@ -483,18 +489,18 @@ def draw_antfourrooms(context, traj, goals, save_path):
 
 
 def draw_antmaze(context, traj, goals, save_path):
-    """TODO.
+    """Draw the trajectory when using the AntMaze environment.
 
     Parameters
     ----------
-    context : TODO
-        TODO
-    traj : TODO
-        TODO
-    goals : TODO
-        TODO
+    context : [float, float]
+        the (x,y) coordinates of the overall goal for the agent
+    traj : array_like
+        the (x,y) coordinates of the agent at every step
+    goals : array_like
+        the desired (x,y) coordinates of the agent at every step
     save_path : str
-        TODO
+        the path to save the plot to
     """
     traj = np.asarray(traj)
 

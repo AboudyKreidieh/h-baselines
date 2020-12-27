@@ -5,6 +5,8 @@ import numpy as np
 import random
 from gym.spaces import Box
 
+from hbaselines.utils.eval import parse_options as parse_eval_options
+from hbaselines.utils.eval import get_hyperparameters_from_dir
 from hbaselines.utils.train import parse_options
 from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
@@ -2461,16 +2463,52 @@ class TestEval(unittest.TestCase):
     """Unit tests for the classes and methods in utils/eval.py."""
 
     def test_parse_options(self):
-        """TODO.
+        """Test the functionality of parse_options method.
 
         """
-        pass  # TODO
+        """Test the parse_options method.
 
-    def test_get_hyperparameters_from_dir(self):
-        """TODO.
+        This is done for the following cases:
 
+        1. default case
+        2. custom case
         """
-        pass  # TODO
+        # test case 1
+        args = parse_eval_options(["AntMaze"])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': None,
+            'num_rollouts': 1,
+            'video': 'output',
+            'save_video': False,
+            'save_trajectory': False,
+            'no_render': False,
+            'random_seed': False,
+        }
+        self.assertDictEqual(vars(args), expected_args)
+
+        # test case 2
+        args = parse_eval_options([
+            "AntMaze",
+            '--ckpt_num', '1',
+            '--num_rollouts', '2',
+            '--video', '3',
+            '--save_video',
+            '--save_trajectory',
+            '--no_render',
+            '--random_seed',
+        ])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': 1,
+            'num_rollouts': 2,
+            'video': '3',
+            'save_video': True,
+            'save_trajectory': True,
+            'no_render': True,
+            'random_seed': True,
+        }
+        self.assertDictEqual(vars(args), expected_args)
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

@@ -4,7 +4,6 @@ import sys
 import random
 import numpy as np
 import tensorflow as tf
-import json
 from copy import deepcopy
 from skvideo.io import FFmpegWriter
 
@@ -81,7 +80,11 @@ def main(args):
     # some variables that will be needed when replaying the rollout
     policy = alg.policy_tf
     env = alg.eval_env
-    logger = TrajectoryLogger(env_name)
+
+    if flags.save_trajectory:
+        logger = TrajectoryLogger(env_name)
+    else:
+        logger = None
 
     # Perform the evaluation procedure.
     episode_rewards = []
@@ -107,7 +110,9 @@ def main(args):
                 out = None
 
             obs, total_reward = env.reset(), 0
-            logger.reset(env)
+
+            if flags.save_trajectory:
+                logger.reset(env)
 
             while True:
                 context = [env.current_context] \
@@ -146,7 +151,9 @@ def main(args):
 
                 # Advance the simulation by one step.
                 new_obs, reward, done, info = env.step(action)
-                logger.log_sample(new_obs, policy)
+
+                if flags.save_trajectory:
+                    logger.log_sample(new_obs, policy)
 
                 # Render the new step.
                 if not flags.no_render:
@@ -202,7 +209,9 @@ def main(args):
                 out.close()
 
             # Save logged trajectory data.
-            logger.save("log_{}_{}".format(env_num, episode_num), plot=True)
+            if flags.save_trajectory:
+                logger.save(
+                    "log_{}_{}".format(env_num, episode_num), plot=True)
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
