@@ -1,5 +1,7 @@
 """Script for importing the modified AntGather environment."""
 import math
+import numpy as np
+from gym.spaces import Box
 from rllab.envs.mujoco.gather.gather_env import GatherEnv
 from sandbox.snn4hrl.envs.mujoco.ant_env import AntEnv
 from sandbox.snn4hrl.envs.mujoco.swimmer_env import SwimmerEnv
@@ -10,6 +12,13 @@ class AntGatherEnv(GatherEnv):
     """Ant Gather environment.
 
     See: https://arxiv.org/pdf/1704.03012.pdf
+
+    Attributes
+    ----------
+    step_number : int
+        the number of steps since the current rollout began
+    current_context : array_like
+        the contextual term (passed to the highest-level policy)
     """
 
     MODEL_CLASS = AntEnv
@@ -78,6 +87,7 @@ class AntGatherEnv(GatherEnv):
             **kwargs
         )
         self.step_number = 0
+        self.current_context = None
 
     def step(self, action):
         """Advance the simulation by one step.
@@ -90,17 +100,43 @@ class AntGatherEnv(GatherEnv):
         self.step_number += 1
         done = done or self.step_number == self.horizon
 
+        # Separate the observation by agent observation and context.
+        self.current_context = obs[-2 * self.n_bins:]
+        obs = obs[:-2 * self.n_bins]
+
         return obs, reward, done, {}
 
     def reset(self, also_wrapped=True):
         """Reset the environment."""
+        # Reset the timer.
         self.step_number = 0
-        return super(AntGatherEnv, self).reset(also_wrapped)
+
+        obs = super(AntGatherEnv, self).reset(also_wrapped)
+
+        # Separate the observation by agent observation and context.
+        self.current_context = obs[-2 * self.n_bins:]
+        obs = obs[:-2 * self.n_bins]
+
+        return obs
 
     @property
     def horizon(self):
         """Return the environment time horizon."""
         return self.HORIZON
+
+    @property
+    def observation_space(self):
+        """Return the shape and bounds of the observations."""
+        return self.robot_observation_space
+
+    @property
+    def context_space(self):
+        """Return the shape and bounds of the contextual term."""
+        return Box(
+            low=-float("inf"),
+            high=float("inf"),
+            shape=(2 * self.n_bins,),
+            dtype=np.float32)
 
 
 class SwimmerGatherEnv(AntGatherEnv):
