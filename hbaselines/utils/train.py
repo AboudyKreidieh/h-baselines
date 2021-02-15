@@ -5,6 +5,7 @@ from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
@@ -15,6 +16,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 def get_hyperparameters(args, policy):
     """Return the hyperparameters of a training algorithm from the parser."""
     algorithm_params = {
+        "total_steps": args.total_steps,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
@@ -113,6 +115,7 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
+            "cg_delta": args.cg_delta,
             "pretrain_worker": args.pretrain_worker,
             "pretrain_path": args.pretrain_path,
             "pretrain_ckpt": args.pretrain_ckpt,
@@ -123,6 +126,7 @@ def get_hyperparameters(args, policy):
         policy_kwargs.update({
             "shared": args.shared,
             "maddpg": args.maddpg,
+            "n_agents": args.n_agents,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -178,9 +182,6 @@ def parse_options(description,
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
     parser_algorithm.add_argument(
-        '--total_steps',  type=int, default=1000000,
-        help='Total number of timesteps used during training.')
-    parser_algorithm.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
     parser_algorithm.add_argument(
@@ -198,6 +199,10 @@ def parse_options(description,
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
+    parser_algorithm.add_argument(
+        '--log_dir', type=str, default=None,
+        help='the directory to log the data. Defaults to the current '
+             'directory.')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
@@ -224,6 +229,9 @@ def parse_options(description,
 
 def create_algorithm_parser(parser):
     """Add the algorithm hyperparameters to the parser."""
+    parser.add_argument(
+        '--total_steps',  type=int, default=1000000,
+        help='Total number of timesteps used during training.')
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')
@@ -569,6 +577,13 @@ def create_goal_conditioned_parser(parser):
              "policies with respect to the parameters of the higher-level "
              "policies. Only used if `cooperative_gradients` is set to True.")
     parser.add_argument(
+        "--cg_delta",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["cg_delta"],
+        help="the desired lower-level expected returns. If set to None, a "
+             "fixed Lagrangian specified by cg_weights is used instead. Only "
+             "used if `cooperative_gradients` is set to True.")
+    parser.add_argument(
         "--pretrain_worker",
         action="store_true",
         help="specifies whether you are pre-training the lower-level "
@@ -600,5 +615,12 @@ def create_multi_feedforward_parser(parser):
         action="store_true",
         help="whether to use an algorithm-specific variant of the MADDPG "
              "algorithm")
+    parser.add_argument(
+        "--n_agents",
+        type=int,
+        default=MULTIAGENT_PARAMS["n_agents"],
+        help="the expected number of agents in the environment. Only relevant "
+             "if using shared policies with MADDPG or goal-conditioned "
+             "hierarchies.")
 
     return parser

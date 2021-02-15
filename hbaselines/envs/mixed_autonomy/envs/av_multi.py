@@ -7,44 +7,39 @@ from gym.spaces import Box
 from copy import deepcopy
 from collections import defaultdict
 from csv import DictReader
+from scipy.optimize import fsolve
 
 from flow.envs.multiagent import MultiEnv
 from flow.core.params import InFlows
-from flow.core.params import VehicleParams
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
 
+from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 from hbaselines.envs.mixed_autonomy.envs.utils import update_rl_veh
 from hbaselines.envs.mixed_autonomy.envs.utils import get_lane
+from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 
 
 BASE_ENV_PARAMS = dict(
-    # maximum acceleration for autonomous vehicles, in m/s^2
+    # scaling factor for the AV accelerations, in m/s^2
     max_accel=1,
-    # maximum deceleration for autonomous vehicles, in m/s^2
-    max_decel=1,
     # whether to use the follower-stopper controller for the AVs
     use_follower_stopper=False,
-    # desired velocity for all vehicles in the network, in m/s
-    target_velocity=30,
     # whether to include a stopping penalty
     stopping_penalty=False,
     # whether to include a regularizing penalty for accelerations by the AVs
     acceleration_penalty=False,
+    # number of observation frames to use. Additional frames are provided from
+    # previous time steps.
+    obs_frames=1,
 )
 
 CLOSED_ENV_PARAMS = BASE_ENV_PARAMS.copy()
 CLOSED_ENV_PARAMS.update(dict(
-    # range for the number of vehicles allowed in the network. If set to None,
-    # the number of vehicles are is modified from its initial value.
-    num_vehicles=[50, 75],
-    # whether to distribute the automated vehicles evenly among the human
-    # driven vehicles. Otherwise, they are randomly distributed.
-    even_distribution=False,
-    # whether to sort RL vehicles by their initial position. Used to account
-    # for noise brought about by shuffling.
-    sort_vehicles=True,
+    # range for the lengths allowed in the network. If set to None, the ring
+    # length is not modified from its initial value.
+    ring_length=[220, 270],
 ))
 
 OPEN_ENV_PARAMS = BASE_ENV_PARAMS.copy()
@@ -71,15 +66,14 @@ class AVMultiAgentEnv(MultiEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
 
     States
         The observation consists of the speeds and bumper-to-bumper headways of
@@ -135,9 +129,23 @@ class AVMultiAgentEnv(MultiEnv):
             simulator=simulator,
         )
 
+        # this is stored to be reused during the reset procedure
+        self._network_cls = network.__class__
+        self._network_name = deepcopy(network.orig_name)
+        self._network_net_params = deepcopy(network.net_params)
+        self._network_initial_config = deepcopy(network.initial_config)
+        self._network_traffic_lights = deepcopy(network.traffic_lights)
+        self._network_vehicles = deepcopy(network.vehicles)
+
+        # used for visualization: the vehicles behind and after RL vehicles
+        # (ie the observed vehicles) will have a different color
         self.leader = []
         self.follower = []
+
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+        self._mean_speeds = []
+        self._obs_history = defaultdict(list)
+        self._obs_frames = env_params.additional_params["obs_frames"]
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -147,7 +155,6 @@ class AVMultiAgentEnv(MultiEnv):
             veh_id="av",
             v_des=30,
             max_accel=1,
-            max_decel=2,
             display_warnings=False,
             fail_safe=['obey_speed_limit', 'safe_velocity', 'feasible_accel'],
             car_following_params=self.k.vehicle.type_parameters[human_type][
@@ -172,8 +179,8 @@ class AVMultiAgentEnv(MultiEnv):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(1,),
                 dtype=np.float32)
 
@@ -183,7 +190,7 @@ class AVMultiAgentEnv(MultiEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5,),
+            shape=(5 * self._obs_frames,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -197,24 +204,24 @@ class AVMultiAgentEnv(MultiEnv):
                 # Apply the action via the simulator.
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
         else:
-            for veh_id in rl_actions.keys():
-                # Get the acceleration for the given agent.
-                acceleration = deepcopy(rl_actions[veh_id][0])
+            rl_ids = list(rl_actions.keys())
 
-                # Redefine if below a speed threshold so that all actions
-                # result in non-negative desired speeds.
-                ac_range = self.action_space.high - self.action_space.low
-                speed = self.k.vehicle.get_speed(veh_id)
-                if speed < 0.5 * ac_range * self.sim_step:
-                    acceleration += 0.5 * ac_range - speed / self.sim_step
+            acceleration = get_rl_accel(
+                accel=[deepcopy(rl_actions[veh_id][0]) for veh_id in rl_ids],
+                vel=self.k.vehicle.get_speed(rl_ids),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
-                # Run the action through the controller, to include failsafe
-                # actions.
-                acceleration = self.k.vehicle.get_acc_controller(
-                    veh_id).get_action(self, acceleration=acceleration)
+            # Run the action through the controller, to include failsafe
+            # actions.
+            for i, veh_id in enumerate(rl_ids):
+                acceleration[i] = self.k.vehicle.get_acc_controller(
+                    veh_id).get_action(self, acceleration=acceleration[i])
 
-                # Apply the action via the simulator.
-                self.k.vehicle.apply_acceleration(veh_id, acceleration)
+            # Apply the action via the simulator.
+            self.k.vehicle.apply_acceleration(
+                acc=acceleration, veh_ids=list(rl_actions.keys()))
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -264,21 +271,12 @@ class AVMultiAgentEnv(MultiEnv):
                 # in case of collisions or an empty network
                 reward = 0
             else:
-                reward = 0
-
                 # =========================================================== #
                 # Reward high system-level average speeds.                    #
                 # =========================================================== #
 
-                reward_scale = 0.01
-
-                # Compute a positive form of the two-norm from a desired target
-                # velocity.
-                target = self.env_params.additional_params['target_velocity']
-                max_cost = np.array([target] * num_vehicles)
-                max_cost = np.linalg.norm(max_cost)
-                cost = np.linalg.norm(vel - target)
-                reward += reward_scale * max(max_cost - cost, 0)
+                reward_scale = 0.1
+                reward = reward_scale * np.mean(vel) ** 2
 
                 # =========================================================== #
                 # Penalize stopped RL vehicles.                               #
@@ -305,18 +303,39 @@ class AVMultiAgentEnv(MultiEnv):
         self.leader = []
         self.follower = []
 
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Add relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
+
+            # Append to the leader/follower lists.
+            if veh_id in self.rl_ids():
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+                if follower not in ["", None]:
+                    self.follower.append(follower)
+
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
         # Initialize a set on empty observations
         obs = {key: None for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Add relative observation of each vehicle.
-            obs[veh_id], leader, follower = get_relative_obs(self, veh_id)
+            # Concatenate the past n samples for a given time delta and return
+            # as the final observation.
+            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_vehicle = np.array([0. for _ in range(5 * self._obs_frames)])
+            obs_vehicle[:len(obs_t)] = obs_t
 
-            # Append to the leader/follower lists.
-            if leader not in ["", None]:
-                self.leader.append(leader)
-            if follower not in ["", None]:
-                self.follower.append(follower)
+            obs[veh_id] = obs_vehicle
 
         return obs
 
@@ -329,14 +348,30 @@ class AVMultiAgentEnv(MultiEnv):
         for veh_id in self.leader + self.follower:
             self.k.vehicle.set_observed(veh_id)
 
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, _ = super(AVMultiAgentEnv, self).step(rl_actions)
+        info = {}
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            self._mean_speeds.append(np.mean(
+                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
+
     def reset(self, new_inflow_rate=None):
         """See parent class.
 
         In addition, a few variables that are specific to this class are
         emptied before they are used by the new rollout.
         """
+        self._mean_speeds = []
         self.leader = []
         self.follower = []
+        self._obs_history = defaultdict(list)
         return super().reset(new_inflow_rate)
 
 
@@ -357,22 +392,16 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
-    * num_vehicles: range for the number of vehicles allowed in the network. If
-      set to None, the number of vehicles are is modified from its initial
-      value.
-    * even_distribution: whether to distribute the automated vehicles evenly
-      among the human driven vehicles. Otherwise, they are randomly distributed
-    * sort_vehicles: whether to sort RL vehicles by their initial position.
-      Used to account for noise brought about by shuffling.
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
+    * ring_length: range for the lengths allowed in the network. If set to
+      None, the ring length is not modified from its initial value.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -381,17 +410,6 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
 
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
-
-        # attributes for sorting RL IDs by their initial position.
-        self._sorted_rl_ids = []
-
         super(AVClosedMultiAgentEnv, self).__init__(
             env_params=env_params,
             sim_params=sim_params,
@@ -399,129 +417,65 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
             simulator=simulator,
         )
 
-        if self.env_params.additional_params["even_distribution"]:
-            assert not self.initial_config.shuffle, \
-                "InitialConfig.shuffle must be set to False when using even " \
-                "distributions."
+        # solve for the free flow velocity of the ring
+        v_guess = 4
+        self._v_eq = fsolve(
+            v_eq_function, np.array(v_guess),
+            args=(len(self.initial_ids), self.k.network.length()))[0]
 
-    def rl_ids(self):
+        # for storing the distance from the free-flow-speed for a given rollout
+        self._percent_v_eq = []
+
+    def step(self, rl_actions):
         """See parent class."""
-        if self.env_params.additional_params["sort_vehicles"]:
-            return self._sorted_rl_ids
-        else:
-            return self.k.vehicle.get_rl_ids()
+        obs, rew, done, info = super(AVClosedMultiAgentEnv, self).step(
+            rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            speed = np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+            info.update({"v_eq": self._v_eq})
+            info.update({"v_eq_frac": speed / self._v_eq})
+
+        return obs, rew, done, info
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
-        # Skip if ring length is None.
-        if self.env_params.additional_params["num_vehicles"] is None:
-            return super(AVClosedMultiAgentEnv, self).reset()
+        self._percent_v_eq = []
 
-        self.step_counter = 1
-        self.time_counter = 1
+        params = self.env_params.additional_params
+        if params["ring_length"] is not None:
+            # Make sure restart instance is set to True when resetting.
+            self.sim_params.restart_instance = True
 
-        # Make sure restart instance is set to True when resetting.
-        self.sim_params.restart_instance = True
+            # Choose the network length randomly.
+            length = random.randint(
+                params['ring_length'][0], params['ring_length'][1])
 
-        # Create a new VehicleParams object with a new number of human-
-        # driven vehicles.
-        n_vehicles = self.env_params.additional_params["num_vehicles"]
-        n_rl = self._network_vehicles.num_rl_vehicles
-        n_vehicles_low = n_vehicles[0] - n_rl
-        n_vehicles_high = n_vehicles[1] - n_rl
-        new_n_vehicles = random.randint(n_vehicles_low, n_vehicles_high)
-        params = self._network_vehicles.type_parameters
+            # Add the ring length to NetParams.
+            new_net_params = deepcopy(self._network_net_params)
+            new_net_params.additional_params["length"] = length
 
-        print("humans: {}, automated: {}".format(new_n_vehicles, n_rl))
+            # Update the network.
+            self.network = self._network_cls(
+                self._network_name,
+                net_params=new_net_params,
+                vehicles=self._network_vehicles,
+                initial_config=self._network_initial_config,
+                traffic_lights=self._network_traffic_lights,
+            )
 
-        if self.env_params.additional_params["even_distribution"]:
-            num_human = new_n_vehicles - n_rl
-            humans_remaining = num_human
+            # solve for the velocity upper bound of the ring
+            v_guess = 4
+            self._v_eq = fsolve(v_eq_function, np.array(v_guess),
+                                args=(len(self.initial_ids), length))[0]
 
-            new_vehicles = VehicleParams()
-            for i in range(n_rl):
-                # Add one automated vehicle.
-                new_vehicles.add(
-                    veh_id="rl_{}".format(i),
-                    acceleration_controller=params["rl_{}".format(i)][
-                        "acceleration_controller"],
-                    lane_change_controller=params["rl_{}".format(i)][
-                        "lane_change_controller"],
-                    routing_controller=params["rl_{}".format(i)][
-                        "routing_controller"],
-                    initial_speed=params["rl_{}".format(i)][
-                        "initial_speed"],
-                    car_following_params=params["rl_{}".format(i)][
-                        "car_following_params"],
-                    lane_change_params=params["rl_{}".format(i)][
-                        "lane_change_params"],
-                    num_vehicles=1)
-
-                # Add a fraction of the remaining human vehicles.
-                vehicles_to_add = round(humans_remaining / (n_rl - i))
-                humans_remaining -= vehicles_to_add
-                new_vehicles.add(
-                    veh_id="human_{}".format(i),
-                    acceleration_controller=params["human_{}".format(i)][
-                        "acceleration_controller"],
-                    lane_change_controller=params["human_{}".format(i)][
-                        "lane_change_controller"],
-                    routing_controller=params["human_{}".format(i)][
-                        "routing_controller"],
-                    initial_speed=params["human_{}".format(i)][
-                        "initial_speed"],
-                    car_following_params=params["human_{}".format(i)][
-                        "car_following_params"],
-                    lane_change_params=params["human_{}".format(i)][
-                        "lane_change_params"],
-                    num_vehicles=vehicles_to_add)
-        else:
-            new_vehicles = VehicleParams()
-            new_vehicles.add(
-                "human_0",
-                acceleration_controller=params["human_0"][
-                    "acceleration_controller"],
-                lane_change_controller=params["human_0"][
-                    "lane_change_controller"],
-                routing_controller=params["human_0"]["routing_controller"],
-                initial_speed=params["human_0"]["initial_speed"],
-                car_following_params=params["human_0"]["car_following_params"],
-                lane_change_params=params["human_0"]["lane_change_params"],
-                num_vehicles=new_n_vehicles)
-            new_vehicles.add(
-                "rl_0",
-                acceleration_controller=params["rl_0"][
-                    "acceleration_controller"],
-                lane_change_controller=params["rl_0"][
-                    "lane_change_controller"],
-                routing_controller=params["rl_0"]["routing_controller"],
-                initial_speed=params["rl_0"]["initial_speed"],
-                car_following_params=params["rl_0"]["car_following_params"],
-                lane_change_params=params["rl_0"]["lane_change_params"],
-                num_vehicles=n_rl)
-
-        # Update the network.
-        self.network = self._network_cls(
-            self._network_name,
-            net_params=self._network_net_params,
-            vehicles=new_vehicles,
-            initial_config=self._network_initial_config,
-            traffic_lights=self._network_traffic_lights,
-        )
+            print('\n-----------------------')
+            print('ring length:', self.net_params.additional_params['length'])
+            print('v_eq:', self._v_eq)
+            print('-----------------------')
 
         # Perform the reset operation.
-        _ = super(AVClosedMultiAgentEnv, self).reset()
-
-        # Get the initial positions of the RL vehicles to allow us to sort the
-        # vehicles by this term.
-        def init_pos(veh_id):
-            return self.k.vehicle.get_x_by_id(veh_id)
-
-        # Create a list of the RL IDs sorted by the above term.
-        self._sorted_rl_ids = sorted(self.k.vehicle.get_rl_ids(), key=init_pos)
-
-        # Perform the reset operation again because the vehicle IDs weren't
-        # caught the first time.
         obs = super(AVClosedMultiAgentEnv, self).reset()
 
         return obs
@@ -558,15 +512,14 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
@@ -617,11 +570,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         # names of the rl vehicles past the control range
         self.removed_veh = []
 
-        # used for visualization: the vehicles behind and after RL vehicles
-        # (ie the observed vehicles) will have a different color
-        self.leader = []
-        self.follower = []
-
         # control range, updated to be entire network if not specified
         self._control_range = \
             self.env_params.additional_params["control_range"] or \
@@ -636,14 +584,6 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                 "car_following_params"],
             **controller[1]
         )
-
-        # this is stored to be reused during the reset procedure
-        self._network_cls = network.__class__
-        self._network_name = deepcopy(network.orig_name)
-        self._network_net_params = deepcopy(network.net_params)
-        self._network_initial_config = deepcopy(network.initial_config)
-        self._network_traffic_lights = deepcopy(network.traffic_lights)
-        self._network_vehicles = deepcopy(network.vehicles)
 
         if isinstance(network, I210SubNetwork):
             # the name of the final edge, whose speed limit may be updated
@@ -723,6 +663,27 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
+
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, rew, done, info = super(AVOpenMultiAgentEnv, self).step(
+            rl_actions)
+
+        if self.time_counter > \
+                self.env_params.warmup_steps * self.env_params.sims_per_step:
+            # Update the most recent mean speed term to match the speed of the
+            # control range.
+            kv = self.k.vehicle
+            control_range = self._control_range
+            veh_ids = [
+                veh_id for veh_id in kv.get_ids()
+                if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
+            ]
+            self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
+
+            info.update({"speed": np.mean(self._mean_speeds)})
+
+        return obs, rew, done, info
 
     def reset(self, new_inflow_rate=None):
         """See class definition."""
@@ -854,15 +815,14 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
 
     Required from env_params:
 
-    * max_accel: maximum acceleration for autonomous vehicles, in m/s^2
-    * max_decel: maximum deceleration for autonomous vehicles, in m/s^2
+    * max_accel: scaling factor for the AV accelerations, in m/s^2
     * use_follower_stopper: whether to use the follower-stopper controller for
       the AVs
-    * target_velocity: whether to use the follower-stopper controller for the
-      AVs
     * stopping_penalty: whether to include a stopping penalty
     * acceleration_penalty: whether to include a regularizing penalty for
       accelerations by the AVs
+    * obs_frames: number of observation frames to use. Additional frames are
+      provided from previous time steps.
     * inflows: range for the inflows allowed in the network. If set to None,
       the inflows are not modified from their initial value.
     * warmup_path: path to the initialized vehicle states. Cannot be set in
@@ -899,8 +859,8 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 dtype=np.float32)
         else:
             return Box(
-                low=-abs(self.env_params.additional_params['max_decel']),
-                high=self.env_params.additional_params['max_accel'],
+                low=-1,
+                high=1,
                 shape=(self.num_rl,),
                 dtype=np.float32)
 
@@ -920,7 +880,12 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             lane = int(key.split("_")[-1])
 
             # Get the acceleration for the given lane.
-            acceleration = deepcopy(rl_actions[key])
+            acceleration = get_rl_accel(
+                accel=deepcopy(rl_actions[key]),
+                vel=self.k.vehicle.get_speed(self.rl_ids()[lane]),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
             # Apply the actions to the given lane.
             self._apply_per_lane_actions(acceleration, self.rl_ids()[lane])
@@ -942,18 +907,16 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 self._av_controller.v_des = rl_actions[i]
                 accelerations.append(self._av_controller.get_action(self))
         else:
-            accelerations = deepcopy(rl_actions)
+            accelerations = get_rl_accel(
+                accel=deepcopy(rl_actions),
+                vel=self.k.vehicle.get_speed(veh_ids),
+                max_accel=self.env_params.additional_params["max_accel"],
+                dt=self.sim_step,
+            )
 
-            # Redefine the accelerations if below a speed threshold so that all
-            # actions result in non-negative desired speeds.
+            # Run the action through the controller, to include failsafe
+            # actions.
             for i, veh_id in enumerate(veh_ids):
-                ac_range = self.action_space.high[i] - self.action_space.low[i]
-                speed = self.k.vehicle.get_speed(veh_id)
-                if speed < 0.5 * ac_range * self.sim_step:
-                    accelerations[i] += 0.5 * ac_range - speed / self.sim_step
-
-                # Run the action through the controller, to include failsafe
-                # actions.
                 accelerations[i] = self.k.vehicle.get_acc_controller(
                     veh_id).get_action(self, acceleration=accelerations[i])
 
@@ -967,24 +930,45 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         self.leader = []
         self.follower = []
 
+        for veh_id in self.k.vehicle.get_rl_ids():
+            # Add relative observation of each vehicle.
+            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            self._obs_history[veh_id].append(obs_vehicle)
+
+            # Maintain queue length.
+            if len(self._obs_history[veh_id]) > self._obs_frames:
+                self._obs_history[veh_id] = \
+                    self._obs_history[veh_id][self._obs_frames:]
+
+            # Append to the leader/follower lists.
+            if veh_id in self.rl_ids():
+                if leader not in ["", None]:
+                    self.leader.append(leader)
+                if follower not in ["", None]:
+                    self.follower.append(follower)
+
+        # Remove memory for exited vehicles.
+        for key in self._obs_history.keys():
+            if key not in self.k.vehicle.get_rl_ids():
+                del self._obs_history[key]
+
         # Initialize a set on empty observations
-        obs = {"lane_{}".format(i): [0 for _ in range(5 * self.num_rl)]
-               for i in range(self._num_lanes)}
+        obs = {
+            "lane_{}".format(i):
+                np.array([0 for _ in range(5*self._obs_frames*self.num_rl)])
+            for i in range(self._num_lanes)
+        }
 
         for lane in range(self._num_lanes):
             # Collect the names of the RL vehicles on the lane.
             rl_ids = self.rl_ids()[lane]
 
             for i, veh_id in enumerate(rl_ids):
-                # Add relative observation of each vehicle.
-                obs["lane_{}".format(lane)][5 * i: 5 * (i + 1)], \
-                    leader, follower = get_relative_obs(self, veh_id)
-
-                # Append to the leader/follower lists.
-                if leader not in ["", None]:
-                    self.leader.append(leader)
-                if follower not in ["", None]:
-                    self.follower.append(follower)
+                # Concatenate the past n samples for a given time delta in the
+                # output observations.
+                ob_t = np.concatenate(self._obs_history[veh_id][::-1])
+                obs["lane_{}".format(lane)][
+                    5*self._obs_frames*i:5*self._obs_frames*i+len(ob_t)] = ob_t
 
         return obs
 

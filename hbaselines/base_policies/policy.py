@@ -61,7 +61,8 @@ class Policy(object):
                  co_space,
                  verbose,
                  l2_penalty,
-                 model_params):
+                 model_params,
+                 num_envs=1):
         """Instantiate the base policy object.
 
         Parameters
@@ -117,6 +118,7 @@ class Policy(object):
         self.verbose = verbose
         self.l2_penalty = l2_penalty
         self.model_params = model_params
+        self.num_envs = num_envs
 
         # Run assertions.
         required = ["model_type", "layers", "layer_norm", "act_fun"]
@@ -159,13 +161,6 @@ class Policy(object):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
         """
         raise NotImplementedError
 
@@ -235,6 +230,10 @@ class Policy(object):
     def get_td_map(self):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
+
+    def clear_memory(self, env_num):
+        """Clear internal memory that is used by the replay buffer."""
+        pass
 
     @staticmethod
     def _get_obs(obs, context, axis=0):

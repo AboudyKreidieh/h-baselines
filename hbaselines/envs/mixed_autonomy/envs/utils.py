@@ -1,4 +1,5 @@
 """Script containing utility methods shared amount the environments."""
+import numpy as np
 
 # These edges have an extra lane that RL vehicles do not traverse (since they
 # do not change lanes). We as a result ignore their first lane computing
@@ -152,3 +153,58 @@ def get_lane(env, veh_id):
     lane = env.k.vehicle.get_lane(veh_id)
     edge = env.k.vehicle.get_edge(veh_id)
     return lane if edge not in EXTRA_LANE_EDGES else lane - 1
+
+
+def v_eq_function(v, *args):
+    """Return the error between the desired and actual equivalent gap."""
+    num_vehicles, length = args
+
+    # maximum gap in the presence of one rl vehicle
+    s_eq_max = (length - num_vehicles * 5) / num_vehicles
+
+    v0 = 30
+    s0 = 2
+    tau = 1
+    gamma = 4
+
+    error = s_eq_max - (s0 + v * tau) * (1 - (v / v0) ** gamma) ** -0.5
+
+    return error
+
+
+def get_rl_accel(accel, vel, max_accel, dt):
+    """Compute the RL acceleration from the desired acceleration.
+
+    We reduce the decelerations at smaller speeds to smoothen the effects.
+
+    Parameters
+    ----------
+    accel : array_like or dict
+        the RL actions
+    vel : array_like
+        the speed of the RL vehicles
+    max_accel : float
+        scaling factor for the AV accelerations, in m/s^2
+    dt : float
+        seconds per simulation step
+
+    Returns
+    -------
+    array_like
+        the updated acceleration values
+    """
+    # for multi-agent environments
+    if isinstance(accel, dict):
+        accel = [accel[key][0] for key in accel.keys()]
+
+    # Scale to the range of accelerations.
+    accel = max_accel * np.array(accel)
+
+    # Redefine if below a speed threshold so that all actions result in
+    # non-negative desired speeds.
+    for i in range(len(vel)):
+        ac_range = 2 * max_accel
+        if vel[i] < 0.5 * ac_range * dt:
+            accel[i] += 0.5 * ac_range - vel[i] / dt
+
+    return accel

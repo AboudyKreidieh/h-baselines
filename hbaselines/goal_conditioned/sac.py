@@ -35,9 +35,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -109,6 +111,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -118,6 +124,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         """
         BaseGoalConditionedPolicy.__init__(
             self,
@@ -145,11 +154,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
+            cg_delta=cg_delta,
             scope=scope,
             env_name=env_name,
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,

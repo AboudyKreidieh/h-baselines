@@ -26,6 +26,7 @@ class TestRLAlgorithm(unittest.TestCase):
             'policy': None,
             'env': 'MountainCarContinuous-v0',
             'eval_env': None,
+            'total_steps': 0,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -71,6 +72,7 @@ class TestRLAlgorithm(unittest.TestCase):
         policy_kwargs = FEEDFORWARD_PARAMS.copy()
         policy_kwargs.update(TD3_PARAMS)
         policy_kwargs['verbose'] = self.init_parameters['verbose']
+        policy_kwargs['num_envs'] = self.init_parameters['num_envs']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
@@ -131,6 +133,7 @@ class TestRLAlgorithm(unittest.TestCase):
         policy_kwargs['verbose'] = self.init_parameters['verbose']
         policy_kwargs['env_name'] = self.init_parameters['env']
         policy_kwargs['num_envs'] = self.init_parameters['num_envs']
+        policy_kwargs['total_steps'] = self.init_parameters['total_steps']
         self.assertDictEqual(alg.policy_kwargs, policy_kwargs)
 
         with alg.graph.as_default():
@@ -223,9 +226,9 @@ class TestRLAlgorithm(unittest.TestCase):
         alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero steps.
-        alg.learn(0, log_dir='results', initial_exploration_steps=0)
+        alg.learn(log_dir='results', initial_exploration_steps=0)
         self.assertEqual(alg.episodes, 0)
-        self.assertEqual(alg.total_steps, 0)
+        self.assertEqual(alg.steps, 0)
         self.assertEqual(alg.epoch, 0)
         self.assertEqual(len(alg.episode_rew_history), 0)
         self.assertEqual(alg.epoch_episodes, 0)
@@ -234,7 +237,7 @@ class TestRLAlgorithm(unittest.TestCase):
         shutil.rmtree('results')
 
         # Test the seeds.
-        alg.learn(0, log_dir='results', seed=1, initial_exploration_steps=0)
+        alg.learn(log_dir='results', seed=1, initial_exploration_steps=0)
         self.assertEqual(np.random.sample(), 0.417022004702574)
         self.assertEqual(random.uniform(0, 1), 0.13436424411240122)
         shutil.rmtree('results')
@@ -258,7 +261,7 @@ class TestRLAlgorithm(unittest.TestCase):
         alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero exploration steps.
-        alg.learn(0, log_dir='results', initial_exploration_steps=0)
+        alg.learn(log_dir='results', initial_exploration_steps=0)
 
         # Check the size of the replay buffer
         self.assertEqual(len(alg.policy_tf.replay_buffer), 0)
@@ -278,7 +281,7 @@ class TestRLAlgorithm(unittest.TestCase):
         alg = RLAlgorithm(**policy_params)
 
         # Run the learn operation for zero exploration steps.
-        alg.learn(0, log_dir='results', initial_exploration_steps=100)
+        alg.learn(log_dir='results', initial_exploration_steps=100)
 
         # Check the size of the replay buffer
         self.assertEqual(len(alg.policy_tf.replay_buffer), 100)

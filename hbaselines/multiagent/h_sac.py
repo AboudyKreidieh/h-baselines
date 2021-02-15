@@ -32,15 +32,17 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  shared,
                  maddpg,
+                 n_agents,
                  env_name="",
                  num_envs=1,
                  all_ob_space=None,
-                 n_agents=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -127,6 +129,10 @@ class MultiGoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -136,6 +142,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         shared : bool
             whether to use a shared policy for all agents
         maddpg : bool
@@ -145,9 +154,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -171,6 +179,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
+            num_envs=n_agents * num_envs if shared else num_envs,
             scope=scope,
             additional_params=dict(
                 target_entropy=target_entropy,
@@ -184,11 +193,12 @@ class MultiGoalConditionedPolicy(BasePolicy):
                 subgoal_testing_rate=subgoal_testing_rate,
                 cooperative_gradients=cooperative_gradients,
                 cg_weights=cg_weights,
+                cg_delta=cg_delta,
                 pretrain_worker=pretrain_worker,
                 pretrain_path=pretrain_path,
                 pretrain_ckpt=pretrain_ckpt,
+                total_steps=total_steps,
                 env_name=env_name,
-                num_envs=n_agents * num_envs if shared else num_envs,
             ),
         )
 

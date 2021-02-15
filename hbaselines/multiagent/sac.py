@@ -114,8 +114,9 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
                  target_entropy,
                  shared,
                  maddpg,
+                 n_agents,
                  all_ob_space=None,
-                 n_agents=1,
+                 num_envs=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -164,9 +165,8 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -244,6 +244,7 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
+            num_envs=num_envs,
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
@@ -1207,7 +1208,7 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
-                return {"policy": [0, 0]}, {"policy": 0}
+                return
 
             # Get a batch.
             obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
@@ -1222,11 +1223,6 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
 
             # Collect all update and loss call operations.
             step_ops = [
-                self.critic_loss[0],
-                self.critic_loss[1],
-                self.critic_loss[2],
-                self.actor_loss,
-                self.alpha_loss,
                 self.critic_optimizer,
                 self.actor_optimizer,
                 self.alpha_optimizer,
@@ -1250,27 +1246,18 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
             feed_dict.update({
                 self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
 
-            # Perform the update operations and collect the actor and critic
-            # loss.
-            q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
-                step_ops, feed_dict)
-            critic_loss = {"policy": [q1_loss, q2_loss]}
-            actor_loss = {"policy": actor_loss}
+            # Perform the update operations.
+            self.sess.run(step_ops, feed_dict)
 
         # =================================================================== #
         #                    Independent update procedure                     #
         # =================================================================== #
 
         else:
-            actor_loss = {}
-            critic_loss = {}
-
             # Loop through all agent.
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():
-                    actor_loss[key] = 0
-                    critic_loss[key] = [0, 0]
                     continue
 
                 # Get a batch.
@@ -1286,11 +1273,6 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
 
                 # Collect all update and loss call operations.
                 step_ops = [
-                    self.critic_loss[key][0],
-                    self.critic_loss[key][1],
-                    self.critic_loss[key][2],
-                    self.actor_loss[key],
-                    self.alpha_loss[key],
                     self.critic_optimizer[key],
                     self.actor_optimizer[key],
                     self.alpha_optimizer[key],
@@ -1309,13 +1291,8 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
                     self.all_obs1_ph[key]: all_obs1,
                 }
 
-                # Perform the update operations and collect the actor and
-                # critic loss.
-                q1_loss, q2_loss, vf_loss, actor_loss[key], *_ = \
-                    self.sess.run(step_ops, feed_dict)
-                critic_loss[key] = [q1_loss, q2_loss]
-
-        return critic_loss, actor_loss
+                # Perform the update operations.
+                self.sess.run(step_ops, feed_dict)
 
     def _get_action_maddpg(self,
                            obs,
