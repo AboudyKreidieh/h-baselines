@@ -72,6 +72,7 @@ class TestTrain(unittest.TestCase):
             'env_name': 'AntMaze',
             'alg': 'TD3',
             'evaluate': False,
+            'exploration_strategy': None,
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
@@ -155,6 +156,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
             }
         })
@@ -249,6 +253,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
@@ -285,6 +290,9 @@ class TestTrain(unittest.TestCase):
                     'layer_norm': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'noise': 20.0,
                 'target_noise_clip': 23.0,
@@ -362,6 +370,7 @@ class TestTrain(unittest.TestCase):
             'relative_goals': False,
             'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
                 'subgoal_testing_rate'],
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
@@ -404,6 +413,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
                 'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
@@ -511,6 +523,7 @@ class TestTrain(unittest.TestCase):
             'off_policy_corrections': True,
             'relative_goals': True,
             'subgoal_testing_rate': 6,
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
@@ -553,6 +566,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': 7,
                 'cg_delta': 10,
@@ -625,6 +641,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -667,6 +684,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': False,
                 'maddpg': False,
@@ -733,6 +753,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 2,
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -775,6 +796,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': True,
                 'maddpg': True,
@@ -853,6 +877,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -895,6 +920,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': False,
                 'maddpg': False,
@@ -991,6 +1019,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 8,
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
@@ -1033,6 +1062,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': 7,
                 'cg_delta': 9,
@@ -1125,6 +1157,7 @@ class TestTrain(unittest.TestCase):
             'critic_lr': SAC_PARAMS['critic_lr'],
             'tau': SAC_PARAMS['tau'],
             'gamma': SAC_PARAMS['gamma'],
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
@@ -1165,6 +1198,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
             }
         })
@@ -1255,6 +1291,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'exploration_strategy': None,
         })
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
@@ -1292,13 +1329,16 @@ class TestTrain(unittest.TestCase):
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
                 },
+                'exploration_params': {
+                    'exploration_strategy': None,
+                },
                 'target_entropy': 20.0,
                 'tau': 18.0,
                 'use_huber': True
             },
         })
 
-    def test_parse_options_PPO(self):
+    def test_parse_options_ppo(self):
         """Test the parse_options and get_hyperparameters methods for PPO.
 
         This is done for the following cases:
@@ -1323,6 +1363,7 @@ class TestTrain(unittest.TestCase):
             'env_name': 'AntMaze',
             'alg': 'PPO',
             'evaluate': False,
+            'exploration_strategy': None,
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
@@ -1407,6 +1448,9 @@ class TestTrain(unittest.TestCase):
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
                 },
+                'exploration_params': {
+                    'exploration_strategy': None,
+                },
             }
         })
 
@@ -1451,6 +1495,7 @@ class TestTrain(unittest.TestCase):
                 '--n_minibatches', '31',
                 '--n_opt_epochs', '32',
                 '--vf_coef', '33',
+                '--exploration_strategy', '34',
             ],
             multiagent=False,
             hierarchical=False,
@@ -1500,6 +1545,7 @@ class TestTrain(unittest.TestCase):
             'n_minibatches': 31,
             'n_opt_epochs': 32,
             'vf_coef': 33.0,
+            'exploration_strategy': '34',
         })
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
@@ -1541,6 +1587,9 @@ class TestTrain(unittest.TestCase):
                     'layer_norm': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
+                },
+                'exploration_params': {
+                    'exploration_strategy': '34',
                 },
             },
         })
@@ -1634,16 +1683,16 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="ring-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([10 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([10 for _ in range(1)]),
+            expected_size=1,
         )
         ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-5 for _ in range(1)]),
+            expected_max=np.array([5 for _ in range(1)]),
+            expected_size=1,
         )
 
         # test for ring-v0-fast
@@ -1787,64 +1836,64 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="highway-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v1
         ac_space = get_meta_ac_space(env_name="highway-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v2
         ac_space = get_meta_ac_space(env_name="highway-v2", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v2", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v3
         ac_space = get_meta_ac_space(env_name="highway-v3", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v3", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-imitation
@@ -1992,31 +2041,31 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v1-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v1-fast", **params),
-            [0, 25]
+            [0, 15]
         )
 
         # test for ring-v2-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v2-fast", **params),
-            [0, 25, 50]
+            [0, 15, 30]
         )
 
         # test for ring-v3-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v3-fast", **params),
-            [0, 25, 50, 75]
+            [0, 15, 30, 45]
         )
 
         # test for ring-v4-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v4-fast", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for ring-imitation
         self.assertListEqual(
             get_state_indices(env_name="ring-imitation", **params),
-            [0, 5, 10, 15, 20]
+            [0, 15, 30, 45, 60]
         )
 
         # test for merge-v0
@@ -2040,67 +2089,67 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-imitation
         self.assertListEqual(
             get_state_indices(env_name="highway-imitation", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135]
         )
 
         # test for i210-v0
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
+             420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
+             615, 630, 645, 660, 675, 690, 705, 720, 735]
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
+             420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
+             615, 630, 645, 660, 675, 690, 705, 720, 735]
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
+             420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
+             615, 630, 645, 660, 675, 690, 705, 720, 735]
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
+             420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
+             615, 630, 645, 660, 675, 690, 705, 720, 735]
         )
 
         # test for Point2DEnv

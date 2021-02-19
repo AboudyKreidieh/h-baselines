@@ -874,7 +874,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25 * self.num_rl,),
+            shape=(15 * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):

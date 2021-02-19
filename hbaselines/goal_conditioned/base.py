@@ -136,6 +136,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -156,8 +157,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  num_envs=1,
                  meta_policy=None,
                  worker_policy=None,
-                 additional_params=None,
-                 exploration_params=None):
+                 additional_params=None):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -191,6 +191,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             used instead
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -277,6 +279,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 
@@ -354,6 +357,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     use_huber=use_huber,
                     l2_penalty=l2_penalty,
                     model_params=model_params_i,
+                    exploration_params=exploration_params,
                     scope=scope_i,
                     **(additional_params or {}),
                 ))

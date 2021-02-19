@@ -649,7 +649,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float("inf"),
             high=float("inf"),
-            shape=(25 * self.num_rl,),
+            shape=(15 * self.num_rl,),
             dtype=np.float32,
         )
 

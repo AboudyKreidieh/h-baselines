@@ -59,6 +59,7 @@ class ActorCriticPolicy(Policy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_envs=1):
         """Instantiate the base policy object.
 
@@ -95,6 +96,8 @@ class ActorCriticPolicy(Policy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         """
         super(ActorCriticPolicy, self).__init__(
             sess=sess,
@@ -104,6 +107,7 @@ class ActorCriticPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 

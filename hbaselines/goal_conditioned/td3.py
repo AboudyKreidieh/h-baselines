@@ -32,6 +32,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -49,8 +50,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  total_steps,
                  scope=None,
                  env_name="",
-                 num_envs=1,
-                 exploration_params=None):
+                 num_envs=1):
         """Instantiate the goal-conditioned hierarchical policy.
 
         Parameters
@@ -95,6 +95,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -157,6 +159,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,

@@ -56,7 +56,10 @@ def get_hyperparameters(args, policy):
             "layers":
                 getattr(args, "model_params:layers") or
                 FEEDFORWARD_PARAMS["model_params"]["layers"],
-        }
+        },
+        "exploration_params": {
+            "exploration_strategy": args.exploration_strategy,
+        },
     }
 
     # add TD3 parameters

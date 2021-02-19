@@ -10,8 +10,6 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import print_params_shape
 
-import hbaselines.exploration_strategies
-
 
 class FeedForwardPolicy(ActorCriticPolicy):
     """Feed-forward neural network actor-critic policy.
@@ -107,12 +105,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
                  scope=None,
-                 num_envs=1,
-                 exploration_params=None):
+                 num_envs=1):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -148,6 +146,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -175,6 +175,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 
@@ -188,15 +189,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
         # Compute the shape of the input observation space, which may include
         # the contextual term.
         ob_dim = self._get_ob_dim(ob_space, co_space)
-
-        # Initialize the exploration strategy
-        self.exploration_strategy = None
-        if exploration_params is not None:
-            try:
-                ep_class = getattr(hbaselines.exploration_strategies, exploration_params['exploration_strategy'])
-                self.exploration_strategy = ep_class(ac_space)
-            except AttributeError:
-                print("Requested exploration strategies is not supported, will default to no exploration")
 
         # =================================================================== #
         # Step 1: Create a replay buffer object.                              #

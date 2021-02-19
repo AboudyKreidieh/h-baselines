@@ -128,6 +128,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  target_entropy,
                  scope=None,
                  num_envs=1):
@@ -166,6 +167,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         target_entropy : float
             target entropy used when learning the entropy coefficient. If set
             to None, a heuristic value is used.
@@ -187,6 +190,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 

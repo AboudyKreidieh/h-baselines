@@ -31,7 +31,7 @@ def full_observation_fn(env):
 
     # Add relative observation of each vehicle.
     for i, v_id in enumerate(env.rl_ids()):
-        obs[5 * i: 5 * (i + 1)], leader, follower = get_relative_obs(env, v_id)
+        obs[5 * i: 5 * (i + 1)], leader = get_relative_obs(env, v_id)
 
     return np.asarray(obs)
 

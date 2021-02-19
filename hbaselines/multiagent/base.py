@@ -107,6 +107,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  shared,
                  maddpg,
                  n_agents,
@@ -191,6 +192,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 
@@ -392,6 +394,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
             use_huber=self.use_huber,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
+            exploration_params=self.exploration_params,
             num_envs=self.num_envs,
             **self.additional_params
         )

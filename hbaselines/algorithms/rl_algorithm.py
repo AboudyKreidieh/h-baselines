@@ -133,7 +133,7 @@ PPO_PARAMS = dict(
 FEEDFORWARD_PARAMS = dict(
     # L2 regularization penalty. This is applied to the policy network.
     l2_penalty=0,
-    # dictionary of exploration strategies
+    # dictionary of exploration-specific parameters
     exploration_params=dict(
         # the name of exploration strategies
         exploration_strategy=None
