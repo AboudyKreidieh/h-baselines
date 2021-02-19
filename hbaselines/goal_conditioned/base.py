@@ -15,7 +15,6 @@ from hbaselines.utils.tf_util import get_trainable_vars
 class GoalConditionedPolicy(ActorCriticPolicy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
 
-    TODO
     This policy is an implementation of the two-level hierarchy presented
     in [1], which itself is similar to the feudal networks formulation [2, 3].
     This network consists of a high-level, or Manager, pi_{\theta_H} that
