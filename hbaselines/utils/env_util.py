@@ -39,8 +39,6 @@ try:
         import RingSingleAgentEnv
     from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
         import RingMultiAgentEnv
-    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
-        import MAX_SPEED
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
@@ -517,7 +515,6 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
@@ -543,7 +540,6 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
@@ -569,7 +565,6 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=False,
                 use_follower_stopper=False,
                 multiagent=multiagent,
-                obs_frames=5,
             ),
             render=render,
             multiagent=multiagent,
@@ -595,7 +590,6 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=True,
                 multiagent=multiagent,
-                obs_frames=5 if multiagent else 1,
             ),
             render=render,
             multiagent=multiagent,
@@ -715,8 +709,7 @@ ENV_ATTRIBUTES = {
             shape=(5,),
             dtype=np.float32
         ),
-        "state_indices": lambda multiagent: [3 * i for i in range(5)],
-        "state_indices": lambda multiagent: [5 * i for i in range(5)],
+        "state_indices": lambda multiagent: [15 * i for i in range(5)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=ring(
@@ -750,7 +743,6 @@ ENV_ATTRIBUTES = {
                 use_follower_stopper=False,
                 evaluate=evaluate,
                 multiagent=multiagent,
-                obs_frames=5,
                 imitation=True,
             ),
             render=render,
@@ -836,8 +828,8 @@ def _get_ring_env_attributes(scale):
     """
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-5 / MAX_SPEED if relative_goals else 0 / MAX_SPEED,
-            high=5 / MAX_SPEED if relative_goals else 10 / MAX_SPEED,
+            low=-5 if relative_goals else 0,
+            high=5 if relative_goals else 10,
             shape=(1 if multiagent else scale,),
             dtype=np.float32
         ),

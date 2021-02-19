@@ -149,7 +149,7 @@ def get_flow_params(stopping_penalty,
         sim=SumoParams(
             use_ballistic=True,
             render=False,
-            sim_step=0.4,
+            sim_step=0.2,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
@@ -159,12 +159,12 @@ def get_flow_params(stopping_penalty,
             sims_per_step=1,
             evaluate=evaluate,
             additional_params={
-                "max_accel": 0.25,
+                "max_accel": 0.5,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,
-                "ring_length": [250 * scale, 270 * scale],
                 "obs_frames": 5,
+                "ring_length": [220 * scale, 270 * scale],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
@@ -186,9 +186,7 @@ def get_flow_params(stopping_penalty,
         # parameters specifying the positioning of vehicles upon init/reset
         # (see flow.core.params.InitialConfig)
         initial=InitialConfig(
-            # spacing="random",
-            perturbation=0.5,
             min_gap=0.5,
-            # shuffle=True,
+            perturbation=0.5,
         ),
     )

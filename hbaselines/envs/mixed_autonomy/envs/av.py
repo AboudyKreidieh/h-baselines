@@ -248,7 +248,7 @@ class AVEnv(Env):
             acceleration_penalty = params["acceleration_penalty"]
 
             num_vehicles = len(veh_ids)
-            vel = np.array(self.k.vehicle.get_speed(self.rl_ids()))
+            vel = np.array(self.k.vehicle.get_speed(veh_ids))
             if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
                 # in case of collisions or an empty network
                 reward = 0
