@@ -6,8 +6,8 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
-from hbaselines.goal_conditioned.ppo import GoalConditionedPolicy as \
-    PPOGoalConditionedPolicy
+# from hbaselines.goal_conditioned.ppo import GoalConditionedPolicy as \
+#     PPOGoalConditionedPolicy
 from hbaselines.multi_fcnet.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicyOld
 from hbaselines.multi_fcnet.sac import MultiFeedForwardPolicy as \
@@ -50,6 +50,7 @@ def is_ppo_policy(policy):
     """Check whether a policy is for designed to support PPO."""
     return policy in [
         PPOFeedForwardPolicy,
+        PPOMultiFeedForwardPolicy,
     ]
 
 
@@ -71,7 +72,7 @@ def is_goal_conditioned_policy(policy):
     return policy in [
         TD3GoalConditionedPolicy,
         SACGoalConditionedPolicy,
-        PPOGoalConditionedPolicy,
+        # PPOGoalConditionedPolicy,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]

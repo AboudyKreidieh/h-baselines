@@ -25,6 +25,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                  cliprange_vf,
                  shared,
                  maddpg,
+                 l2_penalty,
                  num_envs=1,
                  all_ob_space=None,
                  n_agents=1,
@@ -71,11 +72,12 @@ class MultiFeedForwardPolicy(BasePolicy):
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
             scope=scope,
+            l2_penalty=l2_penalty,
             additional_params=dict(
                 learning_rate=learning_rate,
-                n_minibatche=n_minibatches,
+                n_minibatches=n_minibatches,
                 n_opt_epochs=n_opt_epochs,
-                gamm=gamma,
+                gamma=gamma,
                 lam=lam,
                 ent_coef=ent_coef,
                 vf_coef=vf_coef,
@@ -83,6 +85,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 cliprange=cliprange,
                 cliprange_vf=cliprange_vf,
                 num_envs=num_envs,
+                # l2_penalty=l2_penalty,
             ),
         )
 
