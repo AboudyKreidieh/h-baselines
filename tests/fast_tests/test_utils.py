@@ -5,6 +5,8 @@ import numpy as np
 import random
 from gym.spaces import Box
 
+from hbaselines.utils.eval import parse_options as parse_eval_options
+from hbaselines.utils.eval import get_hyperparameters_from_dir
 from hbaselines.utils.train import parse_options
 from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
@@ -32,6 +34,7 @@ from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
@@ -72,6 +75,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -113,6 +117,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -167,6 +172,7 @@ class TestTrain(unittest.TestCase):
                 '--n_training', '1',
                 '--total_steps', '2',
                 '--seed', '3',
+                '--log_dir', 'custom_dir',
                 '--log_interval', '4',
                 '--eval_interval', '5',
                 '--save_interval', '6',
@@ -210,6 +216,7 @@ class TestTrain(unittest.TestCase):
             'evaluate': True,
             'gamma': 19.0,
             'initial_exploration_steps': 10000,
+            'log_dir': 'custom_dir',
             'log_interval': 4,
             'meta_update_freq': 13,
             'l2_penalty': 1,
@@ -246,6 +253,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -299,6 +307,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -337,6 +346,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
             'cooperative_gradients': False,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -356,6 +366,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -395,6 +406,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+                'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
                 'cooperative_gradients': False,
                 'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
                 'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -431,6 +443,7 @@ class TestTrain(unittest.TestCase):
                 "--subgoal_testing_rate", "6",
                 "--cooperative_gradients",
                 "--cg_weights", "7",
+                "--cg_delta", "10",
                 "--pretrain_ckpt", "8",
                 "--pretrain_path", "9",
                 "--pretrain_worker",
@@ -446,6 +459,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -484,6 +498,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': 7,
+            'cg_delta': 10,
             'cooperative_gradients': True,
             'pretrain_ckpt': 8,
             'pretrain_path': "9",
@@ -500,6 +515,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -539,6 +555,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': 7,
+                'cg_delta': 10,
                 'cooperative_gradients': True,
                 'pretrain_ckpt': 8,
                 'pretrain_path': "9",
@@ -567,6 +584,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -606,10 +624,12 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -650,6 +670,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -659,7 +680,7 @@ class TestTrain(unittest.TestCase):
 
         args = parse_options(
             "", "",
-            args=["AntMaze", "--shared", "--maddpg"],
+            args=["AntMaze", "--shared", "--maddpg", "--n_agents", "2"],
             multiagent=True,
             hierarchical=False,
         )
@@ -671,6 +692,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -710,10 +732,12 @@ class TestTrain(unittest.TestCase):
             'gamma': TD3_PARAMS['gamma'],
             'shared': True,
             'maddpg': True,
+            'n_agents': 2,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -754,6 +778,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 2,
             }
         })
 
@@ -770,6 +795,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -808,6 +834,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
             'cooperative_gradients': False,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -825,10 +852,12 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate'],
             'shared': False,
             'maddpg': False,
+            'n_agents': MULTIAGENT_PARAMS["n_agents"],
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -869,6 +898,7 @@ class TestTrain(unittest.TestCase):
                 },
                 'shared': False,
                 'maddpg': False,
+                'n_agents': MULTIAGENT_PARAMS["n_agents"],
             }
         })
 
@@ -890,8 +920,10 @@ class TestTrain(unittest.TestCase):
                 "--subgoal_testing_rate", "6",
                 "--cooperative_gradients",
                 "--cg_weights", "7",
+                "--cg_delta", "9",
                 "--shared",
                 "--maddpg",
+                "--n_agents", "8",
             ],
             multiagent=True,
             hierarchical=True,
@@ -904,6 +936,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -942,6 +975,7 @@ class TestTrain(unittest.TestCase):
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
             'cg_weights': 7,
+            'cg_delta': 9,
             'cooperative_gradients': True,
             'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
             'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -956,10 +990,12 @@ class TestTrain(unittest.TestCase):
             'subgoal_testing_rate': 6,
             'shared': True,
             'maddpg': True,
+            'n_agents': 8,
         })
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -999,6 +1035,7 @@ class TestTrain(unittest.TestCase):
                     'strides': model_params["strides"],
                 },
                 'cg_weights': 7,
+                'cg_delta': 9,
                 'cooperative_gradients': True,
                 'pretrain_ckpt': GOAL_CONDITIONED_PARAMS['pretrain_ckpt'],
                 'pretrain_path': GOAL_CONDITIONED_PARAMS['pretrain_path'],
@@ -1013,6 +1050,7 @@ class TestTrain(unittest.TestCase):
                 'subgoal_testing_rate': 6,
                 'shared': True,
                 'maddpg': True,
+                'n_agents': 8,
             }
         })
 
@@ -1051,6 +1089,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -1090,6 +1129,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1143,6 +1183,7 @@ class TestTrain(unittest.TestCase):
                 '--n_training', '1',
                 '--total_steps', '2',
                 '--seed', '3',
+                '--log_dir', 'custom_dir',
                 '--log_interval', '4',
                 '--eval_interval', '5',
                 '--save_interval', '6',
@@ -1183,6 +1224,7 @@ class TestTrain(unittest.TestCase):
             'evaluate': True,
             'gamma': 19.0,
             'initial_exploration_steps': 10000,
+            'log_dir': 'custom_dir',
             'log_interval': 4,
             'meta_update_freq': 13,
             'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
@@ -1217,6 +1259,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -1282,6 +1325,7 @@ class TestTrain(unittest.TestCase):
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
+            'log_dir': None,
             'log_interval': 2000,
             'eval_interval': 50000,
             'save_interval': 50000,
@@ -1336,6 +1380,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 1000000,
             'nb_train_steps': 1,
             'nb_rollout_steps': 1,
             'nb_eval_episodes': 50,
@@ -1404,6 +1449,7 @@ class TestTrain(unittest.TestCase):
                 '--n_training', '1',
                 '--total_steps', '2',
                 '--seed', '3',
+                '--log_dir', 'custom_dir',
                 '--log_interval', '4',
                 '--eval_interval', '5',
                 '--save_interval', '6',
@@ -1441,6 +1487,7 @@ class TestTrain(unittest.TestCase):
             'eval_interval': 5,
             'evaluate': True,
             'initial_exploration_steps': 10000,
+            'log_dir': 'custom_dir',
             'log_interval': 4,
             'meta_update_freq': 13,
             'model_params:layers': [22, 23],
@@ -1482,6 +1529,7 @@ class TestTrain(unittest.TestCase):
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
         self.assertDictEqual(hp, {
+            'total_steps': 2,
             '_init_setup_model': True,
             'render': True,
             'render_eval': True,
@@ -1612,7 +1660,7 @@ class TestEnvUtil(unittest.TestCase):
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
@@ -1623,31 +1671,79 @@ class TestEnvUtil(unittest.TestCase):
             expected_size=5,
         )
 
-        # test for ring-v1
-        ac_space = get_meta_ac_space(env_name="ring-v1", **params)
+        # test for ring-v0-fast
+        ac_space = get_meta_ac_space(env_name="ring-v0-fast", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([10 for _ in range(1)]),
+            expected_size=1,
         )
-        ac_space = get_meta_ac_space(env_name="ring-v1", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring-v0-fast", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-5 for _ in range(1)]),
+            expected_max=np.array([5 for _ in range(1)]),
+            expected_size=1,
         )
 
-        # test for ring-v2
-        ac_space = get_meta_ac_space(env_name="ring-v2", **params)
+        # test for ring-v1-fast
+        ac_space = get_meta_ac_space(env_name="ring-v1-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(2)]),
+            expected_max=np.array([10 for _ in range(2)]),
+            expected_size=2,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v1-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(2)]),
+            expected_max=np.array([5 for _ in range(2)]),
+            expected_size=2,
+        )
+
+        # test for ring-v2-fast
+        ac_space = get_meta_ac_space(env_name="ring-v2-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(3)]),
+            expected_max=np.array([10 for _ in range(3)]),
+            expected_size=3,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v2-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(3)]),
+            expected_max=np.array([5 for _ in range(3)]),
+            expected_size=3,
+        )
+
+        # test for ring-v3-fast
+        ac_space = get_meta_ac_space(env_name="ring-v3-fast", **params)
+        test_space(
+            ac_space,
+            expected_min=np.array([0 for _ in range(4)]),
+            expected_max=np.array([10 for _ in range(4)]),
+            expected_size=4,
+        )
+        ac_space = get_meta_ac_space(env_name="ring-v3-fast", **rel_params)
+        test_space(
+            ac_space,
+            expected_min=np.array([-5 for _ in range(4)]),
+            expected_max=np.array([5 for _ in range(4)]),
+            expected_size=4,
+        )
+
+        # test for ring-v4-fast
+        ac_space = get_meta_ac_space(env_name="ring-v4-fast", **params)
         test_space(
             ac_space,
             expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([20 for _ in range(5)]),
+            expected_max=np.array([10 for _ in range(5)]),
             expected_size=5,
         )
-        ac_space = get_meta_ac_space(env_name="ring-v2", **rel_params)
+        ac_space = get_meta_ac_space(env_name="ring-v4-fast", **rel_params)
         test_space(
             ac_space,
             expected_min=np.array([-5 for _ in range(5)]),
@@ -1909,19 +2005,37 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v0
         self.assertListEqual(
             get_state_indices(env_name="ring-v0", **params),
-            [0, 5, 10, 15, 20]
+            [0]
         )
 
-        # test for ring-v1
+        # test for ring-v0-fast
         self.assertListEqual(
-            get_state_indices(env_name="ring-v1", **params),
-            [0, 5, 10, 15, 20]
+            get_state_indices(env_name="ring-v0-fast", **params),
+            [0]
         )
 
-        # test for ring-v2
+        # test for ring-v1-fast
         self.assertListEqual(
-            get_state_indices(env_name="ring-v2", **params),
-            [0, 5, 10, 15, 20]
+            get_state_indices(env_name="ring-v1-fast", **params),
+            [0, 25]
+        )
+
+        # test for ring-v2-fast
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v2-fast", **params),
+            [0, 25, 50]
+        )
+
+        # test for ring-v3-fast
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v3-fast", **params),
+            [0, 25, 50, 75]
+        )
+
+        # test for ring-v4-fast
+        self.assertListEqual(
+            get_state_indices(env_name="ring-v4-fast", **params),
+            [0, 25, 50, 75, 100]
         )
 
         # test for ring-imitation
@@ -1951,25 +2065,25 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
         )
 
         # test for highway-imitation
@@ -1981,37 +2095,37 @@ class TestEnvUtil(unittest.TestCase):
         # test for i210-v0
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
-             85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
-             155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215,
-             220, 225, 230, 235, 240, 245]
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
+             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
+             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
         )
 
         # test for Point2DEnv
@@ -2368,6 +2482,58 @@ class TestTFUtil(unittest.TestCase):
 
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
+
+
+class TestEval(unittest.TestCase):
+    """Unit tests for the classes and methods in utils/eval.py."""
+
+    def test_parse_options(self):
+        """Test the functionality of parse_options method.
+
+        """
+        """Test the parse_options method.
+
+        This is done for the following cases:
+
+        1. default case
+        2. custom case
+        """
+        # test case 1
+        args = parse_eval_options(["AntMaze"])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': None,
+            'num_rollouts': 1,
+            'video': 'output',
+            'save_video': False,
+            'save_trajectory': False,
+            'no_render': False,
+            'random_seed': False,
+        }
+        self.assertDictEqual(vars(args), expected_args)
+
+        # test case 2
+        args = parse_eval_options([
+            "AntMaze",
+            '--ckpt_num', '1',
+            '--num_rollouts', '2',
+            '--video', '3',
+            '--save_video',
+            '--save_trajectory',
+            '--no_render',
+            '--random_seed',
+        ])
+        expected_args = {
+            'dir_name': 'AntMaze',
+            'ckpt_num': 1,
+            'num_rollouts': 2,
+            'video': '3',
+            'save_video': True,
+            'save_trajectory': True,
+            'no_render': True,
+            'random_seed': True,
+        }
+        self.assertDictEqual(vars(args), expected_args)
 
 
 def test_space(gym_space, expected_size, expected_min, expected_max):

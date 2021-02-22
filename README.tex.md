@@ -997,7 +997,7 @@ sub-sections. Additional information can be found through the
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="90%"/></p>
+<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="90%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
@@ -1007,9 +1007,7 @@ environment name (e.g. "multiagent-ring-v0").
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
-| [ring](#ring)       | ring-v0          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
-|                     | ring-v1          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
-|                     | ring-v2          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| [ring](#ring)       | ring-v0          |       1       |        22      |     1/22    |          --          |          yes         |        yes       |
 | [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
 |                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
 |                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
@@ -1079,11 +1077,10 @@ congestion. This networks are detailed below.
 
 #### ring
 
-This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
-which are automated) are placed on a sing-lane circular track of length 1500m.
-In the absence of the automated vehicle, the human-driven vehicles exhibit 
-stop-and-go instabilities brought about by the string-unstable characteristic 
-of human car-following dynamics.
+This scenario consists of 22 vehicles (1 of which are automated) on a sing-lane
+circular track of length 220-270 m. In the absence of the automated vehicle, 
+the human-driven vehicles exhibit stop-and-go instabilities brought about by 
+the string-unstable characteristic of human car-following dynamics.
 
 #### merge
 

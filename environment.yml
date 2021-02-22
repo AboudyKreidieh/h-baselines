@@ -5,4 +5,4 @@ dependencies:
     - numpy==1.16.0
     - pip:
         - redis==2.10.6
-        - gym==0.10.8
+        - gym==0.14.0
