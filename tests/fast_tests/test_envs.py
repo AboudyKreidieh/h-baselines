@@ -2697,7 +2697,7 @@ def test_observed(env_class,
     Parameters
     ----------
     env_class : flow.envs.Env class
-        blank
+        the environment class. Used to instantiate the environment.
     sim_params : flow.core.params.SumoParams
         sumo-specific parameters
     network : flow.networks.Network
