@@ -188,7 +188,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
-            num_envs=n_agents * num_envs if shared else num_envs,
+            num_envs=num_envs,
             scope=scope,
             additional_params=dict(
                 buffer_size=buffer_size,

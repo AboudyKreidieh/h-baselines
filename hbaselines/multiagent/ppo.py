@@ -1,10 +1,10 @@
-"""SAC-compatible multi-agent goal-conditioned hierarchical policy."""
+"""PPO-compatible multi-agent feedforward neural network policy."""
 from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy
 
 
 class MultiFeedForwardPolicy(BasePolicy):
-    """PPO-compatible multi-agent feedforward neural."""
+    """PPO-compatible multi-agent feedforward neural network policy."""
 
     def __init__(self,
                  sess,
@@ -72,19 +72,19 @@ class MultiFeedForwardPolicy(BasePolicy):
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=FeedForwardPolicy,
+            num_envs=num_envs,
             scope=scope,
             additional_params=dict(
                 learning_rate=learning_rate,
-                n_minibatche=n_minibatches,
+                n_minibatches=n_minibatches,
                 n_opt_epochs=n_opt_epochs,
-                gamm=gamma,
+                gamma=gamma,
                 lam=lam,
                 ent_coef=ent_coef,
                 vf_coef=vf_coef,
                 max_grad_norm=max_grad_norm,
                 cliprange=cliprange,
                 cliprange_vf=cliprange_vf,
-                num_envs=num_envs,
             ),
         )
 

@@ -565,9 +565,9 @@ class FeedForwardPolicy(Policy):
         """
         # Update the minibatch of samples.
         self.mb_rewards[env_num].append(reward)
-        self.mb_obs[env_num].append([obs0])
+        self.mb_obs[env_num].append(obs0.reshape(1, -1))
         self.mb_contexts[env_num].append(context0)
-        self.mb_actions[env_num].append([action])
+        self.mb_actions[env_num].append(action.reshape(1, -1))
         self.mb_dones[env_num].append(done)
 
         # Update the last observation (to compute the last value for the GAE
