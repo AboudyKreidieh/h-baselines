@@ -14,6 +14,8 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy as \
+    PPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
     TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
@@ -46,6 +48,7 @@ def is_ppo_policy(policy):
     """Check whether a policy is for designed to support PPO."""
     return policy in [
         PPOFeedForwardPolicy,
+        PPOMultiFeedForwardPolicy,
     ]
 
 
@@ -79,6 +82,7 @@ def is_multiagent_policy(policy):
         TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
         SACMultiFeedForwardPolicyOld,
+        PPOMultiFeedForwardPolicy,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]

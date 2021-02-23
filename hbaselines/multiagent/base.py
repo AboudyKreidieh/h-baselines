@@ -355,7 +355,8 @@ class MultiAgentPolicy(Policy):
             verbose=self.verbose,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
-            num_envs=self.num_envs,
+            num_envs=(self.n_agents * self.num_envs if self.shared
+                      else self.num_envs),
             **self.additional_params
         )
 
