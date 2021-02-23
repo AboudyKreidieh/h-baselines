@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
@@ -13,6 +13,7 @@ from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import print_params_shape
+from hbaselines.utils.tf_util import setup_target_updates
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
 EPS = 1e-6
@@ -194,6 +195,14 @@ class MultiFeedForwardPolicy(BasePolicy):
                 for key in ac_space.keys()
             }
 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         # variables to be initialized later (if MADDPG is used)
         self.replay_buffer = None
         self.terminals1 = None
@@ -228,14 +237,7 @@ class MultiFeedForwardPolicy(BasePolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
@@ -246,6 +248,13 @@ class MultiFeedForwardPolicy(BasePolicy):
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 target_entropy=target_entropy,
             ),
         )
@@ -718,7 +727,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         )
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(
+        init, soft = setup_target_updates(
             model_scope='model/centralized_value_fns/vf',
             target_scope='target/centralized_value_fns/vf',
             scope=scope,

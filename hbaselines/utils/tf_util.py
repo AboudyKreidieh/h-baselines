@@ -695,3 +695,43 @@ def process_minibatch(mb_obs,
 
     return mb_obs, mb_contexts, mb_actions, mb_values, mb_neglogpacs, \
         mb_all_obs, mb_rewards, mb_returns, mb_dones, mb_advs, n_steps
+
+
+def setup_target_updates(model_scope, target_scope, scope, tau, verbose):
+    """Create the soft and initial target updates.
+
+    The initial model parameters are assumed to be stored under the scope name
+    "model", while the target policy parameters are assumed to be under the
+    scope name "target".
+
+    If an additional outer scope was provided when creating the policies, they
+    can be passed under the `scope` parameter.
+
+    Parameters
+    ----------
+    model_scope : str
+        the scope of the model parameters
+    target_scope : str
+        the scope of the target parameters
+    scope : str or None
+        the outer scope, set to None if not available
+    tau : float
+        target update rate
+    verbose : int
+        the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+
+    Returns
+    -------
+    tf.Operation
+        initial target updates, to match the target with the model
+    tf.Operation
+        soft target update operations
+    """
+    if scope is not None:
+        model_scope = scope + '/' + model_scope
+        target_scope = scope + '/' + target_scope
+
+    return get_target_updates(
+        get_trainable_vars(model_scope),
+        get_trainable_vars(target_scope),
+        tau, verbose)
