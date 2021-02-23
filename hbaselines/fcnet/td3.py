@@ -158,7 +158,6 @@ class FeedForwardPolicy(Policy):
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
-        print(model_params)
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
