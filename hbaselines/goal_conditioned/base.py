@@ -259,8 +259,7 @@ class GoalConditionedPolicy(Policy):
             additional algorithm-specific policy parameters. Used internally by
             the class when instantiating other (child) policies.
         """
-        ActorCriticPolicy.__init__(
-            self,
+        super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,

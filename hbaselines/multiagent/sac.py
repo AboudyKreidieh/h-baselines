@@ -232,8 +232,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.actor_loss = None
         self.actor_optimizer = None
 
-        BasePolicy.__init__(
-            self=self,
+        super(MultiFeedForwardPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
