@@ -1,5 +1,5 @@
 """SAC-compatible multi-agent goal-conditioned hierarchical policy."""
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 
 
@@ -159,19 +159,20 @@ class MultiGoalConditionedPolicy(BasePolicy):
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         super(MultiGoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
@@ -182,6 +183,13 @@ class MultiGoalConditionedPolicy(BasePolicy):
             num_envs=n_agents * num_envs if shared else num_envs,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 target_entropy=target_entropy,
                 num_levels=num_levels,
                 meta_period=meta_period,

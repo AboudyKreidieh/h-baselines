@@ -19,8 +19,8 @@ from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
-class TestMultiActorCriticPolicy(unittest.TestCase):
-    """Test MultiActorCriticPolicy in hbaselines/multiagent/base.py."""
+class TestMultiAgentPolicy(unittest.TestCase):
+    """Test MultiAgentPolicy in hbaselines/multiagent/base.py."""
 
     def setUp(self):
         self.sess = tf.compat.v1.Session()

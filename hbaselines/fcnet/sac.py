@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
@@ -11,6 +11,7 @@ from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import print_params_shape
+from hbaselines.utils.tf_util import setup_target_updates
 
 
 # Cap the standard deviation of the actor
@@ -18,7 +19,7 @@ LOG_STD_MAX = 2
 LOG_STD_MIN = -20
 
 
-class FeedForwardPolicy(ActorCriticPolicy):
+class FeedForwardPolicy(Policy):
     """SAC-compatible feedforward policy.
 
     Attributes
@@ -177,18 +178,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             num_envs=num_envs,
         )
+
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
@@ -270,7 +272,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.value_target = value_target
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(
+        init, soft = setup_target_updates(
             'model/value_fns/vf', 'target/value_fns/vf', scope, tau, verbose)
         self.target_init_updates = init
         self.target_soft_updates = soft

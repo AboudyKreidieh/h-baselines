@@ -121,7 +121,7 @@ def get_hyperparameters(args, policy):
             "pretrain_ckpt": args.pretrain_ckpt,
         })
 
-    # add MultiActorCriticPolicy parameters
+    # add MultiAgentPolicy parameters
     if is_multiagent_policy(policy):
         policy_kwargs.update({
             "shared": args.shared,

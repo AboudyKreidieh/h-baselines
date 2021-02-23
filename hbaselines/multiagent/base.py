@@ -1,11 +1,11 @@
-"""Multi-agent base actor critic policy."""
+"""Multi-agent base policy."""
 import tensorflow as tf
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 
 
-class MultiActorCriticPolicy(ActorCriticPolicy):
-    """Multi-agent base actor critic policy.
+class MultiAgentPolicy(Policy):
+    """Multi-agent base policy.
 
     This policy supports training off-policy variants of three popular
     multi-agent algorithms:
@@ -23,7 +23,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={}
       >>> )
@@ -41,7 +41,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "shared": True,
@@ -57,7 +57,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
       >>> from hbaselines.algorithms import RLAlgorithm
       >>>
       >>> alg = RLAlgorithm(
-      >>>     policy=MultiActorCriticPolicy,
+      >>>     policy=MultiAgentPolicy,
       >>>     env="...",  # replace with an appropriate environment
       >>>     policy_kwargs={
       >>>         "maddpg": True,
@@ -81,13 +81,13 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
     n_agents : int
         the expected number of agents in the environment. Only relevant if
         using shared policies with MADDPG or goal-conditioned hierarchies.
-    base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+    base_policy : type [ hbaselines.base_policies.Policy ]
         the base (single agent) policy model used by all agents within the
         network
     additional_params : dict
         additional algorithm-specific policy parameters. Used internally by the
         class when instantiating other (child) policies.
-    agents : dict <str, hbaselines.base_policies.ActorCriticPolicy>
+    agents : dict <str, hbaselines.base_policies.Policy>
         Actor policy for each agent in the network. If MADDPG variants of the
         policy are being used, this attribute is not used.
     """
@@ -97,14 +97,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
                  ob_space,
                  ac_space,
                  co_space,
-                 buffer_size,
-                 batch_size,
-                 actor_lr,
-                 critic_lr,
                  verbose,
-                 tau,
-                 gamma,
-                 use_huber,
                  l2_penalty,
                  model_params,
                  shared,
@@ -130,25 +123,9 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         co_space : gym.spaces.* or dict <str, gym.spaces.*>
             the context space of individual agents in the environment. If
             not a dictionary, the context space is shared across all agents.
-        buffer_size : int
-            the max number of transitions to store
-        batch_size : int
-            SGD batch size
-        actor_lr : float
-            actor learning rate
-        critic_lr : float
-            critic learning rate
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
-        tau : float
-            target update rate
-        gamma : float
-            discount factor
-        use_huber : bool
-            specifies whether to use the huber distance function as the loss
-            for the critic. If set to False, the mean-squared error metric is
-            used instead
         l2_penalty : float
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
@@ -158,7 +135,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         maddpg : bool
             whether to use an algorithm-specific variant of the MADDPG
             algorithm
-        base_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+        base_policy : type [ hbaselines.base_policies.Policy ]
             the base (single agent) policy model used by all agents within the
             network
         all_ob_space : gym.spaces.*
@@ -176,19 +153,12 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         if co_space is None and not shared:
             co_space = {key: None for key in ob_space.keys()}
 
-        super(MultiActorCriticPolicy, self).__init__(
+        super(MultiAgentPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             num_envs=num_envs,
@@ -382,14 +352,7 @@ class MultiActorCriticPolicy(ActorCriticPolicy):
         operations are created.
         """
         policy_parameters = dict(
-            buffer_size=self.buffer_size,
-            batch_size=self.batch_size,
-            actor_lr=self.actor_lr,
-            critic_lr=self.critic_lr,
             verbose=self.verbose,
-            tau=self.tau,
-            gamma=self.gamma,
-            use_huber=self.use_huber,
             l2_penalty=self.l2_penalty,
             model_params=self.model_params,
             num_envs=self.num_envs,

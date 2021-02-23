@@ -128,6 +128,14 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             Total number of timesteps used during training. Used by a subset of
             algorithms.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
