@@ -298,7 +298,7 @@ class RLAlgorithm(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.base_policies.ActorCriticPolicy
+    policy_tf : hbaselines.base_policies.Policy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session

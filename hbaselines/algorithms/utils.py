@@ -50,6 +50,7 @@ def is_ppo_policy(policy):
     """Check whether a policy is for designed to support PPO."""
     return policy in [
         PPOFeedForwardPolicy,
+        PPOMultiFeedForwardPolicy,
     ]
 
 

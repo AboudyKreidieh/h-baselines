@@ -5,16 +5,16 @@ from functools import reduce
 
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
-from hbaselines.base_policies import ActorCriticPolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import reduce_std
+from hbaselines.utils.tf_util import setup_target_updates
 
 
-class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
+class MultiFeedForwardPolicy(BasePolicy):
     """TD3-compatible multi-agent feedforward neural.
 
     The attributes described in this docstring are only used if the `maddpg`
@@ -179,6 +179,14 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
                 self.target_noise_clip[key] = \
                     np.array([ac_mag * target_noise_clip])
 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         # variables to be initialized later (if MADDPG is used)
         self.replay_buffer = None
         self.terminals1 = None
@@ -205,14 +213,7 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
@@ -223,6 +224,13 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,
@@ -614,7 +622,7 @@ class MultiFeedForwardPolicy(BasePolicy, ActorCriticPolicy):
         )
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(
+        init, soft = setup_target_updates(
             'model', 'target', scope, self.tau, self.verbose)
 
         # Setup the actor update procedure.

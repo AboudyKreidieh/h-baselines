@@ -9,12 +9,15 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy as \
     TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy as \
+    PPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
     TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
     SACMultiGoalConditionedPolicy
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
@@ -2494,6 +2497,187 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                       [2., 2., 2., 2., 2., 2., 2., 2., 2., 2.],
                       [3., 3., 3., 3., 3., 3., 3., 3., 3., 3.]])
         )
+
+
+class TestPPOMultiFeedForwardPolicy(unittest.TestCase):
+    """Test MultiFeedForwardPolicy in hbaselines/multiagent/ppo.py."""
+
+    def setUp(self):
+        self.sess = tf.compat.v1.Session()
+
+        # Shared policy parameters
+        self.policy_params_shared = {
+            'sess': self.sess,
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'co_space': Box(low=-2, high=2, shape=(2,)),
+            'ob_space': Box(low=-3, high=3, shape=(3,)),
+            'all_ob_space': Box(low=-3, high=3, shape=(10,)),
+            'verbose': 0,
+        }
+        self.policy_params_shared.update(PPO_PARAMS.copy())
+        self.policy_params_shared.update(MULTIAGENT_PARAMS.copy())
+        self.policy_params_shared['shared'] = True
+        self.policy_params_shared['model_params']['model_type'] = 'fcnet'
+
+        # Independent policy parameters
+        self.policy_params_independent = {
+            'sess': self.sess,
+            'ac_space': {
+                'a': Box(low=-1, high=1, shape=(1,)),
+                'b': Box(low=-2, high=2, shape=(2,)),
+            },
+            'co_space': {
+                'a': Box(low=-3, high=3, shape=(3,)),
+                'b': Box(low=-4, high=4, shape=(4,)),
+            },
+            'ob_space': {
+                'a': Box(low=-5, high=5, shape=(5,)),
+                'b': Box(low=-6, high=6, shape=(6,)),
+            },
+            'all_ob_space': Box(low=-6, high=6, shape=(18,)),
+            'verbose': 0,
+        }
+        self.policy_params_independent.update(PPO_PARAMS.copy())
+        self.policy_params_independent.update(MULTIAGENT_PARAMS.copy())
+        self.policy_params_independent['shared'] = False
+        self.policy_params_independent['model_params']['model_type'] = 'fcnet'
+
+    def tearDown(self):
+        self.sess.close()
+        del self.policy_params_shared
+        del self.policy_params_independent
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init_1(self):
+        """Check the functionality of the __init__() method.
+
+        This method is tested for the following features:
+
+        1. The proper structure graph was generated.
+        2. All input placeholders are correct.
+
+        This is done for the following cases:
+
+        1. maddpg = False, shared = False, model_type = "fcnet"
+        2. maddpg = False, shared = True,  model_type = "fcnet"
+        3. maddpg = True,  shared = False, model_type = "fcnet"
+        4. maddpg = True,  shared = True,  model_type = "fcnet"
+        5. maddpg = True,  shared = False, model_type = "conv"
+        6. maddpg = True,  shared = True,  model_type = "conv"
+        """
+        policy_params = self.policy_params_independent.copy()
+        policy_params["maddpg"] = False
+        policy = PPOMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['a/model/logstd:0',
+             'a/model/pi/fc0/bias:0',
+             'a/model/pi/fc0/kernel:0',
+             'a/model/pi/fc1/bias:0',
+             'a/model/pi/fc1/kernel:0',
+             'a/model/pi/output/bias:0',
+             'a/model/pi/output/kernel:0',
+             'a/model/vf/fc0/bias:0',
+             'a/model/vf/fc0/kernel:0',
+             'a/model/vf/fc1/bias:0',
+             'a/model/vf/fc1/kernel:0',
+             'a/model/vf/output/bias:0',
+             'a/model/vf/output/kernel:0',
+             'b/model/logstd:0',
+             'b/model/pi/fc0/bias:0',
+             'b/model/pi/fc0/kernel:0',
+             'b/model/pi/fc1/bias:0',
+             'b/model/pi/fc1/kernel:0',
+             'b/model/pi/output/bias:0',
+             'b/model/pi/output/kernel:0',
+             'b/model/vf/fc0/bias:0',
+             'b/model/vf/fc0/kernel:0',
+             'b/model/vf/fc1/bias:0',
+             'b/model/vf/fc1/kernel:0',
+             'b/model/vf/output/bias:0',
+             'b/model/vf/output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['a'].ac_space,
+                         self.policy_params_independent['ac_space']['a'])
+        self.assertEqual(policy.agents['a'].ob_space,
+                         self.policy_params_independent['ob_space']['a'])
+        self.assertEqual(policy.agents['a'].co_space,
+                         self.policy_params_independent['co_space']['a'])
+
+        self.assertEqual(policy.agents['b'].ac_space,
+                         self.policy_params_independent['ac_space']['b'])
+        self.assertEqual(policy.agents['b'].ob_space,
+                         self.policy_params_independent['ob_space']['b'])
+        self.assertEqual(policy.agents['b'].co_space,
+                         self.policy_params_independent['co_space']['b'])
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(not policy.shared)
+        self.assertTrue(not policy.maddpg)
+
+    def test_init_2(self):
+        policy_params = self.policy_params_shared.copy()
+        policy_params["maddpg"] = False
+        policy = PPOMultiFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/logstd:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'model/vf/fc0/bias:0',
+             'model/vf/fc0/kernel:0',
+             'model/vf/fc1/bias:0',
+             'model/vf/fc1/kernel:0',
+             'model/vf/output/bias:0',
+             'model/vf/output/kernel:0']
+        )
+
+        # Check observation/action/context spaces of the agents
+        self.assertEqual(policy.agents['policy'].ac_space,
+                         self.policy_params_shared['ac_space'])
+        self.assertEqual(policy.agents['policy'].ob_space,
+                         self.policy_params_shared['ob_space'])
+        self.assertEqual(policy.agents['policy'].co_space,
+                         self.policy_params_shared['co_space'])
+
+        # Check the instantiation of the class attributes.
+        self.assertTrue(policy.shared)
+        self.assertTrue(not policy.maddpg)
+
+    def test_init_3(self):
+        pass  # TODO
+
+    def test_init_4(self):
+        pass  # TODO
+
+    def test_init_5(self):
+        pass  # TODO
+
+    def test_init_6(self):
+        pass  # TODO
+
+    def test_store_transition_1(self):
+        """Check the functionality of the store_transition() method.
+
+        This test checks for the following cases:
+
+        1. maddpg = True,  shared = False
+        2. maddpg = True,  shared = True
+        """
+        pass  # TODO
+
+    def test_store_transition_2(self):
+        pass  # TODO
 
 
 class TestTD3MultiGoalConditionedPolicy(unittest.TestCase):
