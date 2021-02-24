@@ -25,6 +25,7 @@ jobs:
         bash miniconda.sh -b -p $HOME/miniconda
         export PATH="$HOME/miniconda/bin:$PATH"
         export TEST_FLAG="True"
+        source $HOME/miniconda/etc/profile.d/conda.sh
 
     - name: Create the h-baselines conda environment.
       run: |
