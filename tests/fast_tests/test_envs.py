@@ -593,7 +593,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # test case 1
         test_space(
-            env.observation_space["rl_0"],
+            env.observation_space["rl_0_0"],
             expected_min=np.array([-float("inf") for _ in range(25)]),
             expected_max=np.array([float("inf") for _ in range(25)]),
             expected_size=25,
@@ -601,7 +601,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # test case 2
         test_space(
-            env.action_space["rl_0"],
+            env.action_space["rl_0_0"],
             expected_min=np.array([-1.0]),
             expected_max=np.array([1.0]),
             expected_size=1,
@@ -612,7 +612,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_0']
+            ['rl_0_0']
         )
 
         # kill the environment
@@ -812,17 +812,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(125)]),
+            expected_max=np.array([float("inf") for _ in range(125)]),
+            expected_size=125,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1.0 for _ in range(10)]),
-            expected_max=np.array([1.0 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
         self.assertEqual(
             env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
@@ -872,17 +872,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(125)]),
+            expected_max=np.array([float("inf") for _ in range(125)]),
+            expected_size=125,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1.0 for _ in range(10)]),
-            expected_max=np.array([1.0 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
         self.assertEqual(
             env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
@@ -932,17 +932,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(125)]),
+            expected_max=np.array([float("inf") for _ in range(125)]),
+            expected_size=125,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1.0 for _ in range(10)]),
-            expected_max=np.array([1.0 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
         self.assertEqual(
             env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
@@ -992,17 +992,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(125)]),
+            expected_max=np.array([float("inf") for _ in range(125)]),
+            expected_size=125,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([15 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([15 for _ in range(5)]),
+            expected_size=5,
         )
 
         # kill the environment
@@ -1048,17 +1048,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
+            expected_min=np.array([-float("inf") for _ in range(125)]),
+            expected_max=np.array([float("inf") for _ in range(125)]),
+            expected_size=125,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-1.0 for _ in range(10)]),
-            expected_max=np.array([1.0 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
         self.assertEqual(
             env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
@@ -1372,7 +1372,7 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0', 'human_20']
+                expected_observed=['human_0_0', 'human_0_20']
             )
         )
 
@@ -1414,7 +1414,7 @@ class TestAV(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicle
-        self.assertEqual(env.k.network.length(), 230.4)
+        self.assertEqual(env.k.network.length(), 260.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
@@ -1466,7 +1466,7 @@ class TestAV(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
+            expected_rate = 2114 if veh_type == "human" else 100
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1609,7 +1609,7 @@ class TestAVMulti(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0', 'human_20']
+                expected_observed=['human_0_0', 'human_0_20']
             )
         )
 
@@ -1651,7 +1651,7 @@ class TestAVMulti(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.network.length(), 230.4)
+        self.assertEqual(env.k.network.length(), 260.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
@@ -1703,7 +1703,7 @@ class TestAVMulti(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
+            expected_rate = 2114 if veh_type == "human" else 100
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1766,7 +1766,7 @@ class TestAVMulti(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 1879 if veh_type == "human" else 170
+            expected_rate = 1956 if veh_type == "human" else 93
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1905,7 +1905,7 @@ class TestAVImitation(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=env_params,
-                expected_observed=['human_0', 'human_20']
+                expected_observed=['human_0_0', 'human_0_20']
             )
         )
 
@@ -1957,7 +1957,7 @@ class TestAVImitation(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.network.length(), 230.4)
+        self.assertEqual(env.k.network.length(), 260.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
@@ -2019,7 +2019,7 @@ class TestAVImitation(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
+            expected_rate = 2114 if veh_type == "human" else 100
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()

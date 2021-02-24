@@ -1633,16 +1633,16 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="ring-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([10 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([0 for _ in range(1)]),
+            expected_max=np.array([10 for _ in range(1)]),
+            expected_size=1,
         )
         ac_space = get_meta_ac_space(env_name="ring-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(5)]),
-            expected_max=np.array([5 for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-5 for _ in range(1)]),
+            expected_max=np.array([5 for _ in range(1)]),
+            expected_size=1,
         )
 
         # test for ring-v0-fast
@@ -1786,64 +1786,64 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="highway-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v1
         ac_space = get_meta_ac_space(env_name="highway-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v2
         ac_space = get_meta_ac_space(env_name="highway-v2", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v2", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-v3
         ac_space = get_meta_ac_space(env_name="highway-v3", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([20 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([20 for _ in range(5)]),
+            expected_size=5,
         )
         ac_space = get_meta_ac_space(env_name="highway-v3", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(10)]),
-            expected_max=np.array([5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-5 for _ in range(5)]),
+            expected_max=np.array([5 for _ in range(5)]),
+            expected_size=5,
         )
 
         # test for highway-imitation
@@ -1859,64 +1859,64 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="i210-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v1
         ac_space = get_meta_ac_space(env_name="i210-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v2
         ac_space = get_meta_ac_space(env_name="i210-v2", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v2", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v3
         ac_space = get_meta_ac_space(env_name="i210-v3", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v3", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for Point2DEnv
@@ -2039,25 +2039,25 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 25, 50, 75, 100]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 25, 50, 75, 100]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 25, 50, 75, 100]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225]
+            [0, 25, 50, 75, 100]
         )
 
         # test for highway-imitation
@@ -2070,36 +2070,28 @@ class TestEnvUtil(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
             [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
             [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
             [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
             [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600, 625, 650,
-             675, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975,
-             1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225]
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
         )
 
         # test for Point2DEnv

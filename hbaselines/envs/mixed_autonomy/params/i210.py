@@ -25,7 +25,7 @@ INFLOW_RATE = 2050
 # the speed of inflowing vehicles from the main edge (in m/s)
 INFLOW_SPEED = 25.5
 # fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
-PENETRATION_RATE = 1/12
+PENETRATION_RATE = 1/22
 # horizon over which to run the env
 HORIZON = 1500
 # range for the inflows allowed in the network. If set to None, the inflows are
@@ -189,7 +189,7 @@ def get_flow_params(fixed_boundary,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
             done_at_exit=False,
-            sims_per_step=3,
+            sims_per_step=1,
             additional_params={
                 "max_accel": 0.5,
                 "stopping_penalty": stopping_penalty,
@@ -198,7 +198,7 @@ def get_flow_params(fixed_boundary,
                 "obs_frames": 5,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10 if multiagent else 50,
+                "num_rl": 5 if multiagent else 25,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
