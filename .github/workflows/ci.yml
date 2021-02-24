@@ -29,7 +29,7 @@ jobs:
     - name: Create the h-baselines conda environment.
       run: |
         conda env create -f environment.yml
-        source activate h-baselines
+        conda activate h-baselines
 
     - name: Install flow and sumo dependencies and binaries.
       run: |
