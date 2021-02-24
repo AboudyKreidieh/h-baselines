@@ -37,7 +37,7 @@ jobs:
         git clone https://github.com/flow-project/flow
         pushd flow
         git checkout aboudy-tmp  # keeping until model-v3 features are added
-        pip install -e .
+        pip install --use-deprecated=legacy-resolver -e .
         ./scripts/setup_sumo_ubuntu1604.sh
         source ~/.bashrc
         popd
@@ -52,9 +52,8 @@ jobs:
         popd
         popd
 
-    - name: Install multi-world.
+    - name: Download additional files.
       run: |
-        Download additional files.
         pushd experiments
         wget https://s3.us-east-2.amazonaws.com/aboudy.experiments/h-baselines/warmup.zip
         unzip warmup.zip
@@ -74,6 +73,6 @@ jobs:
 
     - name: Run tests.
       run: |
-        pip install -e .
+        pip install --use-deprecated=legacy-resolver -e .
         nose2 --with-coverage
         coveralls
