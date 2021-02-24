@@ -1908,64 +1908,64 @@ class TestEnvUtil(unittest.TestCase):
         ac_space = get_meta_ac_space(env_name="i210-v0", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v0", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v1
         ac_space = get_meta_ac_space(env_name="i210-v1", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v1", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v2
         ac_space = get_meta_ac_space(env_name="i210-v2", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v2", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for i210-v3
         ac_space = get_meta_ac_space(env_name="i210-v3", **params)
         test_space(
             ac_space,
-            expected_min=np.array([0 for _ in range(50)]),
-            expected_max=np.array([20 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([20 for _ in range(25)]),
+            expected_size=25,
         )
         ac_space = get_meta_ac_space(env_name="i210-v3", **rel_params)
         test_space(
             ac_space,
-            expected_min=np.array([-5 for _ in range(50)]),
-            expected_max=np.array([5 for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-5 for _ in range(25)]),
+            expected_max=np.array([5 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test for Point2DEnv
@@ -2088,25 +2088,41 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60]
+=======
+            [0, 25, 50, 75, 100]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60]
+=======
+            [0, 25, 50, 75, 100]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60]
+=======
+            [0, 25, 50, 75, 100]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60]
+=======
+            [0, 25, 50, 75, 100]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for highway-imitation
@@ -2118,37 +2134,57 @@ class TestEnvUtil(unittest.TestCase):
         # test for i210-v0
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
              225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
              420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
              615, 630, 645, 660, 675, 690, 705, 720, 735]
+=======
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
              225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
              420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
              615, 630, 645, 660, 675, 690, 705, 720, 735]
+=======
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
              225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
              420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
              615, 630, 645, 660, 675, 690, 705, 720, 735]
+=======
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
+<<<<<<< HEAD
             [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
              225, 240, 255, 270, 285, 300, 315, 330, 345, 360, 375, 390, 405,
              420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
              615, 630, 645, 660, 675, 690, 705, 720, 735]
+=======
+            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
+             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+>>>>>>> a7da581d91b8a25f234a3d613a6d293c45dca2f2
         )
 
         # test for Point2DEnv

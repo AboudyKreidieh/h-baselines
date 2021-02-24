@@ -1766,7 +1766,7 @@ class TestAVMulti(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 1879 if veh_type == "human" else 170
+            expected_rate = 1956 if veh_type == "human" else 93
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()

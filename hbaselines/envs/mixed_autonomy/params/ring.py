@@ -31,7 +31,7 @@ def full_observation_fn(env):
 
     # Add relative observation of each vehicle.
     for i, v_id in enumerate(env.rl_ids()):
-        obs[5 * i: 5 * (i + 1)], leader = get_relative_obs(env, v_id)
+        obs[5 * i: 5 * (i + 1)], *_ = get_relative_obs(env, v_id)
 
     return np.asarray(obs)
 
@@ -59,6 +59,8 @@ def get_flow_params(stopping_penalty,
         whether to include a stopping penalty
     acceleration_penalty : bool
         whether to include a regularizing penalty for accelerations by the AVs
+    scale : int
+        a scaling term for the number of AVs/humans and length of the ring
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
