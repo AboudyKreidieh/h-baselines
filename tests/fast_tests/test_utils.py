@@ -1997,7 +1997,7 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v2-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v2-fast", **params),
-            [0, 15, 45]
+            [0, 15, 30]
         )
 
         # test for ring-v3-fast

@@ -718,9 +718,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([0 for _ in range(15)]),
-            expected_max=np.array([1 for _ in range(15)]),
-            expected_size=15,
+            expected_min=np.array([0 for _ in range(25)]),
+            expected_max=np.array([1 for _ in range(25)]),
+            expected_size=25,
         )
 
         # test case 2
