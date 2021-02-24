@@ -7,7 +7,6 @@ import json
 from copy import deepcopy
 
 from flow.core.params import EnvParams
-from flow.controllers import IDMController
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect
 from hbaselines.envs.efficient_hrl.maze_env_utils import point_distance
@@ -44,9 +43,6 @@ from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingEnv
 from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingSingleAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingMultiAgentEnv

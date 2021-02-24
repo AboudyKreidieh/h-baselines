@@ -45,10 +45,6 @@ def get_relative_obs(env, veh_id):
     """
     obs = [None for _ in range(3)]
 
-    # used to handle missing observations of adjacent vehicles
-    max_speed = env.k.network.max_speed()
-    max_length = env.k.network.length()
-
     # Add the speed of the ego vehicle.
     obs[0] = env.k.vehicle.get_speed(veh_id, 0) / MAX_SPEED
 
