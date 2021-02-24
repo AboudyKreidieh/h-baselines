@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/AboudyKreidieh/h-baselines.svg?branch=master)](https://travis-ci.com/AboudyKreidieh/h-baselines)
+[![tests](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/AboudyKreidieh/h-baselines/badge.svg?branch=master)](https://coveralls.io/github/AboudyKreidieh/h-baselines?branch=master)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AboudyKreidieh/h-baselines/blob/master/LICENSE)
 
