@@ -30,8 +30,6 @@ jobs:
         source ~/.bashrc
         popd
         popd
-        export PATH="$HOME/sumo_binaries/bin:$PATH"
-        export SUMO_HOME="$HOME/sumo_binaries/bin"
 
     - name: Install multi-world.
       run: |
@@ -63,6 +61,8 @@ jobs:
 
     - name: Run tests.
       run: |
+        export PATH="$HOME/sumo_binaries/bin:$PATH"
+        export SUMO_HOME="$HOME/sumo_binaries/bin"
         pip install --use-deprecated=legacy-resolver -e .
         nose2 --with-coverage
         coveralls
