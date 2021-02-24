@@ -93,6 +93,8 @@ def main(args, base_dir):
             from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
         elif args.alg == "SAC":
             from hbaselines.multiagent.sac import MultiFeedForwardPolicy
+        elif args.alg == "PPO":
+            from hbaselines.multiagent.ppo import MultiFeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
