@@ -1312,15 +1312,14 @@ class TestTrain(unittest.TestCase):
         model_params = FEEDFORWARD_PARAMS["model_params"]
 
         # =================================================================== #
-        # test case 1.a                                                       #
+        # test case 2.a                                                       #
         # =================================================================== #
 
         args = parse_options(
-            "", "", args=["AntMaze", "--alg", "PPO"],
-            multiagent=False, hierarchical=False)
+            "", "", args=["AntMaze"], multiagent=False, hierarchical=True)
         self.assertDictEqual(vars(args), {
             'env_name': 'AntMaze',
-            'alg': 'PPO',
+            'alg': 'TD3',
             'evaluate': False,
             'n_training': 1,
             'total_steps': 1000000,
@@ -1353,19 +1352,32 @@ class TestTrain(unittest.TestCase):
             'model_params:layer_norm': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
-            'cliprange': PPO_PARAMS['cliprange'],
-            'cliprange_vf': PPO_PARAMS['cliprange_vf'],
-            'ent_coef': PPO_PARAMS['ent_coef'],
-            'gamma': PPO_PARAMS['gamma'],
-            'lam': PPO_PARAMS['lam'],
-            'learning_rate': PPO_PARAMS['learning_rate'],
-            'max_grad_norm': PPO_PARAMS['max_grad_norm'],
-            'n_minibatches': PPO_PARAMS['n_minibatches'],
-            'n_opt_epochs': PPO_PARAMS['n_opt_epochs'],
-            'vf_coef': PPO_PARAMS['vf_coef'],
+            'use_huber': False,
+            'noise': TD3_PARAMS['noise'],
+            'target_policy_noise': TD3_PARAMS['target_policy_noise'],
+            'target_noise_clip': TD3_PARAMS['target_noise_clip'],
+            'buffer_size': TD3_PARAMS['buffer_size'],
+            'batch_size': TD3_PARAMS['batch_size'],
+            'actor_lr': TD3_PARAMS['actor_lr'],
+            'critic_lr': TD3_PARAMS['critic_lr'],
+            'tau': TD3_PARAMS['tau'],
+            'gamma': TD3_PARAMS['gamma'],
+            'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+            'cooperative_gradients': False,
+            'hindsight': False,
+            'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_scale'],
+            'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                'intrinsic_reward_type'],
+            'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+            'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+            'off_policy_corrections': False,
+            'relative_goals': False,
+            'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                'subgoal_testing_rate'],
         })
 
-        hp = get_hyperparameters(args, PPOFeedForwardPolicy)
+        hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
         self.assertDictEqual(hp, {
             'total_steps': 1000000,
             'nb_train_steps': 1,
@@ -1406,11 +1418,24 @@ class TestTrain(unittest.TestCase):
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
                 },
+                'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
+                'cooperative_gradients': False,
+                'hindsight': False,
+                'intrinsic_reward_scale': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_scale'],
+                'intrinsic_reward_type': GOAL_CONDITIONED_PARAMS[
+                    'intrinsic_reward_type'],
+                'meta_period': GOAL_CONDITIONED_PARAMS['meta_period'],
+                'num_levels': GOAL_CONDITIONED_PARAMS['num_levels'],
+                'off_policy_corrections': False,
+                'relative_goals': False,
+                'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
+                    'subgoal_testing_rate'],
             }
         })
 
         # =================================================================== #
-        # test case 1.b                                                       #
+        # test case 2.b                                                       #
         # =================================================================== #
 
         args = parse_options(
