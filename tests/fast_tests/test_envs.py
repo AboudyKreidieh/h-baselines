@@ -1585,7 +1585,7 @@ class TestAVMulti(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=5,
+            expected_size=3,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -2019,10 +2019,8 @@ class TestRingNonFlow(unittest.TestCase):
         env.speeds = [i for i in range(22)]
         np.testing.assert_almost_equal(
             env.get_state(),
-            [0., 1., 0., 21., 5., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 11., 12., 2.75, 10., 2.5, 0.,
-             0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0., 0.]
+            [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 11.,
+             12., 2.75, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         # test case 4

@@ -338,7 +338,7 @@ class AVMultiAgentEnv(MultiEnv):
         Define which vehicles are observed for visualization purposes.
         """
         # specify observed vehicles
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def step(self, rl_actions):
@@ -1031,7 +1031,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
                 self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
         # Specify observed vehicles.
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def _clear_attributes(self):

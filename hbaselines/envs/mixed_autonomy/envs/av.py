@@ -321,7 +321,7 @@ class AVEnv(Env):
         Define which vehicles are observed for visualization purposes.
         """
         # specify observed vehicles
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def step(self, rl_actions):
