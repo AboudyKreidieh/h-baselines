@@ -19,18 +19,6 @@ jobs:
       with:
         python-version: 3.6
 
-#    - name: Setup conda.
-#      run: |
-#        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-#        bash miniconda.sh -b -p $HOME/miniconda
-#        export PATH="$HOME/miniconda/bin:$PATH"
-#        export TEST_FLAG="True"
-#
-#    - name: Create the h-baselines conda environment.
-#      run: |
-#        conda env create -f environment.yml
-#        source activate h-baselines
-
     - name: Install flow and sumo dependencies and binaries.
       run: |
         pushd $HOME
@@ -42,6 +30,8 @@ jobs:
         source ~/.bashrc
         popd
         popd
+        export PATH="$HOME/sumo_binaries/bin:$PATH"
+        export SUMO_HOME="$HOME/sumo_binaries/bin"
 
     - name: Install multi-world.
       run: |
