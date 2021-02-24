@@ -839,6 +839,7 @@ def _get_ring_env_attributes(scale):
             flow_params=ring(
                 stopping_penalty=False,
                 acceleration_penalty=False,
+                scale=scale,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
