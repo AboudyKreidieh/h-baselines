@@ -67,7 +67,7 @@ jobs:
         nose2 --with-coverage
 
     - name: Upload coverage data to coveralls.io
-      run: coveralls
+      run: coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COVERALLS_FLAG_NAME: ${{ matrix.test-name }}
