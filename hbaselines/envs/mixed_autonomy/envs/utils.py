@@ -21,8 +21,6 @@ def get_relative_obs(env, veh_id):
     1. the ego speed
     2. the headway
     3. the speed of the leader
-    4. the tailway
-    5. the speed of the follower
 
     This also adds the leaders and followers to the vehicle class for
     visualization purposes.
@@ -40,8 +38,6 @@ def get_relative_obs(env, veh_id):
         the observation
     str
         the ID of the leader
-    str
-        the ID of the follower
     """
     obs = [None for _ in range(5)]
 
@@ -61,26 +57,11 @@ def get_relative_obs(env, veh_id):
     else:
         lead_speed = env.k.vehicle.get_speed(leader, error=0)
         lead_head = env.k.vehicle.get_headway(veh_id, error=0)
-        env.leader.append(leader)
 
     obs[1] = lead_speed
     obs[2] = lead_head
 
-    # Add the speed and bumper-to-bumper headway of following vehicles.
-    follower = env.k.vehicle.get_follower(veh_id)
-    if follower in ["", None]:
-        # in case follower is not visible
-        follow_speed = max_speed
-        follow_head = max_length
-    else:
-        follow_speed = env.k.vehicle.get_speed(follower, error=0)
-        follow_head = env.k.vehicle.get_headway(follower, error=0)
-        env.follower.append(follower)
-
-    obs[3] = follow_speed
-    obs[4] = follow_head
-
-    return obs, leader, follower
+    return obs, leader
 
 
 def update_rl_veh(env,

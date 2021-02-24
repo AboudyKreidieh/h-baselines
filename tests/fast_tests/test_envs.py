@@ -566,9 +566,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -594,9 +594,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space["rl_0_0"],
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -632,9 +632,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -656,9 +656,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -690,9 +690,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -722,9 +722,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([0 for _ in range(25)]),
-            expected_max=np.array([1 for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([0 for _ in range(15)]),
+            expected_max=np.array([1 for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -812,9 +812,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(125)]),
-            expected_max=np.array([float("inf") for _ in range(125)]),
-            expected_size=125,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
@@ -840,9 +840,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -872,9 +872,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(125)]),
-            expected_max=np.array([float("inf") for _ in range(125)]),
-            expected_size=125,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
@@ -900,9 +900,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -932,9 +932,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(125)]),
-            expected_max=np.array([float("inf") for _ in range(125)]),
-            expected_size=125,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
@@ -960,9 +960,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -992,9 +992,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(125)]),
-            expected_max=np.array([float("inf") for _ in range(125)]),
-            expected_size=125,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
@@ -1018,9 +1018,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -1048,9 +1048,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(125)]),
-            expected_max=np.array([float("inf") for _ in range(125)]),
-            expected_size=125,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
@@ -1352,7 +1352,7 @@ class TestAV(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=5 * env_single.initial_vehicles.num_rl_vehicles,
+            expected_size=3 * env_single.initial_vehicles.num_rl_vehicles,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -1372,7 +1372,7 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0_0', 'human_0_20']
+                expected_observed=['human_0_0']
             )
         )
 
@@ -1609,7 +1609,7 @@ class TestAVMulti(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0_0', 'human_0_20']
+                expected_observed=['human_0_0']
             )
         )
 
@@ -1885,7 +1885,7 @@ class TestAVImitation(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=5,
+            expected_size=3,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -1905,7 +1905,7 @@ class TestAVImitation(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=env_params,
-                expected_observed=['human_0_0', 'human_0_20']
+                expected_observed=['human_0_0']
             )
         )
 
@@ -2321,9 +2321,9 @@ class TestRingNonFlow(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(25)]),
-            expected_max=np.array([float("inf") for _ in range(25)]),
-            expected_size=25,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2

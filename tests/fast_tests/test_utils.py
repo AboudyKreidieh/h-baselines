@@ -2009,13 +2009,13 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v4-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v4-fast", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for ring-imitation
         self.assertListEqual(
             get_state_indices(env_name="ring-imitation", **params),
-            [0, 5, 10, 15, 20]
+            [0, 15, 30, 45, 60]
         )
 
         # test for merge-v0
@@ -2039,31 +2039,31 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-imitation
         self.assertListEqual(
             get_state_indices(env_name="highway-imitation", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135]
         )
 
         # test for i210-v0
