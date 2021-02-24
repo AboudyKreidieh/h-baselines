@@ -257,8 +257,8 @@ def layer(val,
           num_outputs,
           name,
           act_fun=None,
-          kernel_initializer=slim.variance_scaling_initializer(
-              factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
+          kernel_initializer=tf.random_uniform_initializer(
+              minval=-3e-3, maxval=3e-3),
           layer_norm=False):
     """Create a fully-connected layer.
 
@@ -300,8 +300,8 @@ def conv_layer(val,
                strides,
                name,
                act_fun=None,
-               kernel_initializer=slim.variance_scaling_initializer(
-                   factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
+               kernel_initializer=tf.random_uniform_initializer(
+                   minval=-3e-3, maxval=3e-3),
                layer_norm=False):
     """Create a convolutional layer.
 

@@ -94,13 +94,16 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the lower-level policies. See the
             base goal-conditioned policy for a description.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-level policies is
             meant to be a relative or absolute goal, i.e. specific state or
@@ -318,6 +321,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         self.cg_loss = []
         self.cg_optimizer = []
+        self.cg_weights_optimizer = []
         for level in range(self.num_levels - 1):
             # Index relevant variables based on self.goal_indices
             meta_obs0 = self.crop_to_goal(self.policy[level].obs_ph)
@@ -394,9 +398,9 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                         )
                     )
                 optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
-                self.cg_weights_optimizer = optimizer.minimize(
+                self.cg_weights_optimizer.append(optimizer.minimize(
                     cg_weights_loss,
-                    var_list=[self.cg_weights[level]])
+                    var_list=[self.cg_weights[level]]))
 
                 # Add to tensorboard.
                 tf.compat.v1.summary.scalar(
@@ -471,7 +475,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
         # Update the cg_weights terms.
         if self._n_train_steps > 1000 and self.cg_delta is not None:
-            step_ops += [self.cg_weights_optimizer]
+            step_ops += [self.cg_weights_optimizer[level_num]]
 
         if update_actor:
             # Actor updates and target soft update operation.
