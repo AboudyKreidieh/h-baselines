@@ -6,7 +6,6 @@ import random
 from gym.spaces import Box
 
 from hbaselines.utils.eval import parse_options as parse_eval_options
-from hbaselines.utils.eval import get_hyperparameters_from_dir
 from hbaselines.utils.train import parse_options
 from hbaselines.utils.train import get_hyperparameters
 from hbaselines.utils.reward_fns import negative_distance
