@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
 
     steps:
     - uses: actions/checkout@v2
@@ -25,12 +25,11 @@ jobs:
         bash miniconda.sh -b -p $HOME/miniconda
         export PATH="$HOME/miniconda/bin:$PATH"
         export TEST_FLAG="True"
-        source $HOME/miniconda/etc/profile.d/conda.sh
 
     - name: Create the h-baselines conda environment.
       run: |
         conda env create -f environment.yml
-        conda activate h-baselines
+        source activate h-baselines
 
     - name: Install flow and sumo dependencies and binaries.
       run: |
