@@ -1991,31 +1991,31 @@ class TestEnvUtil(unittest.TestCase):
         # test for ring-v1-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v1-fast", **params),
-            [0, 25]
+            [0, 15]
         )
 
         # test for ring-v2-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v2-fast", **params),
-            [0, 25, 50]
+            [0, 15, 30]
         )
 
         # test for ring-v3-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v3-fast", **params),
-            [0, 25, 50, 75]
+            [0, 15, 30, 45]
         )
 
         # test for ring-v4-fast
         self.assertListEqual(
             get_state_indices(env_name="ring-v4-fast", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for ring-imitation
         self.assertListEqual(
             get_state_indices(env_name="ring-imitation", **params),
-            [0, 5, 10, 15, 20]
+            [0, 15, 30, 45, 60]
         )
 
         # test for merge-v0
@@ -2039,59 +2039,59 @@ class TestEnvUtil(unittest.TestCase):
         # test for highway-v0
         self.assertListEqual(
             get_state_indices(env_name="highway-v0", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v1
         self.assertListEqual(
             get_state_indices(env_name="highway-v1", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v2
         self.assertListEqual(
             get_state_indices(env_name="highway-v2", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-v3
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
-            [0, 25, 50, 75, 100]
+            [0, 15, 30, 45, 60]
         )
 
         # test for highway-imitation
         self.assertListEqual(
             get_state_indices(env_name="highway-imitation", **params),
-            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135]
         )
 
         # test for i210-v0
         self.assertListEqual(
             get_state_indices(env_name="i210-v0", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360]
         )
 
         # test for i210-v1
         self.assertListEqual(
             get_state_indices(env_name="i210-v1", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360]
         )
 
         # test for i210-v2
         self.assertListEqual(
             get_state_indices(env_name="i210-v2", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360]
         )
 
         # test for i210-v3
         self.assertListEqual(
             get_state_indices(env_name="i210-v3", **params),
-            [0, 25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325,
-             350, 375, 400, 425, 450, 475, 500, 525, 550, 575, 600]
+            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210,
+             225, 240, 255, 270, 285, 300, 315, 330, 345, 360]
         )
 
         # test for Point2DEnv

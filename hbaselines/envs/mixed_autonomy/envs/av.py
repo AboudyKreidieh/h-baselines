@@ -107,9 +107,6 @@ class AVEnv(Env):
     leader : list of str
         the names of the vehicles leading the RL vehicles at any given step.
         Used for visualization.
-    follower : list of str
-        the names of the vehicles following the RL vehicles at any given step.
-        Used for visualization.
     num_rl : int
         a fixed term to represent the number of RL vehicles in the network. In
         closed networks, this is the original number of RL vehicles. Otherwise,
@@ -140,7 +137,6 @@ class AVEnv(Env):
         # used for visualization: the vehicles behind and after RL vehicles
         # (ie the observed vehicles) will have a different color
         self.leader = []
-        self.follower = []
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
@@ -191,7 +187,7 @@ class AVEnv(Env):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(5 * self._obs_frames * self.num_rl,),
+            shape=(3 * self._obs_frames * self.num_rl,),
             dtype=np.float32)
 
     def _apply_rl_actions(self, rl_actions):
@@ -287,11 +283,10 @@ class AVEnv(Env):
     def get_state(self):
         """See class definition."""
         self.leader = []
-        self.follower = []
 
         for veh_id in self.k.vehicle.get_rl_ids():
             # Add relative observation of each vehicle.
-            obs_vehicle, leader, follower = get_relative_obs(self, veh_id)
+            obs_vehicle, leader = get_relative_obs(self, veh_id)
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
@@ -299,12 +294,10 @@ class AVEnv(Env):
                 self._obs_history[veh_id] = \
                     self._obs_history[veh_id][self._obs_frames:]
 
-            # Append to the leader/follower lists.
+            # Append to the leader list.
             if veh_id in self.rl_ids():
                 if leader not in ["", None]:
                     self.leader.append(leader)
-                if follower not in ["", None]:
-                    self.follower.append(follower)
 
         # Remove memory for exited vehicles.
         for key in self._obs_history.keys():
@@ -312,13 +305,13 @@ class AVEnv(Env):
                 del self._obs_history[key]
 
         # Initialize a set of empty observations.
-        obs = np.array([0. for _ in range(5 * self._obs_frames * self.num_rl)])
+        obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
 
         for i, veh_id in enumerate(self.rl_ids()):
             # Concatenate the past n samples for a given time delta in the
             # output observations.
             obs_t = np.concatenate(self._obs_history[veh_id][::-1])
-            obs[5*self._obs_frames*i:5*self._obs_frames*i+len(obs_t)] = obs_t
+            obs[3*self._obs_frames*i:3*self._obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
@@ -328,7 +321,7 @@ class AVEnv(Env):
         Define which vehicles are observed for visualization purposes.
         """
         # specify observed vehicles
-        for veh_id in self.leader + self.follower:
+        for veh_id in self.leader:
             self.k.vehicle.set_observed(veh_id)
 
     def step(self, rl_actions):
@@ -353,7 +346,6 @@ class AVEnv(Env):
         """
         self._mean_speeds = []
         self.leader = []
-        self.follower = []
         self._obs_history = defaultdict(list)
         return super().reset()
 
@@ -727,7 +719,6 @@ class AVOpenEnv(AVEnv):
             self.net_params = new_net_params
 
         self.leader = []
-        self.follower = []
         self.rl_veh = []
         self.removed_veh = []
         self.rl_queue = collections.deque()

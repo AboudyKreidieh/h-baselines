@@ -11,6 +11,10 @@ EXTRA_LANE_EDGES = [
     ":119257908#1-AddedOffRampNode_0",
     "119257908#3",
 ]
+# a normalizing term for the vehicle headways
+MAX_HEADWAY = 20.0
+# a normalizing term for the vehicle speeds
+MAX_SPEED = 1.0
 
 
 def get_relative_obs(env, veh_id):
@@ -21,8 +25,6 @@ def get_relative_obs(env, veh_id):
     1. the ego speed
     2. the headway
     3. the speed of the leader
-    4. the tailway
-    5. the speed of the follower
 
     This also adds the leaders and followers to the vehicle class for
     visualization purposes.
@@ -40,47 +42,26 @@ def get_relative_obs(env, veh_id):
         the observation
     str
         the ID of the leader
-    str
-        the ID of the follower
     """
-    obs = [None for _ in range(5)]
-
-    # used to handle missing observations of adjacent vehicles
-    max_speed = env.k.network.max_speed()
-    max_length = env.k.network.length()
+    obs = [None for _ in range(3)]
 
     # Add the speed of the ego vehicle.
-    obs[0] = env.k.vehicle.get_speed(veh_id, error=0)
+    obs[0] = env.k.vehicle.get_speed(veh_id, 0) / MAX_SPEED
 
     # Add the speed and bumper-to-bumper headway of leading vehicles.
     leader = env.k.vehicle.get_leader(veh_id)
     if leader in ["", None]:
         # in case leader is not visible
-        lead_speed = max_speed
-        lead_head = max_length
+        lead_speed = 10.0
+        lead_head = 5.0
     else:
-        lead_speed = env.k.vehicle.get_speed(leader, error=0)
-        lead_head = env.k.vehicle.get_headway(veh_id, error=0)
-        env.leader.append(leader)
+        lead_speed = env.k.vehicle.get_speed(leader, 0) / MAX_SPEED
+        lead_head = min(env.k.vehicle.get_headway(veh_id, 0) / MAX_HEADWAY, 5.)
 
     obs[1] = lead_speed
     obs[2] = lead_head
 
-    # Add the speed and bumper-to-bumper headway of following vehicles.
-    follower = env.k.vehicle.get_follower(veh_id)
-    if follower in ["", None]:
-        # in case follower is not visible
-        follow_speed = max_speed
-        follow_head = max_length
-    else:
-        follow_speed = env.k.vehicle.get_speed(follower, error=0)
-        follow_head = env.k.vehicle.get_headway(follower, error=0)
-        env.follower.append(follower)
-
-    obs[3] = follow_speed
-    obs[4] = follow_head
-
-    return obs, leader, follower
+    return obs, leader
 
 
 def update_rl_veh(env,
@@ -203,7 +184,7 @@ def get_rl_accel(accel, vel, max_accel, dt):
     # Redefine if below a speed threshold so that all actions result in
     # non-negative desired speeds.
     for i in range(len(vel)):
-        ac_range = 2 * max_accel
+        ac_range = 2. * max_accel
         if vel[i] < 0.5 * ac_range * dt:
             accel[i] += 0.5 * ac_range - vel[i] / dt
 

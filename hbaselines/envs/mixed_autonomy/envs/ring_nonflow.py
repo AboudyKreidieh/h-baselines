@@ -582,13 +582,13 @@ class RingSingleAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25 * self.num_rl,),
+            shape=(15 * self.num_rl,),
             dtype=np.float32)
 
     def get_state(self):
         """See parent class."""
         # Initialize a set on empty observations.
-        obs = np.array([0. for _ in range(5 * self.obs_frames * self.num_rl)])
+        obs = np.array([0. for _ in range(3 * self.obs_frames * self.num_rl)])
 
         for i, veh_id in enumerate(self.rl_ids):
             # Add relative observation of each vehicle.
@@ -599,11 +599,6 @@ class RingSingleAgentEnv(RingEnv):
                 self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
-                # follower speed
-                self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
-                # lead gap
-                min(self.headways[(veh_id - 1) % self.num_vehicles]
-                    / MAX_HEADWAY, 5.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
@@ -615,7 +610,7 @@ class RingSingleAgentEnv(RingEnv):
             # Concatenate the past n samples for a given time delta in the
             # output observations.
             obs_t = np.concatenate(self._obs_history[veh_id][::-1])
-            obs[5*self.obs_frames*i:5*self.obs_frames*i+len(obs_t)] = obs_t
+            obs[3*self.obs_frames*i:3*self.obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
@@ -645,7 +640,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float('inf'),
             high=float('inf'),
-            shape=(25,),
+            shape=(15,),
             dtype=np.float32)
 
     @property
@@ -654,7 +649,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float("inf"),
             high=float("inf"),
-            shape=(25 * self.num_rl,),
+            shape=(15 * self.num_rl,),
             dtype=np.float32,
         )
 
@@ -686,11 +681,6 @@ class RingMultiAgentEnv(RingEnv):
                 self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
                 # lead gap
                 min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
-                # follower speed
-                self.speeds[(veh_id - 1) % self.num_vehicles] / MAX_SPEED,
-                # lead gap
-                min(self.headways[(veh_id - 1) % self.num_vehicles]
-                    / MAX_HEADWAY, 5.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
@@ -702,7 +692,7 @@ class RingMultiAgentEnv(RingEnv):
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
             obs_t = np.concatenate(self._obs_history[veh_id][::-1])
-            obs_vehicle = np.array([0. for _ in range(5 * self.obs_frames)])
+            obs_vehicle = np.array([0. for _ in range(3 * self.obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 
             obs[veh_id] = obs_vehicle
