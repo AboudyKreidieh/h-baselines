@@ -38,7 +38,6 @@ from hbaselines.envs.mixed_autonomy.envs.av \
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
@@ -1525,24 +1524,6 @@ class TestAVMulti(unittest.TestCase):
         self.env_params_open.warmup_steps = 0
         self.env_params_open.additional_params = MA_OPEN_ENV_PARAMS.copy()
 
-        # for LaneOpenMultiAgentEnv
-        flow_params_lane = deepcopy(i210(
-            fixed_boundary=False,
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            use_follower_stopper=False,
-            multiagent=True,
-        ))
-
-        self.network_lane = flow_params_lane["network"](
-            name="test_open",
-            vehicles=flow_params_lane["veh"],
-            net_params=flow_params_lane["net"],
-        )
-        self.env_params_lane = flow_params_lane["env"]
-        self.env_params_lane.warmup_steps = 0
-        self.env_params_lane.additional_params = MA_OPEN_ENV_PARAMS.copy()
-
     def test_base_env(self):
         """Validate the functionality of the AVMultiAgentEnv class.
 
@@ -1700,69 +1681,6 @@ class TestAVMulti(unittest.TestCase):
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
             expected_rate = 2114 if veh_type == "human" else 100
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1023.3 if veh_type == "human" else 113.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1680.3 if veh_type == "human" else 186.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-    def test_lane_open_env(self):
-        """Validate the functionality of the LaneOpenMultiAgentEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the inflow rate of vehicles is properly modified in between
-           resets
-        """
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=LaneOpenMultiAgentEnv,
-                sim_params=self.sim_params,
-                network=self.network_lane,
-                additional_params={
-                    "max_accel": 3,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "obs_frames": 5,
-                    "inflows": [1000, 2000],
-                    "rl_penetration": 0.1,
-                    "num_rl": 5,
-                    "control_range": [500, 2500],
-                    "warmup_path": None,
-                },
-            )
-        )
-
-        # set a random seed to ensure the network lengths are always the same
-        # during testing
-        random.seed(1)
-
-        # test case 2
-        env = LaneOpenMultiAgentEnv(
-            env_params=self.env_params_lane,
-            sim_params=self.sim_params,
-            network=self.network_lane
-        )
-
-        # reset the network several times and check its inflow rate
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1956 if veh_type == "human" else 93
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
