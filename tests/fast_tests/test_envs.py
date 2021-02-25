@@ -25,8 +25,6 @@ from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.params.highway \
     import get_flow_params as highway
-from hbaselines.envs.mixed_autonomy.params.i210 \
-    import get_flow_params as i210
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
