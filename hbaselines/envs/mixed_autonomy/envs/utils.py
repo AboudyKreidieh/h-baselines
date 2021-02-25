@@ -26,8 +26,7 @@ def get_relative_obs(env, veh_id):
     2. the headway
     3. the speed of the leader
 
-    This also adds the leaders and followers to the vehicle class for
-    visualization purposes.
+    This also adds the leaders to the vehicle class for visualization purposes.
 
     Parameters
     ----------
@@ -43,7 +42,7 @@ def get_relative_obs(env, veh_id):
     str
         the ID of the leader
     """
-    obs = [None for _ in range(3)]
+    obs = np.array([0.0 for _ in range(3)])
 
     # Add the speed of the ego vehicle.
     obs[0] = env.k.vehicle.get_speed(veh_id, 0) / MAX_SPEED

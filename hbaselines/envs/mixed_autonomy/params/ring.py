@@ -13,6 +13,8 @@ from flow.core.params import VehicleParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.ring import RingNetwork
 from flow.networks.ring import ADDITIONAL_NET_PARAMS
+from flow.energy_models.poly_fit_autonomie import PFMMidsizeSedan
+from flow.energy_models.poly_fit_autonomie import PFM2019RAV4
 
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
@@ -109,6 +111,7 @@ def get_flow_params(stopping_penalty,
                 speed_mode=25,
                 min_gap=0.5,
             ),
+            energy_model=PFMMidsizeSedan,
             num_vehicles=21)
         vehicles.add(
             veh_id="rl_{}".format(i),
@@ -118,6 +121,7 @@ def get_flow_params(stopping_penalty,
                 min_gap=0.5,
                 speed_mode=25,
             ),
+            energy_model=PFM2019RAV4,
             num_vehicles=1)
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()

@@ -13,6 +13,8 @@ from flow.core.params import SumoParams
 from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
+from flow.energy_models.poly_fit_autonomie import PFMMidsizeSedan
+from flow.energy_models.poly_fit_autonomie import PFM2019RAV4
 import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
@@ -112,8 +114,9 @@ def get_flow_params(fixed_boundary,
             speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=1621,
+            lane_change_mode="sumo_default",
         ),
+        energy_model=PFMMidsizeSedan,
     )
     vehicles.add(
         "rl",
@@ -130,6 +133,7 @@ def get_flow_params(fixed_boundary,
         lane_change_params=SumoLaneChangeParams(
             lane_change_mode=0,  # no lane changes
         ),
+        energy_model=PFM2019RAV4,
     )
 
     # Add the inflows from the main highway.

@@ -13,6 +13,7 @@ from flow.envs import Env
 from flow.core.params import InFlows
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
+from flow.networks import RingNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
@@ -139,7 +140,11 @@ class AVEnv(Env):
         self.leader = []
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+        self._mpg_vals = []
+        self._mpg_times = []
+        self._mpg_data = {}
         self._mean_speeds = []
+        self._mean_accels = []
         self._obs_history = defaultdict(list)
         self._obs_frames = env_params.additional_params["obs_frames"]
 
@@ -292,7 +297,7 @@ class AVEnv(Env):
             # Maintain queue length.
             if len(self._obs_history[veh_id]) > self._obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][self._obs_frames:]
+                    self._obs_history[veh_id][-self._obs_frames:]
 
             # Append to the leader list.
             if veh_id in self.rl_ids():
@@ -331,10 +336,27 @@ class AVEnv(Env):
 
         if self.time_counter > \
                 self.env_params.warmup_steps * self.env_params.sims_per_step:
-            self._mean_speeds.append(np.mean(
-                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+            speed = np.mean(
+                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0))
+            accel = np.mean([
+                abs(self.k.vehicle.get_accel(veh_id, False, False))
+                for veh_id in self.k.vehicle.get_ids()])
+            self._mean_speeds.append(speed)
+            self._mean_accels.append(accel)
+            mpg_vals = np.asarray(self._mpg_vals)
 
-            info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({
+                "speed": np.mean(self._mean_speeds),
+                "abs_accel": np.mean(self._mean_accels),
+                "mpg": np.mean(mpg_vals[mpg_vals < 100]),
+            })
+
+            if isinstance(self.k.network.network, RingNetwork):
+                info.update({
+                    "v_eq": self._v_eq,
+                    "v_eq_frac": np.mean(self._mean_speeds) / self._v_eq,
+                    "v_eq_frac_final": self._mean_speeds[-1] / self._v_eq,
+                })
 
         return obs, rew, done, info
 
@@ -344,7 +366,11 @@ class AVEnv(Env):
         In addition, a few variables that are specific to this class are
         emptied before they are used by the new rollout.
         """
+        self._mpg_vals.clear()
+        self._mpg_times.clear()
+        self._mpg_data.clear()
         self._mean_speeds = []
+        self._mean_accels = []
         self.leader = []
         self._obs_history = defaultdict(list)
         return super().reset()
@@ -400,18 +426,6 @@ class AVClosedEnv(AVEnv):
 
         # for storing the distance from the free-flow-speed for a given rollout
         self._percent_v_eq = []
-
-    def step(self, rl_actions):
-        """See parent class."""
-        obs, rew, done, info = super(AVClosedEnv, self).step(rl_actions)
-
-        if self.time_counter > \
-                self.env_params.warmup_steps * self.env_params.sims_per_step:
-            speed = np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
-            info.update({"v_eq": self._v_eq})
-            info.update({"v_eq_frac": speed / self._v_eq})
-
-        return obs, rew, done, info
 
     def reset(self):
         """See class definition."""
@@ -628,26 +642,6 @@ class AVOpenEnv(AVEnv):
             self._rl_controller.veh_id = veh_id
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
-
-    def step(self, rl_actions):
-        """See parent class."""
-        obs, rew, done, info = super(AVOpenEnv, self).step(rl_actions)
-
-        if self.time_counter > \
-                self.env_params.warmup_steps * self.env_params.sims_per_step:
-            # Update the most recent mean speed term to match the speed of the
-            # control range.
-            kv = self.k.vehicle
-            control_range = self._control_range
-            veh_ids = [
-                veh_id for veh_id in kv.get_ids()
-                if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
-            ]
-            self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
-
-            info.update({"speed": np.mean(self._mean_speeds)})
-
-        return obs, rew, done, info
 
     def reset(self):
         """See class definition."""
