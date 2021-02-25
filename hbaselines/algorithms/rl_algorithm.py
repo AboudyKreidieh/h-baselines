@@ -133,6 +133,11 @@ PPO_PARAMS = dict(
 FEEDFORWARD_PARAMS = dict(
     # L2 regularization penalty. This is applied to the policy network.
     l2_penalty=0,
+    # dictionary of exploration-specific parameters
+    exploration_params=dict(
+        # the name of exploration strategies
+        exploration_strategy=None
+    ),
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -356,6 +361,7 @@ class RLAlgorithm(object):
                  env,
                  total_steps,
                  eval_env=None,
+                 exploration_strategy=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
                  nb_eval_episodes=50,
@@ -481,6 +487,11 @@ class RLAlgorithm(object):
         self.num_envs = num_envs
         self.verbose = verbose
         self.policy_kwargs = {'verbose': verbose, 'num_envs': num_envs}
+
+        # Update exploration_params according to the arguments
+        FEEDFORWARD_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
+        # Update exploration_params according to the arguments
+        GOAL_CONDITIONED_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs, self._info_keys = \

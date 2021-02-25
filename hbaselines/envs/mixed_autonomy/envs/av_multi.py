@@ -126,6 +126,9 @@ class AVMultiAgentEnv(MultiEnv):
             simulator=simulator,
         )
 
+        # observations from previous time steps
+        self._obs_history = defaultdict(list)
+
         # this is stored to be reused during the reset procedure
         self._network_cls = network.__class__
         self._network_name = deepcopy(network.orig_name)
@@ -140,6 +143,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
         self._mean_speeds = []
+        self._std_speeds = []
         self._obs_history = defaultdict(list)
         self._obs_frames = env_params.additional_params["obs_frames"]
 
@@ -348,10 +352,12 @@ class AVMultiAgentEnv(MultiEnv):
 
         if self.time_counter > \
                 self.env_params.warmup_steps * self.env_params.sims_per_step:
-            self._mean_speeds.append(np.mean(
-                self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)))
+            vel = self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0)
+            self._mean_speeds.append(np.mean(vel))
+            self._std_speeds.append(np.std(vel))
 
-            info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"speed_mean": np.mean(self._mean_speeds)})
+            info.update({"speed_std": np.mean(self._std_speeds)})
 
         return obs, rew, done, info
 
@@ -362,6 +368,7 @@ class AVMultiAgentEnv(MultiEnv):
         emptied before they are used by the new rollout.
         """
         self._mean_speeds = []
+        self._std_speeds = []
         self.leader = []
         self._obs_history = defaultdict(list)
         return super().reset(new_inflow_rate)
@@ -456,6 +463,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
                 initial_config=self._network_initial_config,
                 traffic_lights=self._network_traffic_lights,
             )
+            self.net_params = new_net_params
 
             # solve for the velocity upper bound of the ring
             v_guess = 4
@@ -672,8 +680,10 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
                 if control_range[0] < kv.get_x_by_id(veh_id) < control_range[1]
             ]
             self._mean_speeds[-1] = np.mean(kv.get_speed(veh_ids, error=0))
+            self._std_speeds[-1] = np.std(kv.get_speed(veh_ids, error=0))
 
-            info.update({"speed": np.mean(self._mean_speeds)})
+            info.update({"speed_mean": np.mean(self._mean_speeds)})
+            info.update({"speed_std": np.mean(self._std_speeds)})
 
         return obs, rew, done, info
 
@@ -839,6 +849,9 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
         # names of the rl vehicles in each lane that are controlled at any step
         self.rl_veh = [[] for _ in range(self._num_lanes)]
 
+        # observations from previous time steps
+        self._obs_history = [[] for _ in range(self._num_lanes)]
+
     @property
     def action_space(self):
         """See class definition."""
@@ -928,7 +941,7 @@ class LaneOpenMultiAgentEnv(AVOpenMultiAgentEnv):
             # Maintain queue length.
             if len(self._obs_history[veh_id]) > self._obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][self._obs_frames:]
+                    self._obs_history[veh_id][-self._obs_frames:]
 
             # Append to the leader list.
             if veh_id in self.rl_ids():

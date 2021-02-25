@@ -2,6 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
+import hbaselines.exploration_strategies
 from hbaselines.utils.tf_util import get_trainable_vars
 
 
@@ -52,6 +53,10 @@ class Policy(object):
           layers for the policy. Required if "model_type" is set to "conv".
         * filters (list of int): the channels of the neural network conv
           layers for the policy. Required if "model_type" is set to "conv".
+    exploration_params : TODO
+        TODO
+    exploration_strategy : TODO
+        TODO
     """
 
     def __init__(self,
@@ -62,6 +67,7 @@ class Policy(object):
                  verbose,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_envs=1):
         """Instantiate the base policy object.
 
@@ -110,6 +116,8 @@ class Policy(object):
               layers for the policy. Required if "model_type" is set to "conv".
             * filters (list of int): the channels of the neural network conv
               layers for the policy. Required if "model_type" is set to "conv".
+        exploration_params : TODO
+            TODO
         """
         self.sess = sess
         self.ob_space = ob_space
@@ -118,7 +126,20 @@ class Policy(object):
         self.verbose = verbose
         self.l2_penalty = l2_penalty
         self.model_params = model_params
+        self.exploration_params = exploration_params
         self.num_envs = num_envs
+
+        # Initialize the exploration strategy.
+        self.exploration_strategy = None
+        if exploration_params["exploration_strategy"] is not None:
+            try:
+                ep_class = getattr(
+                    hbaselines.exploration_strategies,
+                    exploration_params['exploration_strategy'])
+                self.exploration_strategy = ep_class(ac_space)
+            except AttributeError:
+                print("Requested exploration strategies is not supported, "
+                      "will default to no exploration")
 
         # Run assertions.
         required = ["model_type", "layers", "layer_norm", "act_fun"]

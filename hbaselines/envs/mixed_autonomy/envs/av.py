@@ -292,7 +292,7 @@ class AVEnv(Env):
             # Maintain queue length.
             if len(self._obs_history[veh_id]) > self._obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][self._obs_frames:]
+                    self._obs_history[veh_id][-self._obs_frames:]
 
             # Append to the leader list.
             if veh_id in self.rl_ids():
