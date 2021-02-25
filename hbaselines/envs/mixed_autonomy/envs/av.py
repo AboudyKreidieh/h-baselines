@@ -294,7 +294,7 @@ class AVEnv(Env):
                 self._obs_history[veh_id] = \
                     self._obs_history[veh_id][-self._obs_frames:]
 
-            # Append to the leader/follower lists.
+            # Append to the leader list.
             if veh_id in self.rl_ids():
                 if leader not in ["", None]:
                     self.leader.append(leader)
