@@ -386,7 +386,7 @@ class AVEnv(Env):
                     self.leader.append(leader)
 
         # Remove memory for exited vehicles.
-        for key in self._obs_history.keys():
+        for key in list(self._obs_history.keys()):
             if key not in self.k.vehicle.get_rl_ids():
                 del self._obs_history[key]
 
@@ -425,7 +425,7 @@ class AVEnv(Env):
             speed = np.mean(
                 self.k.vehicle.get_speed(self.k.vehicle.get_ids(), error=0))
             accel = np.mean([
-                abs(self.k.vehicle.get_accel(veh_id, False, False))
+                abs(self.k.vehicle.get_accel(veh_id, False, False) or 0.)
                 for veh_id in self.k.vehicle.get_ids()])
             self._mean_speeds.append(speed)
             self._mean_accels.append(accel)
