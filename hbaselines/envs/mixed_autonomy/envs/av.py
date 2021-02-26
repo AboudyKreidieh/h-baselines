@@ -12,8 +12,9 @@ from scipy.optimize import fsolve
 from flow.envs import Env
 from flow.core.params import InFlows
 from flow.controllers import FollowerStopper
-from flow.networks import I210SubNetwork
 from flow.networks import RingNetwork
+from flow.networks import HighwayNetwork
+from flow.networks import I210SubNetwork
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
@@ -139,7 +140,8 @@ class AVEnv(Env):
         # (ie the observed vehicles) will have a different color
         self.leader = []
 
-        self.num_rl = deepcopy(self.initial_vehicles.num_rl_vehicles)
+        self.num_rl = env_params.additional_params.get(
+            "num_rl", deepcopy(self.initial_vehicles.num_rl_vehicles))
         self._mpg_vals = []
         self._mpg_times = []
         self._mpg_data = {}
@@ -162,6 +164,73 @@ class AVEnv(Env):
             car_following_params=self.k.vehicle.type_parameters[human_type][
                 "car_following_params"],
         )
+
+        # =================================================================== #
+        # Features for ring road experiments.                                 #
+        # =================================================================== #
+
+        # solve for the free flow velocity of the ring
+        v_guess = 4
+        self._v_eq = fsolve(
+            v_eq_function, np.array(v_guess),
+            args=(len(self.initial_ids), self.k.network.length()))[0]
+
+        # for storing the distance from the free-flow-speed for a given rollout
+        self._percent_v_eq = []
+
+        # =================================================================== #
+        # Features for highway and I-210 experiments.                         #
+        # =================================================================== #
+
+        # Get the paths to all the initial state xml files
+        warmup_path = env_params.additional_params["warmup_path"]
+        if warmup_path is not None:
+            self.warmup_paths = [
+                f for f in os.listdir(warmup_path) if f.endswith(".xml")
+            ]
+            self.warmup_description = defaultdict(list)
+            for record in DictReader(
+                    open(os.path.join(warmup_path, 'description.csv'))):
+                for key, val in record.items():  # or iteritems in Python 2
+                    self.warmup_description[key].append(float(val))
+        else:
+            self.warmup_paths = None
+            self.warmup_description = None
+
+        # queue of rl vehicles waiting to be controlled
+        self.rl_queue = collections.deque()
+
+        # names of the rl vehicles controlled at any step
+        self.rl_veh = []
+
+        # names of the rl vehicles past the control range
+        self.removed_veh = []
+
+        # control range, updated to be entire network if not specified
+        self._control_range = \
+            self.env_params.additional_params.get("control_range") or \
+            [0, self.k.network.length()]
+
+        # dynamics controller for uncontrolled RL vehicles (mimics humans)
+        controller = self.k.vehicle.type_parameters["human"][
+            "acceleration_controller"]
+        self._rl_controller = controller[0](
+            veh_id="rl",
+            car_following_params=self.k.vehicle.type_parameters["human"][
+                "car_following_params"],
+            **controller[1]
+        )
+
+        if isinstance(network, I210SubNetwork):
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "119257908#3"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 5
+        else:
+            # the name of the final edge, whose speed limit may be updated
+            self._final_edge = "highway_end"
+            # maximum number of lanes to add vehicles across
+            self._num_lanes = 1
 
     def rl_ids(self):
         """Return the IDs of the currently observed and controlled RL vehicles.
@@ -387,62 +456,17 @@ class AVEnv(Env):
         self._mean_accels = []
         self.leader = []
         self._obs_history = defaultdict(list)
-        return super().reset()
 
+        if isinstance(self.k.network, RingNetwork):
+            return self._reset_ring()
+        elif isinstance(self.k.network, I210SubNetwork) or \
+                isinstance(self.k.network, HighwayNetwork):
+            return self._reset_highway_i210()
+        else:
+            return super(AVEnv, self).reset()
 
-class AVClosedEnv(AVEnv):
-    """Closed network variant of AVEnv.
-
-    This environment is suitable for training policies on a ring road.
-
-    We attempt to train a control policy in this setting that is robust to
-    changes in density by altering the number of human-driven vehicles within
-    the network. The number of automated vehicles, however, are kept constant
-    in order to maintain a fixed state/action space. It it worth noting that
-    this leads to varying AV penetration rates across simulations.
-
-    Moreover, we ensure that vehicles in the observation/action are sorted by
-    their initial position in the network to account for any noise brought
-    about by positioning of vehicles after shuffling.
-
-    Required from env_params:
-
-    * max_accel: scaling factor for the AV accelerations, in m/s^2
-    * use_follower_stopper: whether to use the follower-stopper controller for
-      the AVs
-    * stopping_penalty: whether to include a stopping penalty
-    * acceleration_penalty: whether to include a regularizing penalty for
-      accelerations by the AVs
-    * obs_frames: number of observation frames to use. Additional frames are
-      provided from previous time steps.
-    * ring_length: range for the lengths allowed in the network. If set to
-      None, the ring length is not modified from its initial value.
-    """
-
-    def __init__(self, env_params, sim_params, network, simulator='traci'):
-        """See parent class."""
-        for p in CLOSED_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError('Env parameter "{}" not supplied'.format(p))
-
-        super(AVClosedEnv, self).__init__(
-            env_params=env_params,
-            sim_params=sim_params,
-            network=network,
-            simulator=simulator,
-        )
-
-        # solve for the free flow velocity of the ring
-        v_guess = 4
-        self._v_eq = fsolve(
-            v_eq_function, np.array(v_guess),
-            args=(len(self.initial_ids), self.k.network.length()))[0]
-
-        # for storing the distance from the free-flow-speed for a given rollout
-        self._percent_v_eq = []
-
-    def reset(self):
-        """See class definition."""
+    def _reset_ring(self):
+        """TODO."""
         self._percent_v_eq = []
 
         params = self.env_params.additional_params
@@ -479,186 +503,12 @@ class AVClosedEnv(AVEnv):
             print('-----------------------')
 
         # Perform the reset operation.
-        obs = super(AVClosedEnv, self).reset()
+        obs = super(AVEnv, self).reset()
 
         return obs
 
-
-class AVOpenEnv(AVEnv):
-    """Variant of AVEnv that is compatible with highway networks.
-
-    This environment is suitable for training policies on a highway network.
-
-    We attempt to train a control policy in this setting that is robust to
-    changes in density by altering the inflow rate of vehicles within the
-    network. This is made to proportionally increase the inflow rate of both
-    the human-driven and automated (or RL) vehicles in the network to maintain
-    a fixed RL penetration rate.
-
-    Moreover, in order to account for variability in the number of automated
-    vehicles during training, we include a "num_rl" term and perform the
-    following operations to the states and actions:
-
-    * States: In order to maintain a fixed observation size in open networks,
-      when the number of AVs in the network is less than "num_rl", the extra
-      entries are filled in with zeros. Conversely, if the number of autonomous
-      vehicles is greater than "num_rl", the observations from the additional
-      vehicles are not included in the state space.
-    * Actions: In order to account for variability in the number of autonomous
-      vehicles in open networks, if n_AV < "num_rl" the additional actions
-      provided by the agent are not assigned to any vehicle. Moreover, if
-      n_AV > "num_rl", the additional vehicles are not provided with actions
-      from the learning agent, and instead act as human-driven vehicles as
-      well.
-
-    Finally, in order to ignore the effects of the boundaries when performing
-    control, autonomous vehicles are only performed and acted on within a
-    certain range specified under the "control_range" parameter.
-
-    Required from env_params:
-
-    * max_accel: scaling factor for the AV accelerations, in m/s^2
-    * use_follower_stopper: whether to use the follower-stopper controller for
-      the AVs
-    * stopping_penalty: whether to include a stopping penalty
-    * acceleration_penalty: whether to include a regularizing penalty for
-      accelerations by the AVs
-    * obs_frames: number of observation frames to use. Additional frames are
-      provided from previous time steps.
-    * inflows: range for the inflows allowed in the network. If set to None,
-      the inflows are not modified from their initial value.
-    * warmup_path: path to the initialized vehicle states. Cannot be set in
-      addition to the `inflows` term. This feature defines its own inflows.
-    * rl_penetration: the AV penetration rate, defining the portion of inflow
-      vehicles that will be automated. If "inflows" is set to None, this is
-      irrelevant.
-    * num_rl: maximum number of controllable vehicles in the network
-    * control_range: the interval (in meters) in which automated vehicles are
-      controlled. If set to None, the entire region is controllable.
-    """
-
-    def __init__(self, env_params, sim_params, network, simulator='traci'):
-        """See parent class."""
-        for p in OPEN_ENV_PARAMS.keys():
-            if p not in env_params.additional_params:
-                raise KeyError('Env parameter "{}" not supplied'.format(p))
-
-        assert not (env_params.additional_params["warmup_path"] is not None
-                    and env_params.additional_params["inflows"] is not None), \
-            "Cannot assign a value to both \"warmup_path\" and \"inflows\""
-
-        super(AVOpenEnv, self).__init__(
-            env_params=env_params,
-            sim_params=sim_params,
-            network=network,
-            simulator=simulator,
-        )
-
-        # Get the paths to all the initial state xml files
-        warmup_path = env_params.additional_params["warmup_path"]
-        if warmup_path is not None:
-            self.warmup_paths = [
-                f for f in os.listdir(warmup_path) if f.endswith(".xml")
-            ]
-            self.warmup_description = defaultdict(list)
-            for record in DictReader(
-                    open(os.path.join(warmup_path, 'description.csv'))):
-                for key, val in record.items():  # or iteritems in Python 2
-                    self.warmup_description[key].append(float(val))
-        else:
-            self.warmup_paths = None
-            self.warmup_description = None
-
-        # maximum number of controlled vehicles
-        self.num_rl = env_params.additional_params["num_rl"]
-
-        # queue of rl vehicles waiting to be controlled
-        self.rl_queue = collections.deque()
-
-        # names of the rl vehicles controlled at any step
-        self.rl_veh = []
-
-        # names of the rl vehicles past the control range
-        self.removed_veh = []
-
-        # control range, updated to be entire network if not specified
-        self._control_range = \
-            self.env_params.additional_params["control_range"] or \
-            [0, self.k.network.length()]
-
-        # dynamics controller for uncontrolled RL vehicles (mimics humans)
-        controller = self.k.vehicle.type_parameters["human"][
-            "acceleration_controller"]
-        self._rl_controller = controller[0](
-            veh_id="rl",
-            car_following_params=self.k.vehicle.type_parameters["human"][
-                "car_following_params"],
-            **controller[1]
-        )
-
-        if isinstance(network, I210SubNetwork):
-            # the name of the final edge, whose speed limit may be updated
-            self._final_edge = "119257908#3"
-            # maximum number of lanes to add vehicles across
-            self._num_lanes = 5
-        else:
-            # the name of the final edge, whose speed limit may be updated
-            self._final_edge = "highway_end"
-            # maximum number of lanes to add vehicles across
-            self._num_lanes = 1
-
-    def rl_ids(self):
-        """See parent class."""
-        return self.rl_veh
-
-    def compute_reward(self, rl_actions, **kwargs):
-        """See class definition."""
-        # Collect the names of the vehicles within the control range.
-        control_min = self._control_range[0]
-        control_max = self._control_range[1]
-        veh_ids = [
-            veh_id for veh_id in self.k.vehicle.get_ids() if
-            control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
-        ]
-
-        return self._compute_reward_util(rl_actions, veh_ids, **kwargs)
-
-    def additional_command(self):
-        """See parent class.
-
-        This method performs to auxiliary tasks:
-
-        * Define which vehicles are observed for visualization purposes.
-        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
-          vehicles that are represented in the state space does not change
-          until one of the vehicles in the state space leaves the network.
-          Then, the next vehicle in the queue is added to the state space and
-          provided with actions from the policy.
-        """
-        super(AVOpenEnv, self).additional_command()
-
-        # Update the RL lists.
-        self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
-            self,
-            rl_queue=self.rl_queue,
-            rl_veh=self.rl_veh,
-            removed_veh=self.removed_veh,
-            control_range=self._control_range,
-            num_rl=self.num_rl,
-            rl_ids=reversed(sorted(
-                self.k.vehicle.get_rl_ids(), key=self.k.vehicle.get_x_by_id)),
-        )
-
-        # Specify actions for the uncontrolled RL vehicles based on human-
-        # driven dynamics.
-        for veh_id in list(
-                set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
-            self._rl_controller.veh_id = veh_id
-            acceleration = self._rl_controller.get_action(self)
-            self.k.vehicle.apply_acceleration(veh_id, acceleration)
-
-    def reset(self):
-        """See class definition."""
+    def _reset_highway_i210(self):
+        """TODO."""
         end_speed = None
         params = self.env_params.additional_params
         if params["inflows"] is not None or params["warmup_path"] is not None:
@@ -729,7 +579,7 @@ class AVOpenEnv(AVEnv):
         # Clear all AV-related attributes.
         self._clear_attributes()
 
-        _ = super(AVOpenEnv, self).reset()
+        _ = super(AVEnv, self).reset()
 
         # Add automated vehicles.
         if self.warmup_paths is not None:
@@ -781,3 +631,91 @@ class AVOpenEnv(AVEnv):
                     pos = self.k.vehicle.get_x_by_id(veh_id)
                     if pos < self._control_range[1]:
                         self.k.vehicle.set_vehicle_type(veh_id, "rl")
+
+
+class AVClosedEnv(AVEnv):
+    """Closed network variant of AVEnv."""
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        """See parent class."""
+        for p in CLOSED_ENV_PARAMS.keys():
+            if p not in env_params.additional_params:
+                raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        super(AVClosedEnv, self).__init__(
+            env_params=env_params,
+            sim_params=sim_params,
+            network=network,
+            simulator=simulator,
+        )
+
+
+class AVOpenEnv(AVEnv):
+    """Open network variant of AVEnv."""
+
+    def __init__(self, env_params, sim_params, network, simulator='traci'):
+        """See parent class."""
+        for p in OPEN_ENV_PARAMS.keys():
+            if p not in env_params.additional_params:
+                raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        assert not (env_params.additional_params["warmup_path"] is not None
+                    and env_params.additional_params["inflows"] is not None), \
+            "Cannot assign a value to both \"warmup_path\" and \"inflows\""
+
+        super(AVOpenEnv, self).__init__(
+            env_params=env_params,
+            sim_params=sim_params,
+            network=network,
+            simulator=simulator,
+        )
+
+    def rl_ids(self):
+        """See parent class."""
+        return self.rl_veh
+
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition."""
+        # Collect the names of the vehicles within the control range.
+        control_min = self._control_range[0]
+        control_max = self._control_range[1]
+        veh_ids = [
+            veh_id for veh_id in self.k.vehicle.get_ids() if
+            control_min <= self.k.vehicle.get_x_by_id(veh_id) <= control_max
+        ]
+
+        return self._compute_reward_util(rl_actions, veh_ids, **kwargs)
+
+    def additional_command(self):
+        """See parent class.
+
+        This method performs to auxiliary tasks:
+
+        * Define which vehicles are observed for visualization purposes.
+        * Maintains the "rl_veh" and "rl_queue" variables to ensure the RL
+          vehicles that are represented in the state space does not change
+          until one of the vehicles in the state space leaves the network.
+          Then, the next vehicle in the queue is added to the state space and
+          provided with actions from the policy.
+        """
+        super(AVOpenEnv, self).additional_command()
+
+        # Update the RL lists.
+        self.rl_queue, self.rl_veh, self.removed_veh = update_rl_veh(
+            self,
+            rl_queue=self.rl_queue,
+            rl_veh=self.rl_veh,
+            removed_veh=self.removed_veh,
+            control_range=self._control_range,
+            num_rl=self.num_rl,
+            rl_ids=reversed(sorted(
+                self.k.vehicle.get_rl_ids(), key=self.k.vehicle.get_x_by_id)),
+        )
+
+        # Specify actions for the uncontrolled RL vehicles based on human-
+        # driven dynamics.
+        for veh_id in list(
+                set(self.k.vehicle.get_rl_ids()) - set(self.rl_veh)):
+            self._rl_controller.veh_id = veh_id
+            acceleration = self._rl_controller.get_action(self)
+            self.k.vehicle.apply_acceleration(veh_id, acceleration)
