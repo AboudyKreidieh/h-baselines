@@ -70,15 +70,16 @@ class AVMultiAgentEnv(AVEnv):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
+        # In case no vehicles were available in the current step, pass an empty
+        # reward dict.
+        if rl_actions is None:
+            return {}
+
         rl_ids = list(rl_actions.keys())
         num_vehicles = self.k.vehicle.num_vehicles
         vel = np.array(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
 
-        if rl_actions is None:
-            # In case no vehicles were available in the current step, pass an
-            # empty reward dict.
-            return {}
-        elif any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
+        if any(vel < -100) or kwargs["fail"] or num_vehicles == 0:
             # Return a reward of 0 case of collisions or an empty network.
             reward = {key: 0 for key in rl_ids}
         else:

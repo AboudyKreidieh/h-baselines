@@ -169,21 +169,22 @@ class AVEnv(Env):
         # Features for ring road experiments.                                 #
         # =================================================================== #
 
-        # solve for the free flow velocity of the ring
-        v_guess = 4
-        self._v_eq = fsolve(
-            v_eq_function, np.array(v_guess),
-            args=(len(self.initial_ids), self.k.network.length()))[0]
-
-        # for storing the distance from the free-flow-speed for a given rollout
-        self._percent_v_eq = []
+        if isinstance(self.k.network.network, RingNetwork):
+            # Solve for the free flow velocity of the ring.
+            v_guess = 4
+            self._v_eq = fsolve(
+                v_eq_function, np.array(v_guess),
+                args=(len(self.initial_ids), self.k.network.length()))[0]
+        else:
+            # default value
+            self._v_eq = None
 
         # =================================================================== #
         # Features for highway and I-210 experiments.                         #
         # =================================================================== #
 
         # Get the paths to all the initial state xml files
-        warmup_path = env_params.additional_params["warmup_path"]
+        warmup_path = env_params.additional_params.get("warmup_path")
         if warmup_path is not None:
             self.warmup_paths = [
                 f for f in os.listdir(warmup_path) if f.endswith(".xml")
@@ -212,11 +213,13 @@ class AVEnv(Env):
             [0, self.k.network.length()]
 
         # dynamics controller for uncontrolled RL vehicles (mimics humans)
-        controller = self.k.vehicle.type_parameters["human"][
+        human = "human_0" if isinstance(self.k.network.network, RingNetwork) \
+            else "human"
+        controller = self.k.vehicle.type_parameters[human][
             "acceleration_controller"]
         self._rl_controller = controller[0](
             veh_id="rl",
-            car_following_params=self.k.vehicle.type_parameters["human"][
+            car_following_params=self.k.vehicle.type_parameters[human][
                 "car_following_params"],
             **controller[1]
         )
@@ -457,18 +460,16 @@ class AVEnv(Env):
         self.leader = []
         self._obs_history = defaultdict(list)
 
-        if isinstance(self.k.network, RingNetwork):
+        if isinstance(self.k.network.network, RingNetwork):
             return self._reset_ring()
-        elif isinstance(self.k.network, I210SubNetwork) or \
-                isinstance(self.k.network, HighwayNetwork):
+        elif isinstance(self.k.network.network, I210SubNetwork) or \
+                isinstance(self.k.network.network, HighwayNetwork):
             return self._reset_highway_i210()
         else:
             return super(AVEnv, self).reset()
 
     def _reset_ring(self):
         """TODO."""
-        self._percent_v_eq = []
-
         params = self.env_params.additional_params
         if params["ring_length"] is not None:
             # Make sure restart instance is set to True when resetting.
