@@ -1935,8 +1935,8 @@ class TestRingNonFlow(unittest.TestCase):
         env.speeds = [i for i in range(22)]
         np.testing.assert_almost_equal(
             env.get_state(),
-            [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 11.,
-             12., 2.75, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.1,
+             1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         # test case 4
@@ -1987,20 +1987,20 @@ class TestRingNonFlow(unittest.TestCase):
         self.assertEqual(list(state.keys()), [0, 11])
         np.testing.assert_almost_equal(
             state[0],
-            [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             state[11],
-            [11., 12., 2.75, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [1.1, 1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         # test case 4
         env.speeds = [10 for _ in range(22)]
         self.assertDictEqual(
-            env.compute_reward(action=None), {0: 10.0, 11: 10.0})
+            env.compute_reward(action=None), {0: 1.0, 11: 1.0})
         env.speeds = [i for i in range(22)]
         self.assertDictEqual(
-            env.compute_reward(action=None), {0: 11.025, 11: 11.025})
+            env.compute_reward(action=None), {0: 0.0, 11: 1.1})
 
         # Create the environment.
         init_parameters = deepcopy(self._init_parameters)
@@ -2012,34 +2012,34 @@ class TestRingNonFlow(unittest.TestCase):
         obs = env.reset()
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         obs, _, _, _ = env.step({0: [0], 11: [1]})
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0.1, 0.2376284, 0.3415972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
+            [0.01, 0.0237628, 0.0683194, 0., 0., 0.0681818, 0., 0., 0., 0., 0.,
              0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0.2, 0.2376284, 0.3410972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
+            [0.02, 0.0237628, 0.0682194, 0., 0., 0.0681818, 0., 0., 0., 0., 0.,
              0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0.1, 0.2376284, 0.3415972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
-             0., 0., 0., 0., 0.2, 0.2376284, 0.3410972, 0., 0., 0.3409091,
-             0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0.01, 0.0237628, 0.0683194, 0., 0., 0.0681818, 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0.02, 0.0237628, 0.0682194, 0., 0., 0.0681818, 0.,
+             0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
     def test_set_length(self):

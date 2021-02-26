@@ -15,9 +15,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5.0
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 1000.0
+MAX_HEADWAY = 100.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 100.0
+MAX_SPEED = 10.0
 
 
 class RingEnv(gym.Env):
@@ -184,7 +184,7 @@ class RingEnv(gym.Env):
             min_gap=self.min_gap,
         )
         self.headways = self._compute_headway()
-        self.accelerations = None
+        self.accelerations = np.array([0. for _ in range(num_vehicles)])
         self._emission_data = []
 
         # human-driver model parameters

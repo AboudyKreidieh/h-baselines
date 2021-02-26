@@ -12,8 +12,6 @@ from flow.core.params import SumoParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
-from flow.energy_models.poly_fit_autonomie import PFMMidsizeSedan
-from flow.energy_models.poly_fit_autonomie import PFM2019RAV4
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
@@ -133,7 +131,6 @@ def get_flow_params(fixed_boundary,
             # right of way at intersections + obey limits on deceleration
             speed_mode=12
         ),
-        energy_model=PFMMidsizeSedan,
     )
 
     inflows.add(
@@ -158,7 +155,6 @@ def get_flow_params(fixed_boundary,
             # right of way at intersections + obey limits on deceleration
             speed_mode=12,
         ),
-        energy_model=PFM2019RAV4,
     )
 
     inflows.add(
