@@ -272,8 +272,17 @@ class AVMultiAgentEnv(MultiEnv):
 
         return reward
 
-    def get_state(self):
-        """See class definition."""
+    def _update_obs_history(self):
+        """Update the storage of observations for individual vehicles.
+
+        This method performs the following operation:
+
+        1. It adds the most recent observation for each vehicle to the
+           _obs_history attribute. It also maintains the number of viewed
+           frames, and removes vehicles once they've left the network.
+        2. It stored the names of the observed leading vehicles under the
+           leader attribute.
+        """
         self.leader = []
 
         for veh_id in self.k.vehicle.get_rl_ids():
@@ -295,6 +304,11 @@ class AVMultiAgentEnv(MultiEnv):
         for key in self._obs_history.keys():
             if key not in self.k.vehicle.get_rl_ids():
                 del self._obs_history[key]
+
+    def get_state(self):
+        """See class definition."""
+        # Update the storage of observations for individual vehicles.
+        self._update_obs_history()
 
         # Initialize a set on empty observations
         obs = {key: None for key in self.rl_ids()}
@@ -491,6 +505,8 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
       vehicles that will be automated. If "inflows" is set to None, this is
       irrelevant.
     * num_rl: maximum number of controllable vehicles in the network
+    * control_range: the interval (in meters) in which automated vehicles are
+      controlled. If set to None, the entire region is controllable.
     """
 
     def __init__(self, env_params, sim_params, network, simulator='traci'):
@@ -498,6 +514,10 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
         for p in OPEN_ENV_PARAMS.keys():
             if p not in env_params.additional_params:
                 raise KeyError('Env parameter "{}" not supplied'.format(p))
+
+        assert not (env_params.additional_params["warmup_path"] is not None
+                    and env_params.additional_params["inflows"] is not None), \
+            "Cannot assign a value to both \"warmup_path\" and \"inflows\""
 
         super(AVOpenMultiAgentEnv, self).__init__(
             env_params=env_params,
@@ -706,8 +726,17 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             sorted_vehicles_lane = [
                 veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
 
-            for i, veh_id in enumerate(sorted_vehicles_lane):
-                if (i + 1) % int(1 / penetration) == 0:
+            if isinstance(self.k.network.network, I210SubNetwork):
+                # Choose a random starting position to allow for stochasticity.
+                i = random.randint(0, int(1 / penetration) - 1)
+            else:
+                i = 0
+
+            for veh_id in sorted_vehicles_lane:
+                self.k.vehicle.set_vehicle_type(veh_id, "human")
+
+                i += 1
+                if i % int(1 / penetration) == 0:
                     # Don't add vehicles past the control range.
                     pos = self.k.vehicle.get_x_by_id(veh_id)
                     if pos < self._control_range[1]:

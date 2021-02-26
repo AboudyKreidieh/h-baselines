@@ -82,9 +82,9 @@ class AVEnv(Env):
         well as the ego speed of the autonomous vehicles.
 
     Actions
-        The action space consists of a vector of bounded accelerations for each
-        autonomous vehicle $i$. In order to ensure safety, these actions are
-        bounded by failsafes provided by the simulator at every time step.
+        The action space consists of a bounded acceleration for each autonomous
+        vehicle. In order to ensure safety, these actions are bounded by
+        failsafes provided by the simulator at every time step.
 
     Rewards
         The reward provided by the environment is equal to the negative vector
@@ -285,8 +285,17 @@ class AVEnv(Env):
 
             return reward
 
-    def get_state(self):
-        """See class definition."""
+    def _update_obs_history(self):
+        """Update the storage of observations for individual vehicles.
+
+        This method performs the following operation:
+
+        1. It adds the most recent observation for each vehicle to the
+           _obs_history attribute. It also maintains the number of viewed
+           frames, and removes vehicles once they've left the network.
+        2. It stored the names of the observed leading vehicles under the
+           leader attribute.
+        """
         self.leader = []
 
         for veh_id in self.k.vehicle.get_rl_ids():
@@ -308,6 +317,11 @@ class AVEnv(Env):
         for key in self._obs_history.keys():
             if key not in self.k.vehicle.get_rl_ids():
                 del self._obs_history[key]
+
+    def get_state(self):
+        """See class definition."""
+        # Update the storage of observations for individual vehicles.
+        self._update_obs_history()
 
         # Initialize a set of empty observations.
         obs = np.array([0. for _ in range(3 * self._obs_frames * self.num_rl)])
@@ -531,7 +545,7 @@ class AVOpenEnv(AVEnv):
 
         assert not (env_params.additional_params["warmup_path"] is not None
                     and env_params.additional_params["inflows"] is not None), \
-            "Cannot assign a value to both \"warmup_paths\" and \"inflows\""
+            "Cannot assign a value to both \"warmup_path\" and \"inflows\""
 
         super(AVOpenEnv, self).__init__(
             env_params=env_params,
@@ -712,10 +726,9 @@ class AVOpenEnv(AVEnv):
             )
             self.net_params = new_net_params
 
-        self.leader = []
-        self.rl_veh = []
-        self.removed_veh = []
-        self.rl_queue = collections.deque()
+        # Clear all AV-related attributes.
+        self._clear_attributes()
+
         _ = super(AVOpenEnv, self).reset()
 
         # Add automated vehicles.
@@ -730,9 +743,14 @@ class AVOpenEnv(AVEnv):
         self.additional_command()
 
         # Recompute the initial observation.
-        obs = self.get_state()
+        return self.get_state()
 
-        return np.copy(obs)
+    def _clear_attributes(self):
+        """Clear all AV-related attributes."""
+        self.leader = []
+        self.rl_veh = []
+        self.removed_veh = []
+        self.rl_queue = collections.deque()
 
     def _add_automated_vehicles(self):
         """Replace a portion of vehicles with automated vehicles."""
@@ -748,10 +766,17 @@ class AVOpenEnv(AVEnv):
             sorted_vehicles_lane = [
                 veh for veh in sorted_vehicles if get_lane(self, veh) == lane]
 
-            for i, veh_id in enumerate(sorted_vehicles_lane):
+            if isinstance(self.k.network.network, I210SubNetwork):
+                # Choose a random starting position to allow for stochasticity.
+                i = random.randint(0, int(1 / penetration) - 1)
+            else:
+                i = 0
+
+            for veh_id in sorted_vehicles_lane:
                 self.k.vehicle.set_vehicle_type(veh_id, "human")
 
-                if (i + 1) % int(1 / penetration) == 0:
+                i += 1
+                if i % int(1 / penetration) == 0:
                     # Don't add vehicles past the control range.
                     pos = self.k.vehicle.get_x_by_id(veh_id)
                     if pos < self._control_range[1]:
