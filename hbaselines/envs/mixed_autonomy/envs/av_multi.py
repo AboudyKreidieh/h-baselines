@@ -9,7 +9,7 @@ from collections import defaultdict
 from csv import DictReader
 from scipy.optimize import fsolve
 
-from flow.envs.multiagent import MultiEnv
+from flow.envs import Env
 from flow.core.params import InFlows
 from flow.controllers import FollowerStopper
 from flow.networks import I210SubNetwork
@@ -62,7 +62,7 @@ OPEN_ENV_PARAMS.update(dict(
 ))
 
 
-class AVMultiAgentEnv(MultiEnv):
+class AVMultiAgentEnv(Env):
     """Environment for training automated vehicles in a mixed-autonomy setting.
 
     Required from env_params:
@@ -314,8 +314,8 @@ class AVMultiAgentEnv(MultiEnv):
         obs = {key: None for key in self.rl_ids()}
 
         for i, veh_id in enumerate(self.rl_ids()):
-            # Concatenate the past n samples for a given time delta and return
-            # as the final observation.
+            # Concatenate the past n samples for a given time delta in the
+            # output observations.
             obs_t = np.concatenate(self._obs_history[veh_id][::-1])
             obs_vehicle = np.array([0. for _ in range(3 * self._obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
@@ -364,7 +364,7 @@ class AVMultiAgentEnv(MultiEnv):
 
         return obs, rew, done, info
 
-    def reset(self, new_inflow_rate=None):
+    def reset(self):
         """See parent class.
 
         In addition, a few variables that are specific to this class are
@@ -377,7 +377,7 @@ class AVMultiAgentEnv(MultiEnv):
         self._mean_accels = []
         self.leader = []
         self._obs_history = defaultdict(list)
-        return super().reset(new_inflow_rate)
+        return super().reset()
 
 
 class AVClosedMultiAgentEnv(AVMultiAgentEnv):
@@ -431,7 +431,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
         # for storing the distance from the free-flow-speed for a given rollout
         self._percent_v_eq = []
 
-    def reset(self, new_inflow_rate=None):
+    def reset(self):
         """See class definition."""
         self._percent_v_eq = []
 
@@ -477,9 +477,7 @@ class AVClosedMultiAgentEnv(AVMultiAgentEnv):
 class AVOpenMultiAgentEnv(AVMultiAgentEnv):
     """Open network variant of AVMultiAgentEnv.
 
-    In this environment, every vehicle is treated as a separate agent. This
-    environment is suitable for training policies on a merge or highway
-    network.
+    This environment is suitable for training policies on a highway network.
 
     We attempt to train a control policy in this setting that is robust to
     changes in density by altering the inflow rate of vehicles within the
@@ -617,7 +615,7 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             acceleration = self._rl_controller.get_action(self)
             self.k.vehicle.apply_acceleration(veh_id, acceleration)
 
-    def reset(self, new_inflow_rate=None):
+    def reset(self):
         """See class definition."""
         end_speed = None
         params = self.env_params.additional_params
