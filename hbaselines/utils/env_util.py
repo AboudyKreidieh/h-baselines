@@ -850,7 +850,7 @@ def _get_ring_env_attributes(scale):
         ) if evaluate else
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
             maddpg=maddpg,
-            length=[260 * scale, 270 * scale],
+            length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
             horizon=3000,

@@ -709,7 +709,8 @@ class RingMultiAgentEnv(RingEnv):
         c2 = 1.0  # reward scale for the accelerations
 
         return {
-            key: c1 * self.speeds[key] - c2 * abs(self.accelerations[key])
+            key: (- c1 * (self.speeds[key] - self._v_eq) ** 2
+                  - c2 * abs(self.accelerations[key]))
             for key in self.rl_ids
         }
 
