@@ -729,7 +729,7 @@ class RingMultiAgentEnv(RingEnv):
 if __name__ == "__main__":
     for scale in range(1, 6):
         res = defaultdict(list)
-        for ring_length in range(scale * 220, scale * 271, scale * 1):
+        for ring_length in range(scale * 250, scale * 361, scale * 1):
             print(ring_length)
             for ix in range(10):
                 print(ix)
