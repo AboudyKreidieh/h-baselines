@@ -705,12 +705,12 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        c1 = 0.1  # reward scale for the speeds
-        c2 = 1.0  # reward scale for the accelerations
+        c1 = 0.10  # reward scale for the speeds
+        c2 = 10.0  # reward scale for the accelerations
 
         return {
             key: (- c1 * (self.speeds[key] - self._v_eq) ** 2
-                  - c2 * abs(self.accelerations[key]))
+                  - c2 * self.accelerations[key] ** 2)
             for key in self.rl_ids
         }
 
