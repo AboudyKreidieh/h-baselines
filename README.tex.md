@@ -316,6 +316,8 @@ The modifiable parameters of this policy are as follows:
     "conv"}.
   * **layers** (list of int) :the size of the Neural network for the policy
   * **layer_norm** (bool) : enable layer normalisation
+  * **batch_norm** (bool) : enable batch normalisation
+  * **dropout** (bool) : enable dropout
   * **act_fun** (tf.nn.*) : the activation function to use in the neural 
     network
   * **ignore_image** (bool) : observation includes an image but should it be 
