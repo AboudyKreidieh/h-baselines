@@ -53,6 +53,11 @@ class MultiFeedForwardPolicy(BasePolicy):
         placeholder for the current step full state observations
     all_action_ph : tf.compat.v1.placeholder
         placeholder for the actions of all agents
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     actor_tf : tf.Variable
         the output from the actor network
     critic_tf : list of tf.Variable
@@ -197,6 +202,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.all_obs_ph = None
         self.all_obs1_ph = None
         self.all_action_ph = None
+        self.phase_ph = None
+        self.rate_ph = None
         self.actor_tf = None
         self.critic_tf = None
         self.actor_target = None
@@ -238,6 +245,14 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _setup_maddpg(self, scope):
         """See setup."""
+        # common placeholders for all agents
+        self.phase_ph = tf.compat.v1.placeholder(
+            tf.bool,
+            name='phase')
+        self.rate_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            name='rate')
+
         if self.shared:
             self._setup_maddpg_shared(scope)
         else:
@@ -677,6 +692,10 @@ class MultiFeedForwardPolicy(BasePolicy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -691,6 +710,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -738,6 +761,10 @@ class MultiFeedForwardPolicy(BasePolicy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -749,6 +776,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             output_pre="qf_",
             scope=scope,
             reuse=reuse,
@@ -985,7 +1016,9 @@ class MultiFeedForwardPolicy(BasePolicy):
                 self.all_obs1_ph: all_obs1,
                 self.all_action_ph: np.concatenate(actions, axis=1),
                 self.rew_ph: rewards,
-                self.terminals1: done1
+                self.terminals1: done1,
+                self.phase_ph: 1,
+                self.rate_ph: 0.5,
             }
 
             # Add the agent-level data to the feed dict.
@@ -1065,21 +1098,20 @@ class MultiFeedForwardPolicy(BasePolicy):
                 ac_space = self.ac_space if self.shared else self.ac_space[key]
 
                 # Compute the deterministic action.
-                if self.shared:
-                    action = self.sess.run(
-                        self.actor_tf,
-                        feed_dict={self.obs_ph[0]: obs[key]})
-                else:
-                    action = self.sess.run(
-                        self.actor_tf[key],
-                        feed_dict={self.obs_ph[key]: obs[key]})
+                policy = self.actor_tf if self.shared else self.actor_tf[key]
+                obs_ph = self.obs_ph[0] if self.shared else self.obs_ph[key]
+                action = self.sess.run(policy, feed_dict={
+                    obs_ph: obs[key],
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
 
-                # compute noisy action
+                # Compute noisy action.
                 if apply_noise:
                     noise = self.noise if self.shared else self.noise[key]
                     action += np.random.normal(0, noise, action.shape)
 
-                # clip by bounds
+                # Clip by bounds.
                 actions[key] = np.clip(action, ac_space.low, ac_space.high)
 
         return actions
@@ -1149,6 +1181,9 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
+        # Common data for all forms of the policy.
+        td_map = {self.phase_ph: 0, self.rate_ph: 0.0}
+
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
@@ -1166,13 +1201,13 @@ class MultiFeedForwardPolicy(BasePolicy):
             # agent IDs in alphabetical order.
             all_actions = np.concatenate(actions, axis=1)
 
-            td_map = {
+            td_map.update({
                 self.all_obs_ph: all_obs0,
                 self.all_action_ph: all_actions,
                 self.all_obs1_ph: all_obs1,
                 self.rew_ph: rewards,
                 self.terminals1: done1
-            }
+            })
 
             # Add the agent-level placeholders and variables.
             td_map.update({
@@ -1182,8 +1217,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             td_map.update({
                 self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
         else:
-            td_map = {}
-
             # Loop through all agent.
             for key in sorted(list(self.replay_buffer.keys())):
                 # Not enough samples in the replay buffer.

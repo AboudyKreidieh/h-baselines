@@ -102,6 +102,8 @@ respective policies.
 * `--model_params:model_type` (*str*): the type of model to use. Must be one of
   {"fcnet", "conv"}.
 * `--model_params:layer_norm` (*store_true*): enable layer normalisation
+* `--model_params:batch_norm` (*store_true*): enable batch normalisation
+* `--model_params:dropout` (*store_true*): enable dropout
 * `--model_params:ignore_flat_channels` (*list of int*): specifies which 
   channels of the observation to ignore
 * `--model_params:ignore_image` (*store_true*): specifies whether the image in
