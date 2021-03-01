@@ -37,6 +37,8 @@ def get_hyperparameters(args, policy):
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
+            "batch_norm": getattr(args, "model_params:batch_norm"),
+            "dropout": getattr(args, "model_params:dropout"),
             "ignore_image": getattr(args, "model_params:ignore_image"),
             "image_height": getattr(args, "model_params:image_height"),
             "image_width": getattr(args, "model_params:image_width"),
@@ -468,6 +470,14 @@ def create_feedforward_parser(parser):
         "--model_params:layer_norm",
         action="store_true",
         help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:batch_norm",
+        action="store_true",
+        help="enable batch normalisation")
+    parser.add_argument(
+        "--model_params:dropout",
+        action="store_true",
+        help="enable dropout")
     parser.add_argument(
         "--model_params:layers",
         type=int,

@@ -259,7 +259,11 @@ def layer(val,
           act_fun=None,
           kernel_initializer=slim.variance_scaling_initializer(
               factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-          layer_norm=False):
+          layer_norm=False,
+          batch_norm=False,
+          phase=None,
+          dropout=False,
+          rate=None):
     """Create a fully-connected layer.
 
     Parameters
@@ -276,6 +280,15 @@ def layer(val,
         the initializing operation to the weights of the layer
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -288,8 +301,20 @@ def layer(val,
     if layer_norm:
         val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
 
+    if batch_norm:
+        val = tf.contrib.layers.batch_norm(
+            val,
+            center=True,
+            scale=True,
+            is_training=phase,
+            scope='bn_{}'.format(name),
+        )
+
     if act_fun is not None:
         val = act_fun(val)
+
+    if dropout:
+        val = tf.nn.dropout(val, rate=rate)
 
     return val
 
@@ -302,7 +327,11 @@ def conv_layer(val,
                act_fun=None,
                kernel_initializer=slim.variance_scaling_initializer(
                    factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-               layer_norm=False):
+               layer_norm=False,
+               batch_norm=False,
+               phase=None,
+               dropout=False,
+               rate=None):
     """Create a convolutional layer.
 
     Parameters
@@ -323,6 +352,15 @@ def conv_layer(val,
         the initializing operation to the weights of the layer
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -342,8 +380,20 @@ def conv_layer(val,
     if layer_norm:
         val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
 
+    if batch_norm:
+        val = tf.contrib.layers.batch_norm(
+            val,
+            center=True,
+            scale=True,
+            is_training=phase,
+            scope='bn_{}'.format(name),
+        )
+
     if act_fun is not None:
         val = act_fun(val)
+
+    if dropout:
+        val = tf.nn.dropout(val, rate=rate)
 
     return val
 
@@ -354,6 +404,10 @@ def create_fcnet(obs,
                  stochastic,
                  act_fun,
                  layer_norm,
+                 batch_norm,
+                 phase,
+                 dropout,
+                 rate,
                  scope=None,
                  reuse=False,
                  output_pre=""):
@@ -373,10 +427,22 @@ def create_fcnet(obs,
         the activation function
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool
         whether or not to reuse parameters
+    output_pre : str
+        a string that is prepended to the name of the output layer. For
+        backwards compatibility purposes.
 
     Returns
     -------
@@ -393,7 +459,11 @@ def create_fcnet(obs,
             pi_h = layer(
                 pi_h, layer_size, 'fc{}'.format(i),
                 act_fun=act_fun,
-                layer_norm=layer_norm
+                layer_norm=layer_norm,
+                batch_norm=batch_norm,
+                phase=phase,
+                dropout=dropout,
+                rate=rate,
             )
 
         if stochastic:
@@ -435,6 +505,10 @@ def create_conv(obs,
                 strides,
                 act_fun,
                 layer_norm,
+                batch_norm,
+                phase,
+                dropout,
+                rate,
                 scope=None,
                 reuse=False):
     """Create a convolutional network.
@@ -463,6 +537,15 @@ def create_conv(obs,
         the activation function
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool
@@ -504,7 +587,11 @@ def create_conv(obs,
                     stride_i,
                     'conv{}'.format(i),
                     act_fun=act_fun,
-                    layer_norm=layer_norm
+                    layer_norm=layer_norm,
+                    batch_norm=batch_norm,
+                    phase=phase,
+                    dropout=dropout,
+                    rate=rate,
                 )
 
             h = pi_h_image.shape[1]

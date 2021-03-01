@@ -80,6 +80,11 @@ class FeedForwardPolicy(Policy):
         performed
     old_vpred_ph : tf.compat.v1.placeholder
         placeholder for the current predictions of the values of given states
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     action : tf.Variable
         the output from the policy/actor
     pi_mean : tf.Variable
@@ -232,18 +237,24 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs0')
-            self.advs_ph = tf.placeholder(
+            self.advs_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="advs_ph")
-            self.old_neglog_pac_ph = tf.placeholder(
+            self.old_neglog_pac_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="old_neglog_pac_ph")
-            self.old_vpred_ph = tf.placeholder(
+            self.old_vpred_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="old_vpred_ph")
+            self.phase_ph = tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase')
+            self.rate_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate')
 
         # =================================================================== #
         # Step 2: Create actor and critic variables.                          #
@@ -314,6 +325,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -328,6 +343,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -379,6 +398,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -392,6 +415,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -514,7 +541,11 @@ class FeedForwardPolicy(Policy):
         action, values, neglogpacs = self.sess.run(
             [self.action if apply_noise else self.pi_mean,
              self.value_flat, self.neglogp],
-            {self.obs_ph: obs}
+            feed_dict={
+                self.obs_ph: obs,
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            }
         )
 
         # Store information on the values and negative-log likelihood.
@@ -666,6 +697,8 @@ class FeedForwardPolicy(Policy):
             self.rew_ph: returns,
             self.old_neglog_pac_ph: neglogpacs,
             self.old_vpred_ph: values,
+            self.phase_ph: 1,
+            self.rate_ph: 0.5,
         })
 
     def get_td_map(self):
@@ -713,4 +746,6 @@ class FeedForwardPolicy(Policy):
             self.rew_ph: mb_returns,
             self.old_neglog_pac_ph: mb_neglogpacs,
             self.old_vpred_ph: mb_values,
+            self.phase_ph: 0,
+            self.rate_ph: 0.0,
         }

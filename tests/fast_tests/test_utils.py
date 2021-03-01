@@ -100,6 +100,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -145,6 +147,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -199,6 +203,8 @@ class TestTrain(unittest.TestCase):
                 '--model_params:model_type', 'model_type',
                 '--model_params:layers', '24', '25',
                 '--model_params:layer_norm',
+                '--model_params:batch_norm',
+                '--model_params:dropout',
             ],
             multiagent=False,
             hierarchical=False,
@@ -228,6 +234,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': True,
+            'model_params:batch_norm': True,
+            'model_params:dropout': True,
             'model_params:model_type': 'model_type',
             'model_params:strides': None,
             'n_training': 1,
@@ -282,6 +290,8 @@ class TestTrain(unittest.TestCase):
                     'image_width': 32,
                     'kernel_sizes': [5, 5, 5],
                     'layer_norm': True,
+                    'batch_norm': True,
+                    'dropout': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
                 },
@@ -332,6 +342,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -394,6 +406,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -484,6 +498,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -543,6 +559,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -609,6 +627,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -657,6 +677,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -717,6 +739,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -765,6 +789,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -820,6 +846,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -885,6 +913,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -961,6 +991,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -1023,6 +1055,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -1114,6 +1148,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'use_huber': False,
@@ -1155,6 +1191,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -1206,6 +1244,8 @@ class TestTrain(unittest.TestCase):
                 '--use_huber',
                 '--model_params:model_type', 'model_type',
                 '--model_params:layer_norm',
+                '--model_params:batch_norm',
+                '--model_params:dropout',
                 '--model_params:layers', '22', '23',
             ],
             multiagent=False,
@@ -1236,6 +1276,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': True,
+            'model_params:batch_norm': True,
+            'model_params:dropout': True,
             'model_params:model_type': 'model_type',
             'model_params:strides': None,
             'n_training': 1,
@@ -1288,6 +1330,8 @@ class TestTrain(unittest.TestCase):
                     'image_width': 32,
                     'kernel_sizes': [5, 5, 5],
                     'layer_norm': True,
+                    'batch_norm': True,
+                    'dropout': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
                 },
@@ -1351,6 +1395,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
             'model_params:model_type': 'fcnet',
             'model_params:strides': None,
             'cliprange': PPO_PARAMS['cliprange'],
@@ -1396,6 +1442,8 @@ class TestTrain(unittest.TestCase):
                     'model_type': model_params["model_type"],
                     'layers': model_params["layers"],
                     'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
                     'filters': model_params["filters"],
                     'ignore_flat_channels': model_params[
                         "ignore_flat_channels"],
@@ -1439,6 +1487,8 @@ class TestTrain(unittest.TestCase):
                 '--num_envs', '21',
                 '--model_params:model_type', 'model_type',
                 '--model_params:layer_norm',
+                '--model_params:batch_norm',
+                '--model_params:dropout',
                 '--model_params:layers', '22', '23',
                 '--cliprange', '24',
                 '--cliprange_vf', '25',
@@ -1474,6 +1524,8 @@ class TestTrain(unittest.TestCase):
             'model_params:image_width': 32,
             'model_params:kernel_sizes': None,
             'model_params:layer_norm': True,
+            'model_params:batch_norm': True,
+            'model_params:dropout': True,
             'model_params:model_type': 'model_type',
             'model_params:strides': None,
             'n_training': 1,
@@ -1538,6 +1590,8 @@ class TestTrain(unittest.TestCase):
                     'image_width': 32,
                     'kernel_sizes': [5, 5, 5],
                     'layer_norm': True,
+                    'batch_norm': True,
+                    'dropout': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
                 },
@@ -2193,6 +2247,8 @@ class TestTFUtil(unittest.TestCase):
         2. the name is properly used
         3. the proper activation function applied if requested
         4. layer_norm is applied if requested
+        5. batch_norm is applied if requested
+        6. dropout is applied if requested
         """
         # =================================================================== #
         # test case 1                                                         #
@@ -2289,6 +2345,80 @@ class TestTFUtil(unittest.TestCase):
         # Clear the graph.
         tf.compat.v1.reset_default_graph()
 
+        # =================================================================== #
+        # test case 5                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        _ = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test5',
+            ),
+            layer_norm=False,
+            batch_norm=True,
+            phase=tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase5',
+            ),
+            dropout=False,
+            rate=tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate5',
+            ),
+            num_outputs=num_outputs,
+            name="test5",
+        )
+
+        # Test that the batch_norm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['bn_test5/beta:0',
+             'bn_test5/gamma:0',
+             'test5/bias:0',
+             'test5/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 6                                                         #
+        # =================================================================== #
+
+        # Create the layer.
+        _ = layer(
+            val=tf.compat.v1.placeholder(
+                tf.float32,
+                shape=(None, 1),
+                name='input_test6',
+            ),
+            layer_norm=False,
+            batch_norm=False,
+            phase=tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase6',
+            ),
+            dropout=True,
+            rate=tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate6',
+            ),
+            num_outputs=num_outputs,
+            name="test6",
+        )
+
+        # Test the layer names.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['test6/bias:0',
+             'test6/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
     def test_conv_layer(self):
         """Check the functionality of the conv_layer() method.
 
@@ -2298,6 +2428,8 @@ class TestTFUtil(unittest.TestCase):
         2. the name is properly used
         3. the proper activation function applied if requested
         4. layer_norm is applied if requested
+        5. batch_norm is applied if requested
+        6. dropout is applied if requested
         """
         # =================================================================== #
         # test case 1                                                         #
@@ -2414,6 +2546,92 @@ class TestTFUtil(unittest.TestCase):
              'LayerNorm/gamma:0',
              'test4/bias:0',
              'test4/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 5                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test5',
+        )
+
+        # Create the layer.
+        _ = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test5",
+            act_fun=None,
+            layer_norm=False,
+            batch_norm=True,
+            phase=tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase5',
+            ),
+            dropout=False,
+            rate=tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate5',
+            ),
+        )
+
+        # Test that the batch_norm layer was added.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['bn_test5/beta:0',
+             'bn_test5/gamma:0',
+             'test5/bias:0',
+             'test5/kernel:0']
+        )
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+        # =================================================================== #
+        # test case 6                                                         #
+        # =================================================================== #
+
+        # Create the input variable.
+        in_val = tf.compat.v1.placeholder(
+            tf.float32,
+            shape=(None, 32, 32, 3),
+            name='input_test6',
+        )
+
+        # Create the layer.
+        _ = conv_layer(
+            val=in_val,
+            filters=16,
+            kernel_size=5,
+            strides=2,
+            name="test6",
+            act_fun=None,
+            layer_norm=False,
+            batch_norm=False,
+            phase=tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase6',
+            ),
+            dropout=True,
+            rate=tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate6',
+            ),
+        )
+
+        # Test the layer names.
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['test6/bias:0',
+             'test6/kernel:0']
         )
 
         # Clear the graph.
