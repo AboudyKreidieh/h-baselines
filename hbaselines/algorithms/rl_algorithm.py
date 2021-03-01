@@ -141,6 +141,10 @@ FEEDFORWARD_PARAMS = dict(
         layers=[256, 256],
         # enable layer normalisation
         layer_norm=False,
+        # enable batch normalisation
+        batch_norm=False,
+        # enable dropout
+        dropout=False,
         # the activation function to use in the neural network
         act_fun=tf.nn.relu,
 
