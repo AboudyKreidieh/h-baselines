@@ -93,7 +93,7 @@ def get_flow_params(stopping_penalty,
     """
     # steps to run before the agent is allowed to take control (set to lower
     # value during testing)
-    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 3000
 
     vehicles = VehicleParams()
     for i in range(scale):
@@ -156,7 +156,7 @@ def get_flow_params(stopping_penalty,
 
         # environment related parameters (see flow.core.params.EnvParams)
         env=EnvParams(
-            horizon=1500,
+            horizon=3000,
             warmup_steps=warmup_steps,
             sims_per_step=1,
             evaluate=evaluate,
@@ -166,7 +166,7 @@ def get_flow_params(stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": False,
                 "obs_frames": 5,
-                "ring_length": [220 * scale, 270 * scale],
+                "ring_length": [250 * scale, 360 * scale],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,

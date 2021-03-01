@@ -20,6 +20,8 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
     as TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
     as SACMultiFeedForwardPolicy
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy \
+    as PPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
@@ -42,6 +44,7 @@ POLICY_DICT = {
     "MultiFeedForwardPolicy": {
         "TD3": TD3MultiFeedForwardPolicy,
         "SAC": SACMultiFeedForwardPolicy,
+        "PPO": PPOMultiFeedForwardPolicy,
     },
     "MultiGoalConditionedPolicy": {
         "TD3": TD3MultiGoalConditionedPolicy,

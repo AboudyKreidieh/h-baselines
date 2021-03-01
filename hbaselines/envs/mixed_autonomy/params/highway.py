@@ -28,8 +28,6 @@ TRAFFIC_FLOW = 2215
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
 PENETRATION_RATE = 1/22
-# whether to include noise in the environment
-INCLUDE_NOISE = True
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
@@ -123,7 +121,7 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "noise": 0.3 if evaluate else 0.0,  # TODO
             "display_warnings": False,
             "fail_safe": [
                 'obey_speed_limit', 'safe_velocity', 'feasible_accel'],

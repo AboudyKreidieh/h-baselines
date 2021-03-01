@@ -16,7 +16,7 @@ from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
 
@@ -98,12 +98,12 @@ def get_flow_params(fixed_boundary,
         "human",
         num_vehicles=0,
         acceleration_controller=(IDMController, {
-            'a': 1.3,
-            'b': 2.0,
-            'noise': 0.3,
+            "a": 1.3,
+            "b": 2.0,
+            "noise": 0.3 if evaluate else 0.0,  # TODO
             "display_warnings": False,
             "fail_safe": [
-                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+                "obey_speed_limit", "safe_velocity", "feasible_accel"],
         }),
         lane_change_controller=(SimLaneChangeController, {}),
         car_following_params=SumoCarFollowingParams(
@@ -112,7 +112,7 @@ def get_flow_params(fixed_boundary,
             speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=1621,
+            lane_change_mode="sumo_default",
         ),
     )
     vehicles.add(
@@ -120,7 +120,7 @@ def get_flow_params(fixed_boundary,
         num_vehicles=0,
         acceleration_controller=(RLController, {
             "fail_safe": [
-                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+                "obey_speed_limit", "safe_velocity", "feasible_accel"],
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
@@ -134,28 +134,25 @@ def get_flow_params(fixed_boundary,
 
     # Add the inflows from the main highway.
     inflow = InFlows()
-    for lane in [0, 1, 2, 3, 4]:
-        inflow.add(
-            veh_type="human",
-            edge="ghost0",
-            vehs_per_hour=int(INFLOW_RATE * (1 - PENETRATION_RATE)),
-            depart_lane=lane,
-            depart_speed=INFLOW_SPEED
-        )
-        inflow.add(
-            veh_type="rl",
-            edge="ghost0",
-            vehs_per_hour=int(INFLOW_RATE * PENETRATION_RATE),
-            depart_lane=lane,
-            depart_speed=INFLOW_SPEED
-        )
+    inflow.add(
+        veh_type="human",
+        edge="ghost0",
+        vehs_per_hour=INFLOW_RATE * 5 * (1 - PENETRATION_RATE),
+        depart_lane="best",
+        depart_speed=25.5)
+    inflow.add(
+        veh_type="rl",
+        edge="ghost0",
+        vehs_per_hour=INFLOW_RATE * 5 * PENETRATION_RATE,
+        depart_lane="best",
+        depart_speed=25.5)
 
     # Choose the appropriate environment.
     if multiagent:
         if imitation:
             env_name = None  # to be added later
         else:
-            env_name = LaneOpenMultiAgentEnv
+            env_name = AVOpenMultiAgentEnv
     else:
         if imitation:
             env_name = AVOpenImitationEnv
@@ -164,7 +161,7 @@ def get_flow_params(fixed_boundary,
 
     return dict(
         # name of the experiment
-        exp_tag='I-210_subnetwork',
+        exp_tag="I-210_subnetwork",
 
         # name of the flow environment the experiment is running on
         env_name=env_name,
@@ -173,7 +170,7 @@ def get_flow_params(fixed_boundary,
         network=I210SubNetwork,
 
         # simulator that is used by the experiment
-        simulator='traci',
+        simulator="traci",
 
         # simulation-related parameters
         sim=SumoParams(
@@ -198,8 +195,8 @@ def get_flow_params(fixed_boundary,
                 "obs_frames": 5,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 5 if multiagent else 25,
-                "control_range": [500, 2300],
+                "num_rl": float("inf") if multiagent else 25,
+                "control_range": [573.08, 2363.27],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,

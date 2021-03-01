@@ -25,8 +25,6 @@ from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.params.highway \
     import get_flow_params as highway
-from hbaselines.envs.mixed_autonomy.params.i210 \
-    import get_flow_params as i210
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
@@ -38,7 +36,6 @@ from hbaselines.envs.mixed_autonomy.envs.av \
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
@@ -1525,24 +1522,6 @@ class TestAVMulti(unittest.TestCase):
         self.env_params_open.warmup_steps = 0
         self.env_params_open.additional_params = MA_OPEN_ENV_PARAMS.copy()
 
-        # for LaneOpenMultiAgentEnv
-        flow_params_lane = deepcopy(i210(
-            fixed_boundary=False,
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            use_follower_stopper=False,
-            multiagent=True,
-        ))
-
-        self.network_lane = flow_params_lane["network"](
-            name="test_open",
-            vehicles=flow_params_lane["veh"],
-            net_params=flow_params_lane["net"],
-        )
-        self.env_params_lane = flow_params_lane["env"]
-        self.env_params_lane.warmup_steps = 0
-        self.env_params_lane.additional_params = MA_OPEN_ENV_PARAMS.copy()
-
     def test_base_env(self):
         """Validate the functionality of the AVMultiAgentEnv class.
 
@@ -1700,69 +1679,6 @@ class TestAVMulti(unittest.TestCase):
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
             expected_rate = 2114 if veh_type == "human" else 100
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1023.3 if veh_type == "human" else 113.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1680.3 if veh_type == "human" else 186.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-    def test_lane_open_env(self):
-        """Validate the functionality of the LaneOpenMultiAgentEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the inflow rate of vehicles is properly modified in between
-           resets
-        """
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=LaneOpenMultiAgentEnv,
-                sim_params=self.sim_params,
-                network=self.network_lane,
-                additional_params={
-                    "max_accel": 3,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "obs_frames": 5,
-                    "inflows": [1000, 2000],
-                    "rl_penetration": 0.1,
-                    "num_rl": 5,
-                    "control_range": [500, 2500],
-                    "warmup_path": None,
-                },
-            )
-        )
-
-        # set a random seed to ensure the network lengths are always the same
-        # during testing
-        random.seed(1)
-
-        # test case 2
-        env = LaneOpenMultiAgentEnv(
-            env_params=self.env_params_lane,
-            sim_params=self.sim_params,
-            network=self.network_lane
-        )
-
-        # reset the network several times and check its inflow rate
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1956 if veh_type == "human" else 93
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -2019,8 +1935,8 @@ class TestRingNonFlow(unittest.TestCase):
         env.speeds = [i for i in range(22)]
         np.testing.assert_almost_equal(
             env.get_state(),
-            [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 11.,
-             12., 2.75, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.1,
+             1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         # test case 4
@@ -2071,20 +1987,20 @@ class TestRingNonFlow(unittest.TestCase):
         self.assertEqual(list(state.keys()), [0, 11])
         np.testing.assert_almost_equal(
             state[0],
-            [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             state[11],
-            [11., 12., 2.75, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [1.1, 1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         # test case 4
         env.speeds = [10 for _ in range(22)]
         self.assertDictEqual(
-            env.compute_reward(action=None), {0: 10.0, 11: 10.0})
+            env.compute_reward(action=None), {0: -0.5, 11: -0.5})
         env.speeds = [i for i in range(22)]
         self.assertDictEqual(
-            env.compute_reward(action=None), {0: 11.025, 11: 11.025})
+            env.compute_reward(action=None), {0: 0.0, 11: -0.605})
 
         # Create the environment.
         init_parameters = deepcopy(self._init_parameters)
@@ -2096,34 +2012,34 @@ class TestRingNonFlow(unittest.TestCase):
         obs = env.reset()
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0., 0.3409091, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
         )
 
         obs, _, _, _ = env.step({0: [0], 11: [1]})
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0.1, 0.2376284, 0.3415972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
-             0., 0., 0., 0.]
+            [0.01, 0.0253635, 0.0683355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0.2, 0.2376284, 0.3410972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
-             0., 0., 0., 0.]
+            [0.02, 0.026807, 0.0682499, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0.1, 0.2376284, 0.3415972, 0., 0., 0.3409091, 0., 0., 0., 0., 0.,
-             0., 0., 0., 0., 0.2, 0.2376284, 0.3410972, 0., 0., 0.3409091,
-             0., 0., 0., 0., 0., 0., 0., 0., 0.]
+            [0.01, 0.0253635, 0.0683355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0.02, 0.026807, 0.0682499, 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0.]
         )
 
     def test_set_length(self):
@@ -2202,20 +2118,18 @@ class TestRingNonFlow(unittest.TestCase):
         )
         np.testing.assert_almost_equal(
             pos,
-            [8.07114953, 20.25338764, 29.36082679, 36.66852828, 43.48436136,
-             50.35150348, 57.18162828, 64.03667003, 70.92965729, 77.83510118,
-             85.28126774, 93.80096816, 103.1441164, 114.26540782, 127.84779726,
-             143.13653472, 159.53337968, 176.61463232, 194.795074,
-             214.19084863, 234.23621596, 252.72653755]
+            [4.26916339, 26.26884054, 45.00283694, 59.21748779, 69.62140292,
+             77.50811521, 84.4383123, 91.32026691, 98.20029183, 105.08299618,
+             111.96267019, 118.84624248, 125.72564607, 132.72740364,
+             140.53168409, 149.69677999, 160.49310896, 173.06216771,
+             187.49368115, 203.83776384, 222.12540662, 242.34888505]
         )
         np.testing.assert_almost_equal(
             vel,
-            [5.27176997e+00, 2.49208066e+00, 7.32876314e-01, 2.77555756e-17,
-             0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,
-             0.00000000e+00, 1.12262107e-01, 6.62442938e-01, 1.55713361e+00,
-             2.59813034e+00, 3.86003248e+00, 5.33645873e+00, 6.53937688e+00,
-             7.60092709e+00, 8.46809237e+00, 9.29272005e+00, 1.02544889e+01,
-             1.03251756e+01, 8.07924978e+00]
+            [11.21739964, 10.07556411, 6.87465934, 3.77013913, 1.44293824,
+             0.1846424, 0., 0., 0., 0., 0., 0., 0., 0.27799439, 1.10959298,
+             2.20639645, 3.44200324, 4.75554959, 6.11640064, 7.50645556,
+             8.90890994, 10.27611265]
         )
 
     def test_update_state(self):
@@ -2308,17 +2222,17 @@ class TestRingNonFlow(unittest.TestCase):
         env = RingEnv(**init_parameters)
         env.reset()
 
-        self.assertEqual(env.length, 252)
+        self.assertEqual(env.length, 315)
         np.testing.assert_almost_equal(
             env.positions,
-            [0.9998593205656334, 14.903055632447925, 30.575887290421456,
-             48.23648201279702, 67.05906343574652, 87.06651340401726,
-             107.03638342721051, 124.17736390652719, 137.13892782065102,
-             146.91693332261394, 154.61333975297396, 161.57576210198297,
-             168.46508982011704, 175.32494938936995, 182.1886384463983,
-             189.04980449648397, 195.92812830808873, 202.99394959839773,
-             210.46499782513342, 219.44989392935943, 229.74373831220177,
-             240.65377274288562]
+            [1.456621610141724, 22.862776568370673, 46.21101268634284,
+             71.39880838706915, 97.71478456842716, 122.44440175240561,
+             142.69988721415794, 158.10207484483797, 169.40700574488392,
+             177.813765780532, 184.85316440616074, 191.73418780156828,
+             198.61487854549048, 205.49650594236655, 212.39333987008553,
+             219.78140927565013, 228.35065388253238, 238.46151307933877,
+             250.2987552109015, 263.96146567591495, 279.5196555147506,
+             297.01011465470043]
         )
 
 
