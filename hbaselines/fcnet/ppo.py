@@ -554,13 +554,6 @@ class FeedForwardPolicy(Policy):
 
         return action
 
-    def value(self, obs, context):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
-
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
         """Store a transition in the replay buffer.
@@ -611,7 +604,11 @@ class FeedForwardPolicy(Policy):
         last_values = [
             self.sess.run(
                 self.value_flat,
-                feed_dict={self.obs_ph: self.last_obs[env_num]})
+                feed_dict={
+                    self.obs_ph: self.last_obs[env_num],
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
             for env_num in range(self.num_envs)
         ]
 
