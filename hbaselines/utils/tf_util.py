@@ -282,12 +282,13 @@ def layer(val,
         whether to enable layer normalization
     batch_norm : bool
         whether to enable batch normalization
-    phase : TODO
-        TODO
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     dropout : bool
         whether to enable dropout
-    rate : TODO
-        TODO
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -353,12 +354,13 @@ def conv_layer(val,
         whether to enable layer normalization
     batch_norm : bool
         whether to enable batch normalization
-    phase : TODO
-        TODO
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     dropout : bool
         whether to enable dropout
-    rate : TODO
-        TODO
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -427,18 +429,20 @@ def create_fcnet(obs,
         whether to enable layer normalization
     batch_norm : bool
         whether to enable batch normalization
-    phase : TODO
-        TODO
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     dropout : bool
         whether to enable dropout
-    rate : TODO
-        TODO
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool
         whether or not to reuse parameters
     output_pre : str
-        TODO
+        a string that is prepended to the name of the output layer. For
+        backwards compatibility purposes.
 
     Returns
     -------
@@ -535,12 +539,13 @@ def create_conv(obs,
         whether to enable layer normalization
     batch_norm : bool
         whether to enable batch normalization
-    phase : TODO
-        TODO
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     dropout : bool
         whether to enable dropout
-    rate : TODO
-        TODO
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool

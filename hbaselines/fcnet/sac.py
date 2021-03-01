@@ -67,9 +67,10 @@ class FeedForwardPolicy(Policy):
     obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
     phase_ph : tf.compat.v1.placeholder
-        TODO
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     rate_ph : tf.compat.v1.placeholder
-        TODO
+        the probability that each element is dropped if dropout is implemented
     deterministic_action : tf.Variable
         the output from the deterministic actor
     policy_out : tf.Variable

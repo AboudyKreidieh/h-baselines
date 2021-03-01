@@ -54,9 +54,10 @@ class MultiFeedForwardPolicy(BasePolicy):
     all_action_ph : tf.compat.v1.placeholder
         placeholder for the actions of all agents
     phase_ph : tf.compat.v1.placeholder
-        TODO
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     rate_ph : tf.compat.v1.placeholder
-        TODO
+        the probability that each element is dropped if dropout is implemented
     actor_tf : tf.Variable
         the output from the actor network
     critic_tf : list of tf.Variable
@@ -1098,8 +1099,9 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # Compute the deterministic action.
                 policy = self.actor_tf if self.shared else self.actor_tf[key]
+                obs_ph = self.obs_ph[0] if self.shared else self.obs_ph[key]
                 action = self.sess.run(policy, feed_dict={
-                    self.obs_ph[0]: obs[key],
+                    obs_ph: obs[key],
                     self.phase_ph: 0,
                     self.rate_ph: 0.0,
                 })

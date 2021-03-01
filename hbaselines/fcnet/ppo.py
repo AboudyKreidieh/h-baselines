@@ -81,9 +81,10 @@ class FeedForwardPolicy(Policy):
     old_vpred_ph : tf.compat.v1.placeholder
         placeholder for the current predictions of the values of given states
     phase_ph : tf.compat.v1.placeholder
-        TODO
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     rate_ph : tf.compat.v1.placeholder
-        TODO
+        the probability that each element is dropped if dropout is implemented
     action : tf.Variable
         the output from the policy/actor
     pi_mean : tf.Variable

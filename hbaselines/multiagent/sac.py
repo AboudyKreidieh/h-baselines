@@ -55,9 +55,10 @@ class MultiFeedForwardPolicy(BasePolicy):
     all_action_ph : tf.compat.v1.placeholder
         placeholder for the actions of all agents
     phase_ph : tf.compat.v1.placeholder
-        TODO
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
     rate_ph : tf.compat.v1.placeholder
-        TODO
+        the probability that each element is dropped if dropout is implemented
     deterministic_action : tf.Variable
         the output from the deterministic actor
     policy_out : tf.Variable
@@ -912,6 +913,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             strides=self.model_params["strides"],
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -921,6 +926,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -1350,20 +1359,18 @@ class MultiFeedForwardPolicy(BasePolicy):
                     None if context is None else context[key], axis=1)
 
                 # Choose the correct policy to compute the action from.
-                if apply_noise:
-                    if self.shared:
-                        policy = self.policy_out
-                    else:
-                        policy = self.policy_out[key]
+                if self.shared:
+                    obs_ph = self.obs_ph[0]
+                    policy = self.policy_out if apply_noise \
+                        else self.deterministic_action
                 else:
-                    if self.shared:
-                        policy = self.deterministic_action
-                    else:
-                        policy = self.deterministic_action[key]
+                    obs_ph = self.obs_ph[key]
+                    policy = self.policy_out[key] if apply_noise \
+                        else self.deterministic_action[key]
 
                 # Compute the normalized action.
                 normalized_action = self.sess.run(policy, feed_dict={
-                    self.obs_ph[0]: obs[key],
+                    obs_ph: obs[key],
                     self.phase_ph: 0,
                     self.rate_ph: 0.0,
                 })
