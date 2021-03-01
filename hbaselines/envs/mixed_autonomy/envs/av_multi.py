@@ -83,12 +83,12 @@ class AVMultiAgentEnv(AVEnv):
             # Return a reward of 0 case of collisions or an empty network.
             reward = {key: 0 for key in rl_ids}
         else:
-            c1 = 0.1  # reward scale for the speeds
-            c2 = 1.0  # reward scale for the accelerations
+            c1 = 0.005  # reward scale for the speeds
+            c2 = 0.100  # reward scale for the accelerations
 
             reward = {
-                key: (c1 * self.k.vehicle.get_speed(key) -
-                      c2 * abs(self.k.vehicle.get_accel(key)))
+                key: (- c1 * (self.k.vehicle.get_speed(key) - self._v_eq) ** 2
+                      - c2 * self.k.vehicle.get_accel(key) ** 2)
                 for key in rl_ids
             }
 
@@ -105,7 +105,7 @@ class AVMultiAgentEnv(AVEnv):
         for i, veh_id in enumerate(self.rl_ids()):
             # Concatenate the past n samples for a given time delta in the
             # output observations.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-self._skip])
             obs_vehicle = np.array([0. for _ in range(3 * self._obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 

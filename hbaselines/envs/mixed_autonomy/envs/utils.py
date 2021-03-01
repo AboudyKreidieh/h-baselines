@@ -12,9 +12,9 @@ EXTRA_LANE_EDGES = [
     "119257908#3",
 ]
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20.0
+MAX_HEADWAY = 100.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 1.0
+MAX_SPEED = 10.0
 
 
 def get_relative_obs(env, veh_id):

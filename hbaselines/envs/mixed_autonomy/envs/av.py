@@ -149,6 +149,7 @@ class AVEnv(Env):
         self._mean_accels = []
         self._obs_history = defaultdict(list)
         self._obs_frames = env_params.additional_params["obs_frames"]
+        self._skip = int(5 * 0.4 / self.sim_step)
 
         # dynamics controller for controlled RL vehicles. Only relevant if
         # "use_follower_stopper" is set to True.
@@ -177,7 +178,7 @@ class AVEnv(Env):
                 args=(len(self.initial_ids), self.k.network.length()))[0]
         else:
             # default value
-            self._v_eq = None
+            self._v_eq = 5.
 
         # =================================================================== #
         # Features for highway and I-210 experiments.                         #
@@ -376,9 +377,9 @@ class AVEnv(Env):
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self._obs_frames:
+            if len(self._obs_history[veh_id]) > self._skip * self._obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self._obs_frames:]
+                    self._obs_history[veh_id][-self._skip * self._obs_frames:]
 
             # Append to the leader list.
             if veh_id in self.rl_ids():
@@ -401,7 +402,7 @@ class AVEnv(Env):
         for i, veh_id in enumerate(self.rl_ids()):
             # Concatenate the past n samples for a given time delta in the
             # output observations.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-self._skip])
             obs[3*self._obs_frames*i:3*self._obs_frames*i+len(obs_t)] = obs_t
 
         return obs
@@ -589,6 +590,9 @@ class AVEnv(Env):
         # Update the end speed, if specified.
         if end_speed is not None:
             self.k.kernel_api.edge.setMaxSpeed(self._final_edge, end_speed)
+
+            # Update the _v_eq term to match the end speed.
+            self._v_eq = end_speed
 
         # Add the vehicles to their respective attributes.
         self.additional_command()

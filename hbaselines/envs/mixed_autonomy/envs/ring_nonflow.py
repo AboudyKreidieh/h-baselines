@@ -168,7 +168,7 @@ class RingEnv(gym.Env):
         self.maddpg = maddpg
         self.obs_frames = obs_frames
         self._time_log = None
-        self._v_eq = None
+        self._v_eq = 0.
         self._mean_speeds = None
         self._mean_accels = None
 
@@ -194,7 +194,7 @@ class RingEnv(gym.Env):
         self.b = 2.0
         self.delta = 4
         self.s0 = 2
-        self.noise = 0.0
+        self.noise = 0.2
 
         # failsafe parameters
         self.decel = 4.5
@@ -603,13 +603,13 @@ class RingSingleAgentEnv(RingEnv):
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self.obs_frames:
+            if len(self._obs_history[veh_id]) > 10 * self.obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self.obs_frames:]
+                    self._obs_history[veh_id][-10 * self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta in the
             # output observations.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-10])
             obs[3*self.obs_frames*i:3*self.obs_frames*i+len(obs_t)] = obs_t
 
         return obs
@@ -685,13 +685,13 @@ class RingMultiAgentEnv(RingEnv):
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self.obs_frames:
+            if len(self._obs_history[veh_id]) > 10 * self.obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self.obs_frames:]
+                    self._obs_history[veh_id][-10 * self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-10])
             obs_vehicle = np.array([0. for _ in range(3 * self.obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 
@@ -705,8 +705,8 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        c1 = 0.10  # reward scale for the speeds
-        c2 = 10.0  # reward scale for the accelerations
+        c1 = 0.005  # reward scale for the speeds
+        c2 = 0.100  # reward scale for the accelerations
 
         return {
             key: (- c1 * (self.speeds[key] - self._v_eq) ** 2
