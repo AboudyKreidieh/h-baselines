@@ -638,14 +638,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     )
 
         # Update the lowest level policy.
-        self.policy[-1].update_from_batch(
-            obs0=obs0[-1],
-            actions=act[-1],
-            rewards=rew[-1],
-            obs1=obs1[-1],
-            terminals1=done[-1],
-            update_actor=update_actor,
-        )
+        # self.policy[-1].update_from_batch(
+        #     obs0=obs0[-1],
+        #     actions=act[-1],
+        #     rewards=rew[-1],
+        #     obs1=obs1[-1],
+        #     terminals1=done[-1],
+        #     update_actor=update_actor,
+        # )
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
