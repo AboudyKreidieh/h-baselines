@@ -1080,7 +1080,8 @@ class MultiFeedForwardPolicy(BasePolicy):
                            context,
                            apply_noise,
                            random_actions,
-                           env_num):
+                           env_num,
+                           all_obs=None):
         """See get_action."""
         actions = {}
 

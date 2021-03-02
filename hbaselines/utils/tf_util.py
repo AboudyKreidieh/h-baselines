@@ -740,6 +740,7 @@ def process_minibatch(mb_obs,
     for env_num in range(num_envs):
         # Convert the data to numpy arrays.
         mb_obs[env_num] = np.concatenate(mb_obs[env_num], axis=0)
+        # mb_all_obs[env_num] = np.concatenate(mb_all_obs[env_num], axis=0)
         mb_rewards[env_num] = np.asarray(mb_rewards[env_num])
         mb_actions[env_num] = np.concatenate(mb_actions[env_num], axis=0)
         mb_values[env_num] = np.concatenate(mb_values[env_num], axis=0)
@@ -822,3 +823,12 @@ def setup_target_updates(model_scope, target_scope, scope, tau, verbose):
         get_trainable_vars(model_scope),
         get_trainable_vars(target_scope),
         tau, verbose)
+
+
+def neglogp(x, pi_mean, pi_std, pi_logstd):
+    """Compute the negative log-probability of an input action (x)."""
+    return 0.5 * tf.reduce_sum(
+        tf.square((x - pi_mean) / pi_std), axis=-1) \
+        + 0.5 * np.log(2.0 * np.pi) \
+        * tf.cast(tf.shape(x)[-1], tf.float32) \
+        + tf.reduce_sum(pi_logstd, axis=-1)

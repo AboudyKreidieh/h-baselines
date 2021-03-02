@@ -207,7 +207,7 @@ class MultiAgentPolicy(Policy):
         else:
             return self._update_basic(update_actor, **kwargs)
 
-    def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
+    def get_action(self, obs, context, all_obs, apply_noise, random_actions, env_num=0):
         """Call the actor methods to compute policy actions.
 
         Parameters
@@ -242,6 +242,7 @@ class MultiAgentPolicy(Policy):
                 apply_noise=apply_noise,
                 random_actions=random_actions,
                 env_num=env_num,
+                all_obs=all_obs,
             )
         else:
             return self._get_action_basic(

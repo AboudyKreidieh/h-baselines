@@ -9,6 +9,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import explained_variance
 from hbaselines.utils.tf_util import print_params_shape
 from hbaselines.utils.tf_util import process_minibatch
+from hbaselines.utils.tf_util import neglogp
 
 
 class FeedForwardPolicy(Policy):
@@ -268,7 +269,12 @@ class FeedForwardPolicy(Policy):
             self.pi_std = tf.exp(self.pi_logstd)
 
             # Create a method the log-probability of current actions.
-            self.neglogp = self._neglogp(self.action)
+            self.neglogp = neglogp(
+                x=self.action,
+                pi_mean=self.pi_mean,
+                pi_std=self.pi_std,
+                pi_logstd=self.pi_logstd,
+            )
 
             # Create the value function.
             self.value_fn = self.make_critic(self.obs_ph, scope="vf")
@@ -423,14 +429,6 @@ class FeedForwardPolicy(Policy):
             reuse=reuse,
         )
 
-    def _neglogp(self, x):
-        """Compute the negative log-probability of an input action (x)."""
-        return 0.5 * tf.reduce_sum(
-            tf.square((x - self.pi_mean) / self.pi_std), axis=-1) \
-            + 0.5 * np.log(2.0 * np.pi) \
-            * tf.cast(tf.shape(x)[-1], tf.float32) \
-            + tf.reduce_sum(self.pi_logstd, axis=-1)
-
     def _setup_optimizers(self, scope):
         """Create the actor and critic optimizers."""
         scope_name = 'model/'
@@ -443,7 +441,13 @@ class FeedForwardPolicy(Policy):
             print('setting up critic optimizer')
             print_params_shape("{}vf/".format(scope_name), "critic")
 
-        neglogpac = self._neglogp(self.action_ph)
+        neglogpac = neglogp(
+            x=self.action_ph,
+            pi_mean=self.pi_mean,
+            pi_std=self.pi_std,
+            pi_logstd=self.pi_logstd,
+        )
+
         self.entropy = tf.reduce_sum(
             tf.reshape(self.pi_logstd, [-1])
             + .5 * np.log(2.0 * np.pi * np.e), axis=-1)

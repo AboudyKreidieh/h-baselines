@@ -649,7 +649,7 @@ class RingMultiAgentEnv(RingEnv):
         return Box(
             low=-float("inf"),
             high=float("inf"),
-            shape=(15 * self.num_rl,),
+            shape=(15 * self.num_rl + 1,),
             dtype=np.float32,
         )
 
@@ -701,7 +701,9 @@ class RingMultiAgentEnv(RingEnv):
 
     def _full_obs(self, obs):
         """Return the full state observation."""
-        return np.concatenate([obs[key] for key in self.rl_ids], axis=0)
+        return np.array([np.concatenate(tuple(
+            [[self._v_eq / MAX_SPEED]] +
+            [obs[key] for key in self.rl_ids]), axis=0)])
 
     def compute_reward(self, action):
         """See parent class."""

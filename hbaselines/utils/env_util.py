@@ -853,7 +853,7 @@ def _get_ring_env_attributes(scale):
             length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
-            horizon=3000,
+            horizon=1000,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
             warmup_steps=0,
@@ -861,7 +861,7 @@ def _get_ring_env_attributes(scale):
                 hbaselines_config.PROJECT_PATH,
                 "hbaselines/envs/mixed_autonomy/envs/initial_states/"
                 "ring-v{}.json".format(scale - 1)),
-            sims_per_step=1,
+            sims_per_step=2,
         ),
     }
 
