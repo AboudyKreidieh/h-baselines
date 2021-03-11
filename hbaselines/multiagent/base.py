@@ -532,14 +532,14 @@ class MultiAgentPolicy(Policy):
 
         # Check if new agents are available.
         for key in obs.keys():
-            # Do not add new vehicles after the maximum number has been set.
-            if len(free_indices) == 0:
-                raise ValueError(
-                    "Too many agents are available. Please set n_agents to a "
-                    "larger value.")
-
             # Provide the newest agent one of the old free indices.
             if key not in self._agent_index[env_num].keys():
+                # Do not add new agents after the maximum number has been set.
+                if len(free_indices) == 0:
+                    raise ValueError(
+                        "Too many agents are available. Please set n_agents "
+                        "to a larger value.")
+
                 self._agent_index[env_num][key] = free_indices[0]
                 free_indices = free_indices[1:]
 

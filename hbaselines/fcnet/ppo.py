@@ -593,7 +593,7 @@ class FeedForwardPolicy(Policy):
         values, neglogpacs = self.sess.run(
             [self.value_flat, self.neglogp],
             feed_dict={
-                self.obs_ph: obs0,
+                self.obs_ph: obs0.reshape(1, -1),
                 self.phase_ph: 0,
                 self.rate_ph: 0.0,
             }
