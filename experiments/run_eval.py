@@ -171,9 +171,9 @@ def main(args):
                             or done is True:
                         break
                     obs0_transition = {
-                        key: np.array(obs[key]) for key in obs.keys()}
+                        k: np.array([obs[k]]) for k in obs.keys()}
                     obs1_transition = {
-                        key: np.array(new_obs[key]) for key in new_obs.keys()}
+                        k: np.array([new_obs[k]]) for k in new_obs.keys()}
                     total_reward += sum(
                         reward[key] for key in reward.keys())
                 else:
