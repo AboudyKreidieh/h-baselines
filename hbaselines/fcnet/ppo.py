@@ -538,19 +538,14 @@ class FeedForwardPolicy(Policy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
-        action, values, neglogpacs = self.sess.run(
-            [self.action if apply_noise else self.pi_mean,
-             self.value_flat, self.neglogp],
+        action = self.sess.run(
+            self.action if apply_noise else self.pi_mean,
             feed_dict={
                 self.obs_ph: obs,
                 self.phase_ph: 0,
                 self.rate_ph: 0.0,
             }
         )
-
-        # Store information on the values and negative-log likelihood.
-        self.mb_values[env_num].append(values)
-        self.mb_neglogpacs[env_num].append(neglogpacs)
 
         return action
 
@@ -593,6 +588,18 @@ class FeedForwardPolicy(Policy):
         self.mb_contexts[env_num].append(context0)
         self.mb_actions[env_num].append(action.reshape(1, -1))
         self.mb_dones[env_num].append(done)
+
+        # Store information on the values and negative-log likelihood.
+        values, neglogpacs = self.sess.run(
+            [self.value_flat, self.neglogp],
+            feed_dict={
+                self.obs_ph: obs0,
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            }
+        )
+        self.mb_values[env_num].append(values)
+        self.mb_neglogpacs[env_num].append(neglogpacs)
 
         # Update the last observation (to compute the last value for the GAE
         # expected returns).
