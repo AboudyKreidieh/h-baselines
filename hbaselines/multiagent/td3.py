@@ -1149,7 +1149,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 action=list_action,
                 reward=reward_agent,
                 obs_tp1=list_obs1,
-                done=float(done and not is_final_step),
+                done=float(done["__all__"] and not is_final_step),
                 all_obs_t=all_obs0,
                 all_obs_tp1=all_obs1
             )
@@ -1173,7 +1173,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     action=action[key],
                     reward=reward[key],
                     obs_tp1=obs1_agent,
-                    done=float(done and not is_final_step),
+                    done=float(done[key] and not is_final_step),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
                     all_obs_tp1=all_obs1
