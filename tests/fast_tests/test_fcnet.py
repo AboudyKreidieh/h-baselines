@@ -8,14 +8,10 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy as PPOFeedForwardPolicy
-from hbaselines.fcnet.imitation import FeedForwardPolicy \
-    as ImitationFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
-from hbaselines.algorithms.dagger import FEEDFORWARD_PARAMS \
-    as IMITATION_FEEDFORWARD_PARAMS
 
 
 class TestTD3FeedForwardPolicy(unittest.TestCase):
@@ -596,85 +592,6 @@ class TestPPOFeedForwardPolicy(unittest.TestCase):
              'model/vf/fc1/kernel:0',
              'model/vf/output/bias:0',
              'model/vf/output/kernel:0']
-        )
-
-
-class TestImitationFeedForwardPolicy(unittest.TestCase):
-    """Test FeedForwardPolicy in hbaselines/fcnet/imitation.py."""
-
-    def setUp(self):
-        self.policy_params = {
-            'sess': tf.compat.v1.Session(),
-            'ac_space': Box(low=-1, high=1, shape=(1,)),
-            'ob_space': Box(low=-2, high=2, shape=(2,)),
-            'co_space': Box(low=-3, high=3, shape=(3,)),
-            'scope': None,
-            'verbose': 0,
-        }
-        self.policy_params.update(IMITATION_FEEDFORWARD_PARAMS.copy())
-
-    def tearDown(self):
-        self.policy_params['sess'].close()
-        del self.policy_params
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-    def test_init(self):
-        """Check the functionality of the __init__() method.
-
-        This the proper structure graph and the proper loss function was
-        generated for the following cases:
-
-        1. stochastic policies
-        2. deterministic policies
-        """
-        # test case 1
-        policy_params = self.policy_params.copy()
-        policy_params["stochastic"] = True
-        _ = ImitationFeedForwardPolicy(**policy_params)
-
-        # test the graph
-        expected_vars = [
-            '0:0',
-            '1:0',
-            'model/pi/fc0/bias:0',
-            'model/pi/fc0/kernel:0',
-            'model/pi/fc1/bias:0',
-            'model/pi/fc1/kernel:0',
-            'model/pi/log_std/bias:0',
-            'model/pi/log_std/kernel:0',
-            'model/pi/mean/bias:0',
-            'model/pi/mean/kernel:0'
-        ]
-
-        try:
-            self.assertListEqual(
-                sorted([var.name for var in get_trainable_vars()]),
-                expected_vars)
-        except AssertionError:
-            # Seems to ignore the first two sometimes.
-            self.assertListEqual(
-                sorted([var.name for var in get_trainable_vars()]),
-                expected_vars[2:])
-
-        # Clear the graph.
-        tf.compat.v1.reset_default_graph()
-
-        # test case 2
-        policy_params = self.policy_params.copy()
-        policy_params["stochastic"] = False
-        _ = ImitationFeedForwardPolicy(**policy_params)
-
-        # test the graph
-        self.assertListEqual(
-            sorted([var.name for var in get_trainable_vars()]),
-            ['model/pi/fc0/bias:0',
-             'model/pi/fc0/kernel:0',
-             'model/pi/fc1/bias:0',
-             'model/pi/fc1/kernel:0',
-             'model/pi/output/bias:0',
-             'model/pi/output/kernel:0']
         )
 
 

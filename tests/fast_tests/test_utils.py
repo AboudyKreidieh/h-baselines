@@ -1779,15 +1779,6 @@ class TestEnvUtil(unittest.TestCase):
             expected_size=5,
         )
 
-        # test for ring-imitation
-        ac_space = get_meta_ac_space(env_name="ring-imitation", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(5)]),
-            expected_max=np.array([1 for _ in range(5)]),
-            expected_size=5,
-        )
-
         # test for merge-v0
         ac_space = get_meta_ac_space(env_name="merge-v0", **params)
         test_space(
@@ -1898,15 +1889,6 @@ class TestEnvUtil(unittest.TestCase):
             expected_min=np.array([-5 for _ in range(5)]),
             expected_max=np.array([5 for _ in range(5)]),
             expected_size=5,
-        )
-
-        # test for highway-imitation
-        ac_space = get_meta_ac_space(env_name="highway-imitation", **params)
-        test_space(
-            ac_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([1 for _ in range(10)]),
-            expected_size=10,
         )
 
         # test for i210-v0
@@ -2066,12 +2048,6 @@ class TestEnvUtil(unittest.TestCase):
             [0, 15, 30, 45, 60]
         )
 
-        # test for ring-imitation
-        self.assertListEqual(
-            get_state_indices(env_name="ring-imitation", **params),
-            [0, 15, 30, 45, 60]
-        )
-
         # test for merge-v0
         self.assertListEqual(
             get_state_indices(env_name="merge-v0", **params),
@@ -2112,12 +2088,6 @@ class TestEnvUtil(unittest.TestCase):
         self.assertListEqual(
             get_state_indices(env_name="highway-v3", **params),
             [0, 15, 30, 45, 60]
-        )
-
-        # test for highway-imitation
-        self.assertListEqual(
-            get_state_indices(env_name="highway-imitation", **params),
-            [0, 15, 30, 45, 60, 75, 90, 105, 120, 135]
         )
 
         # test for i210-v0

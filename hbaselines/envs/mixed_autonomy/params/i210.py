@@ -17,7 +17,6 @@ import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
 
 # the inflow rate of vehicles (in veh/hr)
@@ -41,8 +40,7 @@ def get_flow_params(fixed_boundary,
                     acceleration_penalty,
                     use_follower_stopper,
                     evaluate=False,
-                    multiagent=False,
-                    imitation=False):
+                    multiagent=False):
     """Return the flow-specific parameters of the I-210 subnetwork.
 
     Parameters
@@ -61,8 +59,6 @@ def get_flow_params(fixed_boundary,
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
-    imitation : bool
-        whether to use the imitation environment
 
     Returns
     -------
@@ -147,24 +143,12 @@ def get_flow_params(fixed_boundary,
         depart_lane="best",
         depart_speed=25.5)
 
-    # Choose the appropriate environment.
-    if multiagent:
-        if imitation:
-            env_name = None  # to be added later
-        else:
-            env_name = AVOpenMultiAgentEnv
-    else:
-        if imitation:
-            env_name = AVOpenImitationEnv
-        else:
-            env_name = AVOpenEnv
-
     return dict(
         # name of the experiment
         exp_tag="I-210_subnetwork",
 
         # name of the flow environment the experiment is running on
-        env_name=env_name,
+        env_name=AVOpenMultiAgentEnv if multiagent else AVOpenEnv,
 
         # name of the network class the experiment is running on
         network=I210SubNetwork,
