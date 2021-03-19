@@ -529,6 +529,11 @@ class AVEnv(Env):
                 # Assign the inflow rate to match the xml number.
                 inflow_rate = self.warmup_description["inflow"][xml_num]
                 end_speed = self.warmup_description["end_speed"][xml_num]
+
+                # Modify the inflow rate for the I-210 network.
+                if isinstance(self.k.network.network, I210SubNetwork):
+                    inflow_rate *= 5
+
                 print("inflow: {}, end_speed: {}".format(
                     inflow_rate, end_speed))
             else:

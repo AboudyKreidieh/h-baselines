@@ -275,7 +275,7 @@ class FeedForwardPolicy(Policy):
             self.value_flat = self.value_fn[:, 0]
 
         # =================================================================== #
-        # Step 4: Setup the optimizers for the actor and critic.              #
+        # Step 3: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
         self.entropy = None
@@ -289,7 +289,7 @@ class FeedForwardPolicy(Policy):
             self._setup_optimizers(scope)
 
         # =================================================================== #
-        # Step 5: Setup the operations for computing model statistics.        #
+        # Step 4: Setup the operations for computing model statistics.        #
         # =================================================================== #
 
         self._setup_stats(scope or "Model")
@@ -538,19 +538,14 @@ class FeedForwardPolicy(Policy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
-        action, values, neglogpacs = self.sess.run(
-            [self.action if apply_noise else self.pi_mean,
-             self.value_flat, self.neglogp],
+        action = self.sess.run(
+            self.action if apply_noise else self.pi_mean,
             feed_dict={
                 self.obs_ph: obs,
                 self.phase_ph: 0,
                 self.rate_ph: 0.0,
             }
         )
-
-        # Store information on the values and negative-log likelihood.
-        self.mb_values[env_num].append(values)
-        self.mb_neglogpacs[env_num].append(neglogpacs)
 
         return action
 
@@ -594,12 +589,40 @@ class FeedForwardPolicy(Policy):
         self.mb_actions[env_num].append(action.reshape(1, -1))
         self.mb_dones[env_num].append(done)
 
+        # Store information on the values and negative-log likelihood.
+        values, neglogpacs = self.sess.run(
+            [self.value_flat, self.neglogp],
+            feed_dict={
+                self.obs_ph: obs0.reshape(1, -1),
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            }
+        )
+        self.mb_values[env_num].append(values)
+        self.mb_neglogpacs[env_num].append(neglogpacs)
+
         # Update the last observation (to compute the last value for the GAE
         # expected returns).
         self.last_obs[env_num] = self._get_obs([obs1], context1)
 
     def update(self, **kwargs):
         """See parent class."""
+        # In case not all environment numbers were used, reduce the shape of
+        # the datasets.
+        indices = [
+            i for i in range(self.num_envs) if self.last_obs[i] is not None]
+        num_envs = len(indices)
+
+        self.mb_rewards = self._sample(self.mb_rewards, indices)
+        self.mb_obs = self._sample(self.mb_obs, indices)
+        self.mb_contexts = self._sample(self.mb_contexts, indices)
+        self.mb_actions = self._sample(self.mb_actions, indices)
+        self.mb_values = self._sample(self.mb_values, indices)
+        self.mb_dones = self._sample(self.mb_dones, indices)
+        self.mb_all_obs = self._sample(self.mb_all_obs, indices)
+        self.mb_returns = self._sample(self.mb_returns, indices)
+        self.last_obs = self._sample(self.last_obs, indices)
+
         # Compute the last estimated value.
         last_values = [
             self.sess.run(
@@ -609,7 +632,7 @@ class FeedForwardPolicy(Policy):
                     self.phase_ph: 0,
                     self.rate_ph: 0.0,
                 })
-            for env_num in range(self.num_envs)
+            for env_num in range(num_envs)
         ]
 
         (self.mb_obs,
@@ -634,7 +657,7 @@ class FeedForwardPolicy(Policy):
             last_values=last_values,
             gamma=self.gamma,
             lam=self.lam,
-            num_envs=self.num_envs,
+            num_envs=num_envs,
         )
 
         # Run the optimization procedure.
@@ -746,3 +769,8 @@ class FeedForwardPolicy(Policy):
             self.phase_ph: 0,
             self.rate_ph: 0.0,
         }
+
+    @staticmethod
+    def _sample(vals, indices):
+        """Sample indices from a list."""
+        return [vals[i] for i in range(len(vals)) if i in indices]

@@ -101,7 +101,7 @@ class TestMultiAgentPolicy(unittest.TestCase):
             obs1_1 = np.array([i+1 for _ in range(6)])
             context1_0 = np.array([i for _ in range(3)])
             context1_1 = np.array([i for _ in range(4)])
-            done = False
+            done = {"a": False, "b": False, "__all__": False}
             is_final_step = False
             evaluate = False
 
@@ -204,6 +204,7 @@ class TestMultiAgentPolicy(unittest.TestCase):
             obs1 = np.array([i+1 for _ in range(2)])
             context1 = np.array([i for _ in range(3)])
             is_final_step = False
+            done = {"a": False, "b": False, "__all__": False}
             evaluate = False
 
             policy._update_agent_index({"a": obs0, "b": obs0 + 1}, env_num=0)
@@ -214,7 +215,7 @@ class TestMultiAgentPolicy(unittest.TestCase):
                 reward={"a": reward, "b": reward + 1},
                 obs1={"a": obs1, "b": obs1 + 1},
                 context1={"a": context1, "b": context1 + 1},
-                done=0.,
+                done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
                 env_num=0,
@@ -1310,7 +1311,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             obs1_1 = np.array([i+1 for _ in range(6)])
             context1_0 = np.array([i for _ in range(3)])
             context1_1 = np.array([i for _ in range(4)])
-            done = False
+            done = {"a": False, "b": False, "__all__": False}
             is_final_step = False
             evaluate = False
             all_obs0 = np.array([i for _ in range(18)])
@@ -1446,6 +1447,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
             evaluate = False
             all_obs0 = np.array([i for _ in range(10)])
             all_obs1 = np.array([i+1 for _ in range(10)])
+            done = {"a": False, "b": False, "__all__": False}
 
             policy.store_transition(
                 obs0={"a": obs0, "b": obs0 + 1},
@@ -1454,7 +1456,7 @@ class TestTD3MultiFeedForwardPolicy(unittest.TestCase):
                 reward={"a": reward, "b": reward + 1},
                 obs1={"a": obs1, "b": obs1 + 1},
                 context1={"a": context1, "b": context1 + 1},
-                done=0.,
+                done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
                 env_num=0,
@@ -2307,7 +2309,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             obs1_1 = np.array([i+1 for _ in range(6)])
             context1_0 = np.array([i for _ in range(3)])
             context1_1 = np.array([i for _ in range(4)])
-            done = False
+            done = {"a": False, "b": False, "__all__": False}
             is_final_step = False
             evaluate = False
             all_obs0 = np.array([i for _ in range(18)])
@@ -2443,6 +2445,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
             evaluate = False
             all_obs0 = np.array([i for _ in range(10)])
             all_obs1 = np.array([i+1 for _ in range(10)])
+            done = {"a": False, "b": False, "__all__": False}
 
             policy.store_transition(
                 obs0={"a": obs0, "b": obs0 + 1},
@@ -2451,7 +2454,7 @@ class TestSACMultiFeedForwardPolicy(unittest.TestCase):
                 reward={"a": reward, "b": reward + 1},
                 obs1={"a": obs1, "b": obs1 + 1},
                 context1={"a": context1, "b": context1 + 1},
-                done=0.,
+                done=done,
                 is_final_step=is_final_step,
                 evaluate=evaluate,
                 env_num=0,

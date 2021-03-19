@@ -8,6 +8,7 @@ import gym
 from scipy.optimize import fsolve
 from collections import defaultdict
 from gym.spaces import Box
+from copy import deepcopy
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
@@ -660,7 +661,11 @@ class RingMultiAgentEnv(RingEnv):
         environments.
         """
         obs, rew, done, info = super(RingMultiAgentEnv, self).step(action)
-        done = {"__all__": done}
+
+        # Update the done mask.
+        all_done = deepcopy(done)
+        done = {key: done for key in obs.keys()}
+        done["__all__"] = all_done
 
         if self.maddpg:
             obs = {

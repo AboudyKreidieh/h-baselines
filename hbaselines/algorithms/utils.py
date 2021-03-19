@@ -62,6 +62,7 @@ def is_feedforward_policy(policy):
         TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
         SACMultiFeedForwardPolicyOld,
+        PPOMultiFeedForwardPolicy,
     ]
 
 
