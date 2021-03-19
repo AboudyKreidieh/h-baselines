@@ -6,6 +6,8 @@ Supported algorithms through this class:
   https://arxiv.org/pdf/1802.09477.pdf
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 * Proximal Policy Optimization (PPO): see https://arxiv.org/pdf/1707.06347.pdf
+* Trust Region Policy Optimization (TRPO): see
+  https://arxiv.org/abs/1502.05477.pdf
 
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
@@ -24,6 +26,7 @@ from copy import deepcopy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -123,6 +126,31 @@ PPO_PARAMS = dict(
     # value function clipping (and recover the original PPO implementation),
     # you have to pass a negative value (e.g. -1).
     cliprange_vf=None,
+)
+
+
+# =========================================================================== #
+#                         Policy parameters for TRPO                          #
+# =========================================================================== #
+
+TRPO_PARAMS = dict(
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
+    # entropy coefficient for the loss calculation
+    ent_coef=0.0,
+    # TODO
+    cg_iters=10,
+    # TODO
+    vf_iters=3,
+    # TODO
+    vf_stepsize=3e-4,
+    # TODO
+    cg_damping=1e-2,
+    # TODO
+    max_kl=0.01,
 )
 
 
@@ -440,17 +468,17 @@ class RLAlgorithm(object):
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
-        # Include warnings if using PPO.
-        if is_ppo_policy(policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(policy) or is_trpo_policy(policy):
             if actor_update_freq is not None:
                 print("WARNING: actor_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if meta_update_freq is not None:
                 print("WARNING: meta_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if nb_train_steps is not None:
                 print("WARNING: nb_train_steps is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
 
         # Check for the number of levels in the network, for visualization
         # purposes.
@@ -513,6 +541,8 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
+        elif is_trpo_policy(policy):
+            self.policy_kwargs.update(TRPO_PARAMS.copy())
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -827,16 +857,16 @@ class RLAlgorithm(object):
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         """
-        # Include warnings if using PPO.
-        if is_ppo_policy(self.policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(self.policy) or is_trpo_policy(self.policy):
             if log_interval is not None:
-                print("WARNING: log_interval for PPO policies set to after "
-                      "every training iteration.")
+                print("WARNING: log_interval for PPO/TRPO policies set to "
+                      "after every training iteration.")
             log_interval = self.nb_rollout_steps
 
             if initial_exploration_steps > 0:
-                print("WARNING: initial_exploration_steps set to 0 for PPO "
-                      "policies.")
+                print("WARNING: initial_exploration_steps set to 0 for "
+                      "PPO/TRPO policies.")
                 initial_exploration_steps = 0
 
         # Create a saver object.

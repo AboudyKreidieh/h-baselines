@@ -3,12 +3,14 @@ import argparse
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 
@@ -102,6 +104,19 @@ def get_hyperparameters(args, policy):
             "max_grad_norm": args.max_grad_norm,
             "cliprange": args.cliprange,
             "cliprange_vf": args.cliprange_vf,
+        })
+
+    # add TRPO parameters
+    if is_trpo_policy(policy):
+        policy_kwargs.update({
+            "gamma": args.gamma,
+            "lam": args.lam,
+            "ent_coef": args.ent_coef,
+            "cg_iters": args.cg_iters,
+            "vf_iters": args.vf_iters,
+            "vf_stepsize": args.vf_stepsize,
+            "cg_damping": args.cg_damping,
+            "max_kl": args.max_kl,
         })
 
     # add GoalConditionedPolicy parameters
@@ -218,6 +233,8 @@ def parse_options(description,
         parser_policy = create_sac_parser(parser_policy)
     elif args_alg.alg == "PPO":
         parser_policy = create_ppo_parser(parser_policy)
+    elif args_alg.alg == "TRPO":
+        parser_policy = create_trpo_parser(parser_policy)
 
     # arguments for different model architectures
     parser_policy = create_feedforward_parser(parser_policy)
@@ -449,6 +466,53 @@ def create_ppo_parser(parser):
              "clipping depends on the reward scaling. To deactivate value "
              "function clipping (and recover the original PPO "
              "implementation), you have to pass a negative value (e.g. -1).")
+
+    return parser
+
+
+def create_trpo_parser(parser):
+    """Add the TRPO hyperparameters to the parser."""
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=TRPO_PARAMS["gamma"],
+        help="the discount factor")
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=TRPO_PARAMS["lam"],
+        help="factor for trade-off of bias vs variance for Generalized "
+             "Advantage Estimator")
+    parser.add_argument(
+        "--ent_coef",
+        type=float,
+        default=TRPO_PARAMS["ent_coef"],
+        help="entropy coefficient for the loss calculation")
+    parser.add_argument(
+        "--cg_iters",
+        type=int,
+        default=TRPO_PARAMS["cg_iters"],
+        help="TODO")
+    parser.add_argument(
+        "--vf_iters",
+        type=int,
+        default=TRPO_PARAMS["vf_iters"],
+        help="TODO")
+    parser.add_argument(
+        "--vf_stepsize",
+        type=float,
+        default=TRPO_PARAMS["vf_stepsize"],
+        help="TODO")
+    parser.add_argument(
+        "--cg_damping",
+        type=float,
+        default=TRPO_PARAMS["cg_damping"],
+        help="TODO")
+    parser.add_argument(
+        "--max_kl",
+        type=float,
+        default=TRPO_PARAMS["max_kl"],
+        help="TODO")
 
     return parser
 
