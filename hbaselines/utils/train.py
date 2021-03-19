@@ -492,27 +492,27 @@ def create_trpo_parser(parser):
         "--cg_iters",
         type=int,
         default=TRPO_PARAMS["cg_iters"],
-        help="TODO")
+        help="the number of iterations for the conjugate gradient calculation")
     parser.add_argument(
         "--vf_iters",
         type=int,
         default=TRPO_PARAMS["vf_iters"],
-        help="TODO")
+        help="the value function’s number iterations for learning")
     parser.add_argument(
         "--vf_stepsize",
         type=float,
         default=TRPO_PARAMS["vf_stepsize"],
-        help="TODO")
+        help="the value function stepsize")
     parser.add_argument(
         "--cg_damping",
         type=float,
         default=TRPO_PARAMS["cg_damping"],
-        help="TODO")
+        help="the compute gradient dampening factor")
     parser.add_argument(
         "--max_kl",
         type=float,
         default=TRPO_PARAMS["max_kl"],
-        help="TODO")
+        help="the Kullback-Leibler loss threshold")
 
     return parser
 

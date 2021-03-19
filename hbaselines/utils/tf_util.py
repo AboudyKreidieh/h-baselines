@@ -111,10 +111,17 @@ def reduce_var(tensor, axis=None, keepdims=False):
 
 
 def var_shape(tensor):
-    """TODO
-    get TensorFlow Tensor shape
-    :param tensor: (TensorFlow Tensor) the input tensor
-    :return: ([int]) the shape
+    """Get TensorFlow Tensor shape.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    list of int
+        the shape
     """
     out = tensor.get_shape().as_list()
     assert all(isinstance(a, int) for a in out), \
@@ -123,21 +130,37 @@ def var_shape(tensor):
 
 
 def numel(tensor):
-    """TODO
-    get TensorFlow Tensor's number of elements
-    :param tensor: (TensorFlow Tensor) the input tensor
-    :return: (int) the number of elements
+    """Get TensorFlow Tensor's number of elements.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    int
+        the number of elements
     """
     return int(np.prod(var_shape(tensor)))
 
 
 def flatgrad(loss, var_list, clip_norm=None):
-    """TODO
-    calculates the gradient and flattens it
-    :param loss: (float) the loss value
-    :param var_list: ([TensorFlow Tensor]) the variables
-    :param clip_norm: (float) clip the gradients (disabled if None)
-    :return: ([TensorFlow Tensor]) flattened gradient
+    """Calculate the gradient and flattens it.
+
+    Parameters
+    ----------
+    loss : float
+        the loss value
+    var_list : list of tf.Tensor
+        the variables
+    clip_norm : float
+        clip the gradients (disabled if None)
+
+    Returns
+    -------
+    list of tf.Tensor
+        flattened gradient
     """
     grads = tf.gradients(loss, var_list)
     if clip_norm is not None:
@@ -149,12 +172,19 @@ def flatgrad(loss, var_list, clip_norm=None):
 
 
 class SetFromFlat(object):
+    """Set the parameters from a flat vector."""
+
     def __init__(self, var_list, dtype=tf.float32, sess=None):
-        """TODO
-        Set the parameters from a flat vector
-        :param var_list: ([TensorFlow Tensor]) the variables
-        :param dtype: (type) the type for the placeholder
-        :param sess: (TensorFlow Session)
+        """Set the parameters from a flat vector.
+
+        Parameters
+        ----------
+        var_list : list of tf.Tensor
+            the variables
+        dtype : type
+            the type for the placeholder
+        sess : tf.Session
+            the tensorflow session
         """
         shapes = list(map(var_shape, var_list))
         total_size = np.sum([int(np.prod(shape)) for shape in shapes])
@@ -171,6 +201,7 @@ class SetFromFlat(object):
         self.sess = sess
 
     def __call__(self, theta):
+        """Perform the class-specific operation."""
         if self.sess is None:
             return tf.get_default_session().run(
                 self.operation, feed_dict={self.theta: theta})
@@ -180,17 +211,24 @@ class SetFromFlat(object):
 
 
 class GetFlat(object):
+    """Get the parameters as a flat vector."""
+
     def __init__(self, var_list, sess=None):
-        """TODO
-        Get the parameters as a flat vector
-        :param var_list: ([TensorFlow Tensor]) the variables
-        :param sess: (TensorFlow Session)
+        """Get the parameters as a flat vector.
+
+        Parameters
+        ----------
+        var_list : list of tf.Tensor
+            the variables
+        sess : tf.Session
+            the tensorflow session
         """
         self.operation = tf.concat(
             axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
         self.sess = sess
 
     def __call__(self):
+        """Perform the class-specific operation."""
         if self.sess is None:
             return tf.get_default_session().run(self.operation)
         else:

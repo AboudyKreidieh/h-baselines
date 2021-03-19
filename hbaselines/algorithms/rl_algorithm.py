@@ -141,15 +141,15 @@ TRPO_PARAMS = dict(
     lam=0.95,
     # entropy coefficient for the loss calculation
     ent_coef=0.0,
-    # TODO
+    # the number of iterations for the conjugate gradient calculation
     cg_iters=10,
-    # TODO
+    # the value function’s number iterations for learning
     vf_iters=3,
-    # TODO
+    # the value function stepsize
     vf_stepsize=3e-4,
-    # TODO
+    # the compute gradient dampening factor
     cg_damping=1e-2,
-    # TODO
+    # the Kullback-Leibler loss threshold
     max_kl=0.01,
 )
 

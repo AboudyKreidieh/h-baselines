@@ -15,82 +15,86 @@ from hbaselines.utils.tf_util import GetFlat
 
 
 class FeedForwardPolicy(Policy):
-    """TODO.
+    """TRPO-compatible feedforward policy..
 
     Attributes
     ----------
-    gamma : TODO
-        TODO
-    lam : TODO
-        TODO
-    ent_coef : TODO
-        TODO
-    cg_iters : TODO
-        TODO
-    vf_iters : TODO
-        TODO
-    vf_stepsize : TODO
-        TODO
-    cg_damping : TODO
-        TODO
-    max_kl : TODO
-        TODO
-    mb_rewards : TODO
-        TODO
-    mb_obs : TODO
-        TODO
-    mb_contexts : TODO
-        TODO
-    mb_actions : TODO
-        TODO
-    mb_values : TODO
-        TODO
-    mb_dones : TODO
-        TODO
-    mb_all_obs : TODO
-        TODO
-    mb_returns : TODO
-        TODO
-    last_obs : TODO
-        TODO
-    mb_advs : TODO
-        TODO
-    action_ph : TODO
-        TODO
-    obs_ph : TODO
-        TODO
-    ret_ph : TODO
-        TODO
-    advs_ph : TODO
-        TODO
-    old_vpred_ph : TODO
-        TODO
-    flat_tangent : TODO
-        TODO
-    phase_ph : TODO
-        TODO
-    rate_ph : TODO
-        TODO
-    action : TODO
-        TODO
-    pi_mean : TODO
-        TODO
-    pi_logstd : TODO
-        TODO
-    value_fn : TODO
-        TODO
-    value_flat : TODO
-        TODO
-    old_action : TODO
-        TODO
-    old_pi_mean : TODO
-        TODO
-    old_pi_logstd : TODO
-        TODO
-    old_value_fn : TODO
-        TODO
-    old_value_flat : TODO
-        TODO
+    gamma : float
+        the discount factor
+    lam : float
+        factor for trade-off of bias vs variance for Generalized Advantage
+        Estimator
+    ent_coef : float
+        entropy coefficient for the loss calculation
+    cg_iters : int
+        the number of iterations for the conjugate gradient calculation
+    vf_iters : int
+        the value function’s number iterations for learning
+    vf_stepsize : float
+        the value function stepsize
+    cg_damping : float
+        the compute gradient dampening factor
+    max_kl : float
+        the Kullback-Leibler loss threshold
+    mb_rewards : array_like
+        a minibatch of environment rewards
+    mb_obs : array_like
+        a minibatch of observations
+    mb_contexts : array_like
+        a minibatch of contextual terms
+    mb_actions : array_like
+        a minibatch of actions
+    mb_values : array_like
+        a minibatch of estimated values by the policy
+    mb_dones : array_like
+        a minibatch of done masks
+    mb_all_obs : array_like
+        a minibatch of full-state observations
+    mb_returns : array_like
+        a minibatch of expected discounted returns
+    last_obs : array_like
+        the most recent observation from each environment. Used to compute the
+        GAE terms.
+    mb_advs : array_like
+        a minibatch of estimated advantages
+    action_ph : tf.compat.v1.placeholder
+        placeholder for the actions
+    obs_ph : tf.compat.v1.placeholder
+        placeholder for the observations
+    ret_ph : tf.compat.v1.placeholder
+        placeholder for the discounted returns
+    advs_ph : tf.compat.v1.placeholder
+        placeholder for the advantages
+    old_vpred_ph : tf.compat.v1.placeholder
+        placeholder for the predicted value
+    flat_tangent : tf.compat.v1.placeholder
+        placeholder for the tangents
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
+    action : tf.Variable
+        the output from the policy/actor
+    pi_mean : tf.Variable
+        the output from the policy's mean term
+    pi_logstd : tf.Variable
+        the output from the policy's log-std term
+    value_fn : tf.Variable
+        the output from the value function
+    value_flat : tf.Variable
+        the output from the flattened value function
+    old_action : tf.Variable
+        the output from the previous instantiation of the policy/actor
+    pi_mean : tf.Variable
+        the output from the previous instantiation of the policy's mean term
+    pi_logstd : tf.Variable
+        the output from the previous instantiation of the policy's log-std term
+    old_value_fn : tf.Variable
+        the output from the previous instantiation of the value function
+    value_flat : tf.Variable
+        the output from the previous instantiation of the flattened value
+        function
     """
 
     def __init__(self,
@@ -137,16 +141,16 @@ class FeedForwardPolicy(Policy):
             Estimator
         ent_coef : float
             entropy coefficient for the loss calculation
-        cg_iters : TODO
-            TODO
-        vf_iters : TODO
-            TODO
-        vf_stepsize : TODO
-            TODO
-        cg_damping : TODO
-            TODO
-        max_kl : TODO
-            TODO
+        cg_iters : int
+            the number of iterations for the conjugate gradient calculation
+        vf_iters : int
+            the value function’s number iterations for learning
+        vf_stepsize : float
+            the value function stepsize
+        cg_damping : float
+            the compute gradient dampening factor
+        max_kl : float
+            the Kullback-Leibler loss threshold
         """
         super(FeedForwardPolicy, self).__init__(
             sess=sess,
