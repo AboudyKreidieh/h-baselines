@@ -29,9 +29,12 @@ from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy \
     as PPOFeedForwardPolicy
+from hbaselines.fcnet.trpo import FeedForwardPolicy \
+    as TRPOFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
@@ -1341,7 +1344,7 @@ class TestTrain(unittest.TestCase):
             },
         })
 
-    def test_parse_options_PPO(self):
+    def test_parse_options_ppo(self):
         """Test the parse_options and get_hyperparameters methods for PPO.
 
         This is done for the following cases:
@@ -1580,6 +1583,253 @@ class TestTrain(unittest.TestCase):
                 'n_opt_epochs': 32,
                 'vf_coef': 33,
                 'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
+                'model_params': {
+                    'layers': [22, 23],
+                    'filters': [16, 16, 16],
+                    'ignore_flat_channels': [],
+                    'ignore_image': False,
+                    'image_channels': 3,
+                    'image_height': 32,
+                    'image_width': 32,
+                    'kernel_sizes': [5, 5, 5],
+                    'layer_norm': True,
+                    'batch_norm': True,
+                    'dropout': True,
+                    'model_type': 'model_type',
+                    'strides': [2, 2, 2]
+                },
+            },
+        })
+
+    def test_parse_options_trpo(self):
+        """Test the parse_options and get_hyperparameters methods for TRPO.
+
+        This is done for the following cases:
+
+        1. hierarchical = False, multiagent = False
+           a. default arguments
+           b. custom  arguments
+
+        All other variants should work as well (tested by a different methods).
+        """
+        self.maxDiff = None
+        model_params = FEEDFORWARD_PARAMS["model_params"]
+
+        # =================================================================== #
+        # test case 1.a                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "", args=["AntMaze", "--alg", "TRPO"],
+            multiagent=False, hierarchical=False)
+        self.assertDictEqual(vars(args), {
+            'env_name': 'AntMaze',
+            'alg': 'TRPO',
+            'evaluate': False,
+            'n_training': 1,
+            'total_steps': 1000000,
+            'seed': 1,
+            'log_dir': None,
+            'log_interval': 2000,
+            'eval_interval': 50000,
+            'save_interval': 50000,
+            'initial_exploration_steps': 10000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'save_replay_buffer': False,
+            'num_envs': 1,
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
+            'model_params:layers': None,
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': False,
+            'model_params:batch_norm': False,
+            'model_params:dropout': False,
+            'model_params:model_type': 'fcnet',
+            'model_params:strides': None,
+            'cg_damping': TRPO_PARAMS["cg_damping"],
+            'cg_iters': TRPO_PARAMS["cg_iters"],
+            'ent_coef': TRPO_PARAMS["ent_coef"],
+            'gamma': TRPO_PARAMS["gamma"],
+            'lam': TRPO_PARAMS["lam"],
+            'max_kl': TRPO_PARAMS["max_kl"],
+            'vf_iters': TRPO_PARAMS["vf_iters"],
+            'vf_stepsize': TRPO_PARAMS["vf_stepsize"],
+        })
+
+        hp = get_hyperparameters(args, TRPOFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'total_steps': 1000000,
+            'nb_train_steps': 1,
+            'nb_rollout_steps': 1,
+            'nb_eval_episodes': 50,
+            'reward_scale': 1,
+            'render': False,
+            'render_eval': False,
+            'verbose': 2,
+            'actor_update_freq': 2,
+            'meta_update_freq': 10,
+            'num_envs': 1,
+            'save_replay_buffer': False,
+            '_init_setup_model': True,
+            'policy_kwargs': {
+                'cg_damping': TRPO_PARAMS["cg_damping"],
+                'cg_iters': TRPO_PARAMS["cg_iters"],
+                'ent_coef': TRPO_PARAMS["ent_coef"],
+                'gamma': TRPO_PARAMS["gamma"],
+                'lam': TRPO_PARAMS["lam"],
+                'max_kl': TRPO_PARAMS["max_kl"],
+                'vf_iters': TRPO_PARAMS["vf_iters"],
+                'vf_stepsize': TRPO_PARAMS["vf_stepsize"],
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
+                'model_params': {
+                    'model_type': model_params["model_type"],
+                    'layers': model_params["layers"],
+                    'layer_norm': model_params["layer_norm"],
+                    'batch_norm': model_params["batch_norm"],
+                    'dropout': model_params["dropout"],
+                    'filters': model_params["filters"],
+                    'ignore_flat_channels': model_params[
+                        "ignore_flat_channels"],
+                    'ignore_image': model_params["ignore_image"],
+                    'image_channels': model_params["image_channels"],
+                    'image_height': model_params["image_height"],
+                    'image_width': model_params["image_width"],
+                    'kernel_sizes': model_params["kernel_sizes"],
+                    'strides': model_params["strides"],
+                },
+            }
+        })
+
+        # =================================================================== #
+        # test case 1.b                                                       #
+        # =================================================================== #
+
+        args = parse_options(
+            "", "",
+            args=[
+                "AntMaze",
+                "--alg", "TRPO",
+                '--evaluate',
+                '--save_replay_buffer',
+                '--n_training', '1',
+                '--total_steps', '2',
+                '--seed', '3',
+                '--log_dir', 'custom_dir',
+                '--log_interval', '4',
+                '--eval_interval', '5',
+                '--save_interval', '6',
+                '--nb_train_steps', '7',
+                '--nb_rollout_steps', '8',
+                '--nb_eval_episodes', '9',
+                '--reward_scale', '10',
+                '--render',
+                '--render_eval',
+                '--verbose', '11',
+                '--actor_update_freq', '12',
+                '--meta_update_freq', '13',
+                '--num_envs', '21',
+                '--model_params:model_type', 'model_type',
+                '--model_params:layer_norm',
+                '--model_params:batch_norm',
+                '--model_params:dropout',
+                '--model_params:layers', '22', '23',
+                '--cg_damping', '24',
+                '--cg_iters', '25',
+                '--ent_coef', '26',
+                '--gamma', '27',
+                '--lam', '28',
+                '--max_kl', '29',
+                '--vf_iters', '30',
+                '--vf_stepsize', '31',
+            ],
+            multiagent=False,
+            hierarchical=False,
+        )
+        self.assertDictEqual(vars(args), {
+            'actor_update_freq': 12,
+            'alg': 'TRPO',
+            'env_name': 'AntMaze',
+            'eval_interval': 5,
+            'evaluate': True,
+            'initial_exploration_steps': 10000,
+            'log_dir': 'custom_dir',
+            'log_interval': 4,
+            'meta_update_freq': 13,
+            'model_params:layers': [22, 23],
+            'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
+            'model_params:filters': None,
+            'model_params:ignore_flat_channels': None,
+            'model_params:ignore_image': False,
+            'model_params:image_channels': 3,
+            'model_params:image_height': 32,
+            'model_params:image_width': 32,
+            'model_params:kernel_sizes': None,
+            'model_params:layer_norm': True,
+            'model_params:batch_norm': True,
+            'model_params:dropout': True,
+            'model_params:model_type': 'model_type',
+            'model_params:strides': None,
+            'n_training': 1,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'num_envs': 21,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_interval': 6,
+            'save_replay_buffer': True,
+            'seed': 3,
+            'total_steps': 2,
+            'verbose': 11,
+            'cg_damping': 24,
+            'cg_iters': 25,
+            'ent_coef': 26,
+            'gamma': 27,
+            'lam': 28,
+            'max_kl': 29,
+            'vf_iters': 30,
+            'vf_stepsize': 31,
+        })
+
+        hp = get_hyperparameters(args, TRPOFeedForwardPolicy)
+        self.assertDictEqual(hp, {
+            'total_steps': 2,
+            '_init_setup_model': True,
+            'render': True,
+            'render_eval': True,
+            'reward_scale': 10.0,
+            'save_replay_buffer': True,
+            'verbose': 11,
+            'actor_update_freq': 12,
+            'meta_update_freq': 13,
+            'nb_eval_episodes': 9,
+            'nb_rollout_steps': 8,
+            'nb_train_steps': 7,
+            'num_envs': 21,
+            'policy_kwargs': {
+                'l2_penalty': FEEDFORWARD_PARAMS["l2_penalty"],
+                'cg_damping': 24,
+                'cg_iters': 25,
+                'ent_coef': 26,
+                'gamma': 27,
+                'lam': 28,
+                'max_kl': 29,
+                'vf_iters': 30,
+                'vf_stepsize': 31,
                 'model_params': {
                     'layers': [22, 23],
                     'filters': [16, 16, 16],
