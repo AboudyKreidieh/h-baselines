@@ -1754,7 +1754,7 @@ class TestTrain(unittest.TestCase):
                 '--max_kl', '29',
                 '--vf_iters', '30',
                 '--vf_stepsize', '31',
-        ],
+            ],
             multiagent=False,
             hierarchical=False,
         )
