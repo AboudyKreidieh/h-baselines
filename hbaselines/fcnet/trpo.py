@@ -12,6 +12,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import flatgrad
 from hbaselines.utils.tf_util import SetFromFlat
 from hbaselines.utils.tf_util import GetFlat
+from hbaselines.utils.tf_util import explained_variance
 
 
 class FeedForwardPolicy(Policy):
@@ -496,7 +497,26 @@ class FeedForwardPolicy(Policy):
         This method also adds the same running means and stds as scalars to
         tensorboard for additional storage.
         """
-        pass  # TODO
+        ops = {
+            "reference_action_mean": tf.reduce_mean(self.pi_mean),
+            "reference_action_std": tf.reduce_mean(self.pi_logstd),
+            "discounted_returns": tf.reduce_mean(self.ret_ph),
+            "advantage": tf.reduce_mean(self.advs_ph),
+            "old_value_pred": tf.reduce_mean(self.old_vpred_ph),
+            "optimgain": self.losses[0],
+            "meankl": self.losses[1],
+            "entloss": self.losses[2],
+            "surrgain": self.losses[3],
+            "entropy": self.losses[4],
+            "explained_variance": explained_variance(
+                self.old_vpred_ph, self.ret_ph)
+        }
+
+        # Add all names and ops to the tensorboard summary.
+        for key in ops.keys():
+            name = "{}/{}".format(base, key)
+            op = ops[key]
+            tf.compat.v1.summary.scalar(name, op)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
