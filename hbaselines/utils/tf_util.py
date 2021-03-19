@@ -860,10 +860,11 @@ def process_minibatch(mb_obs,
         mb_rewards[env_num] = np.asarray(mb_rewards[env_num])
         mb_actions[env_num] = np.concatenate(mb_actions[env_num], axis=0)
         mb_values[env_num] = np.concatenate(mb_values[env_num], axis=0)
-        mb_neglogpacs[env_num] = np.concatenate(
-            mb_neglogpacs[env_num], axis=0)
         mb_dones[env_num] = np.asarray(mb_dones[env_num])
         n_steps += mb_obs[env_num].shape[0]
+        if mb_neglogpacs is not None:
+            mb_neglogpacs[env_num] = np.concatenate(
+                mb_neglogpacs[env_num], axis=0)
 
         # Compute the bootstrapped/discounted returns.
         mb_returns[env_num] = gae_returns(
@@ -881,17 +882,19 @@ def process_minibatch(mb_obs,
         mb_contexts = np.concatenate(mb_contexts, axis=0)
         mb_actions = np.concatenate(mb_actions, axis=0)
         mb_values = np.concatenate(mb_values, axis=0)
-        mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
         mb_all_obs = np.concatenate(mb_all_obs, axis=0)
         mb_returns = np.concatenate(mb_returns, axis=0)
+        if mb_neglogpacs is not None:
+            mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
     else:
         mb_obs = mb_obs[0]
         mb_contexts = mb_contexts[0]
         mb_actions = mb_actions[0]
         mb_values = mb_values[0]
-        mb_neglogpacs = mb_neglogpacs[0]
         mb_all_obs = mb_all_obs[0]
         mb_returns = mb_returns[0]
+        if mb_neglogpacs is not None:
+            mb_neglogpacs = mb_neglogpacs[0]
 
     # Compute the advantages.
     advs = mb_returns - mb_values
