@@ -473,7 +473,7 @@ class MultiAgentPolicy(Policy):
                 reward=reward[key],
                 obs1=obs1[key],
                 context1=context1_i,
-                done=False,
+                done=float(done[key]),
                 is_final_step=is_final_step,
                 evaluate=evaluate,
                 env_num=env_num_i,

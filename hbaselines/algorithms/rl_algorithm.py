@@ -1058,6 +1058,7 @@ class RLAlgorithm(object):
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
                 info = ret_i["info"]
+                reset = done["__all__"] if isinstance(done, dict) else done
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
@@ -1065,12 +1066,12 @@ class RLAlgorithm(object):
                     context0=context,
                     action=action,
                     reward=reward,
-                    obs1=obs[0] if done else obs,
+                    obs1=obs[0] if reset else obs,
                     context1=context,
                     terminal1=done,
                     is_final_step=(self.episode_step[num] >= self.horizon - 1),
                     all_obs0=self.all_obs[num],
-                    all_obs1=all_obs[0] if done else all_obs,
+                    all_obs1=all_obs[0] if reset else all_obs,
                     env_num=num,
                 )
 
@@ -1084,11 +1085,11 @@ class RLAlgorithm(object):
                     self.episode_reward[num] += reward
 
                 # Update the current observation.
-                self.obs[num] = (obs[1] if done else obs).copy()
-                self.all_obs[num] = all_obs[1] if done else all_obs
+                self.obs[num] = (obs[1] if reset else obs).copy()
+                self.all_obs[num] = all_obs[1] if reset else all_obs
 
                 # Handle episode done.
-                if done:
+                if reset:
                     self.epoch_episode_rewards.append(self.episode_reward[num])
                     self.episode_rew_history.append(self.episode_reward[num])
                     self.epoch_episode_steps.append(self.episode_step[num])

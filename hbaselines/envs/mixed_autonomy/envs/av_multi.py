@@ -38,6 +38,15 @@ class AVMultiAgentEnv(AVEnv):
             shape=(3 * self._obs_frames,),
             dtype=np.float32)
 
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, reward, done, info = super(AVMultiAgentEnv, self).step(rl_actions)
+
+        # Replace done mask with dictionary.
+        done = {key: done for key in obs.keys()}
+
+        return obs, reward, done, info
+
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
         if self.env_params.additional_params["use_follower_stopper"]:
@@ -150,6 +159,18 @@ class AVOpenMultiAgentEnv(AVMultiAgentEnv):
             network=network,
             simulator=simulator,
         )
+
+    def step(self, rl_actions):
+        """See parent class."""
+        obs, reward, done, info = super(AVOpenMultiAgentEnv, self).step(
+            rl_actions)
+
+        # Set the done mask for cars the exited the control range to True.
+        for key in obs.keys():
+            if self.k.vehicle.get_x_by_id(key) > self._control_range[1]:
+                done[key] = True
+
+        return obs, reward, done, info
 
     def rl_ids(self):
         """See parent class."""
