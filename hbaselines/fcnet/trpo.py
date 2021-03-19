@@ -434,7 +434,7 @@ class FeedForwardPolicy(Policy):
             optimgain = surrgain + entbonus
             self.losses = [optimgain, meankl, entbonus, surrgain, meanent]
 
-            all_var_list = get_trainable_vars("model")
+            all_var_list = get_trainable_vars(scope_name)
             var_list = [
                 v for v in all_var_list
                 if "/vf" not in v.name and "/q/" not in v.name]

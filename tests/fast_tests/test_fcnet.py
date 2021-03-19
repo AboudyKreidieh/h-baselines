@@ -8,9 +8,11 @@ from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy as PPOFeedForwardPolicy
+from hbaselines.fcnet.trpo import FeedForwardPolicy as TRPOFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 
 
@@ -592,6 +594,151 @@ class TestPPOFeedForwardPolicy(unittest.TestCase):
              'model/vf/fc1/kernel:0',
              'model/vf/output/bias:0',
              'model/vf/output/kernel:0']
+        )
+
+
+class TestTRPOFeedForwardPolicy(unittest.TestCase):
+    """Test FeedForwardPolicy in hbaselines/fcnet/trpo.py."""
+
+    def setUp(self):
+        self.policy_params = {
+            'sess': tf.compat.v1.Session(),
+            'ac_space': Box(low=-1, high=1, shape=(1,)),
+            'ob_space': Box(low=-2, high=2, shape=(2,)),
+            'co_space': Box(low=-3, high=3, shape=(3,)),
+            'scope': None,
+            'verbose': 0,
+        }
+        self.policy_params.update(TRPO_PARAMS.copy())
+        self.policy_params.update(FEEDFORWARD_PARAMS.copy())
+        self.policy_params["model_params"]["model_type"] = "fcnet"
+
+    def tearDown(self):
+        self.policy_params['sess'].close()
+        del self.policy_params
+
+        # Clear the graph.
+        tf.compat.v1.reset_default_graph()
+
+    def test_init(self):
+        """Check the functionality of the __init__() method.
+
+        This method is tested for the following features:
+
+        1. The proper structure graph was generated.
+        2. All input placeholders are correct.
+        """
+        policy = TRPOFeedForwardPolicy(**self.policy_params)
+
+        # test case 1
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/logstd:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'model/vf/fc0/bias:0',
+             'model/vf/fc0/kernel:0',
+             'model/vf/fc1/bias:0',
+             'model/vf/fc1/kernel:0',
+             'model/vf/output/bias:0',
+             'model/vf/output/kernel:0',
+             'oldpi/model/logstd:0',
+             'oldpi/model/pi/fc0/bias:0',
+             'oldpi/model/pi/fc0/kernel:0',
+             'oldpi/model/pi/fc1/bias:0',
+             'oldpi/model/pi/fc1/kernel:0',
+             'oldpi/model/pi/output/bias:0',
+             'oldpi/model/pi/output/kernel:0',
+             'oldpi/model/vf/fc0/bias:0',
+             'oldpi/model/vf/fc0/kernel:0',
+             'oldpi/model/vf/fc1/bias:0',
+             'oldpi/model/vf/fc1/kernel:0',
+             'oldpi/model/vf/output/bias:0',
+             'oldpi/model/vf/output/kernel:0']
+        )
+
+        # test case 2
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.ret_ph.shape),
+            (None,))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.action_ph.shape),
+            (None, 1))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.obs_ph.shape),
+            (None, 5))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.advs_ph.shape),
+            (None,))
+        self.assertEqual(
+            tuple(v.__int__() for v in policy.old_vpred_ph.shape),
+            (None,))
+
+    def test_init_conv(self):
+        """Check the functionality of the __init__() method with conv policies.
+
+        This method tests that the proper structure graph was generated.
+        """
+        policy_params = self.policy_params.copy()
+        policy_params["model_params"]["model_type"] = "conv"
+        _ = TRPOFeedForwardPolicy(**policy_params)
+
+        self.assertListEqual(
+            sorted([var.name for var in get_trainable_vars()]),
+            ['model/logstd:0',
+             'model/pi/conv0/bias:0',
+             'model/pi/conv0/kernel:0',
+             'model/pi/conv1/bias:0',
+             'model/pi/conv1/kernel:0',
+             'model/pi/conv2/bias:0',
+             'model/pi/conv2/kernel:0',
+             'model/pi/fc0/bias:0',
+             'model/pi/fc0/kernel:0',
+             'model/pi/fc1/bias:0',
+             'model/pi/fc1/kernel:0',
+             'model/pi/output/bias:0',
+             'model/pi/output/kernel:0',
+             'model/vf/conv0/bias:0',
+             'model/vf/conv0/kernel:0',
+             'model/vf/conv1/bias:0',
+             'model/vf/conv1/kernel:0',
+             'model/vf/conv2/bias:0',
+             'model/vf/conv2/kernel:0',
+             'model/vf/fc0/bias:0',
+             'model/vf/fc0/kernel:0',
+             'model/vf/fc1/bias:0',
+             'model/vf/fc1/kernel:0',
+             'model/vf/output/bias:0',
+             'model/vf/output/kernel:0',
+             'oldpi/model/logstd:0',
+             'oldpi/model/pi/conv0/bias:0',
+             'oldpi/model/pi/conv0/kernel:0',
+             'oldpi/model/pi/conv1/bias:0',
+             'oldpi/model/pi/conv1/kernel:0',
+             'oldpi/model/pi/conv2/bias:0',
+             'oldpi/model/pi/conv2/kernel:0',
+             'oldpi/model/pi/fc0/bias:0',
+             'oldpi/model/pi/fc0/kernel:0',
+             'oldpi/model/pi/fc1/bias:0',
+             'oldpi/model/pi/fc1/kernel:0',
+             'oldpi/model/pi/output/bias:0',
+             'oldpi/model/pi/output/kernel:0',
+             'oldpi/model/vf/conv0/bias:0',
+             'oldpi/model/vf/conv0/kernel:0',
+             'oldpi/model/vf/conv1/bias:0',
+             'oldpi/model/vf/conv1/kernel:0',
+             'oldpi/model/vf/conv2/bias:0',
+             'oldpi/model/vf/conv2/kernel:0',
+             'oldpi/model/vf/fc0/bias:0',
+             'oldpi/model/vf/fc0/kernel:0',
+             'oldpi/model/vf/fc1/bias:0',
+             'oldpi/model/vf/fc1/kernel:0',
+             'oldpi/model/vf/output/bias:0',
+             'oldpi/model/vf/output/kernel:0']
         )
 
 
