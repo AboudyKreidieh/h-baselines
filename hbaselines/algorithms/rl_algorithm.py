@@ -711,7 +711,6 @@ class RLAlgorithm(object):
     def _policy(self,
                 obs,
                 context,
-                all_obs,
                 apply_noise=True,
                 random_actions=False,
                 env_num=0):
@@ -756,7 +755,6 @@ class RLAlgorithm(object):
 
         action = self.policy_tf.get_action(
             obs, context,
-            all_obs=all_obs,
             apply_noise=apply_noise,
             random_actions=random_actions,
             env_num=env_num,
@@ -1066,7 +1064,6 @@ class RLAlgorithm(object):
             action = [self._policy(
                 obs=self.obs[env_num],
                 context=context[env_num],
-                all_obs=self.all_obs[env_num],
                 apply_noise=True,
                 random_actions=random_actions,
                 env_num=env_num,

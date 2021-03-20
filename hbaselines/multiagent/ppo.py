@@ -296,6 +296,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         ----------
         obs : array_like
             a minibatch of observations
+        all_obs : array_like
+            a minibatch of full-state observations
         context : array_like
             a minibatch of contextual terms
         returns : array_like
@@ -332,8 +334,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                            context,
                            apply_noise,
                            random_actions,
-                           env_num,
-                           all_obs=None):
+                           env_num):
         """See get_action."""
         actions = {}
 
@@ -344,12 +345,6 @@ class MultiFeedForwardPolicy(BasePolicy):
             self._update_agent_index(obs, env_num)
 
         for key in obs.keys():
-            # Use the same policy for all operations if shared, and the
-            # corresponding policy otherwise.
-            env_num_i = \
-                self.n_agents * env_num + self._agent_index[env_num][key] \
-                if self.shared else env_num
-
             # Get the contextual term. This accounts for cases when the context
             # is set to None.
             context_i = context if context is None else context[key]
@@ -357,24 +352,15 @@ class MultiFeedForwardPolicy(BasePolicy):
             # Add the contextual observation, if applicable.
             obs_i = self._get_obs(obs[key], context_i, axis=1)
 
-            # Combine the observations and full-state observations.
-            all_obs_i = np.concatenate((obs_i, all_obs), axis=1)
-
-            # Compute the action of the provided observation.
-            actions[key], values, neglogpacs = self.sess.run(
-                [self.action if apply_noise else self.pi_mean,
-                 self.value_flat, self.neglogp],
+            # Compute the action.
+            actions[key] = self.sess.run(
+                self.action if apply_noise else self.pi_mean,
                 feed_dict={
                     self.obs_ph: obs_i,
-                    self.all_obs_ph: all_obs_i,
                     self.phase_ph: 0,
                     self.rate_ph: 0.0,
                 }
             )
-
-            # Store information on the values and negative-log likelihood.
-            self.mb_values[env_num_i].append(values)
-            self.mb_neglogpacs[env_num_i].append(neglogpacs)
 
         return actions
 
@@ -404,13 +390,32 @@ class MultiFeedForwardPolicy(BasePolicy):
             context0_i = context0 if context0 is None else context0[key]
             context1_i = context1 if context1 is None else context1[key]
 
+            # Add the contextual observation, if applicable.
+            obs_i = self._get_obs(obs0[key], context0_i, axis=1)
+
+            # Combine the observations and full-state observations.
+            all_obs_i = np.concatenate((obs_i, all_obs0), axis=1)
+
+            # Store information on the values and negative-log likelihood.
+            values, neglogpacs = self.sess.run(
+                [self.value_flat, self.neglogp],
+                feed_dict={
+                    self.obs_ph: obs_i,
+                    self.all_obs_ph: all_obs_i,
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                }
+            )
+            self.mb_values[env_num_i].append(values)
+            self.mb_neglogpacs[env_num_i].append(neglogpacs)
+
             # Update the minibatch of samples.
             self.mb_rewards[env_num_i].append(reward[key])
             self.mb_obs[env_num_i].append(obs0[key].reshape(1, -1))
             self.mb_all_obs[env_num_i].append(all_obs0)
             self.mb_contexts[env_num_i].append(context0_i)
             self.mb_actions[env_num_i].append(action[key].reshape(1, -1))
-            self.mb_dones[env_num_i].append(done)
+            self.mb_dones[env_num_i].append(done[key])
 
             # Update the last observation (to compute the last value for the
             # GAE expected returns).

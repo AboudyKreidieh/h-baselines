@@ -857,7 +857,7 @@ def process_minibatch(mb_obs,
     for env_num in range(num_envs):
         # Convert the data to numpy arrays.
         mb_obs[env_num] = np.concatenate(mb_obs[env_num], axis=0)
-        # mb_all_obs[env_num] = np.concatenate(mb_all_obs[env_num], axis=0)
+        mb_all_obs[env_num] = np.concatenate(mb_all_obs[env_num], axis=0)
         mb_rewards[env_num] = np.asarray(mb_rewards[env_num])
         mb_actions[env_num] = np.concatenate(mb_actions[env_num], axis=0)
         mb_values[env_num] = np.concatenate(mb_values[env_num], axis=0)
