@@ -16,7 +16,6 @@ from flow.networks.ring import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVClosedEnv
 from hbaselines.envs.mixed_autonomy.envs import AVClosedMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
 from hbaselines.envs.mixed_autonomy.envs.utils import get_relative_obs
 
 
@@ -40,8 +39,7 @@ def get_flow_params(stopping_penalty,
                     acceleration_penalty,
                     scale=1,
                     evaluate=False,
-                    multiagent=False,
-                    imitation=False):
+                    multiagent=False):
     """Return the flow-specific parameters of the ring road network.
 
     This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
@@ -67,8 +65,6 @@ def get_flow_params(stopping_penalty,
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
-    imitation : bool
-        whether to use the imitation environment
 
     Returns
     -------
@@ -123,23 +119,12 @@ def get_flow_params(stopping_penalty,
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params["length"] = 260 * scale
 
-    if multiagent:
-        if imitation:
-            env_name = None  # to be added later
-        else:
-            env_name = AVClosedMultiAgentEnv
-    else:
-        if imitation:
-            env_name = AVClosedEnv
-        else:
-            env_name = AVClosedImitationEnv
-
     return dict(
         # name of the experiment
         exp_tag='ring',
 
         # name of the flow environment the experiment is running on
-        env_name=env_name,
+        env_name=AVClosedMultiAgentEnv if multiagent else AVClosedEnv,
 
         # name of the network class the experiment is running on
         network=RingNetwork,

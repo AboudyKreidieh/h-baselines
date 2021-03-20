@@ -670,38 +670,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         )
 
     # ======================================================================= #
-    #                             ring-imitation                              #
-    # ======================================================================= #
-
-    def test_single_agent_ring_imitation(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("ring-imitation")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(15)]),
-            expected_max=np.array([float("inf") for _ in range(15)]),
-            expected_size=15,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1.0 for _ in range(1)]),
-            expected_max=np.array([1.0 for _ in range(1)]),
-            expected_size=1,
-        )
-        self.assertEqual(
-            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # ======================================================================= #
     #                                merge-v0                                 #
     # ======================================================================= #
 
@@ -1023,38 +991,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_max=np.array([15 for _ in range(1)]),
             expected_size=1,
         )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # ======================================================================= #
-    #                            highway-imitation                            #
-    # ======================================================================= #
-
-    def test_single_agent_highway_imitation(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("highway-imitation")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(75)]),
-            expected_max=np.array([float("inf") for _ in range(75)]),
-            expected_size=75,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-1.0 for _ in range(5)]),
-            expected_max=np.array([1.0 for _ in range(5)]),
-            expected_size=5,
-        )
-        self.assertEqual(
-            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
