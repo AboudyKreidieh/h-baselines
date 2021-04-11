@@ -96,7 +96,7 @@ class RingEnv(gym.Env):
                  dt,
                  horizon,
                  sims_per_step,
-                 max_accel=0.5,
+                 max_accel=1.0,
                  min_gap=1.0,
                  gen_emission=False,
                  rl_ids=None,
