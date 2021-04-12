@@ -617,8 +617,10 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
-        reward = reward_scale * np.mean(self.speeds) ** 2
+        c1 = 0.005  # reward scale for the speeds
+        c2 = 0.100  # reward scale for the accelerations
+
+        reward = - c1 * (self.speeds[self.rl_ids[0]] - self._v_eq) ** 2 - c2 * self.accelerations[self.rl_ids[0]] ** 2
 
         return reward
 
