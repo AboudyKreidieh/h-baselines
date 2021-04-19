@@ -21,7 +21,8 @@ def run_exp(env,
             eval_interval,
             log_interval,
             save_interval,
-            initial_exploration_steps):
+            initial_exploration_steps,
+            ckpt_path=None):
     """Run a single training procedure.
 
     Parameters
@@ -51,6 +52,8 @@ def run_exp(env,
     initial_exploration_steps : int
         number of timesteps that the policy is run before training to
         initialize the replay buffer with samples
+    ckpt_path : str
+            path to a checkpoint file
     """
     eval_env = env if evaluate else None
 
@@ -69,6 +72,7 @@ def run_exp(env,
         save_interval=save_interval,
         initial_exploration_steps=initial_exploration_steps,
         seed=seed,
+        ckpt_path=ckpt_path,
     )
 
 
@@ -126,6 +130,7 @@ def main(args, base_dir):
             log_interval=args.log_interval,
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
+            ckpt_path=args.ckpt_path,
         )
 
 

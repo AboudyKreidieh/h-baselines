@@ -835,7 +835,8 @@ class RLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              initial_exploration_steps=10000):
+              initial_exploration_steps=10000,
+              ckpt_path=None):
         """Perform the complete training operation.
 
         Parameters
@@ -856,6 +857,8 @@ class RLAlgorithm(object):
         initial_exploration_steps : int
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
+        ckpt_path : str
+            path to a checkpoint file
         """
         # Include warnings if using PPO or TRPO.
         if is_ppo_policy(self.policy) or is_trpo_policy(self.policy):
@@ -873,6 +876,10 @@ class RLAlgorithm(object):
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
             max_to_keep=self.total_steps // save_interval)
+
+        # Load an existing checkpoint if provided
+        if ckpt_path is not None:
+            self.saver.restore(self.sess, ckpt_path)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
