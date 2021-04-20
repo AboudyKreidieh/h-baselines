@@ -1877,9 +1877,9 @@ class TestRingNonFlow(unittest.TestCase):
 
         # test case 4
         env.speeds = [10 for _ in range(22)]
-        self.assertEqual(env.compute_reward(action=None), 10.0)
+        self.assertEqual(env.compute_reward(action=None), -0.5)
         env.speeds = [i for i in range(22)]
-        self.assertEqual(env.compute_reward(action=None), 11.025)
+        self.assertEqual(env.compute_reward(action=None), 0.0)
 
     def test_multi_agent_env(self):
         """Validate the functionality of the RingMultiAgentEnv class.
@@ -1963,18 +1963,18 @@ class TestRingNonFlow(unittest.TestCase):
         obs, _, _, _ = env.step({0: [0], 11: [1]})
         np.testing.assert_almost_equal(
             obs["obs"][0],
-            [0.01, 0.0253635, 0.0683355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+            [0.02, 0.0253635, 0.0682355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["obs"][11],
-            [0.02, 0.026807, 0.0682499, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+            [0.04, 0.026807, 0.0680499, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
              0., 0., 0.]
         )
         np.testing.assert_almost_equal(
             obs["all_obs"],
-            [0.01, 0.0253635, 0.0683355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-             0., 0., 0., 0.02, 0.026807, 0.0682499, 0., 0., 0., 0., 0., 0.,
+            [0.02, 0.02536347, 0.06823545, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0.04, 0.026807, 0.06804989, 0., 0., 0., 0., 0., 0.,
              0., 0., 0., 0., 0., 0.]
         )
 
