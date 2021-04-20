@@ -158,7 +158,8 @@ def main(args):
                 # Render the new step.
                 if not flags.no_render:
                     if flags.save_video:
-                        if alg.env_name == "AntGather":
+                        if alg.env_name in ["AntGather", "BipedalSoccer"]:
+                            print(env.render(mode='rgb_array'))
                             out.writeFrame(env.render(mode='rgb_array'))
                         else:
                             out.writeFrame(env.render(

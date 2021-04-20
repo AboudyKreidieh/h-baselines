@@ -65,7 +65,7 @@ class BipedalSoccer(gym.Env):
 
     def render(self, mode='human'):
         """See parent class."""
-        pass
+        return self.wrapped_env.render(mode)
 
 
 class BipedalObstacles(gym.Env):
