@@ -100,7 +100,7 @@ def parse_options(args):
         help='whether to run the simulation on a random seed. If not added, '
              'the original seed is used.')
     parser.add_argument(
-        '--eval_env_name', type=str, default=None
+        '--eval_env_name', type=str, default=None,
         help='The environment to do the evaluation in. Default to the one '
              'fetched from the hyperparameter.json file.')
 
