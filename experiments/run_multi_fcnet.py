@@ -90,8 +90,6 @@ def main(args, base_dir):
 
         # Create a save directory folder (if it doesn't exist).
         dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
-        if args.log_dir is not None:
-            dir_name = args.log_dir
         ensure_dir(dir_name)
 
         # Get the policy class.
