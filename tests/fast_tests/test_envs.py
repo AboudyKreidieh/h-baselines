@@ -637,7 +637,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-        self.assertEqual(env.max_accel, 0.5)
+        self.assertEqual(env.max_accel, 1.0)
 
     def test_multi_agent_ring_v0_fast(self):
         # set a random seed
@@ -661,7 +661,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-        self.assertEqual(env.max_accel, 0.5)
+        self.assertEqual(env.max_accel, 1.0)
 
         # test case 3
         self.assertListEqual(
