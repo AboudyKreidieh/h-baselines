@@ -21,7 +21,8 @@ def run_exp(env,
             eval_interval,
             log_interval,
             save_interval,
-            initial_exploration_steps):
+            initial_exploration_steps,
+            ckpt_path):
     """Run a single training procedure.
 
     Parameters
@@ -49,6 +50,9 @@ def run_exp(env,
     initial_exploration_steps : int
         number of timesteps that the policy is run before training to
         initialize the replay buffer with samples
+    ckpt_path : str
+        path to a checkpoint file. The model is initialized with the weights
+        and biases within this checkpoint.
     """
     eval_env = env if evaluate else None
 
@@ -67,14 +71,12 @@ def run_exp(env,
         save_interval=save_interval,
         initial_exploration_steps=initial_exploration_steps,
         seed=seed,
+        ckpt_path=ckpt_path,
     )
 
 
 def main(args, base_dir):
     """Execute multiple training operations."""
-    if args.log_dir is not None:
-        base_dir = os.path.join(args.log_dir, base_dir)
-
     for i in range(args.n_training):
         # value of the next seed
         seed = args.seed + i
@@ -83,7 +85,11 @@ def main(args, base_dir):
         now = strftime("%Y-%m-%d-%H:%M:%S")
 
         # Create a save directory folder (if it doesn't exist).
-        dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
+        if args.log_dir is not None:
+            dir_name = args.log_dir
+        else:
+            dir_name = os.path.join(base_dir, '{}/{}'.format(
+                args.env_name, now))
         ensure_dir(dir_name)
 
         # Get the policy class.
@@ -120,6 +126,7 @@ def main(args, base_dir):
             log_interval=args.log_interval,
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
+            ckpt_path=args.ckpt_path,
         )
 
 

@@ -117,6 +117,7 @@ class TestTrain(unittest.TestCase):
             'critic_lr': TD3_PARAMS['critic_lr'],
             'tau': TD3_PARAMS['tau'],
             'gamma': TD3_PARAMS['gamma'],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
@@ -173,6 +174,7 @@ class TestTrain(unittest.TestCase):
             "", "",
             args=[
                 "AntMaze",
+                '--ckpt_path', 'blank',
                 '--evaluate',
                 '--save_replay_buffer',
                 '--n_training', '1',
@@ -259,6 +261,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'ckpt_path': 'blank',
         })
 
         hp = get_hyperparameters(args, TD3FeedForwardPolicy)
@@ -376,6 +379,7 @@ class TestTrain(unittest.TestCase):
             'relative_goals': False,
             'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
                 'subgoal_testing_rate'],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
@@ -529,6 +533,7 @@ class TestTrain(unittest.TestCase):
             'off_policy_corrections': True,
             'relative_goals': True,
             'subgoal_testing_rate': 6,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3GoalConditionedPolicy)
@@ -647,6 +652,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -759,6 +765,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 2,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -883,6 +890,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiFeedForwardPolicy)
@@ -1025,6 +1033,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 8,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TD3MultiGoalConditionedPolicy)
@@ -1163,6 +1172,7 @@ class TestTrain(unittest.TestCase):
             'critic_lr': SAC_PARAMS['critic_lr'],
             'tau': SAC_PARAMS['tau'],
             'gamma': SAC_PARAMS['gamma'],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
@@ -1299,6 +1309,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, SACFeedForwardPolicy)
@@ -1412,6 +1423,7 @@ class TestTrain(unittest.TestCase):
             'n_minibatches': PPO_PARAMS['n_minibatches'],
             'n_opt_epochs': PPO_PARAMS['n_opt_epochs'],
             'vf_coef': PPO_PARAMS['vf_coef'],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
@@ -1554,6 +1566,7 @@ class TestTrain(unittest.TestCase):
             'n_minibatches': 31,
             'n_opt_epochs': 32,
             'vf_coef': 33.0,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, PPOFeedForwardPolicy)
@@ -1667,6 +1680,7 @@ class TestTrain(unittest.TestCase):
             'max_kl': TRPO_PARAMS["max_kl"],
             'vf_iters': TRPO_PARAMS["vf_iters"],
             'vf_stepsize': TRPO_PARAMS["vf_stepsize"],
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TRPOFeedForwardPolicy)
@@ -1803,6 +1817,7 @@ class TestTrain(unittest.TestCase):
             'max_kl': 29,
             'vf_iters': 30,
             'vf_stepsize': 31,
+            'ckpt_path': None,
         })
 
         hp = get_hyperparameters(args, TRPOFeedForwardPolicy)
