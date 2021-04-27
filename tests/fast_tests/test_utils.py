@@ -2929,6 +2929,7 @@ class TestEval(unittest.TestCase):
             'save_trajectory': False,
             'no_render': False,
             'random_seed': False,
+            'env_name': None,
         }
         self.assertDictEqual(vars(args), expected_args)
 
@@ -2942,6 +2943,7 @@ class TestEval(unittest.TestCase):
             '--save_trajectory',
             '--no_render',
             '--random_seed',
+            '--env_name', '4',
         ])
         expected_args = {
             'dir_name': 'AntMaze',
@@ -2952,6 +2954,7 @@ class TestEval(unittest.TestCase):
             'save_trajectory': True,
             'no_render': True,
             'random_seed': True,
+            'env_name': '4',
         }
         self.assertDictEqual(vars(args), expected_args)
 
