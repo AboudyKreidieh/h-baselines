@@ -222,7 +222,8 @@ def parse_options(description,
              'directory.')
     parser_algorithm.add_argument(
         '--ckpt_path', type=str, default=None,
-        help='location of a checkpoint file. Defualt to None. ')
+        help='path to a checkpoint file. The model is initialized with the '
+             'weights and biases within this checkpoint. Defaults to None. ')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)

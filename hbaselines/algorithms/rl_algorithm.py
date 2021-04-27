@@ -858,7 +858,8 @@ class RLAlgorithm(object):
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
         ckpt_path : str
-            path to a checkpoint file
+            path to a checkpoint file. The model is initialized with the
+            weights and biases within this checkpoint.
         """
         # Include warnings if using PPO or TRPO.
         if is_ppo_policy(self.policy) or is_trpo_policy(self.policy):
@@ -877,7 +878,7 @@ class RLAlgorithm(object):
             self.trainable_vars,
             max_to_keep=self.total_steps // save_interval)
 
-        # Load an existing checkpoint if provided
+        # Load an existing checkpoint if provided.
         if ckpt_path is not None:
             self.saver.restore(self.sess, ckpt_path)
 
