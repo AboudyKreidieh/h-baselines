@@ -712,7 +712,7 @@ ENV_ATTRIBUTES = {
         "state_indices": lambda multiagent: [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
-        BipedalSoccer(render=render),
+        BipedalSoccer(),
     },
 
     "BipedalObstacles": {

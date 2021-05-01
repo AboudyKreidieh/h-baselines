@@ -160,6 +160,12 @@ def main(args):
                     if flags.save_video:
                         if alg.env_name == "AntGather":
                             out.writeFrame(env.render(mode='rgb_array'))
+                        elif alg.env_name == "BipedalSoccer":
+                            image = env.render(mode="rgb_array")
+                            image = np.reshape(image, (128, 128, 3))
+                            image = np.flipud(image)
+                            image = np.fliplr(image)
+                            out.writeFrame(image)
                         else:
                             out.writeFrame(env.render(
                                 mode='rgb_array', height=1024, width=1024))
