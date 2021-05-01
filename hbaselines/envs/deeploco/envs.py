@@ -28,18 +28,10 @@ class BipedalSoccer(gym.Env):
         the original environment, which add more dimensions than wanted here
     """
 
-    def __init__(self, render):
-        """Instantiate the environment.
-
-        Parameters
-        ----------
-        render : bool
-            whether to render the environment
-        """
-        if render:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Soccer-Render-v1")
-        else:
-            self.wrapped_env = gym.make("PD-Biped3D-HLC-Soccer-v1")
+    def __init__(self):
+        """Instantiate the environment."""
+        self.wrapped_env = terrainRLSim.getEnv(
+            "PD-Biped3D-HLC-Soccer-v1", render=False)
 
         # Add the time horizon.
         self.horizon = 512
@@ -65,7 +57,7 @@ class BipedalSoccer(gym.Env):
 
     def render(self, mode='human'):
         """See parent class."""
-        return self.wrapped_env.render(mode)
+        return self.wrapped_env.render(mode=mode)
 
 
 class BipedalObstacles(gym.Env):
