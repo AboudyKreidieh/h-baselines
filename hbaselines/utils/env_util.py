@@ -35,10 +35,8 @@ try:
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
         import get_flow_params as i210
-    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
-        import RingSingleAgentEnv
-    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
-        import RingMultiAgentEnv
+    from ring_rl.envs import RingSingleAgentEnv
+    from ring_rl.envs import RingMultiAgentEnv
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
