@@ -40,7 +40,8 @@ def get_flow_params(fixed_boundary,
                     acceleration_penalty,
                     use_follower_stopper,
                     evaluate=False,
-                    multiagent=False):
+                    multiagent=False,
+                    inflow_rate=INFLOW_RATE):
     """Return the flow-specific parameters of the I-210 subnetwork.
 
     Parameters
@@ -133,13 +134,13 @@ def get_flow_params(fixed_boundary,
     inflow.add(
         veh_type="human",
         edge="ghost0",
-        vehs_per_hour=INFLOW_RATE * 5 * (1 - PENETRATION_RATE),
+        vehs_per_hour=inflow_rate * 5 * (1 - PENETRATION_RATE),
         depart_lane="best",
         depart_speed=25.5)
     inflow.add(
         veh_type="rl",
         edge="ghost0",
-        vehs_per_hour=INFLOW_RATE * 5 * PENETRATION_RATE,
+        vehs_per_hour=inflow_rate * 5 * PENETRATION_RATE,
         depart_lane="best",
         depart_speed=25.5)
 

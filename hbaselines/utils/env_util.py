@@ -605,8 +605,22 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             15 * i for i in range(1 if multiagent else 25)],
-        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
-        FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
+            FlowEnv(
+                flow_params=i210(
+                    fixed_boundary=True,
+                    stopping_penalty=True,
+                    acceleration_penalty=True,
+                    use_follower_stopper=False,
+                    multiagent=multiagent,
+                    inflow_rate = x
+                ),
+                render=render,
+                multiagent=multiagent,
+                shared=shared,
+                maddpg=maddpg,
+            ) for x in (1900, 1950, 2000, 2050, 2100, 2150, 2200, 2250, 2300)
+        ] if evaluate else FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=True,
