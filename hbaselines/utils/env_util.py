@@ -948,9 +948,6 @@ def create_env(env,
         if multiagent:
             env = env[11:]
         if env == 'i210-v0' and evaluate:
-            print("hahahahahahahahahahahahahahaha")
-            print(inflow_rate)
-            print(end_speed)
             env = _get_i210_eval_env(render, multiagent, shared, maddpg, inflow_rate, end_speed)
         elif env in ENV_ATTRIBUTES.keys():
             # environments whose attributes are defined under ENV_ATTRIBUTES
