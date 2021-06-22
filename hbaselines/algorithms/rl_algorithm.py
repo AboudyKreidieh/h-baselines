@@ -401,7 +401,9 @@ class RLAlgorithm(object):
                  num_envs=1,
                  verbose=0,
                  policy_kwargs=None,
-                 _init_setup_model=True):
+                 _init_setup_model=True,
+                 inflow_rate=None,
+                 end_speed=None):
         """Instantiate the algorithm object.
 
         Parameters
@@ -498,7 +500,7 @@ class RLAlgorithm(object):
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
         self.eval_env, _ = create_env(
-            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True)
+            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True, inflow_rate=inflow_rate, end_speed=end_speed)
         self.total_steps = total_steps
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps

@@ -47,6 +47,8 @@ def main(args):
         # Override n_agents
         if "n_agents" in hp["policy_kwargs"]:
             hp["policy_kwargs"]["n_agents"] = 100
+        hp['inflow_rate'] = flags.inflow_rate
+        hp['end_speed'] = flags.end_speed
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
     multiagent = env_name.startswith("multiagent")
@@ -94,17 +96,21 @@ def main(args):
     # Perform the evaluation procedure.
     episode_rewards = []
 
-    # Add an emission path to Flow environments.
-    if env_name in FLOW_ENVS or (multiagent and env_name[11:] in FLOW_ENVS):
-        sim_params = deepcopy(env.wrapped_env.sim_params)
-        sim_params.emission_path = "./flow_results"
-        env.wrapped_env.restart_simulation(
-            sim_params, render=not flags.no_render)
-
     if not isinstance(env, list):
         env_list = [env]
     else:
         env_list = env
+
+    # Add an emission path to Flow environments.
+    if env_name in FLOW_ENVS or (multiagent and env_name[11:] in FLOW_ENVS):
+        for env in env_list:
+            sim_params = deepcopy(env.wrapped_env.sim_params)
+            if flags.inflow_rate is not None and flags.end_speed is not None:
+                sim_params.emission_path = "./flow_results/{}_{}".format(flags.inflow_rate, flags.end_speed)
+            else:
+                sim_params.emission_path = "./flow_results/"
+            env.wrapped_env.restart_simulation(
+                sim_params, render=not flags.no_render)
 
     for env_num, env in enumerate(env_list):
         for episode_num in range(flags.num_rollouts):

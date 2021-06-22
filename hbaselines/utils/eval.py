@@ -103,6 +103,12 @@ def parse_options(args):
         '--env_name', type=str, default=None,
         help='The environment to do the evaluation in. Default to the one '
              'fetched from the hyperparameter.json file.')
+    parser.add_argument(
+        '--inflow_rate', type=int, default=None,
+        help='Inflow rate for i210 evaluation.')
+    parser.add_argument(
+        '--end_speed', type=int, default=None,
+        help='end speed for i210 evaluation.')
 
     return parser.parse_args(args)
 

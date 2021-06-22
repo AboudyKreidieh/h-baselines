@@ -41,7 +41,8 @@ def get_flow_params(fixed_boundary,
                     use_follower_stopper,
                     evaluate=False,
                     multiagent=False,
-                    inflow_rate=INFLOW_RATE):
+                    inflow_rate=INFLOW_RATE,
+                    end_speed = 5):
     """Return the flow-specific parameters of the I-210 subnetwork.
 
     Parameters
@@ -187,6 +188,8 @@ def get_flow_params(fixed_boundary,
                     "b": 2.0,
                 }),
                 "warmup_path": WARMUP_PATH,
+                "inflow_rate": inflow_rate,
+                "end_speed": end_speed,
             }
         ),
 

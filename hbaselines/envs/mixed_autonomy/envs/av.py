@@ -199,6 +199,13 @@ class AVEnv(Env):
             self.warmup_paths = None
             self.warmup_description = None
 
+        # get the specified inflow_rate and end_speed
+        self.inflow_rate = env_params.additional_params.get("inflow_rate")
+        self.end_speed = env_params.additional_params.get("end_speed")
+        if self.inflow_rate is not None and self.end_speed is not None:
+            self.inflow_rate = np.clip(self.inflow_rate, 1900, 2300)
+            self.end_speed = np.clip(self.end_speed, 5, 10)
+
         # queue of rl vehicles waiting to be controlled
         self.rl_queue = collections.deque()
 
@@ -518,17 +525,25 @@ class AVEnv(Env):
             self.sim_params.restart_instance = True
 
             if self.warmup_paths is not None:
-                # Choose a random available xml file.
-                xml_file = random.sample(self.warmup_paths, 1)[0]
-                xml_num = int(xml_file.split(".")[0])
+                if self.inflow_rate is not None and self.end_speed is not None:
+                    # choose a xml file based on inflow and end_speed
+                    xml_num = int((self.end_speed - 5) * 18 + (self.inflow_rate - 1900) / 50 * 2)
+                    xml_num = np.random.choice([xml_num, xml_num+1])
+                    xml_file = "{}.xml".format(xml_num)
+                    inflow_rate = self.inflow_rate
+                    end_speed = self.end_speed
+                else:
+                    # Choose a random available xml file.
+                    xml_file = random.sample(self.warmup_paths, 1)[0]
+                    xml_num = int(xml_file.split(".")[0])
+
+                    # Assign the inflow rate to match the xml number.
+                    inflow_rate = self.warmup_description["inflow"][xml_num]
+                    end_speed = self.warmup_description["end_speed"][xml_num]
 
                 # Update the choice of initial conditions.
                 self.sim_params.load_state = os.path.join(
                     params["warmup_path"], xml_file)
-
-                # Assign the inflow rate to match the xml number.
-                inflow_rate = self.warmup_description["inflow"][xml_num]
-                end_speed = self.warmup_description["end_speed"][xml_num]
 
                 # Modify the inflow rate for the I-210 network.
                 if isinstance(self.k.network.network, I210SubNetwork):

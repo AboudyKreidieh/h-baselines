@@ -605,22 +605,8 @@ ENV_ATTRIBUTES = {
         ),
         "state_indices": lambda multiagent: [
             15 * i for i in range(1 if multiagent else 25)],
-        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
-            FlowEnv(
-                flow_params=i210(
-                    fixed_boundary=True,
-                    stopping_penalty=True,
-                    acceleration_penalty=True,
-                    use_follower_stopper=False,
-                    multiagent=multiagent,
-                    inflow_rate = x
-                ),
-                render=render,
-                multiagent=multiagent,
-                shared=shared,
-                maddpg=maddpg,
-            ) for x in (1900, 1950, 2000, 2050, 2100, 2150, 2200, 2250, 2300)
-        ] if evaluate else FlowEnv(
+        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
+        FlowEnv(
             flow_params=i210(
                 fixed_boundary=True,
                 stopping_penalty=True,
@@ -770,6 +756,23 @@ ENV_ATTRIBUTES = {
 }
 
 
+def _get_i210_eval_env(render, multiagent, shared, maddpg, inflow_rate, end_speed):
+    return FlowEnv(
+            flow_params=i210(
+                fixed_boundary=True,
+                stopping_penalty=True,
+                acceleration_penalty=True,
+                use_follower_stopper=False,
+                multiagent=multiagent,
+                inflow_rate = inflow_rate,
+                end_speed=end_speed
+            ),
+            render=render,
+            multiagent=multiagent,
+            shared=shared,
+            maddpg=maddpg,
+        )
+
 def _get_ring_env_attributes(scale):
     """Return the environment parameters of the fast ring environment.
 
@@ -807,7 +810,6 @@ def _get_ring_env_attributes(scale):
             maddpg=maddpg,
         ) if evaluate else
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
-            maddpg=maddpg,
             length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
@@ -905,7 +907,9 @@ def create_env(env,
                num_levels=1,
                shared=False,
                maddpg=False,
-               evaluate=False):
+               evaluate=False,
+               inflow_rate=2050,
+               end_speed=5):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -943,8 +947,12 @@ def create_env(env,
         multiagent = env.startswith("multiagent")
         if multiagent:
             env = env[11:]
-
-        if env in ENV_ATTRIBUTES.keys():
+        if env == 'i210-v0' and evaluate:
+            print("hahahahahahahahahahahahahahaha")
+            print(inflow_rate)
+            print(end_speed)
+            env = _get_i210_eval_env(render, multiagent, shared, maddpg, inflow_rate, end_speed)
+        elif env in ENV_ATTRIBUTES.keys():
             # environments whose attributes are defined under ENV_ATTRIBUTES
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, num_levels, multiagent, shared, maddpg)
