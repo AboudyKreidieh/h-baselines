@@ -948,6 +948,36 @@ def create_env(env,
             env = import_flow_env(env, render, shared, maddpg, evaluate)
 
         else:
+            from gym.envs.registration import register
+
+            if env.startswith("hierarchical-lc-v0"):
+                data = env.split(":")[1]
+                data = data.split("-")
+                inflow_rate = float(data[0])
+                penetration_rate = float(data[1])
+                num_sections = float(data[2])
+                env = env.split(":")[0]
+                print(env, inflow_rate)
+
+            register(
+                id="hierarchical-lc-v0",
+                entry_point="highway_sim.envs:HierarchicalHighwayEnv",
+                kwargs={'length': 5000.0, 'lanes': 3, 'num_vehicles': 0,
+                        'dt': 0.25,
+                        'horizon': 40, 'inflow_rate': inflow_rate,
+                        'off_ramp_pos': -1.0,
+                        'off_ramp_prob': 0.0, 'sims_per_step': 120,
+                        'incident_speed': 0.01,
+                        'incident_pos': 4500.0,
+                        'penetration_rate': penetration_rate,
+                        'politeness': 0.0,
+                        'gen_emission': False, 'warmup_steps': 2,
+                        'initial_state': 'warmup/neo/no-off-ramp/{}.json'.format(int(inflow_rate)),
+                        'obs_type': 0,
+                        'reward_type': 0, 'num_rl': 20, 'occupancy_range': 50,
+                        'occupancy_dx': 2.5, 'num_sections': num_sections, 'env_num': 0},
+            )
+
             # This is assuming the environment is registered with OpenAI gym.
             env = gym.make(env)
 
