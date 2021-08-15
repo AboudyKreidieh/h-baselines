@@ -187,6 +187,8 @@ class FeedForwardPolicy(Policy):
         self.noise = noise * ac_mag
         self.target_policy_noise = np.array([ac_mag * target_policy_noise])
         self.target_noise_clip = np.array([ac_mag * target_noise_clip])
+        self.ob_max = None
+        self.ob_min = None
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
@@ -551,10 +553,10 @@ class FeedForwardPolicy(Policy):
 
         # Perform the update operations.
         self.sess.run(step_ops, feed_dict={
-            self.obs_ph: obs0,
+            self.obs_ph: (obs0 - self.ob_min) / (self.ob_max - self.ob_min),
             self.action_ph: actions,
             self.rew_ph: rewards,
-            self.obs1_ph: obs1,
+            self.obs1_ph: (obs1 - self.ob_min) / (self.ob_max - self.ob_min),
             self.terminals1: terminals1,
             self.phase_ph: 1,
             self.rate_ph: 0.5,
@@ -564,6 +566,15 @@ class FeedForwardPolicy(Policy):
         """See parent class."""
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
+
+        # Update the observation min/max and scale the observation.  TODO
+        if self.ob_max is None:
+            self.ob_max = np.max(obs, axis=0)
+            self.ob_min = np.min(obs, axis=0)
+        else:
+            self.ob_max = np.max(np.concatenate((obs, [self.ob_max])), axis=0)
+            self.ob_min = np.min(np.concatenate((obs, [self.ob_min])), axis=0)
+            obs = (obs - self.ob_min) / (self.ob_max - self.ob_min)
 
         if random_actions:
             action = np.array([self.ac_space.sample()])

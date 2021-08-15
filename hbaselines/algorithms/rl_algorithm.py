@@ -12,6 +12,8 @@ Supported algorithms through this class:
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
 """
+import json
+
 import ray
 import os
 import time
@@ -1015,6 +1017,12 @@ class RLAlgorithm(object):
             Prefix of filenames created for the checkpoint
         """
         self.saver.save(self.sess, save_path, global_step=self.steps)
+
+        with open(save_path + "-bounds--{}.json".format(self.steps), "w") as f:
+            json.dump({
+                "ob_min": self.policy_tf.ob_min.tolist(),
+                "ob_max": self.policy_tf.ob_max.tolist(),
+            }, f)
 
         # Save data from the replay buffer.
         if self.save_replay_buffer:

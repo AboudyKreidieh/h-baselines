@@ -955,31 +955,33 @@ def create_env(env,
                 data = data.split("-")
                 inflow_rate = float(data[0])
                 penetration_rate = float(data[1])
-                num_sections = float(data[2])
+                num_sections = int(data[2])
                 env = env.split(":")[0]
                 print(env, inflow_rate)
 
             register(
                 id="hierarchical-lc-v0",
                 entry_point="highway_sim.envs:HierarchicalHighwayEnv",
-                kwargs={'length': 5000.0, 'lanes': 3, 'num_vehicles': 0,
+                kwargs={'length': 2000.0, 'lanes': 3, 'num_vehicles': 0,
                         'dt': 0.25,
                         'horizon': 40, 'inflow_rate': inflow_rate,
                         'off_ramp_pos': -1.0,
                         'off_ramp_prob': 0.0, 'sims_per_step': 120,
-                        'incident_speed': 0.01,
-                        'incident_pos': 4500.0,
+                        'incident_speed': 0,
+                        'incident_pos': 1500.0,
                         'penetration_rate': penetration_rate,
                         'politeness': 0.0,
-                        'gen_emission': False, 'warmup_steps': 2,
-                        'initial_state': 'warmup/neo/no-off-ramp/{}.json'.format(int(inflow_rate)),
-                        'obs_type': 0,
-                        'reward_type': 0, 'num_rl': 20, 'occupancy_range': 50,
-                        'occupancy_dx': 2.5, 'num_sections': num_sections, 'env_num': 0},
+                        'gen_emission': False, 'warmup_steps': 1,
+                        'initial_state': 'warmup/rl/{}.json'.format(int(inflow_rate)),
+                        'num_rl': 20, 'num_sections': num_sections,
+                        'routing_factor': 100, 'section_period': 1,
+                        'locality_period': 30, 'train_section_manager': False,
+                        },
             )
 
             # This is assuming the environment is registered with OpenAI gym.
             env = gym.make(env)
+            print(env.length)
 
     # Reset the environment.
     if isinstance(env, list):
