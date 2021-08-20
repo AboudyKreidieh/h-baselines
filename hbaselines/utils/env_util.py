@@ -25,7 +25,6 @@ except (ImportError, ModuleNotFoundError):
     pass
 
 try:
-    import flow.config as config
     from hbaselines.envs.mixed_autonomy import FlowEnv
     from hbaselines.envs.mixed_autonomy.params.merge \
         import get_flow_params as merge
@@ -37,6 +36,7 @@ try:
         import get_flow_params as i210
     from ring_rl.envs import RingSingleAgentEnv
     from ring_rl.envs import RingMultiAgentEnv
+    import flow.config as config
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
@@ -812,7 +812,7 @@ def _get_ring_env_attributes(scale):
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
             length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
-            dt=0.1,
+            dt=0.2,
             horizon=3000,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
