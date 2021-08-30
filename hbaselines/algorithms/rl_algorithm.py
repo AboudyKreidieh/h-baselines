@@ -403,7 +403,9 @@ class RLAlgorithm(object):
                  policy_kwargs=None,
                  _init_setup_model=True,
                  inflow_rate=None,
-                 end_speed=None):
+                 end_speed=None,
+                 lc_period=-1,
+                 lc_prob=-1.0):
         """Instantiate the algorithm object.
 
         Parameters
@@ -500,7 +502,8 @@ class RLAlgorithm(object):
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
         self.eval_env, _ = create_env(
-            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True, inflow_rate=inflow_rate, end_speed=end_speed)
+            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True,
+            inflow_rate=inflow_rate, end_speed=end_speed)
         self.total_steps = total_steps
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
@@ -518,7 +521,7 @@ class RLAlgorithm(object):
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs = self.setup_sampler(
-            env, render, shared, maddpg)
+            env, render, shared, maddpg, lc_period, lc_prob)
 
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
@@ -582,7 +585,7 @@ class RLAlgorithm(object):
         if _init_setup_model:
             self.trainable_vars = self.setup_model()
 
-    def setup_sampler(self, env, render, shared, maddpg):
+    def setup_sampler(self, env, render, shared, maddpg, lc_period, lc_prob):
         """Create the environment and collect the initial observations.
 
         Parameters
@@ -621,6 +624,8 @@ class RLAlgorithm(object):
                     maddpg=maddpg,
                     env_num=env_num,
                     evaluate=False,
+                    lc_period=lc_period,
+                    lc_prob=lc_prob,
                 )
                 for env_num in range(self.num_envs)
             ]
@@ -635,6 +640,8 @@ class RLAlgorithm(object):
                     maddpg=maddpg,
                     env_num=0,
                     evaluate=False,
+                    lc_period=lc_period,
+                    lc_prob=lc_prob,
                 )
             ]
             ob = [s.get_init_obs() for s in sampler]

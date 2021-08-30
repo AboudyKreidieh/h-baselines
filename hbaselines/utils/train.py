@@ -224,6 +224,12 @@ def parse_options(description,
         '--ckpt_path', type=str, default=None,
         help='path to a checkpoint file. The model is initialized with the '
              'weights and biases within this checkpoint. Defaults to None. ')
+    parser_algorithm.add_argument(
+        '--lc_period', type=int, default=-1,
+        help='ring-rl only: The number of simulation steps between each lane change. ')
+    parser_algorithm.add_argument(
+        '--lc_prob', type=float, default=-1.0,
+        help='ring-rl only: The probability of executing a lane change action. ')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)

@@ -796,7 +796,7 @@ def _get_ring_env_attributes(scale):
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
             15 * i for i in range(scale)],
-        "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
+        "env": lambda evaluate, render, multiagent, shared, maddpg, lc_period, lc_prob: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
                 acceleration_penalty=False,
@@ -822,6 +822,8 @@ def _get_ring_env_attributes(scale):
                 "hbaselines/envs/mixed_autonomy/envs/initial_states/"
                 "ring-v{}.json".format(scale - 1)),
             sims_per_step=5,
+            lc_period=lc_period,
+            lc_prob=lc_prob,
         ),
     }
 
@@ -909,7 +911,9 @@ def create_env(env,
                maddpg=False,
                evaluate=False,
                inflow_rate=2050,
-               end_speed=5):
+               end_speed=5,
+               lc_period=-1,
+               lc_prob=-1.0):
     """Return, and potentially create, the environment.
 
     Parameters
@@ -958,7 +962,7 @@ def create_env(env,
             # fast ring environments
             scale = int(env[6]) + 1
             env = _get_ring_env_attributes(scale)["env"](
-                evaluate, render, multiagent, shared, maddpg)
+                evaluate, render, multiagent, shared, maddpg, lc_period, lc_prob)
 
         elif env.startswith("flow:"):
             # environments in flow/examples
