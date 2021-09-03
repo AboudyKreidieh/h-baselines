@@ -1018,6 +1018,7 @@ class RLAlgorithm(object):
         """
         self.saver.save(self.sess, save_path, global_step=self.steps)
 
+        # Save observation bounds.
         with open(save_path + "-bounds--{}.json".format(self.steps), "w") as f:
             json.dump({
                 "ob_min": self.policy_tf.ob_min.tolist(),
@@ -1038,6 +1039,16 @@ class RLAlgorithm(object):
             location of the checkpoint
         """
         self.saver.restore(self.sess, load_path)
+
+        # Load observation bounds.
+        splitted = save_path.split("-")
+        bounds_path = "-".join(splitted[:-1]) + "-bounds-" + splitted[-1] + ".json"
+        with open(bounds_path, "w") as f:
+            bounds = json.load(f)
+        self.policy_tf.ob_min = np.array(bounds["ob_min"])
+        self.policy_tf.ob_max = np.array(bounds["ob_max"])
+        print(self.policy_tf.ob_min)
+        print(self.policy_tf.ob_max)
 
         # Load pre-existing replay buffers.
         if self.save_replay_buffer:
