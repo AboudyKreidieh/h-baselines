@@ -164,6 +164,7 @@ def get_flow_params(fixed_boundary,
             render=False,
             restart_instance=True,
             use_ballistic=True,
+            overtake_right=True,
         ),
 
         # environment related parameters (see flow.core.params.EnvParams)
