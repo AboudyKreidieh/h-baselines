@@ -807,7 +807,7 @@ def _get_ring_env_attributes(scale):
                 hbaselines_config.PROJECT_PATH,
                 "hbaselines/envs/mixed_autonomy/envs/initial_states/"
                 "ring-v{}.json".format(scale - 1)),
-            sims_per_step=1,
+            sims_per_step=5,
         ),
     }
 
