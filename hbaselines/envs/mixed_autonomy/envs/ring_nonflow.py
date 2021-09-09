@@ -595,11 +595,11 @@ class RingSingleAgentEnv(RingEnv):
             # Add relative observation of each vehicle.
             obs_vehicle = [
                 # ego speed
-                self.speeds[veh_id] / MAX_SPEED,
+                self.speeds[veh_id],
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
+                self.speeds[(veh_id + 1) % self.num_vehicles],
                 # lead gap
-                min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
+                min(self.headways[veh_id], 5.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
@@ -684,11 +684,11 @@ class RingMultiAgentEnv(RingEnv):
         for veh_id in self.rl_ids:
             obs_vehicle = [
                 # ego speed
-                self.speeds[veh_id] / MAX_SPEED,
+                self.speeds[veh_id],
                 # lead speed
-                self.speeds[(veh_id + 1) % self.num_vehicles] / MAX_SPEED,
+                self.speeds[(veh_id + 1) % self.num_vehicles],
                 # lead gap
-                min(self.headways[veh_id] / MAX_HEADWAY, 5.0),
+                min(self.headways[veh_id], 5.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
