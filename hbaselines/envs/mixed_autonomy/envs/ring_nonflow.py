@@ -599,7 +599,7 @@ class RingSingleAgentEnv(RingEnv):
                 # lead speed
                 self.speeds[(veh_id + 1) % self.num_vehicles],
                 # lead gap
-                min(self.headways[veh_id], 5.0),
+                min(self.headways[veh_id], 500.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
@@ -688,7 +688,7 @@ class RingMultiAgentEnv(RingEnv):
                 # lead speed
                 self.speeds[(veh_id + 1) % self.num_vehicles],
                 # lead gap
-                min(self.headways[veh_id], 5.0),
+                min(self.headways[veh_id], 500.0),
             ]
             self._obs_history[veh_id].append(obs_vehicle)
 
