@@ -681,8 +681,7 @@ class FeedForwardPolicy(Policy):
         """
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
-        print(self.ob_max)
-        print(self.ob_min)
+
         def fisher_vector_product(vec):
             return self.sess.run(self.fvp, feed_dict={
                 self.flat_tangent: vec,
