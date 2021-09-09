@@ -184,6 +184,8 @@ class FeedForwardPolicy(Policy):
         self.mb_returns = [[] for _ in range(num_envs)]
         self.last_obs = [None for _ in range(num_envs)]
         self.mb_advs = None
+        self.ob_max = None
+        self.ob_min = None
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
@@ -523,6 +525,15 @@ class FeedForwardPolicy(Policy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
+        # Update the observation min/max and scale the observation.  TODO
+        if self.ob_max is None:
+            self.ob_max = np.max(obs, axis=0)
+            self.ob_min = np.min(obs, axis=0)
+        else:
+            self.ob_max = np.max(np.concatenate((obs, [self.ob_max])), axis=0)
+            self.ob_min = np.min(np.concatenate((obs, [self.ob_min])), axis=0)
+            obs = (obs - self.ob_min) / (self.ob_max - self.ob_min)
+
         action = self.sess.run(
             self.action if apply_noise else self.pi_mean,
             feed_dict={
@@ -674,7 +685,7 @@ class FeedForwardPolicy(Policy):
         def fisher_vector_product(vec):
             return self.sess.run(self.fvp, feed_dict={
                 self.flat_tangent: vec,
-                self.obs_ph: fvpargs[0],
+                self.obs_ph: (fvpargs[0] - self.ob_min) / (self.ob_max - self.ob_min),
                 self.action_ph: fvpargs[1],
                 self.advs_ph: fvpargs[2],
             }) + self.cg_damping * vec
@@ -694,7 +705,7 @@ class FeedForwardPolicy(Policy):
         grad, *lossbefore = self.sess.run(
             [self.grad] + self.losses,
             feed_dict={
-                self.obs_ph: obs,
+                self.obs_ph: (obs - self.ob_min) / (self.ob_max - self.ob_min),
                 self.action_ph: actions,
                 self.advs_ph: advs,
                 self.ret_ph: returns,
@@ -726,7 +737,7 @@ class FeedForwardPolicy(Policy):
                 mean_losses = surr, kl_loss, *_ = self.sess.run(
                     self.losses,
                     feed_dict={
-                        self.obs_ph: obs,
+                        self.obs_ph: (obs - self.ob_min) / (self.ob_max - self.ob_min),
                         self.action_ph: actions,
                         self.advs_ph: advs,
                     }
@@ -755,7 +766,7 @@ class FeedForwardPolicy(Policy):
                     batch_size=128,
                     shuffle=True):
                 self.sess.run(self.vf_optimizer, feed_dict={
-                    self.obs_ph: mbob,
+                    self.obs_ph: (mbob - self.ob_min) / (self.ob_max - self.ob_min),
                     self.action_ph: actions,
                     self.ret_ph: mbret,
                 })

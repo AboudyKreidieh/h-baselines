@@ -22,6 +22,7 @@ import tensorflow as tf
 import math
 from collections import deque
 from copy import deepcopy
+import json
 
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_sac_policy
@@ -1015,6 +1016,13 @@ class RLAlgorithm(object):
             Prefix of filenames created for the checkpoint
         """
         self.saver.save(self.sess, save_path, global_step=self.steps)
+
+        # save min and max for used for normalizing the observations
+        with open(save_path + "-bounds--{}.json".format(self.steps), "w") as f:
+            json.dump({
+                "ob_min": self.policy_tf.ob_min.tolist(),
+                "ob_max": self.policy_tf.ob_max.tolist(),
+            }, f)
 
         # Save data from the replay buffer.
         if self.save_replay_buffer:
