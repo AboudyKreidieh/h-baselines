@@ -175,7 +175,7 @@ def get_flow_params(fixed_boundary,
             done_at_exit=False,
             sims_per_step=1,
             additional_params={
-                "max_accel": 0.5,
+                "max_accel": 1.0,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
                 "use_follower_stopper": use_follower_stopper,
