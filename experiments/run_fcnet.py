@@ -21,9 +21,7 @@ def run_exp(env,
             log_interval,
             save_interval,
             initial_exploration_steps,
-            ckpt_path,
-            lc_period,
-            lc_prob):
+            ckpt_path):
     """Run a single training procedure.
 
     Parameters
@@ -56,9 +54,6 @@ def run_exp(env,
         and biases within this checkpoint.
     """
     eval_env = env if evaluate else None
-
-    hp['lc_period'] = lc_period
-    hp['lc_prob'] = lc_prob
 
     alg = RLAlgorithm(
         policy=policy,
@@ -111,6 +106,11 @@ def main(args, base_dir):
         # Get the hyperparameters.
         hp = get_hyperparameters(args, FeedForwardPolicy)
 
+        # ring environment specific parameters
+        hp['lc_period'] = args.lc_period
+        hp['lc_prob'] = args.lc_prob
+        hp['use_lc_model'] = args.use_lc_model
+
         # Add the seed for logging purposes.
         params_with_extra = hp.copy()
         params_with_extra['seed'] = seed
@@ -119,8 +119,6 @@ def main(args, base_dir):
         params_with_extra['algorithm'] = args.alg
         params_with_extra['date/time'] = now
         params_with_extra['ckpt_num'] = args.ckpt_path
-        params_with_extra['lc_period'] = args.lc_period
-        params_with_extra['lc_prob'] = args.lc_prob
 
         # Add the hyperparameters to the folder.
         with open(os.path.join(dir_name, 'hyperparameters.json'), 'w') as f:
@@ -138,8 +136,6 @@ def main(args, base_dir):
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
             ckpt_path=args.ckpt_path,
-            lc_period=args.lc_period,
-            lc_prob=args.lc_prob,
         )
 
 

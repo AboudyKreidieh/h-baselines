@@ -225,11 +225,17 @@ def parse_options(description,
         help='path to a checkpoint file. The model is initialized with the '
              'weights and biases within this checkpoint. Defaults to None. ')
     parser_algorithm.add_argument(
-        '--lc_period', type=int, default=-1,
-        help='ring-rl only: The number of simulation steps between each lane change. ')
+        '--lc_period', type=int, default=30,
+        help='ring-rl only: The number of simulation steps '
+             'between each lane change. ')
     parser_algorithm.add_argument(
-        '--lc_prob', type=float, default=-1.0,
-        help='ring-rl only: The probability of executing a lane change action. ')
+        '--lc_prob', type=float, default=1.0, nargs='*',
+        help='ring-rl only: The probability of '
+             'executing a lane change action. ')
+    parser_algorithm.add_argument(
+        '--use_lc_model', type=str, default='Random',
+        choices=['Random', 'Bernoulli', 'Deep-Learning'],
+        help='ring-rl only: The model for lane change behaviors in ring. ')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)

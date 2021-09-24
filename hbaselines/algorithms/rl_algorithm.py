@@ -404,8 +404,9 @@ class RLAlgorithm(object):
                  _init_setup_model=True,
                  inflow_rate=None,
                  end_speed=None,
-                 lc_period=-1,
-                 lc_prob=-1.0):
+                 lc_period=30,
+                 lc_prob=1.0,
+                 use_lc_model='Random'):
         """Instantiate the algorithm object.
 
         Parameters
@@ -521,7 +522,7 @@ class RLAlgorithm(object):
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs = self.setup_sampler(
-            env, render, shared, maddpg, lc_period, lc_prob)
+            env, render, shared, maddpg, lc_period, lc_prob, use_lc_model)
 
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
@@ -585,7 +586,7 @@ class RLAlgorithm(object):
         if _init_setup_model:
             self.trainable_vars = self.setup_model()
 
-    def setup_sampler(self, env, render, shared, maddpg, lc_period, lc_prob):
+    def setup_sampler(self, env, render, shared, maddpg, lc_period, lc_prob, use_lc_model):
         """Create the environment and collect the initial observations.
 
         Parameters
@@ -626,6 +627,7 @@ class RLAlgorithm(object):
                     evaluate=False,
                     lc_period=lc_period,
                     lc_prob=lc_prob,
+                    use_lc_model=use_lc_model,
                 )
                 for env_num in range(self.num_envs)
             ]
@@ -642,6 +644,7 @@ class RLAlgorithm(object):
                     evaluate=False,
                     lc_period=lc_period,
                     lc_prob=lc_prob,
+                    use_lc_model=use_lc_model,
                 )
             ]
             ob = [s.get_init_obs() for s in sampler]

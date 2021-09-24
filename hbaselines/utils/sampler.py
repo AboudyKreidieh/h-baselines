@@ -15,7 +15,7 @@ class Sampler(object):
         the training / evaluation environment
     """
 
-    def __init__(self, env_name, render, shared, maddpg, evaluate, env_num, lc_period, lc_prob):
+    def __init__(self, env_name, render, shared, maddpg, evaluate, env_num, lc_period, lc_prob, use_lc_model):
         """Instantiate the sampler object.
 
         Parameters
@@ -44,6 +44,7 @@ class Sampler(object):
             evaluate=evaluate,
             lc_period=lc_period,
             lc_prob=lc_prob,
+            use_lc_model=use_lc_model,
         )
 
         self._env_num = env_num
