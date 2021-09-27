@@ -53,6 +53,9 @@ def main(args):
     hp['render_eval'] = not flags.no_render  # to visualize the policy
     multiagent = env_name.startswith("multiagent")
 
+    # remove extra argument in hp
+    hp.pop('ckpt_num')
+
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
     alg = RLAlgorithm(
