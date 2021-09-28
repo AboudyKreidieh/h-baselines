@@ -54,7 +54,7 @@ def main(args):
     multiagent = env_name.startswith("multiagent")
 
     # remove extra argument in hp
-    hp.pop('ckpt_num')
+    hp.pop('ckpt_num', None)
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
@@ -109,9 +109,9 @@ def main(args):
         for env in env_list:
             sim_params = deepcopy(env.wrapped_env.sim_params)
             if flags.inflow_rate is not None and flags.end_speed is not None:
-                sim_params.emission_path = "./flow_results/{}_{}".format(flags.inflow_rate, flags.end_speed)
+                sim_params.emission_path = os.path.join(flags.log_dir, "{}_{}/".format(flags.inflow_rate, flags.end_speed))
             else:
-                sim_params.emission_path = "./flow_results/"
+                sim_params.emission_path = flags.log_dir
             env.wrapped_env.restart_simulation(
                 sim_params, render=not flags.no_render)
 

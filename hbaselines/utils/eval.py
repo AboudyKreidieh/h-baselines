@@ -109,6 +109,9 @@ def parse_options(args):
     parser.add_argument(
         '--end_speed', type=int, default=None,
         help='end speed for i210 evaluation.')
+    parser.add_argument(
+        '--log_dir', type=str, default="./flow_results/",
+        help='path to the directory for saving simulation emission.')
 
     return parser.parse_args(args)
 
