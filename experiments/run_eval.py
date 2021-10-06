@@ -44,11 +44,15 @@ def main(args):
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
     if flags.env_name is not None:
         env_name = flags.env_name
-        # Override n_agents
-        if "n_agents" in hp["policy_kwargs"]:
+        # Override n_agents, shared and policy name for i210 eval
+        if "i210" in env_name:
             hp["policy_kwargs"]["n_agents"] = 100
-        hp['inflow_rate'] = flags.inflow_rate
-        hp['end_speed'] = flags.end_speed
+            hp["policy_kwargs"]["shared"] = True
+            hp['inflow_rate'] = flags.inflow_rate
+            hp['end_speed'] = flags.end_speed
+            from hbaselines.multiagent.trpo import MultiFeedForwardPolicy \
+                as TRPOMultiFeedForwardPolicy
+            policy = TRPOMultiFeedForwardPolicy
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
     multiagent = env_name.startswith("multiagent")
