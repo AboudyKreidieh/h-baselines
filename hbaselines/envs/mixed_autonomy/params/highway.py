@@ -9,7 +9,6 @@ from flow.core.params import InitialConfig
 from flow.core.params import InFlows
 from flow.core.params import VehicleParams
 from flow.core.params import SumoParams
-from flow.core.params import SumoLaneChangeParams
 from flow.core.params import SumoCarFollowingParams
 from flow.networks.highway import HighwayNetwork
 from flow.networks.highway import ADDITIONAL_NET_PARAMS
@@ -17,6 +16,7 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+import hbaselines.config as hbaselines_config
 
 # the speed of entering vehicles
 TRAFFIC_SPEED = 24.1
@@ -33,11 +33,16 @@ INCLUDE_NOISE = True
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
+# the path to the warmup files to initialize a network
+WARMUP_PATH = os.path.join(
+    hbaselines_config.PROJECT_PATH, "experiments/warmup/highway")
 
 
 def get_flow_params(fixed_boundary,
                     stopping_penalty,
                     acceleration_penalty,
+                    use_follower_stopper,
+                    obs_frames,
                     evaluate=False,
                     multiagent=False,
                     imitation=False):
@@ -51,6 +56,11 @@ def get_flow_params(fixed_boundary,
         whether to include a stopping penalty
     acceleration_penalty : bool
         whether to include a regularizing penalty for accelerations by the AVs
+    use_follower_stopper : bool
+        whether to use the follower-stopper controller for the AVs
+    obs_frames : int
+        number of observation frames to use. Additional frames are provided
+        from previous time steps.
     evaluate : bool
         whether to compute the evaluation reward
     multiagent : bool
@@ -83,7 +93,10 @@ def get_flow_params(fixed_boundary,
     """
     # steps to run before the agent is allowed to take control (set to lower
     # value during testing)
-    warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
+    if WARMUP_PATH is not None:
+        warmup_steps = 0
+    else:
+        warmup_steps = 50 if os.environ.get("TEST_FLAG") else 500
 
     additional_net_params = ADDITIONAL_NET_PARAMS.copy()
     additional_net_params.update({
@@ -114,14 +127,15 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0
+            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "display_warnings": False,
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
         }),
         car_following_params=SumoCarFollowingParams(
-            min_gap=0.5
-        ),
-        lane_change_params=SumoLaneChangeParams(
-            model="SL2015",
-            lc_sublane=2.0,
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12
         ),
     )
 
@@ -138,7 +152,15 @@ def get_flow_params(fixed_boundary,
     vehicles.add(
         "rl",
         num_vehicles=0,
-        acceleration_controller=(RLController, {}),
+        acceleration_controller=(RLController, {
+            "fail_safe": [
+                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+        }),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=0.5,
+            # right of way at intersections + obey limits on deceleration
+            speed_mode=12,
+        ),
     )
 
     inflows.add(
@@ -181,21 +203,25 @@ def get_flow_params(fixed_boundary,
             evaluate=evaluate,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
-            sims_per_step=3,
+            sims_per_step=1,
+            done_at_exit=False,
             additional_params={
-                "max_accel": 0.5,
-                "max_decel": 0.5,
+                "max_accel": 0.25,
+                "max_decel": 0.25,
                 "target_velocity": 10,
                 "stopping_penalty": stopping_penalty,
                 "acceleration_penalty": acceleration_penalty,
+                "obs_frames": obs_frames,
+                "use_follower_stopper": use_follower_stopper,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 7,
+                "num_rl": float("inf") if multiagent else 5,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,
                 }),
+                "warmup_path": WARMUP_PATH,
             }
         ),
 

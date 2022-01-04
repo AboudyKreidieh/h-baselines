@@ -9,3 +9,4 @@ debug
 *.idea/
 *.ipynb_checkpoints/
 *data/
+.vscode/

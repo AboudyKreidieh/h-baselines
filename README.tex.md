@@ -22,7 +22,7 @@ available [here]().
     1.3. [Importing AntGather](#13-importing-antgather)  
     1.4. [Installing Flow](#14-installing-flow)  
 2. [Supported Models/Algorithms](#2-supported-modelsalgorithms)  
-    2.1. [Off-Policy RL Algorithms](#21-off-policy-rl-algorithms)  
+    2.1. [RL Algorithms](#21-rl-algorithms)  
         &nbsp; &nbsp; &nbsp;&nbsp; 2.1.1. [Synchronous Updates](#211-synchronous-updates)  
     2.2. [Fully Connected Neural Networks](#22-fully-connected-neural-networks)  
     2.3. [Goal-Conditioned HRL](#23-goal-conditioned-hrl)  
@@ -186,22 +186,23 @@ python experiments/run_fcnet.py "flow:singleagent_ring"
 This repository currently supports the use several algorithms  of 
 goal-conditioned hierarchical reinforcement learning models.
 
-## 2.1 Off-Policy RL Algorithms
+## 2.1 RL Algorithms
 
-This repository supports the training of policies via two state-of-the-art 
-off-policy RL algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
-[SAC](https://arxiv.org/pdf/1801.01290.pdf).
+This repository supports the training of policies via two off-policy RL 
+algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
+[SAC](https://arxiv.org/pdf/1801.01290.pdf), as well as one on-policy RL 
+algorithm: [PPO](https://arxiv.org/pdf/1707.06347.pdf).
 
-To train a policy using this algorithm, create a `OffPolicyRLAlgorithm` object 
+To train a policy using this algorithm, create a `RLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
 along the process:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
+alg = RLAlgorithm(policy=FeedForwardPolicy, env="AntGather")
 
 # train the policy for the allotted number of timesteps
 alg.learn(total_timesteps=1000000)
@@ -209,17 +210,18 @@ alg.learn(total_timesteps=1000000)
 
 The specific algorithm that is executed is defined by the policy that is 
 provided. If, for example, you would like to switch the above script to train 
-a feed-forward policy using the SAC algorithm, then the policy must simply be 
-changed to:
+a feed-forward policy using the SAC or PPO algorithms, then the policy must 
+simply be changed to:
 
 ```python
-from hbaselines.fcnet.sac import FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy  # for SAC
+from hbaselines.fcnet.ppo import FeedForwardPolicy  # for PPO
 ```
 
 The hyperparameters and modifiable features of this algorithm are as 
 follows:
 
-* **policy** (type [ hbaselines.base_policies.ActorCriticPolicy ]) : 
+* **policy** (type [ hbaselines.base_policies.Policy ]) : 
   the policy model to use
 * **env** (gym.Env or str) : the environment to learn from (if 
   registered in Gym, can be str)
@@ -262,9 +264,9 @@ To assign multiple CPUs/environments for a given training algorithm, set the
 `num_envs` term as seen below:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     # set num_envs as seen in the above figure
     num_envs=3,
@@ -279,8 +281,8 @@ We include a generic feed-forward neural network within the repository
 to validate the performance of typically used neural network model on 
 the benchmarked environments. This consists of a pair of actor and 
 critic fully connected networks with a tanh nonlinearity at the output 
-layer of the actor. The output of the actors are also scaled to match 
-the desired action space. 
+layer of the actor. The output of the actors for the off-policy algorithms (TD3
+and SAC) are also scaled to match the desired action space. 
 
 The feed-forward policy can be imported by including the following 
 script:
@@ -291,6 +293,9 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 
 # for SAC
 from hbaselines.fcnet.sac import FeedForwardPolicy
+
+# for PPO
+from hbaselines.fcnet.ppo import FeedForwardPolicy
 ```
 
 This model can then be included to the algorithm via the `policy` 
@@ -302,24 +307,43 @@ The modifiable parameters of this policy are as follows:
 * **ob_space** (gym.spaces.*) : the observation space of the environment
 * **ac_space** (gym.spaces.*) : the action space of the environment
 * **co_space** (gym.spaces.*) : the context space of the environment
+* **verbose** (int) : the verbosity level: 0 none, 1 training 
+  information, 2 tensorflow debug
+* **l2_penalty** (float) : L2 regularization penalty. This is applied to the
+  policy network.
+* **model_params** (dict) : dictionary of model-specific parameters, including:
+  * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
+    "conv"}.
+  * **layers** (list of int) :the size of the Neural network for the policy
+  * **layer_norm** (bool) : enable layer normalisation
+  * **act_fun** (tf.nn.*) : the activation function to use in the neural 
+    network
+  * **ignore_image** (bool) : observation includes an image but should it be 
+    ignored. Required if "model_type" is set to "conv".
+  * **image_height** (int) : the height of the image in the observation. 
+    Required if "model_type" is set to "conv".
+  * **image_width** (int) : the width of the image in the observation. Required
+    if "model_type" is set to "conv".
+  * **image_channels** (int) : the number of channels of the image in the
+    observation. Required if "model_type" is set to "conv".
+  * **kernel_sizes** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **strides** (list of int) : the kernel size of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+  * **filters** (list of int) : the channels of the neural network conv
+    layers for the policy. Required if "model_type" is set to "conv".
+
+Additionally, TD3 policy parameters are:
+
 * **buffer_size** (int) : the max number of transitions to store
 * **batch_size** (int) : SGD batch size
 * **actor_lr** (float) : actor learning rate
 * **critic_lr** (float) : critic learning rate
-* **verbose** (int) : the verbosity level: 0 none, 1 training 
-  information, 2 tensorflow debug
 * **tau** (float) : target update rate
 * **gamma** (float) : discount factor
-* **layer_norm** (bool) : enable layer normalisation
-* **layers** (list of int) :the size of the Neural network for the policy
-* **act_fun** (tf.nn.*) : the activation function to use in the neural 
-  network
 * **use_huber** (bool) : specifies whether to use the huber distance 
   function as the loss for the critic. If set to False, the mean-squared 
   error metric is used instead
-
-Additionally, TD3 policy parameters are:
-
 * **noise** (float) : scaling term to the range of the action space, 
   that is subsequently used as the standard deviation of Gaussian noise 
   added to the action if `apply_noise` is set to True in `get_action`
@@ -328,10 +352,38 @@ Additionally, TD3 policy parameters are:
 * **target_noise_clip** (float) : clipping term for the noise injected 
   in the target actor policy
 
-And SAC policy parameters are:
+SAC policy parameters are:
 
+* **buffer_size** (int) : the max number of transitions to store
+* **batch_size** (int) : SGD batch size
+* **actor_lr** (float) : actor learning rate
+* **critic_lr** (float) : critic learning rate
+* **tau** (float) : target update rate
+* **gamma** (float) : discount factor
+* **use_huber** (bool) : specifies whether to use the huber distance 
+  function as the loss for the critic. If set to False, the mean-squared 
+  error metric is used instead
 * **target_entropy** (float): target entropy used when learning the entropy 
   coefficient. If set to None, a heuristic value is used.
+
+And PPO policy parameters are:
+
+* **learning_rate** (float) : the learning rate
+* **n_minibatches** (int) : number of training minibatches per update
+* **n_opt_epochs** (int) : number of training epochs per update procedure
+* **gamm** (float) : the discount factor
+* **lam** (float) : factor for trade-off of bias vs variance for Generalized 
+  Advantage Estimator
+* **ent_coef** (float) : entropy coefficient for the loss calculation
+* **vf_coef** (float) : value function coefficient for the loss calculation
+* **max_grad_norm** (float) : the maximum value for the gradient clipping
+* **cliprange** (float) : clipping parameter, it can be a function
+* **cliprange_vf** (float) : clipping parameter for the value function, it can 
+  be a function. This is a parameter specific to the OpenAI implementation. If 
+  None is passed (default), then `cliprange` (that is used for the policy) will
+  be used. IMPORTANT: this clipping depends on the reward scaling. To deactivate
+  value function clipping (and recover the original PPO implementation), you 
+  have to pass a negative value (e.g. -1).
 
 These parameters can be assigned when using the algorithm object by 
 assigning them via the `policy_kwargs` term. For example, if you would 
@@ -339,11 +391,11 @@ like to train a fully connected network using the TD3 algorithm with a hidden
 size of [64, 64], this could be done as such:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.fcnet.td3 import FeedForwardPolicy  # for TD3 algorithm
 
 # create the algorithm object
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     policy=FeedForwardPolicy, 
     env="AntGather",
     policy_kwargs={
@@ -360,7 +412,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import FEEDFORWARD_PARAMS
+from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 print(FEEDFORWARD_PARAMS)
 ```
 
@@ -369,12 +421,16 @@ following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
 ## 2.3 Goal-Conditioned HRL
@@ -414,7 +470,7 @@ All `policy_kwargs` terms that are not specified are assigned default
 parameters. These default terms are available via the following command:
 
 ```python
-from hbaselines.algorithms.off_policy import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 print(GOAL_CONDITIONED_PARAMS)
 ```
 
@@ -423,12 +479,16 @@ default policy parameters can be found via the following commands:
 
 ```python
 # for TD3
-from hbaselines.algorithms.off_policy import TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 print(TD3_PARAMS)
 
 # for SAC
-from hbaselines.algorithms.off_policy import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 print(SAC_PARAMS)
+
+# for PPO
+from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+print(PPO_PARAMS)
 ```
 
 ### 2.3.1 Meta Period
@@ -438,10 +498,10 @@ training by passing the term under the `meta_period` policy parameter.
 This can be assigned through the algorithm as follows:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -518,10 +578,10 @@ set the `intrinsic_reward_type` attribute to the type of intrinsic reward you
 would like to use:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -561,10 +621,10 @@ In order to use relative goals when training a hierarchical policy, set
 the `relative_goals` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -588,10 +648,10 @@ when training a hierarchical policy, set the `off_policy_corrections` parameter
 to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -717,10 +777,10 @@ In order to use hindsight action and goal transitions when training a
 hierarchical policy, set the `hindsight` parameter to True:
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -754,10 +814,10 @@ term ($\lambda$ in the above equation), can be modified via the
 `cg_weights` term (see the example below).
 
 ```python
-from hbaselines.algorithms import OffPolicyRLAlgorithm
+from hbaselines.algorithms import RLAlgorithm
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy  # for TD3 algorithm
 
-alg = OffPolicyRLAlgorithm(
+alg = RLAlgorithm(
     ...,
     policy=GoalConditionedPolicy,
     policy_kwargs={
@@ -808,10 +868,10 @@ multi-agent algorithms:
   policy-specific attributes:
 
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={}
@@ -829,10 +889,10 @@ multi-agent algorithms:
   attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={
@@ -848,10 +908,10 @@ multi-agent algorithms:
   learners, algorithm, set the `maddpg` attribute to True:
   
   ```python
-  from hbaselines.algorithms.off_policy import OffPolicyRLAlgorithm
+  from hbaselines.algorithms.rl_algorithm import RLAlgorithm
   from hbaselines.multiagent.td3 import MultiFeedForwardPolicy  # for TD3
   
-  alg = OffPolicyRLAlgorithm(
+  alg = RLAlgorithm(
       policy=MultiFeedForwardPolicy,
       env="...",  # replace with an appropriate environment
       policy_kwargs={
@@ -937,7 +997,7 @@ sub-sections. Additional information can be found through the
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="90%"/></p>
+<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="90%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
@@ -947,9 +1007,7 @@ environment name (e.g. "multiagent-ring-v0").
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
-| [ring](#ring)       | ring-v0          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
-|                     | ring-v1          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
-|                     | ring-v2          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| [ring](#ring)       | ring-v0          |       1       |        22      |     1/22    |          --          |          yes         |        yes       |
 | [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
 |                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
 |                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
@@ -1019,11 +1077,10 @@ congestion. This networks are detailed below.
 
 #### ring
 
-This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
-which are automated) are placed on a sing-lane circular track of length 1500m.
-In the absence of the automated vehicle, the human-driven vehicles exhibit 
-stop-and-go instabilities brought about by the string-unstable characteristic 
-of human car-following dynamics.
+This scenario consists of 22 vehicles (1 of which are automated) on a sing-lane
+circular track of length 220-270 m. In the absence of the automated vehicle, 
+the human-driven vehicles exhibit stop-and-go instabilities brought about by 
+the string-unstable characteristic of human car-following dynamics.
 
 #### merge
 

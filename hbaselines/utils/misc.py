@@ -48,3 +48,13 @@ def deprecated(base, new_path):
         return new_func1
 
     return decorator
+
+
+def recursive_update(d, u):
+    """Update a nested dictionary recursively recursively."""
+    for k, v in u.items():
+        if isinstance(v, dict):
+            d[k] = recursive_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
