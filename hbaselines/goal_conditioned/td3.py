@@ -27,6 +27,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  target_policy_noise,
                  target_noise_clip,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  num_levels,
                  meta_period,
@@ -38,9 +39,11 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -84,6 +87,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         num_levels : int
@@ -116,6 +121,10 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from its
@@ -125,7 +134,25 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
+        # Utility method for indexing the goal out of an observation variable.
+        self.crop_to_goal = lambda g: tf.gather(
+            g,
+            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
+                    [self.batch_size, 1]),
+            batch_dims=1, axis=1)
+
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -139,6 +166,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             tau=tau,
             gamma=gamma,
             use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             num_levels=num_levels,
             meta_period=meta_period,
@@ -150,11 +178,13 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
+            cg_delta=cg_delta,
             scope=scope,
             env_name=env_name,
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
@@ -274,6 +304,18 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_cooperative_gradients(self):
         """Create the cooperative gradients meta-policy optimizer."""
+        self._n_train_steps = 0
+
+        if self.cg_delta is not None:
+            # placeholder for the lambda term.
+            self.cg_weights = [
+                tf.compat.v1.Variable(initial_value=-4.20, trainable=True)
+                for _ in range(self.num_levels - 1)]
+        else:
+            self.cg_weights = [
+                np.log(self.cg_weights).astype(np.float32)
+                for _ in range(self.num_levels - 1)]
+
         self.cg_loss = []
         self.cg_optimizer = []
         for level in range(self.num_levels - 1):
@@ -331,17 +373,44 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             reward_fn *= self.intrinsic_reward_scale
 
             # Compute the worker loss with respect to the meta policy actions.
-            cg_loss = - tf.reduce_mean(worker_with_meta_obs) - reward_fn
+            cg_loss = - (tf.reduce_mean(worker_with_meta_obs) + reward_fn)
             self.cg_loss.append(cg_loss)
 
             # Create the optimizer object.
             optimizer = tf.compat.v1.train.AdamOptimizer(
                 self.policy[level].actor_lr)
             self.cg_optimizer.append(optimizer.minimize(
-                self.policy[level].actor_loss + self.cg_weights * cg_loss,
+                self.policy[level].actor_loss
+                + tf.exp(self.cg_weights[level]) * cg_loss,
                 var_list=get_trainable_vars(
                     "level_{}/model/pi/".format(level)),
             ))
+
+            if self.cg_delta is not None:
+                cg_weights_loss = \
+                    tf.reduce_mean(
+                        tf.exp(self.cg_weights[level]) * tf.stop_gradient(
+                            worker_with_meta_obs + reward_fn - self.cg_delta
+                        )
+                    )
+                optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
+                self.cg_weights_optimizer = optimizer.minimize(
+                    cg_weights_loss,
+                    var_list=[self.cg_weights[level]])
+
+                # Add to tensorboard.
+                tf.compat.v1.summary.scalar(
+                    "level_{}/cg_weights_log".format(level),
+                    self.cg_weights[level])
+                tf.compat.v1.summary.scalar(
+                    "level_{}/cg_weights".format(level),
+                    tf.exp(self.cg_weights[level]))
+                tf.compat.v1.summary.scalar(
+                    "level_{}/cg_weights_loss".format(level),
+                    cg_weights_loss)
+                tf.compat.v1.summary.scalar(
+                    "level_{}/worker_with_meta_obs".format(level),
+                    tf.reduce_mean(worker_with_meta_obs))
 
     def _cooperative_gradients_update(self,
                                       obs0,
@@ -377,21 +446,15 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.
-
-        Returns
-        -------
-        [float, float]
-            meta-policy critic loss
-        float
-            meta-policy actor loss
         """
+        self._n_train_steps += 1
+
         # Reshape to match previous behavior and placeholder shape.
         rewards[level_num] = rewards[level_num].reshape(-1, 1)
         terminals1[level_num] = terminals1[level_num].reshape(-1, 1)
 
         # Update operations for the critic networks.
         step_ops = [
-            self.policy[level_num].critic_loss,
             self.policy[level_num].critic_optimizer[0],
             self.policy[level_num].critic_optimizer[1],
         ]
@@ -402,12 +465,17 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             self.policy[level_num].rew_ph: rewards[level_num],
             self.policy[level_num].obs1_ph: obs1[level_num],
             self.policy[level_num].terminals1: terminals1[level_num],
+            self.policy[level_num + 1].action_ph: actions[level_num + 1],
+            self.policy[level_num + 1].obs_ph: obs0[level_num + 1],
         }
+
+        # Update the cg_weights terms.
+        if self._n_train_steps > 1000 and self.cg_delta is not None:
+            step_ops += [self.cg_weights_optimizer]
 
         if update_actor:
             # Actor updates and target soft update operation.
             step_ops += [
-                self.policy[level_num].actor_loss,
                 self.cg_optimizer[level_num],  # This is what's replaced.
                 self.policy[level_num].target_soft_updates,
             ]
@@ -418,10 +486,5 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 self.policy[level_num + 1].obs1_ph: obs1[level_num + 1],
             })
 
-        # Perform the update operations and collect the critic loss.
-        critic_loss, *_vals = self.sess.run(step_ops, feed_dict=feed_dict)
-
-        # Extract the actor loss.
-        actor_loss = _vals[2] if update_actor else 0
-
-        return critic_loss, actor_loss
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict=feed_dict)

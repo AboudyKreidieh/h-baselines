@@ -32,7 +32,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
                  image_size=32,
                  horizon=500,
                  ant_fall=False,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Universal environment.
 
         Parameters
@@ -69,6 +70,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -91,6 +94,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
             manual_collision=False,
             ant_fall=ant_fall,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
         self.horizon = horizon
@@ -183,7 +187,8 @@ class UniversalAntMazeEnv(AntMazeEnv):
             extra information dictionary
         """
         # Run environment update.
-        obs, rew, done, info = super(UniversalAntMazeEnv, self).step(action)
+        obs, rew, done, _ = super(UniversalAntMazeEnv, self).step(action)
+        info = {}
 
         if self.use_contexts:
             # Add success to the info dict
@@ -192,6 +197,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
                 next_states=obs,
                 goals=self.current_context,
             )
+            info["goal_distance"] = dist / REWARD_SCALE
             info["is_success"] = abs(dist) < DISTANCE_THRESHOLD * REWARD_SCALE
 
             # Replace the reward with the contextual reward.
@@ -487,7 +493,8 @@ class AntMaze(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Ant Maze environment.
 
         Parameters
@@ -504,6 +511,8 @@ class AntMaze(UniversalAntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -533,6 +542,7 @@ class AntMaze(UniversalAntMazeEnv):
             top_down_view=False,
             maze_size_scaling=8,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
 
@@ -609,7 +619,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
                  random_contexts=False,
                  context_range=None,
                  image_size=32,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Image Ant Maze environment.
 
         Parameters
@@ -628,6 +639,8 @@ class ImageAntMaze(UniversalAntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -659,6 +672,7 @@ class ImageAntMaze(UniversalAntMazeEnv):
             top_down_view=True,
             image_size=image_size,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
 
@@ -741,7 +755,8 @@ class AntPush(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Ant Push environment.
 
         Parameters
@@ -758,6 +773,8 @@ class AntPush(UniversalAntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -788,6 +805,7 @@ class AntPush(UniversalAntMazeEnv):
             ant_fall=False,
             top_down_view=False,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
 
@@ -868,7 +886,8 @@ class AntFall(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Ant Fall environment.
 
         Parameters
@@ -885,6 +904,8 @@ class AntFall(UniversalAntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -915,6 +936,7 @@ class AntFall(UniversalAntMazeEnv):
             ant_fall=True,
             top_down_view=False,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
 
@@ -1007,7 +1029,8 @@ class AntFourRooms(UniversalAntMazeEnv):
                  use_contexts=False,
                  random_contexts=False,
                  context_range=None,
-                 evaluate=False):
+                 evaluate=False,
+                 num_levels=1):
         """Initialize the Ant Four Rooms environment.
 
         Parameters
@@ -1024,6 +1047,8 @@ class AntFourRooms(UniversalAntMazeEnv):
         evaluate : bool
             whether to run an evaluation. In this case an additional goal agent
             is placed in the environment for visualization purposes.
+        num_levels : int
+            number of levels in the policy. 1 refers to non-hierarchical models
 
         Raises
         ------
@@ -1050,10 +1075,11 @@ class AntFourRooms(UniversalAntMazeEnv):
             use_contexts=use_contexts,
             random_contexts=random_contexts,
             context_range=context_range,
-            maze_size_scaling=3,
+            maze_size_scaling=2,
             ant_fall=False,
             top_down_view=False,
             evaluate=evaluate,
+            num_levels=num_levels,
         )
 
 

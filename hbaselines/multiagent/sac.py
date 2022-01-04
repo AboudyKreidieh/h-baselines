@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy
 from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
 from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
@@ -13,6 +13,7 @@ from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import print_params_shape
+from hbaselines.utils.tf_util import setup_target_updates
 
 # Stabilizing term to avoid NaN (prevents division by zero or log of zero)
 EPS = 1e-6
@@ -53,6 +54,11 @@ class MultiFeedForwardPolicy(BasePolicy):
         placeholder for the current step full state observations
     all_action_ph : tf.compat.v1.placeholder
         placeholder for the actions of all agents
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     deterministic_action : tf.Variable
         the output from the deterministic actor
     policy_out : tf.Variable
@@ -108,12 +114,14 @@ class MultiFeedForwardPolicy(BasePolicy):
                  tau,
                  gamma,
                  use_huber,
+                 l2_penalty,
                  model_params,
                  target_entropy,
                  shared,
                  maddpg,
+                 n_agents,
                  all_ob_space=None,
-                 n_agents=1,
+                 num_envs=1,
                  scope=None):
         """Instantiate a multi-agent feed-forward neural network policy.
 
@@ -146,6 +154,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
         target_entropy : float
@@ -160,9 +170,8 @@ class MultiFeedForwardPolicy(BasePolicy):
             the observation space of the full state space. Used by MADDPG
             variants of the policy.
         n_agents : int
-            the number of agents in the networks. This is needed if using
-            MADDPG with a shared policy to compute the length of the full
-            action space. Otherwise, it is not used.
+            the expected number of agents in the environment. Only relevant if
+            using shared policies with MADDPG or goal-conditioned hierarchies.
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
@@ -191,6 +200,14 @@ class MultiFeedForwardPolicy(BasePolicy):
                 for key in ac_space.keys()
             }
 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         # variables to be initialized later (if MADDPG is used)
         self.replay_buffer = None
         self.terminals1 = None
@@ -201,6 +218,8 @@ class MultiFeedForwardPolicy(BasePolicy):
         self.all_obs_ph = None
         self.all_obs1_ph = None
         self.all_action_ph = None
+        self.phase_ph = None
+        self.rate_ph = None
         self.deterministic_action = None
         self.policy_out = None
         self.logp_pi = None
@@ -225,28 +244,38 @@ class MultiFeedForwardPolicy(BasePolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
+            l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,
             n_agents=n_agents,
+            num_envs=num_envs,
             base_policy=FeedForwardPolicy,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 target_entropy=target_entropy,
             ),
         )
 
     def _setup_maddpg(self, scope):
         """See setup."""
+        # common placeholders for all agents
+        self.phase_ph = tf.compat.v1.placeholder(
+            tf.bool,
+            name='phase')
+        self.rate_ph = tf.compat.v1.placeholder(
+            tf.float32,
+            name='rate')
+
         if self.shared:
             self._setup_maddpg_shared(scope)
         else:
@@ -713,7 +742,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         )
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(
+        init, soft = setup_target_updates(
             model_scope='model/centralized_value_fns/vf',
             target_scope='target/centralized_value_fns/vf',
             scope=scope,
@@ -793,6 +822,10 @@ class MultiFeedForwardPolicy(BasePolicy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -807,6 +840,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=True,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -876,6 +913,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             strides=self.model_params["strides"],
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -885,6 +926,10 @@ class MultiFeedForwardPolicy(BasePolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -1079,6 +1124,9 @@ class MultiFeedForwardPolicy(BasePolicy):
         # Compute the policy loss
         actor_loss = tf.reduce_mean(alpha * logp_pi - min_qf_pi)
 
+        # Add a regularization penalty.
+        actor_loss += self._l2_loss(self.l2_penalty, scope_name)
+
         # Policy train op (has to be separate from value train op, because
         # min_qf_pi appears in policy_loss)
         optimizer = tf.compat.v1.train.AdamOptimizer(self.actor_lr)
@@ -1198,7 +1246,7 @@ class MultiFeedForwardPolicy(BasePolicy):
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
-                return {"policy": [0, 0]}, {"policy": 0}
+                return
 
             # Get a batch.
             obs0, actions, rewards, obs1, done1, all_obs0, all_obs1 = \
@@ -1213,11 +1261,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
             # Collect all update and loss call operations.
             step_ops = [
-                self.critic_loss[0],
-                self.critic_loss[1],
-                self.critic_loss[2],
-                self.actor_loss,
-                self.alpha_loss,
                 self.critic_optimizer,
                 self.actor_optimizer,
                 self.alpha_optimizer,
@@ -1241,27 +1284,18 @@ class MultiFeedForwardPolicy(BasePolicy):
             feed_dict.update({
                 self.obs1_ph[i]: obs1[i] for i in range(self.n_agents)})
 
-            # Perform the update operations and collect the actor and critic
-            # loss.
-            q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
-                step_ops, feed_dict)
-            critic_loss = {"policy": [q1_loss, q2_loss]}
-            actor_loss = {"policy": actor_loss}
+            # Perform the update operations.
+            self.sess.run(step_ops, feed_dict)
 
         # =================================================================== #
         #                    Independent update procedure                     #
         # =================================================================== #
 
         else:
-            actor_loss = {}
-            critic_loss = {}
-
             # Loop through all agent.
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():
-                    actor_loss[key] = 0
-                    critic_loss[key] = [0, 0]
                     continue
 
                 # Get a batch.
@@ -1277,11 +1311,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
                 # Collect all update and loss call operations.
                 step_ops = [
-                    self.critic_loss[key][0],
-                    self.critic_loss[key][1],
-                    self.critic_loss[key][2],
-                    self.actor_loss[key],
-                    self.alpha_loss[key],
                     self.critic_optimizer[key],
                     self.actor_optimizer[key],
                     self.alpha_optimizer[key],
@@ -1298,15 +1327,12 @@ class MultiFeedForwardPolicy(BasePolicy):
                     self.all_obs_ph[key]: all_obs0,
                     self.all_action_ph[key]: all_actions,
                     self.all_obs1_ph[key]: all_obs1,
+                    self.phase_ph: 1,
+                    self.rate_ph: 0.5,
                 }
 
-                # Perform the update operations and collect the actor and
-                # critic loss.
-                q1_loss, q2_loss, vf_loss, actor_loss[key], *_ = \
-                    self.sess.run(step_ops, feed_dict)
-                critic_loss[key] = [q1_loss, q2_loss]
-
-        return critic_loss, actor_loss
+                # Perform the update operations.
+                self.sess.run(step_ops, feed_dict)
 
     def _get_action_maddpg(self,
                            obs,
@@ -1332,24 +1358,22 @@ class MultiFeedForwardPolicy(BasePolicy):
                     obs[key],
                     None if context is None else context[key], axis=1)
 
-                if apply_noise:
-                    if self.shared:
-                        normalized_action = self.sess.run(
-                            self.policy_out,
-                            feed_dict={self.obs_ph[0]: obs[key]})
-                    else:
-                        normalized_action = self.sess.run(
-                            self.policy_out[key],
-                            feed_dict={self.obs_ph[key]: obs[key]})
+                # Choose the correct policy to compute the action from.
+                if self.shared:
+                    obs_ph = self.obs_ph[0]
+                    policy = self.policy_out if apply_noise \
+                        else self.deterministic_action
                 else:
-                    if self.shared:
-                        normalized_action = self.sess.run(
-                            self.deterministic_action,
-                            feed_dict={self.obs_ph[0]: obs[key]})
-                    else:
-                        normalized_action = self.sess.run(
-                            self.deterministic_action[key],
-                            feed_dict={self.obs_ph[key]: obs[key]})
+                    obs_ph = self.obs_ph[key]
+                    policy = self.policy_out[key] if apply_noise \
+                        else self.deterministic_action[key]
+
+                # Compute the normalized action.
+                normalized_action = self.sess.run(policy, feed_dict={
+                    obs_ph: obs[key],
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
 
                 # Get the scaling terms for the actions.
                 ac_mag = self._ac_mag if self.shared else self._ac_mag[key]
@@ -1393,7 +1417,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                 action=list_action,
                 reward=reward_agent,
                 obs_tp1=list_obs1,
-                done=float(done),
+                done=float(done["__all__"]),
                 all_obs_t=all_obs0,
                 all_obs_tp1=all_obs1
             )
@@ -1417,7 +1441,7 @@ class MultiFeedForwardPolicy(BasePolicy):
                     action=action[key],
                     reward=reward[key],
                     obs_tp1=obs1_agent,
-                    done=float(done),
+                    done=float(done[key]),
                     all_obs_t=all_obs0,
                     all_action_t=combines_actions,
                     all_obs_tp1=all_obs1
@@ -1425,6 +1449,9 @@ class MultiFeedForwardPolicy(BasePolicy):
 
     def _get_td_map_maddpg(self):
         """See get_td_map."""
+        # Common data for all forms of the policy.
+        td_map = {self.phase_ph: 0, self.rate_ph: 0.0}
+
         if self.shared:
             # Not enough samples in the replay buffer.
             if not self.replay_buffer.can_sample():
@@ -1442,13 +1469,13 @@ class MultiFeedForwardPolicy(BasePolicy):
             # agent IDs in alphabetical order.
             all_actions = np.concatenate(actions, axis=1)
 
-            td_map = {
+            td_map.update({
                 self.all_obs_ph: all_obs0,
                 self.all_action_ph: all_actions,
                 self.all_obs1_ph: all_obs1,
                 self.rew_ph: rewards,
                 self.terminals1: done1
-            }
+            })
 
             # Add the agent-level placeholders and variables.
             td_map.update({
@@ -1460,7 +1487,6 @@ class MultiFeedForwardPolicy(BasePolicy):
 
         else:
             # Loop through all agent.
-            td_map = {}
             for key in self.replay_buffer.keys():
                 # Not enough samples in the replay buffer.
                 if not self.replay_buffer[key].can_sample():

@@ -84,13 +84,13 @@ class AntGatherEnv(GatherEnv):
 
         The done mas here is modified to include the horizon ending.
         """
-        obs, reward, done, info = super(AntGatherEnv, self).step(action)
+        obs, reward, done, _ = super(AntGatherEnv, self).step(action)
 
         # Check if the time horizon has been met.
         self.step_number += 1
         done = done or self.step_number == self.horizon
 
-        return obs, reward, done, info
+        return obs, reward, done, {}
 
     def reset(self, also_wrapped=True):
         """Reset the environment."""

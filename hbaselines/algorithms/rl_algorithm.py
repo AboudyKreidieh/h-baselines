@@ -6,6 +6,8 @@ Supported algorithms through this class:
   https://arxiv.org/pdf/1802.09477.pdf
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 * Proximal Policy Optimization (PPO): see https://arxiv.org/pdf/1707.06347.pdf
+* Trust Region Policy Optimization (TRPO): see
+  https://arxiv.org/abs/1502.05477.pdf
 
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
@@ -24,6 +26,7 @@ from copy import deepcopy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -127,10 +130,37 @@ PPO_PARAMS = dict(
 
 
 # =========================================================================== #
+#                         Policy parameters for TRPO                          #
+# =========================================================================== #
+
+TRPO_PARAMS = dict(
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
+    # entropy coefficient for the loss calculation
+    ent_coef=0.0,
+    # the number of iterations for the conjugate gradient calculation
+    cg_iters=10,
+    # the value function’s number iterations for learning
+    vf_iters=3,
+    # the value function stepsize
+    vf_stepsize=3e-4,
+    # the compute gradient dampening factor
+    cg_damping=1e-2,
+    # the Kullback-Leibler loss threshold
+    max_kl=0.01,
+)
+
+
+# =========================================================================== #
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
 FEEDFORWARD_PARAMS = dict(
+    # L2 regularization penalty. This is applied to the policy network.
+    l2_penalty=0,
     # dictionary of model-specific parameters
     model_params=dict(
         # the type of model to use. Must be one of {"fcnet", "conv"}.
@@ -139,6 +169,10 @@ FEEDFORWARD_PARAMS = dict(
         layers=[256, 256],
         # enable layer normalisation
         layer_norm=False,
+        # enable batch normalisation
+        batch_norm=False,
+        # enable dropout
+        dropout=False,
         # the activation function to use in the neural network
         act_fun=tf.nn.relu,
 
@@ -178,7 +212,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # goal-conditioned policy for a description.
     intrinsic_reward_type="negative_distance",
     # the value that the intrinsic reward should be scaled by
-    intrinsic_reward_scale=1,
+    intrinsic_reward_scale=1.,
     # specifies whether the goal issued by the higher-level policies is meant
     # to be a relative or absolute goal, i.e. specific state or change in state
     relative_goals=False,
@@ -198,6 +232,10 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     # respect to the parameters of the higher-level policies. Only used if
     # `cooperative_gradients` is set to True.
     cg_weights=0.0005,
+    # the desired lower-level expected returns. If set to None, a fixed
+    # Lagrangian specified by cg_weights is used instead. Only used if
+    # `cooperative_gradients` is set to True.
+    cg_delta=None,
     # specifies whether you are pre-training the lower-level policies. Actions
     # by the high-level policy are randomly sampled from its action space.
     pretrain_worker=False,
@@ -210,7 +248,7 @@ GOAL_CONDITIONED_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
 
 
 # =========================================================================== #
-#                Policy parameters for MultiActorCriticPolicy                 #
+#                   Policy parameters for MultiAgentPolicy                    #
 # =========================================================================== #
 
 MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
@@ -218,6 +256,9 @@ MULTIAGENT_PARAMS = recursive_update(FEEDFORWARD_PARAMS.copy(), dict(
     shared=False,
     # whether to use an algorithm-specific variant of the MADDPG algorithm
     maddpg=False,
+    # the expected number of agents in the environment. Only relevant if using
+    # shared policies with MADDPG or goal-conditioned hierarchies.
+    n_agents=1,
 ))
 
 
@@ -238,6 +279,8 @@ class RLAlgorithm(object):
         for each CPU
     eval_env : gym.Env or list of gym.Env
         the environment(s) to evaluate from
+    total_steps : int
+        the total number of samples to train on
     nb_train_steps : int
         the number of training steps
     nb_rollout_steps : int
@@ -287,7 +330,7 @@ class RLAlgorithm(object):
         assumed to be 500 (default value for most gym environments).
     graph : tf.Graph
         the current tensorflow graph
-    policy_tf : hbaselines.base_policies.ActorCriticPolicy
+    policy_tf : hbaselines.base_policies.Policy
         the policy object
     sess : tf.compat.v1.Session
         the current tensorflow session
@@ -305,7 +348,7 @@ class RLAlgorithm(object):
         environment.
     episodes : int
         the total number of rollouts performed since training began
-    total_steps : int
+    steps : int
         the total number of steps that have been executed since training began
     epoch_episode_rewards : list of float
         a list of cumulative rollout rewards from the most recent training
@@ -343,6 +386,7 @@ class RLAlgorithm(object):
     def __init__(self,
                  policy,
                  env,
+                 total_steps,
                  eval_env=None,
                  nb_train_steps=1,
                  nb_rollout_steps=1,
@@ -366,6 +410,8 @@ class RLAlgorithm(object):
             the policy model to use
         env : gym.Env or str
             the environment to learn from (if registered in Gym, can be str)
+        total_steps : int
+            the total number of samples to train on
         eval_env : gym.Env or str
             the environment to evaluate from (if registered in Gym, can be str)
         nb_train_steps : int
@@ -422,17 +468,27 @@ class RLAlgorithm(object):
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
-        # Include warnings if using PPO.
-        if is_ppo_policy(policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(policy) or is_trpo_policy(policy):
             if actor_update_freq is not None:
                 print("WARNING: actor_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if meta_update_freq is not None:
                 print("WARNING: meta_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if nb_train_steps is not None:
                 print("WARNING: nb_train_steps is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
+
+        # Check for the number of levels in the network, for visualization
+        # purposes.
+        if is_goal_conditioned_policy(policy):
+            num_levels = GOAL_CONDITIONED_PARAMS["num_levels"] \
+                if policy_kwargs is None \
+                else policy_kwargs.get("num_levels",
+                                       GOAL_CONDITIONED_PARAMS["num_levels"])
+        else:
+            num_levels = 1
 
         # Instantiate the ray instance.
         if num_envs > 1:
@@ -442,7 +498,8 @@ class RLAlgorithm(object):
         self.env_name = deepcopy(env) if isinstance(env, str) \
             else env.__str__()
         self.eval_env, _ = create_env(
-            eval_env, render_eval, shared, maddpg, evaluate=True)
+            eval_env, render_eval, num_levels, shared, maddpg, evaluate=True)
+        self.total_steps = total_steps
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
         self.nb_eval_episodes = nb_eval_episodes
@@ -455,7 +512,7 @@ class RLAlgorithm(object):
         self.save_replay_buffer = save_replay_buffer
         self.num_envs = num_envs
         self.verbose = verbose
-        self.policy_kwargs = {'verbose': verbose}
+        self.policy_kwargs = {'verbose': verbose, 'num_envs': num_envs}
 
         # Create the environment and collect the initial observations.
         self.sampler, self.obs, self.all_obs = self.setup_sampler(
@@ -472,7 +529,7 @@ class RLAlgorithm(object):
         if is_goal_conditioned_policy(policy):
             self.policy_kwargs.update(GOAL_CONDITIONED_PARAMS.copy())
             self.policy_kwargs['env_name'] = self.env_name.__str__()
-            self.policy_kwargs['num_envs'] = num_envs
+            self.policy_kwargs['total_steps'] = total_steps
 
         if is_multiagent_policy(policy):
             self.policy_kwargs.update(MULTIAGENT_PARAMS.copy())
@@ -484,7 +541,8 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
-            self.policy_kwargs['num_envs'] = num_envs
+        elif is_trpo_policy(policy):
+            self.policy_kwargs.update(TRPO_PARAMS.copy())
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -503,7 +561,7 @@ class RLAlgorithm(object):
         self.summary = None
         self.episode_step = [0 for _ in range(num_envs)]
         self.episodes = 0
-        self.total_steps = 0
+        self.steps = 0
         self.epoch_episode_steps = []
         self.epoch_episode_rewards = []
         self.epoch_episodes = 0
@@ -511,6 +569,7 @@ class RLAlgorithm(object):
         self.episode_rew_history = deque(maxlen=100)
         self.episode_reward = [0 for _ in range(num_envs)]
         self.info_at_done = {}
+        self.info_ph = {}
         self.rew_ph = None
         self.rew_history_ph = None
         self.eval_rew_ph = None
@@ -640,9 +699,6 @@ class RLAlgorithm(object):
             tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
             tf.compat.v1.summary.scalar("Train/return_history",
                                         self.rew_history_ph)
-
-            # Create the tensorboard summary.
-            self.summary = tf.compat.v1.summary.merge_all()
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
@@ -774,19 +830,17 @@ class RLAlgorithm(object):
         )
 
     def learn(self,
-              total_steps,
               log_dir=None,
               seed=None,
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              initial_exploration_steps=10000):
+              initial_exploration_steps=10000,
+              ckpt_path=None):
         """Perform the complete training operation.
 
         Parameters
         ----------
-        total_steps : int
-            the total number of samples to train on
         log_dir : str
             the directory where the training and evaluation statistics, as well
             as the tensorboard log, should be stored
@@ -803,23 +857,30 @@ class RLAlgorithm(object):
         initial_exploration_steps : int
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
+        ckpt_path : str
+            path to a checkpoint file. The model is initialized with the
+            weights and biases within this checkpoint.
         """
-        # Include warnings if using PPO.
-        if is_ppo_policy(self.policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(self.policy) or is_trpo_policy(self.policy):
             if log_interval is not None:
-                print("WARNING: log_interval for PPO policies set to after "
-                      "every training iteration.")
+                print("WARNING: log_interval for PPO/TRPO policies set to "
+                      "after every training iteration.")
             log_interval = self.nb_rollout_steps
 
             if initial_exploration_steps > 0:
-                print("WARNING: initial_exploration_steps set to 0 for PPO "
-                      "policies.")
+                print("WARNING: initial_exploration_steps set to 0 for "
+                      "PPO/TRPO policies.")
                 initial_exploration_steps = 0
 
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
-            max_to_keep=total_steps // save_interval)
+            max_to_keep=self.total_steps // save_interval)
+
+        # Load an existing checkpoint if provided.
+        if ckpt_path is not None:
+            self.saver.restore(self.sess, ckpt_path)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -856,7 +917,7 @@ class RLAlgorithm(object):
 
             # Reset total statistics variables.
             self.episodes = 0
-            self.total_steps = 0
+            self.steps = 0
             self.episode_rew_history = deque(maxlen=100)
             self.info_at_done = {}
 
@@ -869,7 +930,7 @@ class RLAlgorithm(object):
                 for _ in range(round(log_interval / self.nb_rollout_steps)):
                     # If the requirement number of time steps has been met,
                     # terminate training.
-                    if self.total_steps >= total_steps:
+                    if self.steps >= self.total_steps:
                         return
 
                     # Perform rollouts.
@@ -883,7 +944,7 @@ class RLAlgorithm(object):
 
                 # Evaluate.
                 if self.eval_env is not None and \
-                        (self.total_steps - eval_steps_incr) >= eval_interval:
+                        (self.steps - eval_steps_incr) >= eval_interval:
                     eval_steps_incr += eval_interval
 
                     # Run the evaluation operations over the evaluation env(s).
@@ -907,6 +968,19 @@ class RLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
+                    # Add the info keys to the summary in the first epoch.
+                    if self.epoch == 0:
+                        # Add the info_dict various to tensorboard as well.
+                        with tf.compat.v1.variable_scope("info_at_done"):
+                            for key in self.info_at_done.keys():
+                                self.info_ph[key] = tf.compat.v1.placeholder(
+                                    tf.float32, name="{}".format(key))
+                                tf.compat.v1.summary.scalar(
+                                    "{}".format(key), self.info_ph[key])
+
+                        # Create the tensorboard summary.
+                        self.summary = tf.compat.v1.summary.merge_all()
+
                     td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
@@ -917,11 +991,15 @@ class RLAlgorithm(object):
                         self.rew_ph: np.mean(self.epoch_episode_rewards),
                         self.rew_history_ph: np.mean(self.episode_rew_history),
                     })
+                    td_map.update({
+                        self.info_ph[key]: np.mean(self.info_at_done[key])
+                        for key in self.info_ph.keys()
+                    })
                     summary = self.sess.run(self.summary, td_map)
-                    writer.add_summary(summary, self.total_steps)
+                    writer.add_summary(summary, self.steps)
 
                 # Save a checkpoint of the model.
-                if (self.total_steps - save_steps_incr) >= save_interval:
+                if (self.steps - save_steps_incr) >= save_interval:
                     save_steps_incr += save_interval
                     self.save(os.path.join(log_dir, "checkpoints/itr"))
 
@@ -936,12 +1014,12 @@ class RLAlgorithm(object):
         save_path : str
             Prefix of filenames created for the checkpoint
         """
-        self.saver.save(self.sess, save_path, global_step=self.total_steps)
+        self.saver.save(self.sess, save_path, global_step=self.steps)
 
         # Save data from the replay buffer.
         if self.save_replay_buffer:
             self.policy_tf.replay_buffer.save(
-                save_path + "-{}.rb".format(self.total_steps))
+                save_path + "-{}.rb".format(self.steps))
 
     def load(self, load_path):
         """Load model parameters from a checkpoint.
@@ -1003,18 +1081,11 @@ class RLAlgorithm(object):
             if self.num_envs > 1:
                 ret = ray.get([
                     self.sampler[env_num].collect_sample.remote(
-                        action=action[env_num],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
+                        action=action[env_num])
                     for env_num in range(n_steps)
                 ])
             else:
-                ret = [
-                    self.sampler[0].collect_sample(
-                        action=action[0],
-                        multiagent=is_multiagent_policy(self.policy),
-                    )
-                ]
+                ret = [self.sampler[0].collect_sample(action=action[0])]
 
             for ret_i in ret:
                 num = ret_i["env_num"]
@@ -1025,6 +1096,7 @@ class RLAlgorithm(object):
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
                 info = ret_i["info"]
+                reset = done["__all__"] if isinstance(done, dict) else done
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
@@ -1032,30 +1104,30 @@ class RLAlgorithm(object):
                     context0=context,
                     action=action,
                     reward=reward,
-                    obs1=obs[0] if done else obs,
+                    obs1=obs[0] if reset else obs,
                     context1=context,
                     terminal1=done,
                     is_final_step=(self.episode_step[num] >= self.horizon - 1),
                     all_obs0=self.all_obs[num],
-                    all_obs1=all_obs[0] if done else all_obs,
+                    all_obs1=all_obs[0] if reset else all_obs,
                     env_num=num,
                 )
 
                 # Book-keeping.
-                self.total_steps += 1
+                self.steps += 1
                 self.episode_step[num] += 1
                 if isinstance(reward, dict):
-                    self.episode_reward[num] += sum(
-                        reward[k] for k in reward.keys())
+                    self.episode_reward[num] += np.mean(
+                        [reward[k] for k in reward.keys()])
                 else:
                     self.episode_reward[num] += reward
 
                 # Update the current observation.
-                self.obs[num] = (obs[1] if done else obs).copy()
-                self.all_obs[num] = all_obs[1] if done else all_obs
+                self.obs[num] = (obs[1] if reset else obs).copy()
+                self.all_obs[num] = all_obs[1] if reset else all_obs
 
                 # Handle episode done.
-                if done:
+                if reset:
                     self.epoch_episode_rewards.append(self.episode_reward[num])
                     self.episode_rew_history.append(self.episode_reward[num])
                     self.epoch_episode_steps.append(self.episode_step[num])
@@ -1065,8 +1137,8 @@ class RLAlgorithm(object):
                     self.episodes += 1
 
                     for key in info.keys():
-                        # Add a queue for the specific info type.
-                        if key not in self.info_at_done.keys():
+                        # If the key is not available, add it.
+                        if key not in self.info_at_done:
                             self.info_at_done[key] = deque(maxlen=100)
 
                         # Store the info value at the end of the rollout.
@@ -1077,7 +1149,7 @@ class RLAlgorithm(object):
         if is_td3_policy(self.policy) or is_sac_policy(self.policy):
             # Added to adjust the actor update frequency based on the rate at
             # which training occurs.
-            train_itr = int(self.total_steps / self.nb_rollout_steps)
+            train_itr = int(self.steps / self.nb_rollout_steps)
             num_levels = getattr(self.policy_tf, "num_levels", 2)
 
             if is_goal_conditioned_policy(self.policy):
@@ -1103,7 +1175,7 @@ class RLAlgorithm(object):
 
             # Run a step of training from batch.
             for _ in range(self.nb_train_steps):
-                _ = self.policy_tf.update(update_actor=update, **kwargs)
+                self.policy_tf.update(update_actor=update, **kwargs)
         else:
             # for PPO policies
             self.policy_tf.update()
@@ -1132,7 +1204,7 @@ class RLAlgorithm(object):
         dict
             additional information that is meant to be logged
         """
-        num_steps = deepcopy(self.total_steps)
+        num_steps = deepcopy(self.steps)
         eval_episode_rewards = []
         eval_episode_successes = []
         ret_info = {'initial': [], 'final': [], 'average': []}
@@ -1290,14 +1362,15 @@ class RLAlgorithm(object):
 
             # Total statistics.
             'total/epochs': self.epoch + 1,
-            'total/steps': self.total_steps,
+            'total/steps': self.steps,
             'total/duration': duration,
-            'total/steps_per_second': self.total_steps / duration,
+            'total/steps_per_second': self.steps / duration,
             'total/episodes': self.episodes,
         }
 
+        # Information passed by the environment.
         combined_stats.update({
-            'rollout/{}'.format(key): np.mean(self.info_at_done[key])
+            'info_at_done/{}'.format(key): np.mean(self.info_at_done[key])
             for key in self.info_at_done.keys()
         })
 
@@ -1354,7 +1427,7 @@ class RLAlgorithm(object):
 
             evaluation_stats = {
                 "duration": duration,
-                "total_step": self.total_steps,
+                "total_step": self.steps,
                 "success_rate": success_rate,
                 "average_return": np.mean(rew)
             }

@@ -43,6 +43,7 @@ class Sampler(object):
             maddpg=maddpg,
             evaluate=evaluate,
         )
+
         self._env_num = env_num
         self._render = render
 
@@ -83,7 +84,7 @@ class Sampler(object):
         else:
             raise ValueError("Horizon attribute not found.")
 
-    def collect_sample(self, action, multiagent):
+    def collect_sample(self, action):
         """Perform the sample collection operation over a single step.
 
         This method is responsible for executing a single step of the
@@ -95,8 +96,6 @@ class Sampler(object):
         ----------
         action : array_like
             the action to be performed by the agent(s) within the environment
-        multiagent : bool
-             whether the policy is multi-agent
 
         Returns
         -------
@@ -130,10 +129,9 @@ class Sampler(object):
         context = getattr(self.env, "current_context", None)
 
         # Done mask for multi-agent policies is slightly different.
-        if multiagent:
-            done = done["__all__"]
+        reset = done["__all__"] if isinstance(done, dict) else done
 
-        if done:
+        if reset:
             # Reset the environment.
             reset_obs = self.env.reset()
             reset_obs, reset_all_obs = get_obs(reset_obs)
@@ -142,14 +140,15 @@ class Sampler(object):
             reset_all_obs = None
 
         return {
-            "obs": obs if not done else (obs, reset_obs),
+            "obs": obs if not reset else (obs, reset_obs),
             "context": context,
             "action": action,
             "reward": reward,
             "done": done,
             "info": info,
             "env_num": self._env_num,
-            "all_obs": all_obs if not done else (all_obs, reset_all_obs),
+            "all_obs": all_obs if not reset else (all_obs, reset_all_obs),
+            "info": info,
         }
 
 

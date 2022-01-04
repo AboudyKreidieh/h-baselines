@@ -77,6 +77,8 @@ variable hyperparameters of the algorithms:
 * `--actor_update_freq` (*int*): the number of training steps per actor policy
   update step. The critic policy is updated every training step. Only used when 
   the algorithm is set to "TD3". Defaults to 2.
+* `--l2_penalty` (*float*): L2 regularization penalty. This is applied to the 
+  policy network. Defaults to 0.
 * `--meta_update_freq` (*int*): the number of training steps per meta policy
   update step. Defaults to 10.
 
@@ -100,6 +102,8 @@ respective policies.
 * `--model_params:model_type` (*str*): the type of model to use. Must be one of
   {"fcnet", "conv"}.
 * `--model_params:layer_norm` (*store_true*): enable layer normalisation
+* `--model_params:batch_norm` (*store_true*): enable batch normalisation
+* `--model_params:dropout` (*store_true*): enable dropout
 * `--model_params:ignore_flat_channels` (*list of int*): specifies which 
   channels of the observation to ignore
 * `--model_params:ignore_image` (*store_true*): specifies whether the image in

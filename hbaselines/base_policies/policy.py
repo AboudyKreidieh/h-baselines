@@ -1,5 +1,8 @@
 """Script containing the abstract policy class."""
 import numpy as np
+import tensorflow as tf
+
+from hbaselines.utils.tf_util import get_trainable_vars
 
 
 class Policy(object):
@@ -17,6 +20,8 @@ class Policy(object):
         the context space of the environment
     verbose : int
         the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    l2_penalty : float
+        L2 regularization penalty. This is applied to the policy network.
     model_params : dict
         dictionary of model-specific parameters. The following must be
         specified:
@@ -26,6 +31,8 @@ class Policy(object):
         * layers (list of int or None): the size of the Neural network for the
           policy
         * layer_norm (bool): enable layer normalisation
+        * batch_norm (bool): enable batch normalisation
+        * dropout (bool): enable dropout
         * act_fun (tf.nn.*): the activation function to use in the neural
           network
 
@@ -55,7 +62,9 @@ class Policy(object):
                  ac_space,
                  co_space,
                  verbose,
-                 model_params):
+                 l2_penalty,
+                 model_params,
+                 num_envs=1):
         """Instantiate the base policy object.
 
         Parameters
@@ -71,6 +80,8 @@ class Policy(object):
         verbose : int
             the verbosity level: 0 none, 1 training information, 2 tensorflow
             debug
+        l2_penalty : float
+            L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. The following must be
             specified:
@@ -107,10 +118,13 @@ class Policy(object):
         self.ac_space = ac_space
         self.co_space = co_space
         self.verbose = verbose
+        self.l2_penalty = l2_penalty
         self.model_params = model_params
+        self.num_envs = num_envs
 
         # Run assertions.
-        required = ["model_type", "layers", "layer_norm", "act_fun"]
+        required = ["model_type", "layers", "layer_norm", "batch_norm",
+                    "dropout", "act_fun"]
         not_specified = [s not in model_params.keys() for s in required]
         if any(not_specified):
             raise AssertionError("{} missing from model_params".format(
@@ -150,13 +164,6 @@ class Policy(object):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-        float
-            critic loss
-        float
-            actor loss
         """
         raise NotImplementedError
 
@@ -227,6 +234,10 @@ class Policy(object):
         """Return dict map for the summary (to be run in the algorithm)."""
         raise NotImplementedError
 
+    def clear_memory(self, env_num):
+        """Clear internal memory that is used by the replay buffer."""
+        pass
+
     @staticmethod
     def _get_obs(obs, context, axis=0):
         """Return the processed observation.
@@ -282,3 +293,32 @@ class Policy(object):
         if co_space is not None:
             ob_dim = tuple(map(sum, zip(ob_dim, co_space.shape)))
         return ob_dim
+
+    @staticmethod
+    def _l2_loss(l2_penalty, scope_name):
+        """Compute the L2 regularization penalty.
+
+        Parameters
+        ----------
+        l2_penalty : float
+            L2 regularization penalty
+        scope_name : str
+            the scope of the trainable variables to regularize
+
+        Returns
+        -------
+        float
+            the overall regularization penalty
+        """
+        if l2_penalty > 0:
+            print("regularizing policy network: L2 = {}".format(l2_penalty))
+            regularizer = tf.contrib.layers.l2_regularizer(
+                scale=l2_penalty, scope="{}/l2_regularize".format(scope_name))
+            l2_loss = tf.contrib.layers.apply_regularization(
+                regularizer,
+                weights_list=get_trainable_vars(scope_name))
+        else:
+            # no regularization
+            l2_loss = 0
+
+        return l2_loss
