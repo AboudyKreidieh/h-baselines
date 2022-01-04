@@ -5,14 +5,14 @@ from copy import deepcopy
 import os
 import random
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 from hbaselines.utils.tf_util import get_trainable_vars
 
 
-class GoalConditionedPolicy(ActorCriticPolicy):
+class GoalConditionedPolicy(Policy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
 
     TODO
@@ -108,7 +108,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     total_steps : int
         Total number of timesteps used during training. Used by a subset of
         algorithms.
-    policy : list of hbaselines.base_policies.ActorCriticPolicy
+    policy : list of hbaselines.base_policies.Policy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.HierReplayBuffer
@@ -251,9 +251,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         total_steps : int
             Total number of timesteps used during training. Used by a subset of
             algorithms.
-        meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+        meta_policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use for the meta policies
-        worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+        worker_policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use for the worker policy
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
@@ -264,14 +264,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             num_envs=num_envs,
@@ -469,13 +462,6 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             def goal_transition_fn(obs0, goal, obs1):
                 return goal
         self.goal_transition_fn = goal_transition_fn
-
-        # Utility method for indexing the goal out of an observation variable.
-        self.crop_to_goal = lambda g: tf.gather(
-            g,
-            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
-                    [self.batch_size, 1]),
-            batch_dims=1, axis=1)
 
         if self.cooperative_gradients:
             if scope is None:
