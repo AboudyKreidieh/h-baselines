@@ -21,8 +21,6 @@ try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
     from hbaselines.envs.snn4hrl.envs import SnakeGatherEnv
     from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
-
-    from hbaselines.envs.composition.cheetah_hurdle import HalfCheetahHurdleEnv
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -352,19 +350,6 @@ ENV_ATTRIBUTES = {
         "state_indices": lambda multiagent: [i for i in range(15)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         AntGatherEnv(),
-    },
-
-    #
-
-    "HalfCheetahHurdle": {
-        "meta_ac_space": lambda relative_goals: Box(
-            low=np.array([-3, -1]),
-            high=np.array([3, 1]),
-            dtype=np.float32,
-        ),
-        "state_indices": [0, 2],
-        "env": lambda evaluate, render, multiagent, shared, maddpg:
-        HalfCheetahHurdleEnv(),
     },
 
     # ======================================================================= #
