@@ -3,11 +3,14 @@ import argparse
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 
@@ -15,6 +18,7 @@ from hbaselines.algorithms.utils import is_multiagent_policy
 def get_hyperparameters(args, policy):
     """Return the hyperparameters of a training algorithm from the parser."""
     algorithm_params = {
+        "total_steps": args.total_steps,
         "nb_train_steps": args.nb_train_steps,
         "nb_rollout_steps": args.nb_rollout_steps,
         "nb_eval_episodes": args.nb_eval_episodes,
@@ -35,6 +39,8 @@ def get_hyperparameters(args, policy):
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
+            "batch_norm": getattr(args, "model_params:batch_norm"),
+            "dropout": getattr(args, "model_params:dropout"),
             "ignore_image": getattr(args, "model_params:ignore_image"),
             "image_height": getattr(args, "model_params:image_height"),
             "image_width": getattr(args, "model_params:image_width"),
@@ -100,6 +106,19 @@ def get_hyperparameters(args, policy):
             "cliprange_vf": args.cliprange_vf,
         })
 
+    # add TRPO parameters
+    if is_trpo_policy(policy):
+        policy_kwargs.update({
+            "gamma": args.gamma,
+            "lam": args.lam,
+            "ent_coef": args.ent_coef,
+            "cg_iters": args.cg_iters,
+            "vf_iters": args.vf_iters,
+            "vf_stepsize": args.vf_stepsize,
+            "cg_damping": args.cg_damping,
+            "max_kl": args.max_kl,
+        })
+
     # add GoalConditionedPolicy parameters
     if is_goal_conditioned_policy(policy):
         policy_kwargs.update({
@@ -113,16 +132,18 @@ def get_hyperparameters(args, policy):
             "subgoal_testing_rate": args.subgoal_testing_rate,
             "cooperative_gradients": args.cooperative_gradients,
             "cg_weights": args.cg_weights,
+            "cg_delta": args.cg_delta,
             "pretrain_worker": args.pretrain_worker,
             "pretrain_path": args.pretrain_path,
             "pretrain_ckpt": args.pretrain_ckpt,
         })
 
-    # add MultiActorCriticPolicy parameters
+    # add MultiAgentPolicy parameters
     if is_multiagent_policy(policy):
         policy_kwargs.update({
             "shared": args.shared,
             "maddpg": args.maddpg,
+            "n_agents": args.n_agents,
         })
 
     # add the policy_kwargs term to the algorithm parameters
@@ -178,9 +199,6 @@ def parse_options(description,
         help='Number of training operations to perform. Each training '
              'operation is performed on a new seed. Defaults to 1.')
     parser_algorithm.add_argument(
-        '--total_steps',  type=int, default=1000000,
-        help='Total number of timesteps used during training.')
-    parser_algorithm.add_argument(
         '--seed', type=int, default=1,
         help='Sets the seed for numpy, tensorflow, and random.')
     parser_algorithm.add_argument(
@@ -198,6 +216,14 @@ def parse_options(description,
         '--initial_exploration_steps', type=int, default=10000,
         help='number of timesteps that the policy is run before training to '
              'initialize the replay buffer with samples')
+    parser_algorithm.add_argument(
+        '--log_dir', type=str, default=None,
+        help='the directory to log the data. Defaults to the current '
+             'directory.')
+    parser_algorithm.add_argument(
+        '--ckpt_path', type=str, default=None,
+        help='path to a checkpoint file. The model is initialized with the '
+             'weights and biases within this checkpoint. Defaults to None. ')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
@@ -211,6 +237,8 @@ def parse_options(description,
         parser_policy = create_sac_parser(parser_policy)
     elif args_alg.alg == "PPO":
         parser_policy = create_ppo_parser(parser_policy)
+    elif args_alg.alg == "TRPO":
+        parser_policy = create_trpo_parser(parser_policy)
 
     # arguments for different model architectures
     parser_policy = create_feedforward_parser(parser_policy)
@@ -224,6 +252,9 @@ def parse_options(description,
 
 def create_algorithm_parser(parser):
     """Add the algorithm hyperparameters to the parser."""
+    parser.add_argument(
+        '--total_steps',  type=int, default=1000000,
+        help='Total number of timesteps used during training.')
     parser.add_argument(
         '--nb_train_steps', type=int, default=1,
         help='the number of training steps')
@@ -443,6 +474,53 @@ def create_ppo_parser(parser):
     return parser
 
 
+def create_trpo_parser(parser):
+    """Add the TRPO hyperparameters to the parser."""
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=TRPO_PARAMS["gamma"],
+        help="the discount factor")
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=TRPO_PARAMS["lam"],
+        help="factor for trade-off of bias vs variance for Generalized "
+             "Advantage Estimator")
+    parser.add_argument(
+        "--ent_coef",
+        type=float,
+        default=TRPO_PARAMS["ent_coef"],
+        help="entropy coefficient for the loss calculation")
+    parser.add_argument(
+        "--cg_iters",
+        type=int,
+        default=TRPO_PARAMS["cg_iters"],
+        help="the number of iterations for the conjugate gradient calculation")
+    parser.add_argument(
+        "--vf_iters",
+        type=int,
+        default=TRPO_PARAMS["vf_iters"],
+        help="the value function’s number iterations for learning")
+    parser.add_argument(
+        "--vf_stepsize",
+        type=float,
+        default=TRPO_PARAMS["vf_stepsize"],
+        help="the value function stepsize")
+    parser.add_argument(
+        "--cg_damping",
+        type=float,
+        default=TRPO_PARAMS["cg_damping"],
+        help="the compute gradient dampening factor")
+    parser.add_argument(
+        "--max_kl",
+        type=float,
+        default=TRPO_PARAMS["max_kl"],
+        help="the Kullback-Leibler loss threshold")
+
+    return parser
+
+
 def create_feedforward_parser(parser):
     """Add the feedforward policy hyperparameters to the parser."""
     parser.add_argument(
@@ -460,6 +538,14 @@ def create_feedforward_parser(parser):
         "--model_params:layer_norm",
         action="store_true",
         help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:batch_norm",
+        action="store_true",
+        help="enable batch normalisation")
+    parser.add_argument(
+        "--model_params:dropout",
+        action="store_true",
+        help="enable dropout")
     parser.add_argument(
         "--model_params:layers",
         type=int,
@@ -569,6 +655,13 @@ def create_goal_conditioned_parser(parser):
              "policies with respect to the parameters of the higher-level "
              "policies. Only used if `cooperative_gradients` is set to True.")
     parser.add_argument(
+        "--cg_delta",
+        type=float,
+        default=GOAL_CONDITIONED_PARAMS["cg_delta"],
+        help="the desired lower-level expected returns. If set to None, a "
+             "fixed Lagrangian specified by cg_weights is used instead. Only "
+             "used if `cooperative_gradients` is set to True.")
+    parser.add_argument(
         "--pretrain_worker",
         action="store_true",
         help="specifies whether you are pre-training the lower-level "
@@ -600,5 +693,12 @@ def create_multi_feedforward_parser(parser):
         action="store_true",
         help="whether to use an algorithm-specific variant of the MADDPG "
              "algorithm")
+    parser.add_argument(
+        "--n_agents",
+        type=int,
+        default=MULTIAGENT_PARAMS["n_agents"],
+        help="the expected number of agents in the environment. Only relevant "
+             "if using shared policies with MADDPG or goal-conditioned "
+             "hierarchies.")
 
     return parser

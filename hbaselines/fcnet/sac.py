@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.utils.tf_util import create_fcnet
 from hbaselines.utils.tf_util import create_conv
@@ -11,6 +11,7 @@ from hbaselines.utils.tf_util import reduce_std
 from hbaselines.utils.tf_util import gaussian_likelihood
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import print_params_shape
+from hbaselines.utils.tf_util import setup_target_updates
 
 
 # Cap the standard deviation of the actor
@@ -18,7 +19,7 @@ LOG_STD_MAX = 2
 LOG_STD_MIN = -20
 
 
-class FeedForwardPolicy(ActorCriticPolicy):
+class FeedForwardPolicy(Policy):
     """SAC-compatible feedforward policy.
 
     Attributes
@@ -65,6 +66,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
         placeholder for the observations
     obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     deterministic_action : tf.Variable
         the output from the deterministic actor
     policy_out : tf.Variable
@@ -129,7 +135,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  l2_penalty,
                  model_params,
                  target_entropy,
-                 scope=None):
+                 scope=None,
+                 num_envs=1):
         """Instantiate the feed-forward neural network policy.
 
         Parameters
@@ -176,17 +183,19 @@ class FeedForwardPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            num_envs=num_envs,
         )
+
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
 
         if target_entropy is None:
             self.target_entropy = -np.prod(self.ac_space.shape)
@@ -236,6 +245,12 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs1')
+            self.phase_ph = tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase')
+            self.rate_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate')
 
         # =================================================================== #
         # Step 3: Create actor and critic variables.                          #
@@ -268,7 +283,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.value_target = value_target
 
         # Create the target update operations.
-        init, soft = self._setup_target_updates(
+        init, soft = setup_target_updates(
             'model/value_fns/vf', 'target/value_fns/vf', scope, tau, verbose)
         self.target_init_updates = init
         self.target_soft_updates = soft
@@ -329,6 +344,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -343,6 +362,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             stochastic=True,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -412,6 +435,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             strides=self.model_params["strides"],
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -421,6 +448,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -459,18 +490,10 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return qf1, qf2, value_fn
 
     def update(self, **kwargs):
-        """Perform a gradient update step.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
-        """
+        """Perform a gradient update step."""
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return [0, 0], 0
+            return
 
         # Get a batch
         obs0, actions, rewards, obs1, done1 = self.replay_buffer.sample()
@@ -496,13 +519,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
             an episode and 0 otherwise.
         update_actor : bool
             whether to update the actor policy. Unused by this method.
-
-        Returns
-        -------
-        [float, float]
-            Q1 loss, Q2 loss
-        float
-            actor loss
         """
         del update_actor  # unused by this method
 
@@ -515,11 +531,6 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         # Collect all update and loss call operations.
         step_ops = [
-            self.critic_loss[0],
-            self.critic_loss[1],
-            self.critic_loss[2],
-            self.actor_loss,
-            self.alpha_loss,
             self.critic_optimizer,
             self.actor_optimizer,
             self.alpha_optimizer,
@@ -532,14 +543,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 1,
+            self.rate_ph: 0.5,
         }
 
-        # Perform the update operations and collect the actor and critic loss.
-        q1_loss, q2_loss, vf_loss, actor_loss, *_ = self.sess.run(
-            step_ops, feed_dict)
-
-        return [q1_loss, q2_loss], actor_loss
+        # Perform the update operations.
+        self.sess.run(step_ops, feed_dict)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
@@ -550,7 +560,11 @@ class FeedForwardPolicy(ActorCriticPolicy):
             return np.array([self.ac_space.sample()])
         elif apply_noise:
             normalized_action = self.sess.run(
-                self.policy_out, feed_dict={self.obs_ph: obs})
+                self.policy_out, feed_dict={
+                    self.obs_ph: obs,
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
             return self._ac_magnitudes * normalized_action + self._ac_means
         else:
             normalized_action = self.sess.run(
@@ -758,7 +772,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 0,
+            self.rate_ph: 0.0,
         }
 
         return td_map

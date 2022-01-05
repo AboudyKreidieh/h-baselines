@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/AboudyKreidieh/h-baselines.svg?branch=master)](https://travis-ci.com/AboudyKreidieh/h-baselines)
+[![tests](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/AboudyKreidieh/h-baselines/badge.svg?branch=master)](https://coveralls.io/github/AboudyKreidieh/h-baselines?branch=master)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AboudyKreidieh/h-baselines/blob/master/LICENSE)
 
@@ -314,6 +314,8 @@ The modifiable parameters of this policy are as follows:
     "conv"}.
   * **layers** (list of int) :the size of the Neural network for the policy
   * **layer_norm** (bool) : enable layer normalisation
+  * **batch_norm** (bool) : enable batch normalisation
+  * **dropout** (bool) : enable dropout
   * **act_fun** (tf.nn.*) : the activation function to use in the neural 
     network
   * **ignore_image** (bool) : observation includes an image but should it be 
@@ -980,7 +982,7 @@ sub-sections. Additional information can be found through the
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-<p align="center"><img src="docs/img/flow-envs-2.png" align="middle" width="90%"/></p>
+<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="90%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
@@ -990,9 +992,7 @@ environment name (e.g. "multiagent-ring-v0").
 
 | Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
-| [ring](#ring)       | ring-v0          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        yes       |
-|                     | ring-v1          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          yes         |        no        |
-|                     | ring-v2          |       5       |     50 - 75    | 1/15 - 1/10 |          --          |          no          |        no        |
+| [ring](#ring)       | ring-v0          |       1       |        22      |     1/22    |          --          |          yes         |        yes       |
 | [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
 |                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
 |                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
@@ -1060,11 +1060,10 @@ congestion. This networks are detailed below.
 
 #### ring
 
-This scenario consists of 50 (if density is fixed) or 50-75 vehicles (5 of
-which are automated) are placed on a sing-lane circular track of length 1500m.
-In the absence of the automated vehicle, the human-driven vehicles exhibit 
-stop-and-go instabilities brought about by the string-unstable characteristic 
-of human car-following dynamics.
+This scenario consists of 22 vehicles (1 of which are automated) on a sing-lane
+circular track of length 220-270 m. In the absence of the automated vehicle, 
+the human-driven vehicles exhibit stop-and-go instabilities brought about by 
+the string-unstable characteristic of human car-following dynamics.
 
 #### merge
 
@@ -1093,16 +1092,9 @@ network.
 
 To cite this repository in publications, use the following:
 
-```
-@misc{h-baselines,
-  author = {Kreidieh, Abdul Rahman},
-  title = {Hierarchical Baselines},
-  year = {2019},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/AboudyKreidieh/h-baselines}},
-}
-```
+Kreidieh, Abdul Rahman, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning." arXiv preprint arXiv:1912.02368 (2019). [Online]. 
+Available: https://arxiv.org/abs/1912.02368
 
 # 5. Bibliography
 

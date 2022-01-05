@@ -38,9 +38,11 @@ class GoalConditionedPolicy(BasePolicy):
                  subgoal_testing_rate,
                  cooperative_gradients,
                  cg_weights,
+                 cg_delta,
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  scope=None,
                  env_name="",
                  num_envs=1,
@@ -127,6 +129,10 @@ class GoalConditionedPolicy(BasePolicy):
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
             used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
         pretrain_worker : bool
             specifies whether you are pre-training the lower-level policies.
             Actions by the high-level policy are randomly sampled from the
@@ -136,6 +142,9 @@ class GoalConditionedPolicy(BasePolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
             the policy model to use for the meta policies
         worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
@@ -173,9 +182,11 @@ class GoalConditionedPolicy(BasePolicy):
             subgoal_testing_rate=subgoal_testing_rate,
             cooperative_gradients=cooperative_gradients,
             cg_weights=cg_weights,
+            cg_delta=cg_delta,
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
             scope=scope,
             env_name=env_name,
             num_envs=num_envs,
@@ -261,27 +272,24 @@ class GoalConditionedPolicy(BasePolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-         ([float, float], [float, float])
-            the critic loss for every policy in the hierarchy
-        (float, float)
-            the actor loss for every policy in the hierarchy
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return tuple([[0, 0] for _ in range(self.num_levels)]), \
-                tuple([0 for _ in range(self.num_levels)])
+            return
 
         # Specifies whether to remove additional data from the replay buffer
         # sampling procedure. Since only a subset of algorithms use additional
         # data, removing it can speedup the other algorithms.
         with_additional = self.off_policy_corrections
 
+        # Specifies the levels to collect data from, corresponding to the
+        # levels that will be trained. This also helps speedup the operation.
+        collect_levels = [i for i in range(self.num_levels - 1) if
+                          kwargs["update_meta"][i]] + [self.num_levels - 1]
+
         # Get a batch.
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
+            with_additional, collect_levels)
 
         # Do not use done masks for lower-level policies with negative
         # intrinsic rewards (these the policies to terminate early).
@@ -289,13 +297,9 @@ class GoalConditionedPolicy(BasePolicy):
             for i in range(self.num_levels - 1):
                 done[i+1] = np.array([False] * done[i+1].shape[0])
 
-        # Update the higher-level policies.
-        actor_loss = []
-        critic_loss = []
-
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
-            if kwargs['update_meta'][i] and not self.pretrain_worker:
+            if kwargs['update_meta'][i] and not self._pretrain_level(i):
                 # Replace the goals with the most likely goals.
                 if self.off_policy_corrections and i == 0:  # FIXME
                     meta_act = self._sample_best_meta_action(
@@ -310,7 +314,7 @@ class GoalConditionedPolicy(BasePolicy):
 
                 if self.cooperative_gradients:
                     # Perform the cooperative gradients update procedure.
-                    vf_loss, pi_loss = self._cooperative_gradients_update(
+                    self._cooperative_gradients_update(
                         obs0=obs0,
                         actions=act,
                         rewards=rew,
@@ -321,7 +325,7 @@ class GoalConditionedPolicy(BasePolicy):
                     )
                 else:
                     # Perform the regular meta update procedure.
-                    vf_loss, pi_loss = self.policy[i].update_from_batch(
+                    self.policy[i].update_from_batch(
                         obs0=obs0[i],
                         actions=act[i],
                         rewards=rew[i],
@@ -330,14 +334,8 @@ class GoalConditionedPolicy(BasePolicy):
                         update_actor=kwargs['update_meta_actor'],
                     )
 
-                actor_loss.append(pi_loss)
-                critic_loss.append(vf_loss)
-            else:
-                actor_loss.append(0)
-                critic_loss.append([0, 0])
-
         # Update the lowest level policy.
-        w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
+        self.policy[-1].update_from_batch(
             obs0=obs0[-1],
             actions=act[-1],
             rewards=rew[-1],
@@ -345,10 +343,6 @@ class GoalConditionedPolicy(BasePolicy):
             terminals1=done[-1],
             update_actor=update_actor,
         )
-        critic_loss.append(w_critic_loss)
-        actor_loss.append(w_actor_loss)
-
-        return tuple(critic_loss), tuple(actor_loss)
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
