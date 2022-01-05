@@ -1092,16 +1092,9 @@ network.
 
 To cite this repository in publications, use the following:
 
-```
-@misc{h-baselines,
-  author = {Kreidieh, Abdul Rahman},
-  title = {Hierarchical Baselines},
-  year = {2019},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/AboudyKreidieh/h-baselines}},
-}
-```
+Kreidieh, Abdul Rahman, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning." arXiv preprint arXiv:1912.02368 (2019). [Online]. 
+Available: https://arxiv.org/abs/1912.02368
 
 # 5. Bibliography
 

@@ -42,6 +42,11 @@ def main(args):
 
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
+    if flags.env_name is not None:
+        env_name = flags.env_name
+        # Override n_agents
+        if "n_agents" in hp["policy_kwargs"]:
+            hp["policy_kwargs"]["n_agents"] = 100
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
     multiagent = env_name.startswith("multiagent")
@@ -160,6 +165,12 @@ def main(args):
                     if flags.save_video:
                         if alg.env_name == "AntGather":
                             out.writeFrame(env.render(mode='rgb_array'))
+                        elif alg.env_name == "BipedalSoccer":
+                            image = env.render(mode="rgb_array")
+                            image = np.reshape(image, (128, 128, 3))
+                            image = np.flipud(image)
+                            image = np.fliplr(image)
+                            out.writeFrame(image)
                         else:
                             out.writeFrame(env.render(
                                 mode='rgb_array', height=1024, width=1024))

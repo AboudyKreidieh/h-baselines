@@ -96,7 +96,7 @@ class RingEnv(gym.Env):
                  dt,
                  horizon,
                  sims_per_step,
-                 max_accel=0.5,
+                 max_accel=1.0,
                  min_gap=1.0,
                  gen_emission=False,
                  rl_ids=None,
@@ -617,8 +617,11 @@ class RingSingleAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
-        reward = reward_scale * np.mean(self.speeds) ** 2
+        c1 = 0.005  # reward scale for the speeds
+        c2 = 0.100  # reward scale for the accelerations
+
+        reward = - c1 * (self.speeds[self.rl_ids[0]] - self._v_eq) ** 2 \
+            - c2 * self.accelerations[self.rl_ids[0]] ** 2
 
         return reward
 
