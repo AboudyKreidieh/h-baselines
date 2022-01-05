@@ -13,7 +13,7 @@ from hbaselines.utils.eval import get_hyperparameters_from_dir
 from hbaselines.utils.eval import TrajectoryLogger
 
 # name of Flow environments. These are rendered differently
-FLOW_ENV_NAMES = [
+FLOW_ENVS = [
     "ring-v0",
     "ring-v0-fast",
     "ring-v1-fast",
@@ -42,6 +42,11 @@ def main(args):
 
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
+    if flags.env_name is not None:
+        env_name = flags.env_name
+        # Override n_agents
+        if "n_agents" in hp["policy_kwargs"]:
+            hp["policy_kwargs"]["n_agents"] = 100
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
     multiagent = env_name.startswith("multiagent")
@@ -90,7 +95,7 @@ def main(args):
     episode_rewards = []
 
     # Add an emission path to Flow environments.
-    if env_name in FLOW_ENV_NAMES:
+    if env_name in FLOW_ENVS or (multiagent and env_name[11:] in FLOW_ENVS):
         sim_params = deepcopy(env.wrapped_env.sim_params)
         sim_params.emission_path = "./flow_results"
         env.wrapped_env.restart_simulation(
@@ -103,7 +108,7 @@ def main(args):
 
     for env_num, env in enumerate(env_list):
         for episode_num in range(flags.num_rollouts):
-            if not flags.no_render and env_name not in FLOW_ENV_NAMES:
+            if not flags.no_render and env_name not in FLOW_ENVS:
                 out = FFmpegWriter("{}_{}_{}.mp4".format(
                     flags.video, env_num, episode_num))
             else:
@@ -160,6 +165,12 @@ def main(args):
                     if flags.save_video:
                         if alg.env_name == "AntGather":
                             out.writeFrame(env.render(mode='rgb_array'))
+                        elif alg.env_name == "BipedalSoccer":
+                            image = env.render(mode="rgb_array")
+                            image = np.reshape(image, (128, 128, 3))
+                            image = np.flipud(image)
+                            image = np.fliplr(image)
+                            out.writeFrame(image)
                         else:
                             out.writeFrame(env.render(
                                 mode='rgb_array', height=1024, width=1024))
@@ -171,11 +182,11 @@ def main(args):
                             or done is True:
                         break
                     obs0_transition = {
-                        key: np.array(obs[key]) for key in obs.keys()}
+                        k: np.array([obs[k]]) for k in obs.keys()}
                     obs1_transition = {
-                        key: np.array(new_obs[key]) for key in new_obs.keys()}
-                    total_reward += sum(
-                        reward[key] for key in reward.keys())
+                        k: np.array([new_obs[k]]) for k in new_obs.keys()}
+                    total_reward += np.mean([
+                        reward[key] for key in reward.keys()])
                 else:
                     if done:
                         break
@@ -204,7 +215,7 @@ def main(args):
                 print("Round {}, {}: {}".format(episode_num, key, info[key]))
 
             # Save the video.
-            if not flags.no_render and env_name not in FLOW_ENV_NAMES \
+            if not flags.no_render and env_name not in FLOW_ENVS \
                     and flags.save_video:
                 out.close()
 

@@ -6,6 +6,8 @@ Supported algorithms through this class:
   https://arxiv.org/pdf/1802.09477.pdf
 * Soft Actor Critic (SAC): see https://arxiv.org/pdf/1801.01290.pdf
 * Proximal Policy Optimization (PPO): see https://arxiv.org/pdf/1707.06347.pdf
+* Trust Region Policy Optimization (TRPO): see
+  https://arxiv.org/abs/1502.05477.pdf
 
 This algorithm class also contains modifications to support contextual
 environments as well as multi-agent and hierarchical policies.
@@ -24,6 +26,7 @@ from copy import deepcopy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_feedforward_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
@@ -127,6 +130,31 @@ PPO_PARAMS = dict(
 
 
 # =========================================================================== #
+#                         Policy parameters for TRPO                          #
+# =========================================================================== #
+
+TRPO_PARAMS = dict(
+    # the discount factor
+    gamma=0.99,
+    # factor for trade-off of bias vs variance for Generalized Advantage
+    # Estimator
+    lam=0.95,
+    # entropy coefficient for the loss calculation
+    ent_coef=0.0,
+    # the number of iterations for the conjugate gradient calculation
+    cg_iters=10,
+    # the value function’s number iterations for learning
+    vf_iters=3,
+    # the value function stepsize
+    vf_stepsize=3e-4,
+    # the compute gradient dampening factor
+    cg_damping=1e-2,
+    # the Kullback-Leibler loss threshold
+    max_kl=0.01,
+)
+
+
+# =========================================================================== #
 #                   Policy parameters for FeedForwardPolicy                   #
 # =========================================================================== #
 
@@ -146,6 +174,10 @@ FEEDFORWARD_PARAMS = dict(
         layers=[256, 256],
         # enable layer normalisation
         layer_norm=False,
+        # enable batch normalisation
+        batch_norm=False,
+        # enable dropout
+        dropout=False,
         # the activation function to use in the neural network
         act_fun=tf.nn.relu,
 
@@ -442,17 +474,17 @@ class RLAlgorithm(object):
         assert num_envs <= nb_rollout_steps, \
             "num_envs must be less than or equal to nb_rollout_steps"
 
-        # Include warnings if using PPO.
-        if is_ppo_policy(policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(policy) or is_trpo_policy(policy):
             if actor_update_freq is not None:
                 print("WARNING: actor_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if meta_update_freq is not None:
                 print("WARNING: meta_update_freq is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
             if nb_train_steps is not None:
                 print("WARNING: nb_train_steps is not utilized when running"
-                      " PPO. Ignoring.")
+                      " PPO/TRPO. Ignoring.")
 
         # Check for the number of levels in the network, for visualization
         # purposes.
@@ -494,8 +526,8 @@ class RLAlgorithm(object):
         GOAL_CONDITIONED_PARAMS['exploration_params']['exploration_strategy'] = exploration_strategy
 
         # Create the environment and collect the initial observations.
-        self.sampler, self.obs, self.all_obs, self._info_keys = \
-            self.setup_sampler(env, render, shared, maddpg)
+        self.sampler, self.obs, self.all_obs = self.setup_sampler(
+            env, render, shared, maddpg)
 
         # Collect the spaces of the environments.
         self.ac_space, self.ob_space, self.co_space, all_ob_space = \
@@ -520,6 +552,8 @@ class RLAlgorithm(object):
             self.policy_kwargs.update(SAC_PARAMS.copy())
         elif is_ppo_policy(policy):
             self.policy_kwargs.update(PPO_PARAMS.copy())
+        elif is_trpo_policy(policy):
+            self.policy_kwargs.update(TRPO_PARAMS.copy())
 
         self.policy_kwargs = recursive_update(
             self.policy_kwargs, policy_kwargs or {})
@@ -545,7 +579,7 @@ class RLAlgorithm(object):
         self.epoch = 0
         self.episode_rew_history = deque(maxlen=100)
         self.episode_reward = [0 for _ in range(num_envs)]
-        self.info_at_done = {key: deque(maxlen=100) for key in self._info_keys}
+        self.info_at_done = {}
         self.info_ph = {}
         self.rew_ph = None
         self.rew_history_ph = None
@@ -600,8 +634,6 @@ class RLAlgorithm(object):
                 for env_num in range(self.num_envs)
             ]
             ob = ray.get([s.get_init_obs.remote() for s in sampler])
-            ob = [o[0] for o in ob]
-            info_key = ray.get(sampler[0].get_init_obs.remote())[1]
         else:
             from hbaselines.utils.sampler import Sampler
             sampler = [
@@ -614,14 +646,13 @@ class RLAlgorithm(object):
                     evaluate=False,
                 )
             ]
-            ob = [s.get_init_obs()[0] for s in sampler]
-            info_key = sampler[0].get_init_obs()[1]
+            ob = [s.get_init_obs() for s in sampler]
 
         # Separate the observation and full-state observation.
         obs = [get_obs(o)[0] for o in ob]
         all_obs = [get_obs(o)[1] for o in ob]
 
-        return sampler, obs, all_obs, info_key
+        return sampler, obs, all_obs
 
     def get_spaces(self):
         """Collect the spaces of the environments.
@@ -679,17 +710,6 @@ class RLAlgorithm(object):
             tf.compat.v1.summary.scalar("Train/return", self.rew_ph)
             tf.compat.v1.summary.scalar("Train/return_history",
                                         self.rew_history_ph)
-
-            # Add the info_dict various to tensorboard as well.
-            with tf.compat.v1.variable_scope("info_at_done"):
-                for key in self._info_keys:
-                    self.info_ph[key] = tf.compat.v1.placeholder(
-                        tf.float32, name="{}".format(key))
-                    tf.compat.v1.summary.scalar(
-                        "{}".format(key), self.info_ph[key])
-
-            # Create the tensorboard summary.
-            self.summary = tf.compat.v1.summary.merge_all()
 
             # Initialize the model parameters and optimizers.
             with self.sess.as_default():
@@ -826,7 +846,8 @@ class RLAlgorithm(object):
               log_interval=2000,
               eval_interval=50000,
               save_interval=10000,
-              initial_exploration_steps=10000):
+              initial_exploration_steps=10000,
+              ckpt_path=None):
         """Perform the complete training operation.
 
         Parameters
@@ -847,23 +868,30 @@ class RLAlgorithm(object):
         initial_exploration_steps : int
             number of timesteps that the policy is run before training to
             initialize the replay buffer with samples
+        ckpt_path : str
+            path to a checkpoint file. The model is initialized with the
+            weights and biases within this checkpoint.
         """
-        # Include warnings if using PPO.
-        if is_ppo_policy(self.policy):
+        # Include warnings if using PPO or TRPO.
+        if is_ppo_policy(self.policy) or is_trpo_policy(self.policy):
             if log_interval is not None:
-                print("WARNING: log_interval for PPO policies set to after "
-                      "every training iteration.")
+                print("WARNING: log_interval for PPO/TRPO policies set to "
+                      "after every training iteration.")
             log_interval = self.nb_rollout_steps
 
             if initial_exploration_steps > 0:
-                print("WARNING: initial_exploration_steps set to 0 for PPO "
-                      "policies.")
+                print("WARNING: initial_exploration_steps set to 0 for "
+                      "PPO/TRPO policies.")
                 initial_exploration_steps = 0
 
         # Create a saver object.
         self.saver = tf.compat.v1.train.Saver(
             self.trainable_vars,
             max_to_keep=self.total_steps // save_interval)
+
+        # Load an existing checkpoint if provided.
+        if ckpt_path is not None:
+            self.saver.restore(self.sess, ckpt_path)
 
         # Make sure that the log directory exists, and if not, make it.
         ensure_dir(log_dir)
@@ -902,8 +930,7 @@ class RLAlgorithm(object):
             self.episodes = 0
             self.steps = 0
             self.episode_rew_history = deque(maxlen=100)
-            self.info_at_done = {
-                key: deque(maxlen=100) for key in self._info_keys}
+            self.info_at_done = {}
 
             while True:
                 # Reset epoch-specific variables.
@@ -952,6 +979,19 @@ class RLAlgorithm(object):
 
                 # Run and store summary.
                 if writer is not None:
+                    # Add the info keys to the summary in the first epoch.
+                    if self.epoch == 0:
+                        # Add the info_dict various to tensorboard as well.
+                        with tf.compat.v1.variable_scope("info_at_done"):
+                            for key in self.info_at_done.keys():
+                                self.info_ph[key] = tf.compat.v1.placeholder(
+                                    tf.float32, name="{}".format(key))
+                                tf.compat.v1.summary.scalar(
+                                    "{}".format(key), self.info_ph[key])
+
+                        # Create the tensorboard summary.
+                        self.summary = tf.compat.v1.summary.merge_all()
+
                     td_map = self.policy_tf.get_td_map()
 
                     # Check if td_map is empty.
@@ -1067,6 +1107,7 @@ class RLAlgorithm(object):
                 done = ret_i["done"]
                 all_obs = ret_i["all_obs"]
                 info = ret_i["info"]
+                reset = done["__all__"] if isinstance(done, dict) else done
 
                 # Store a transition in the replay buffer.
                 self._store_transition(
@@ -1074,12 +1115,12 @@ class RLAlgorithm(object):
                     context0=context,
                     action=action,
                     reward=reward,
-                    obs1=obs[0] if done else obs,
+                    obs1=obs[0] if reset else obs,
                     context1=context,
                     terminal1=done,
                     is_final_step=(self.episode_step[num] >= self.horizon - 1),
                     all_obs0=self.all_obs[num],
-                    all_obs1=all_obs[0] if done else all_obs,
+                    all_obs1=all_obs[0] if reset else all_obs,
                     env_num=num,
                 )
 
@@ -1093,11 +1134,11 @@ class RLAlgorithm(object):
                     self.episode_reward[num] += reward
 
                 # Update the current observation.
-                self.obs[num] = (obs[1] if done else obs).copy()
-                self.all_obs[num] = all_obs[1] if done else all_obs
+                self.obs[num] = (obs[1] if reset else obs).copy()
+                self.all_obs[num] = all_obs[1] if reset else all_obs
 
                 # Handle episode done.
-                if done:
+                if reset:
                     self.epoch_episode_rewards.append(self.episode_reward[num])
                     self.episode_rew_history.append(self.episode_reward[num])
                     self.epoch_episode_steps.append(self.episode_step[num])
@@ -1106,8 +1147,12 @@ class RLAlgorithm(object):
                     self.epoch_episodes += 1
                     self.episodes += 1
 
-                    # Store the info value at the end of the rollout.
                     for key in info.keys():
+                        # If the key is not available, add it.
+                        if key not in self.info_at_done:
+                            self.info_at_done[key] = deque(maxlen=100)
+
+                        # Store the info value at the end of the rollout.
                         self.info_at_done[key].append(info[key])
 
     def _train(self):

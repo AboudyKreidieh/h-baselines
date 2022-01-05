@@ -8,6 +8,7 @@ import gym
 from scipy.optimize import fsolve
 from collections import defaultdict
 from gym.spaces import Box
+from copy import deepcopy
 
 from hbaselines.envs.mixed_autonomy.envs.utils import get_rl_accel
 from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
@@ -15,9 +16,9 @@ from hbaselines.envs.mixed_autonomy.envs.utils import v_eq_function
 # the length of the individual vehicles
 VEHICLE_LENGTH = 5.0
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20.0
+MAX_HEADWAY = 100.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 1.0
+MAX_SPEED = 10.0
 
 
 class RingEnv(gym.Env):
@@ -95,7 +96,7 @@ class RingEnv(gym.Env):
                  dt,
                  horizon,
                  sims_per_step,
-                 max_accel=0.5,
+                 max_accel=1.0,
                  min_gap=1.0,
                  gen_emission=False,
                  rl_ids=None,
@@ -168,7 +169,7 @@ class RingEnv(gym.Env):
         self.maddpg = maddpg
         self.obs_frames = obs_frames
         self._time_log = None
-        self._v_eq = None
+        self._v_eq = 0.
         self._mean_speeds = None
         self._mean_accels = None
 
@@ -184,7 +185,7 @@ class RingEnv(gym.Env):
             min_gap=self.min_gap,
         )
         self.headways = self._compute_headway()
-        self.accelerations = None
+        self.accelerations = np.array([0. for _ in range(num_vehicles)])
         self._emission_data = []
 
         # human-driver model parameters
@@ -194,7 +195,7 @@ class RingEnv(gym.Env):
         self.b = 2.0
         self.delta = 4
         self.s0 = 2
-        self.noise = 0.0
+        self.noise = 0.2
 
         # failsafe parameters
         self.decel = 4.5
@@ -603,21 +604,24 @@ class RingSingleAgentEnv(RingEnv):
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self.obs_frames:
+            if len(self._obs_history[veh_id]) > 10 * self.obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self.obs_frames:]
+                    self._obs_history[veh_id][-10 * self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta in the
             # output observations.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-10])
             obs[3*self.obs_frames*i:3*self.obs_frames*i+len(obs_t)] = obs_t
 
         return obs
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
-        reward = reward_scale * np.mean(self.speeds) ** 2
+        c1 = 0.005  # reward scale for the speeds
+        c2 = 0.100  # reward scale for the accelerations
+
+        reward = - c1 * (self.speeds[self.rl_ids[0]] - self._v_eq) ** 2 \
+            - c2 * self.accelerations[self.rl_ids[0]] ** 2
 
         return reward
 
@@ -660,7 +664,11 @@ class RingMultiAgentEnv(RingEnv):
         environments.
         """
         obs, rew, done, info = super(RingMultiAgentEnv, self).step(action)
-        done = {"__all__": done}
+
+        # Update the done mask.
+        all_done = deepcopy(done)
+        done = {key: done for key in obs.keys()}
+        done["__all__"] = all_done
 
         if self.maddpg:
             obs = {
@@ -685,13 +693,13 @@ class RingMultiAgentEnv(RingEnv):
             self._obs_history[veh_id].append(obs_vehicle)
 
             # Maintain queue length.
-            if len(self._obs_history[veh_id]) > self.obs_frames:
+            if len(self._obs_history[veh_id]) > 10 * self.obs_frames:
                 self._obs_history[veh_id] = \
-                    self._obs_history[veh_id][-self.obs_frames:]
+                    self._obs_history[veh_id][-10 * self.obs_frames:]
 
             # Concatenate the past n samples for a given time delta and return
             # as the final observation.
-            obs_t = np.concatenate(self._obs_history[veh_id][::-1])
+            obs_t = np.concatenate(self._obs_history[veh_id][::-10])
             obs_vehicle = np.array([0. for _ in range(3 * self.obs_frames)])
             obs_vehicle[:len(obs_t)] = obs_t
 
@@ -705,13 +713,14 @@ class RingMultiAgentEnv(RingEnv):
 
     def compute_reward(self, action):
         """See parent class."""
-        reward_scale = 0.1
-        reward = {
-            key: reward_scale * np.mean(self.speeds) ** 2
+        c1 = 0.005  # reward scale for the speeds
+        c2 = 0.100  # reward scale for the accelerations
+
+        return {
+            key: (- c1 * (self.speeds[key] - self._v_eq) ** 2
+                  - c2 * self.accelerations[key] ** 2)
             for key in self.rl_ids
         }
-
-        return reward
 
     def reset(self):
         """See parent class."""
@@ -729,7 +738,7 @@ class RingMultiAgentEnv(RingEnv):
 if __name__ == "__main__":
     for scale in range(1, 6):
         res = defaultdict(list)
-        for ring_length in range(scale * 220, scale * 271, scale * 1):
+        for ring_length in range(scale * 250, scale * 361, scale * 1):
             print(ring_length)
             for ix in range(10):
                 print(ix)

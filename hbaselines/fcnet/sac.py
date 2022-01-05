@@ -66,6 +66,11 @@ class FeedForwardPolicy(Policy):
         placeholder for the observations
     obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     deterministic_action : tf.Variable
         the output from the deterministic actor
     policy_out : tf.Variable
@@ -244,6 +249,12 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs1')
+            self.phase_ph = tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase')
+            self.rate_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate')
 
         # =================================================================== #
         # Step 3: Create actor and critic variables.                          #
@@ -337,6 +348,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -351,6 +366,10 @@ class FeedForwardPolicy(Policy):
             stochastic=True,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -420,6 +439,10 @@ class FeedForwardPolicy(Policy):
             strides=self.model_params["strides"],
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -429,6 +452,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             reuse=reuse,
         )
 
@@ -520,7 +547,9 @@ class FeedForwardPolicy(Policy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 1,
+            self.rate_ph: 0.5,
         }
 
         # Perform the update operations.
@@ -535,7 +564,11 @@ class FeedForwardPolicy(Policy):
             return np.array([self.ac_space.sample()])
         elif apply_noise:
             normalized_action = self.sess.run(
-                self.policy_out, feed_dict={self.obs_ph: obs})
+                self.policy_out, feed_dict={
+                    self.obs_ph: obs,
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
             return self._ac_magnitudes * normalized_action + self._ac_means
         else:
             normalized_action = self.sess.run(
@@ -743,7 +776,9 @@ class FeedForwardPolicy(Policy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 0,
+            self.rate_ph: 0.0,
         }
 
         return td_map

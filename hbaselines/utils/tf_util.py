@@ -110,6 +110,131 @@ def reduce_var(tensor, axis=None, keepdims=False):
     return tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims)
 
 
+def var_shape(tensor):
+    """Get TensorFlow Tensor shape.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    list of int
+        the shape
+    """
+    out = tensor.get_shape().as_list()
+    assert all(isinstance(a, int) for a in out), \
+        "shape function assumes that shape is fully known"
+    return out
+
+
+def numel(tensor):
+    """Get TensorFlow Tensor's number of elements.
+
+    Parameters
+    ----------
+    tensor : tf.Tensor
+        the input tensor
+
+    Returns
+    -------
+    int
+        the number of elements
+    """
+    return int(np.prod(var_shape(tensor)))
+
+
+def flatgrad(loss, var_list, clip_norm=None):
+    """Calculate the gradient and flattens it.
+
+    Parameters
+    ----------
+    loss : float
+        the loss value
+    var_list : list of tf.Tensor
+        the variables
+    clip_norm : float
+        clip the gradients (disabled if None)
+
+    Returns
+    -------
+    list of tf.Tensor
+        flattened gradient
+    """
+    grads = tf.gradients(loss, var_list)
+    if clip_norm is not None:
+        grads = [tf.clip_by_norm(grad, clip_norm=clip_norm) for grad in grads]
+    return tf.concat(axis=0, values=[
+        tf.reshape(grad if grad is not None else tf.zeros_like(v), [numel(v)])
+        for (v, grad) in zip(var_list, grads)
+    ])
+
+
+class SetFromFlat(object):
+    """Set the parameters from a flat vector."""
+
+    def __init__(self, var_list, dtype=tf.float32, sess=None):
+        """Set the parameters from a flat vector.
+
+        Parameters
+        ----------
+        var_list : list of tf.Tensor
+            the variables
+        dtype : type
+            the type for the placeholder
+        sess : tf.Session
+            the tensorflow session
+        """
+        shapes = list(map(var_shape, var_list))
+        total_size = np.sum([int(np.prod(shape)) for shape in shapes])
+
+        self.theta = theta = tf.placeholder(dtype, [total_size])
+        start = 0
+        assigns = []
+        for (shape, _var) in zip(shapes, var_list):
+            size = int(np.prod(shape))
+            assigns.append(tf.assign(
+                _var, tf.reshape(theta[start:start + size], shape)))
+            start += size
+        self.operation = tf.group(*assigns)
+        self.sess = sess
+
+    def __call__(self, theta):
+        """Perform the class-specific operation."""
+        if self.sess is None:
+            return tf.get_default_session().run(
+                self.operation, feed_dict={self.theta: theta})
+        else:
+            return self.sess.run(
+                self.operation, feed_dict={self.theta: theta})
+
+
+class GetFlat(object):
+    """Get the parameters as a flat vector."""
+
+    def __init__(self, var_list, sess=None):
+        """Get the parameters as a flat vector.
+
+        Parameters
+        ----------
+        var_list : list of tf.Tensor
+            the variables
+        sess : tf.Session
+            the tensorflow session
+        """
+        self.operation = tf.concat(
+            axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
+        self.sess = sess
+
+    def __call__(self):
+        """Perform the class-specific operation."""
+        if self.sess is None:
+            return tf.get_default_session().run(self.operation)
+        else:
+            return self.sess.run(self.operation)
+
+
 def get_target_updates(_vars, target_vars, tau, verbose=0):
     """Get target update operations.
 
@@ -259,7 +384,11 @@ def layer(val,
           act_fun=None,
           kernel_initializer=slim.variance_scaling_initializer(
               factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-          layer_norm=False):
+          layer_norm=False,
+          batch_norm=False,
+          phase=None,
+          dropout=False,
+          rate=None):
     """Create a fully-connected layer.
 
     Parameters
@@ -276,6 +405,15 @@ def layer(val,
         the initializing operation to the weights of the layer
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -288,8 +426,20 @@ def layer(val,
     if layer_norm:
         val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
 
+    if batch_norm:
+        val = tf.contrib.layers.batch_norm(
+            val,
+            center=True,
+            scale=True,
+            is_training=phase,
+            scope='bn_{}'.format(name),
+        )
+
     if act_fun is not None:
         val = act_fun(val)
+
+    if dropout:
+        val = tf.nn.dropout(val, rate=rate)
 
     return val
 
@@ -302,7 +452,11 @@ def conv_layer(val,
                act_fun=None,
                kernel_initializer=slim.variance_scaling_initializer(
                    factor=1.0 / 3.0, mode='FAN_IN', uniform=True),
-               layer_norm=False):
+               layer_norm=False,
+               batch_norm=False,
+               phase=None,
+               dropout=False,
+               rate=None):
     """Create a convolutional layer.
 
     Parameters
@@ -323,6 +477,15 @@ def conv_layer(val,
         the initializing operation to the weights of the layer
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
 
     Returns
     -------
@@ -342,8 +505,20 @@ def conv_layer(val,
     if layer_norm:
         val = tf.contrib.layers.layer_norm(val, center=True, scale=True)
 
+    if batch_norm:
+        val = tf.contrib.layers.batch_norm(
+            val,
+            center=True,
+            scale=True,
+            is_training=phase,
+            scope='bn_{}'.format(name),
+        )
+
     if act_fun is not None:
         val = act_fun(val)
+
+    if dropout:
+        val = tf.nn.dropout(val, rate=rate)
 
     return val
 
@@ -354,6 +529,10 @@ def create_fcnet(obs,
                  stochastic,
                  act_fun,
                  layer_norm,
+                 batch_norm,
+                 phase,
+                 dropout,
+                 rate,
                  scope=None,
                  reuse=False,
                  output_pre=""):
@@ -373,10 +552,22 @@ def create_fcnet(obs,
         the activation function
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool
         whether or not to reuse parameters
+    output_pre : str
+        a string that is prepended to the name of the output layer. For
+        backwards compatibility purposes.
 
     Returns
     -------
@@ -393,23 +584,19 @@ def create_fcnet(obs,
             pi_h = layer(
                 pi_h, layer_size, 'fc{}'.format(i),
                 act_fun=act_fun,
-                layer_norm=layer_norm
+                layer_norm=layer_norm,
+                batch_norm=batch_norm,
+                phase=phase,
+                dropout=dropout,
+                rate=rate,
             )
 
         if stochastic:
             # Create the output mean.
-            policy_mean = layer(
-                pi_h, num_output, 'mean',
-                act_fun=None,
-                kernel_initializer=tf.random_uniform_initializer(
-                    minval=-3e-3, maxval=3e-3)
-            )
+            policy_mean = layer(pi_h, num_output, 'mean', act_fun=None)
 
             # Create the output log_std.
-            log_std = layer(
-                pi_h, num_output, 'log_std',
-                act_fun=None,
-            )
+            log_std = layer(pi_h, num_output, 'log_std', act_fun=None)
 
             policy = (policy_mean, log_std)
         else:
@@ -435,6 +622,10 @@ def create_conv(obs,
                 strides,
                 act_fun,
                 layer_norm,
+                batch_norm,
+                phase,
+                dropout,
+                rate,
                 scope=None,
                 reuse=False):
     """Create a convolutional network.
@@ -463,6 +654,15 @@ def create_conv(obs,
         the activation function
     layer_norm : bool
         whether to enable layer normalization
+    batch_norm : bool
+        whether to enable batch normalization
+    phase : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    dropout : bool
+        whether to enable dropout
+    rate : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     scope : str
         the scope name of the model
     reuse : bool
@@ -504,7 +704,11 @@ def create_conv(obs,
                     stride_i,
                     'conv{}'.format(i),
                     act_fun=act_fun,
-                    layer_norm=layer_norm
+                    layer_norm=layer_norm,
+                    batch_norm=batch_norm,
+                    phase=phase,
+                    dropout=dropout,
+                    rate=rate,
                 )
 
             h = pi_h_image.shape[1]
@@ -656,10 +860,11 @@ def process_minibatch(mb_obs,
         mb_rewards[env_num] = np.asarray(mb_rewards[env_num])
         mb_actions[env_num] = np.concatenate(mb_actions[env_num], axis=0)
         mb_values[env_num] = np.concatenate(mb_values[env_num], axis=0)
-        mb_neglogpacs[env_num] = np.concatenate(
-            mb_neglogpacs[env_num], axis=0)
         mb_dones[env_num] = np.asarray(mb_dones[env_num])
         n_steps += mb_obs[env_num].shape[0]
+        if mb_neglogpacs is not None:
+            mb_neglogpacs[env_num] = np.concatenate(
+                mb_neglogpacs[env_num], axis=0)
 
         # Compute the bootstrapped/discounted returns.
         mb_returns[env_num] = gae_returns(
@@ -677,17 +882,19 @@ def process_minibatch(mb_obs,
         mb_contexts = np.concatenate(mb_contexts, axis=0)
         mb_actions = np.concatenate(mb_actions, axis=0)
         mb_values = np.concatenate(mb_values, axis=0)
-        mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
         mb_all_obs = np.concatenate(mb_all_obs, axis=0)
         mb_returns = np.concatenate(mb_returns, axis=0)
+        if mb_neglogpacs is not None:
+            mb_neglogpacs = np.concatenate(mb_neglogpacs, axis=0)
     else:
         mb_obs = mb_obs[0]
         mb_contexts = mb_contexts[0]
         mb_actions = mb_actions[0]
         mb_values = mb_values[0]
-        mb_neglogpacs = mb_neglogpacs[0]
         mb_all_obs = mb_all_obs[0]
         mb_returns = mb_returns[0]
+        if mb_neglogpacs is not None:
+            mb_neglogpacs = mb_neglogpacs[0]
 
     # Compute the advantages.
     advs = mb_returns - mb_values

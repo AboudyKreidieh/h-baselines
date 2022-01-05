@@ -32,6 +32,8 @@ class Policy(object):
         * layers (list of int or None): the size of the Neural network for the
           policy
         * layer_norm (bool): enable layer normalisation
+        * batch_norm (bool): enable batch normalisation
+        * dropout (bool): enable dropout
         * act_fun (tf.nn.*): the activation function to use in the neural
           network
 
@@ -142,7 +144,8 @@ class Policy(object):
                       "will default to no exploration")
 
         # Run assertions.
-        required = ["model_type", "layers", "layer_norm", "act_fun"]
+        required = ["model_type", "layers", "layer_norm", "batch_norm",
+                    "dropout", "act_fun"]
         not_specified = [s not in model_params.keys() for s in required]
         if any(not_specified):
             raise AssertionError("{} missing from model_params".format(

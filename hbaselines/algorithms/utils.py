@@ -2,6 +2,7 @@
 from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
 from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy as PPOFeedForwardPolicy
+from hbaselines.fcnet.trpo import FeedForwardPolicy as TRPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
@@ -16,6 +17,8 @@ from hbaselines.multiagent.sac import MultiFeedForwardPolicy as \
     SACMultiFeedForwardPolicy
 from hbaselines.multiagent.ppo import MultiFeedForwardPolicy as \
     PPOMultiFeedForwardPolicy
+from hbaselines.multiagent.trpo import MultiFeedForwardPolicy as \
+    TRPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy as \
     TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy as \
@@ -52,16 +55,27 @@ def is_ppo_policy(policy):
     ]
 
 
+def is_trpo_policy(policy):
+    """Check whether a policy is for designed to support TRPO."""
+    return policy in [
+        TRPOFeedForwardPolicy,
+        TRPOMultiFeedForwardPolicy,
+    ]
+
+
 def is_feedforward_policy(policy):
     """Check whether a policy is a feedforward policy."""
     return policy in [
         TD3FeedForwardPolicy,
         SACFeedForwardPolicy,
         PPOFeedForwardPolicy,
+        TRPOFeedForwardPolicy,
         TD3MultiFeedForwardPolicy,
         TD3MultiFeedForwardPolicyOld,
         SACMultiFeedForwardPolicy,
         SACMultiFeedForwardPolicyOld,
+        PPOMultiFeedForwardPolicy,
+        TRPOMultiFeedForwardPolicy,
     ]
 
 
@@ -83,6 +97,7 @@ def is_multiagent_policy(policy):
         SACMultiFeedForwardPolicy,
         SACMultiFeedForwardPolicyOld,
         PPOMultiFeedForwardPolicy,
+        TRPOMultiFeedForwardPolicy,
         TD3MultiGoalConditionedPolicy,
         SACMultiGoalConditionedPolicy,
     ]
