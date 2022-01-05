@@ -141,6 +141,21 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             Total number of timesteps used during training. Used by a subset of
             algorithms.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
+        # Utility method for indexing the goal out of an observation variable.
+        self.crop_to_goal = lambda g: tf.gather(
+            g,
+            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
+                    [self.batch_size, 1]),
+            batch_dims=1, axis=1)
+
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -301,7 +316,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 for _ in range(self.num_levels - 1)]
         else:
             self.cg_weights = [
-                self.cg_weights for _ in range(self.num_levels - 1)]
+                np.log(self.cg_weights).astype(np.float32)
+                for _ in range(self.num_levels - 1)]
 
         self.cg_loss = []
         self.cg_optimizer = []

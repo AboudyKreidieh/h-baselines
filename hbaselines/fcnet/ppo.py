@@ -80,6 +80,11 @@ class FeedForwardPolicy(Policy):
         performed
     old_vpred_ph : tf.compat.v1.placeholder
         placeholder for the current predictions of the values of given states
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     action : tf.Variable
         the output from the policy/actor
     pi_mean : tf.Variable
@@ -232,18 +237,24 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs0')
-            self.advs_ph = tf.placeholder(
+            self.advs_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="advs_ph")
-            self.old_neglog_pac_ph = tf.placeholder(
+            self.old_neglog_pac_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="old_neglog_pac_ph")
-            self.old_vpred_ph = tf.placeholder(
+            self.old_vpred_ph = tf.compat.v1.placeholder(
                 tf.float32,
                 shape=(None,),
                 name="old_vpred_ph")
+            self.phase_ph = tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase')
+            self.rate_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate')
 
         # =================================================================== #
         # Step 2: Create actor and critic variables.                          #
@@ -264,7 +275,7 @@ class FeedForwardPolicy(Policy):
             self.value_flat = self.value_fn[:, 0]
 
         # =================================================================== #
-        # Step 4: Setup the optimizers for the actor and critic.              #
+        # Step 3: Setup the optimizers for the actor and critic.              #
         # =================================================================== #
 
         self.entropy = None
@@ -278,7 +289,7 @@ class FeedForwardPolicy(Policy):
             self._setup_optimizers(scope)
 
         # =================================================================== #
-        # Step 5: Setup the operations for computing model statistics.        #
+        # Step 4: Setup the operations for computing model statistics.        #
         # =================================================================== #
 
         self._setup_stats(scope or "Model")
@@ -314,6 +325,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -328,6 +343,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -379,6 +398,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -392,6 +415,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -511,24 +538,16 @@ class FeedForwardPolicy(Policy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
-        action, values, neglogpacs = self.sess.run(
-            [self.action if apply_noise else self.pi_mean,
-             self.value_flat, self.neglogp],
-            {self.obs_ph: obs}
+        action = self.sess.run(
+            self.action if apply_noise else self.pi_mean,
+            feed_dict={
+                self.obs_ph: obs,
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            }
         )
 
-        # Store information on the values and negative-log likelihood.
-        self.mb_values[env_num].append(values)
-        self.mb_neglogpacs[env_num].append(neglogpacs)
-
         return action
-
-    def value(self, obs, context):
-        """See parent class."""
-        # Add the contextual observation, if applicable.
-        obs = self._get_obs(obs, context, axis=1)
-
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
     def store_transition(self, obs0, context0, action, reward, obs1, context1,
                          done, is_final_step, env_num=0, evaluate=False):
@@ -565,10 +584,22 @@ class FeedForwardPolicy(Policy):
         """
         # Update the minibatch of samples.
         self.mb_rewards[env_num].append(reward)
-        self.mb_obs[env_num].append([obs0])
+        self.mb_obs[env_num].append(obs0.reshape(1, -1))
         self.mb_contexts[env_num].append(context0)
-        self.mb_actions[env_num].append([action])
+        self.mb_actions[env_num].append(action.reshape(1, -1))
         self.mb_dones[env_num].append(done)
+
+        # Store information on the values and negative-log likelihood.
+        values, neglogpacs = self.sess.run(
+            [self.value_flat, self.neglogp],
+            feed_dict={
+                self.obs_ph: obs0.reshape(1, -1),
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            }
+        )
+        self.mb_values[env_num].append(values)
+        self.mb_neglogpacs[env_num].append(neglogpacs)
 
         # Update the last observation (to compute the last value for the GAE
         # expected returns).
@@ -576,12 +607,32 @@ class FeedForwardPolicy(Policy):
 
     def update(self, **kwargs):
         """See parent class."""
+        # In case not all environment numbers were used, reduce the shape of
+        # the datasets.
+        indices = [
+            i for i in range(self.num_envs) if self.last_obs[i] is not None]
+        num_envs = len(indices)
+
+        self.mb_rewards = self._sample(self.mb_rewards, indices)
+        self.mb_obs = self._sample(self.mb_obs, indices)
+        self.mb_contexts = self._sample(self.mb_contexts, indices)
+        self.mb_actions = self._sample(self.mb_actions, indices)
+        self.mb_values = self._sample(self.mb_values, indices)
+        self.mb_dones = self._sample(self.mb_dones, indices)
+        self.mb_all_obs = self._sample(self.mb_all_obs, indices)
+        self.mb_returns = self._sample(self.mb_returns, indices)
+        self.last_obs = self._sample(self.last_obs, indices)
+
         # Compute the last estimated value.
         last_values = [
             self.sess.run(
                 self.value_flat,
-                feed_dict={self.obs_ph: self.last_obs[env_num]})
-            for env_num in range(self.num_envs)
+                feed_dict={
+                    self.obs_ph: self.last_obs[env_num],
+                    self.phase_ph: 0,
+                    self.rate_ph: 0.0,
+                })
+            for env_num in range(num_envs)
         ]
 
         (self.mb_obs,
@@ -606,7 +657,7 @@ class FeedForwardPolicy(Policy):
             last_values=last_values,
             gamma=self.gamma,
             lam=self.lam,
-            num_envs=self.num_envs,
+            num_envs=num_envs,
         )
 
         # Run the optimization procedure.
@@ -666,6 +717,8 @@ class FeedForwardPolicy(Policy):
             self.rew_ph: returns,
             self.old_neglog_pac_ph: neglogpacs,
             self.old_vpred_ph: values,
+            self.phase_ph: 1,
+            self.rate_ph: 0.5,
         })
 
     def get_td_map(self):
@@ -713,4 +766,11 @@ class FeedForwardPolicy(Policy):
             self.rew_ph: mb_returns,
             self.old_neglog_pac_ph: mb_neglogpacs,
             self.old_vpred_ph: mb_values,
+            self.phase_ph: 0,
+            self.rate_ph: 0.0,
         }
+
+    @staticmethod
+    def _sample(vals, indices):
+        """Sample indices from a list."""
+        return [vals[i] for i in range(len(vals)) if i in indices]

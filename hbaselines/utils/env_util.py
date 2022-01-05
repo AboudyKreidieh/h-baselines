@@ -139,20 +139,20 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 0]
+                context_range=[16, 0],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 8]
+                context_range=[8, 8],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[0, 8]
+                context_range=[8, -8],
             )
         ] if evaluate else HumanoidMaze(
             use_contexts=True,
-            random_contexts=True,
-            context_range=[(-2, 10), (-2, 10)]
+            random_contexts=False,
+            context_range=[[16, 0], [8, 8], [8, -8]],
         ),
     },
 
@@ -329,9 +329,9 @@ ENV_ATTRIBUTES = {
     "SnakeGather": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([
-                -10, -10, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2]),
+                -6, -6, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4]),
             high=np.array(
-                [10, 10, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]),
+                [6, 6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]),
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(7)],
@@ -407,15 +407,15 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
-            shape=(5,),
+            shape=(1,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=ring(
-                stopping_penalty=True,
-                acceleration_penalty=True,
+                stopping_penalty=False,
+                acceleration_penalty=False,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
@@ -502,11 +502,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 10,),
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            15 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=highway(
@@ -527,11 +527,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 10,),
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            15 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=highway(
@@ -552,11 +552,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 10,),
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            15 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=highway(
@@ -577,11 +577,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(1 if multiagent else 10,),
+            shape=(1 if multiagent else 5,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(1 if multiagent else 10)],
+            15 * i for i in range(1 if multiagent else 5)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=highway(
@@ -602,11 +602,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10 if multiagent else 50,),
+            shape=(1 if multiagent else 25,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(10 if multiagent else 50)],
+            15 * i for i in range(1 if multiagent else 25)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=i210(
@@ -627,11 +627,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10 if multiagent else 50,),
+            shape=(1 if multiagent else 25,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(10 if multiagent else 50)],
+            15 * i for i in range(1 if multiagent else 25)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=i210(
@@ -652,11 +652,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10 if multiagent else 50,),
+            shape=(1 if multiagent else 25,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(10 if multiagent else 50)],
+            15 * i for i in range(1 if multiagent else 25)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=i210(
@@ -677,11 +677,11 @@ ENV_ATTRIBUTES = {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 20,
-            shape=(10 if multiagent else 50,),
+            shape=(1 if multiagent else 25,),
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [
-            5 * i for i in range(10 if multiagent else 50)],
+            15 * i for i in range(1 if multiagent else 25)],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
         FlowEnv(
             flow_params=i210(
@@ -690,60 +690,6 @@ ENV_ATTRIBUTES = {
                 acceleration_penalty=True,
                 use_follower_stopper=True,
                 multiagent=multiagent,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    # ======================================================================= #
-    # Mixed autonomy traffic imitation environments.                          #
-    # ======================================================================= #
-
-    "ring-imitation": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
-            shape=(5,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [5 * i for i in range(5)],
-        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
-        FlowEnv(
-            flow_params=ring(
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-                imitation=True,
-            ),
-            render=render,
-            multiagent=multiagent,
-            shared=shared,
-            maddpg=maddpg,
-        ),
-    },
-
-    "highway-imitation": {
-        "meta_ac_space": lambda relative_goals, multiagent: Box(
-            low=-1 if relative_goals else 0,
-            high=1,
-            shape=(10,),
-            dtype=np.float32
-        ),
-        "state_indices": lambda multiagent: [5 * i for i in range(10)],
-        "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
-        FlowEnv(
-            flow_params=highway(
-                fixed_boundary=True,
-                stopping_penalty=False,
-                acceleration_penalty=False,
-                use_follower_stopper=False,
-                evaluate=evaluate,
-                multiagent=multiagent,
-                imitation=True,
             ),
             render=render,
             multiagent=multiagent,
@@ -766,7 +712,7 @@ ENV_ATTRIBUTES = {
         "state_indices": lambda multiagent: [
             0, 4, 5, 6, 7, 32, 33, 34, 50, 51, 52, 57, 58, 59],
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg:
-        BipedalSoccer(render=render),
+        BipedalSoccer(),
     },
 
     "BipedalObstacles": {
@@ -834,11 +780,12 @@ def _get_ring_env_attributes(scale):
             dtype=np.float32
         ),
         "state_indices": lambda multiagent: [0] if multiagent else [
-            5 * i for i in range(scale)],
+            15 * i for i in range(scale)],
         "env": lambda evaluate, render, multiagent, shared, maddpg: FlowEnv(
             flow_params=ring(
                 stopping_penalty=False,
                 acceleration_penalty=False,
+                scale=scale,
                 evaluate=evaluate,
                 multiagent=multiagent,
             ),
@@ -849,10 +796,10 @@ def _get_ring_env_attributes(scale):
         ) if evaluate else
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
             maddpg=maddpg,
-            length=[260 * scale, 270 * scale],
+            length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
-            horizon=1500,
+            horizon=3000,
             gen_emission=False,
             rl_ids=[22 * i for i in range(scale)],
             warmup_steps=0,

@@ -10,7 +10,8 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS, TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
