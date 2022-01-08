@@ -68,6 +68,11 @@ class FeedForwardPolicy(Policy):
         placeholder for the observations
     obs1_ph : tf.compat.v1.placeholder
         placeholder for the next step observations
+    phase_ph : tf.compat.v1.placeholder
+        a placeholder that defines whether training is occurring for the batch
+        normalization layer. Set to True in training and False in testing.
+    rate_ph : tf.compat.v1.placeholder
+        the probability that each element is dropped if dropout is implemented
     actor_tf : tf.Variable
         the output from the actor network
     critic_tf : list of tf.Variable
@@ -223,6 +228,12 @@ class FeedForwardPolicy(Policy):
                 tf.float32,
                 shape=(None,) + ob_dim,
                 name='obs1')
+            self.phase_ph = tf.compat.v1.placeholder(
+                tf.bool,
+                name='phase')
+            self.rate_ph = tf.compat.v1.placeholder(
+                tf.float32,
+                name='rate')
 
         # =================================================================== #
         # Step 3: Create actor and critic variables.                          #
@@ -383,6 +394,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -397,6 +412,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
         )
@@ -444,6 +463,10 @@ class FeedForwardPolicy(Policy):
                 strides=self.model_params["strides"],
                 act_fun=self.model_params["act_fun"],
                 layer_norm=self.model_params["layer_norm"],
+                batch_norm=self.model_params["batch_norm"],
+                phase=self.phase_ph,
+                dropout=self.model_params["dropout"],
+                rate=self.rate_ph,
                 scope=scope,
                 reuse=reuse,
             )
@@ -455,6 +478,10 @@ class FeedForwardPolicy(Policy):
             stochastic=False,
             act_fun=self.model_params["act_fun"],
             layer_norm=self.model_params["layer_norm"],
+            batch_norm=self.model_params["batch_norm"],
+            phase=self.phase_ph,
+            dropout=self.model_params["dropout"],
+            rate=self.rate_ph,
             scope=scope,
             reuse=reuse,
             output_pre="qf_",
@@ -528,7 +555,9 @@ class FeedForwardPolicy(Policy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 1,
+            self.rate_ph: 0.5,
         })
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
@@ -539,7 +568,11 @@ class FeedForwardPolicy(Policy):
         if random_actions:
             action = np.array([self.ac_space.sample()])
         else:
-            action = self.sess.run(self.actor_tf, {self.obs_ph: obs})
+            action = self.sess.run(self.actor_tf, {
+                self.obs_ph: obs,
+                self.phase_ph: 0,
+                self.rate_ph: 0.0,
+            })
 
             if apply_noise:
                 # compute noisy action
@@ -647,7 +680,9 @@ class FeedForwardPolicy(Policy):
             self.action_ph: actions,
             self.rew_ph: rewards,
             self.obs1_ph: obs1,
-            self.terminals1: terminals1
+            self.terminals1: terminals1,
+            self.phase_ph: 0,
+            self.rate_ph: 0.0,
         }
 
         return td_map

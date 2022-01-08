@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/AboudyKreidieh/h-baselines.svg?branch=master)](https://travis-ci.com/AboudyKreidieh/h-baselines)
+[![tests](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/AboudyKreidieh/h-baselines/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/AboudyKreidieh/h-baselines/badge.svg?branch=master)](https://coveralls.io/github/AboudyKreidieh/h-baselines?branch=master)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AboudyKreidieh/h-baselines/blob/master/LICENSE)
 
@@ -314,6 +314,8 @@ The modifiable parameters of this policy are as follows:
     "conv"}.
   * **layers** (list of int) :the size of the Neural network for the policy
   * **layer_norm** (bool) : enable layer normalisation
+  * **batch_norm** (bool) : enable batch normalisation
+  * **dropout** (bool) : enable dropout
   * **act_fun** (tf.nn.*) : the activation function to use in the neural 
     network
   * **ignore_image** (bool) : observation includes an image but should it be 
@@ -1090,16 +1092,9 @@ network.
 
 To cite this repository in publications, use the following:
 
-```
-@misc{h-baselines,
-  author = {Kreidieh, Abdul Rahman},
-  title = {Hierarchical Baselines},
-  year = {2019},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/AboudyKreidieh/h-baselines}},
-}
-```
+Kreidieh, Abdul Rahman, et al. "Inter-Level Cooperation in Hierarchical 
+Reinforcement Learning." arXiv preprint arXiv:1912.02368 (2019). [Online]. 
+Available: https://arxiv.org/abs/1912.02368
 
 # 5. Bibliography
 

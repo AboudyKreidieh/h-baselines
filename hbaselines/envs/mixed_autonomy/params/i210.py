@@ -16,8 +16,7 @@ from flow.networks.i210_subnetwork import I210SubNetwork, EDGES_DISTRIBUTION
 import flow.config as flow_config
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
-from hbaselines.envs.mixed_autonomy.envs import LaneOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
 import hbaselines.config as hbaselines_config
 
 # the inflow rate of vehicles (in veh/hr)
@@ -25,7 +24,7 @@ INFLOW_RATE = 2050
 # the speed of inflowing vehicles from the main edge (in m/s)
 INFLOW_SPEED = 25.5
 # fraction of vehicles that are RL vehicles. 0.10 corresponds to 10%
-PENETRATION_RATE = 1/12
+PENETRATION_RATE = 1/22
 # horizon over which to run the env
 HORIZON = 1500
 # range for the inflows allowed in the network. If set to None, the inflows are
@@ -41,8 +40,7 @@ def get_flow_params(fixed_boundary,
                     acceleration_penalty,
                     use_follower_stopper,
                     evaluate=False,
-                    multiagent=False,
-                    imitation=False):
+                    multiagent=False):
     """Return the flow-specific parameters of the I-210 subnetwork.
 
     Parameters
@@ -61,8 +59,6 @@ def get_flow_params(fixed_boundary,
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
-    imitation : bool
-        whether to use the imitation environment
 
     Returns
     -------
@@ -98,12 +94,12 @@ def get_flow_params(fixed_boundary,
         "human",
         num_vehicles=0,
         acceleration_controller=(IDMController, {
-            'a': 1.3,
-            'b': 2.0,
-            'noise': 0.3,
+            "a": 1.3,
+            "b": 2.0,
+            "noise": 0.3 if evaluate else 0.0,  # TODO
             "display_warnings": False,
             "fail_safe": [
-                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+                "obey_speed_limit", "safe_velocity", "feasible_accel"],
         }),
         lane_change_controller=(SimLaneChangeController, {}),
         car_following_params=SumoCarFollowingParams(
@@ -112,7 +108,7 @@ def get_flow_params(fixed_boundary,
             speed_mode=12
         ),
         lane_change_params=SumoLaneChangeParams(
-            lane_change_mode=1621,
+            lane_change_mode="sumo_default",
         ),
     )
     vehicles.add(
@@ -120,7 +116,7 @@ def get_flow_params(fixed_boundary,
         num_vehicles=0,
         acceleration_controller=(RLController, {
             "fail_safe": [
-                'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
+                "obey_speed_limit", "safe_velocity", "feasible_accel"],
         }),
         car_following_params=SumoCarFollowingParams(
             min_gap=0.5,
@@ -134,46 +130,31 @@ def get_flow_params(fixed_boundary,
 
     # Add the inflows from the main highway.
     inflow = InFlows()
-    for lane in [0, 1, 2, 3, 4]:
-        inflow.add(
-            veh_type="human",
-            edge="ghost0",
-            vehs_per_hour=int(INFLOW_RATE * (1 - PENETRATION_RATE)),
-            depart_lane=lane,
-            depart_speed=INFLOW_SPEED
-        )
-        inflow.add(
-            veh_type="rl",
-            edge="ghost0",
-            vehs_per_hour=int(INFLOW_RATE * PENETRATION_RATE),
-            depart_lane=lane,
-            depart_speed=INFLOW_SPEED
-        )
-
-    # Choose the appropriate environment.
-    if multiagent:
-        if imitation:
-            env_name = None  # to be added later
-        else:
-            env_name = LaneOpenMultiAgentEnv
-    else:
-        if imitation:
-            env_name = AVOpenImitationEnv
-        else:
-            env_name = AVOpenEnv
+    inflow.add(
+        veh_type="human",
+        edge="ghost0",
+        vehs_per_hour=INFLOW_RATE * 5 * (1 - PENETRATION_RATE),
+        depart_lane="best",
+        depart_speed=25.5)
+    inflow.add(
+        veh_type="rl",
+        edge="ghost0",
+        vehs_per_hour=INFLOW_RATE * 5 * PENETRATION_RATE,
+        depart_lane="best",
+        depart_speed=25.5)
 
     return dict(
         # name of the experiment
-        exp_tag='I-210_subnetwork',
+        exp_tag="I-210_subnetwork",
 
         # name of the flow environment the experiment is running on
-        env_name=env_name,
+        env_name=AVOpenMultiAgentEnv if multiagent else AVOpenEnv,
 
         # name of the network class the experiment is running on
         network=I210SubNetwork,
 
         # simulator that is used by the experiment
-        simulator='traci',
+        simulator="traci",
 
         # simulation-related parameters
         sim=SumoParams(
@@ -189,7 +170,7 @@ def get_flow_params(fixed_boundary,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
             done_at_exit=False,
-            sims_per_step=3,
+            sims_per_step=1,
             additional_params={
                 "max_accel": 0.5,
                 "stopping_penalty": stopping_penalty,
@@ -198,8 +179,8 @@ def get_flow_params(fixed_boundary,
                 "obs_frames": 5,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": 10 if multiagent else 50,
-                "control_range": [500, 2300],
+                "num_rl": float("inf") if multiagent else 25,
+                "control_range": [573.08, 2363.27],
                 "expert_model": (IDMController, {
                     "a": 1.3,
                     "b": 2.0,

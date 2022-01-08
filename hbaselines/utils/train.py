@@ -3,12 +3,14 @@ import argparse
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
 from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 from hbaselines.algorithms.rl_algorithm import MULTIAGENT_PARAMS
 from hbaselines.algorithms.utils import is_sac_policy
 from hbaselines.algorithms.utils import is_td3_policy
 from hbaselines.algorithms.utils import is_ppo_policy
+from hbaselines.algorithms.utils import is_trpo_policy
 from hbaselines.algorithms.utils import is_goal_conditioned_policy
 from hbaselines.algorithms.utils import is_multiagent_policy
 
@@ -37,6 +39,8 @@ def get_hyperparameters(args, policy):
         "model_params": {
             "model_type": getattr(args, "model_params:model_type"),
             "layer_norm": getattr(args, "model_params:layer_norm"),
+            "batch_norm": getattr(args, "model_params:batch_norm"),
+            "dropout": getattr(args, "model_params:dropout"),
             "ignore_image": getattr(args, "model_params:ignore_image"),
             "image_height": getattr(args, "model_params:image_height"),
             "image_width": getattr(args, "model_params:image_width"),
@@ -100,6 +104,19 @@ def get_hyperparameters(args, policy):
             "max_grad_norm": args.max_grad_norm,
             "cliprange": args.cliprange,
             "cliprange_vf": args.cliprange_vf,
+        })
+
+    # add TRPO parameters
+    if is_trpo_policy(policy):
+        policy_kwargs.update({
+            "gamma": args.gamma,
+            "lam": args.lam,
+            "ent_coef": args.ent_coef,
+            "cg_iters": args.cg_iters,
+            "vf_iters": args.vf_iters,
+            "vf_stepsize": args.vf_stepsize,
+            "cg_damping": args.cg_damping,
+            "max_kl": args.max_kl,
         })
 
     # add GoalConditionedPolicy parameters
@@ -203,6 +220,10 @@ def parse_options(description,
         '--log_dir', type=str, default=None,
         help='the directory to log the data. Defaults to the current '
              'directory.')
+    parser_algorithm.add_argument(
+        '--ckpt_path', type=str, default=None,
+        help='path to a checkpoint file. The model is initialized with the '
+             'weights and biases within this checkpoint. Defaults to None. ')
 
     parser_algorithm = create_algorithm_parser(parser_algorithm)
     [args_alg, extras_alg] = parser_algorithm.parse_known_args(args)
@@ -216,6 +237,8 @@ def parse_options(description,
         parser_policy = create_sac_parser(parser_policy)
     elif args_alg.alg == "PPO":
         parser_policy = create_ppo_parser(parser_policy)
+    elif args_alg.alg == "TRPO":
+        parser_policy = create_trpo_parser(parser_policy)
 
     # arguments for different model architectures
     parser_policy = create_feedforward_parser(parser_policy)
@@ -451,6 +474,53 @@ def create_ppo_parser(parser):
     return parser
 
 
+def create_trpo_parser(parser):
+    """Add the TRPO hyperparameters to the parser."""
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=TRPO_PARAMS["gamma"],
+        help="the discount factor")
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=TRPO_PARAMS["lam"],
+        help="factor for trade-off of bias vs variance for Generalized "
+             "Advantage Estimator")
+    parser.add_argument(
+        "--ent_coef",
+        type=float,
+        default=TRPO_PARAMS["ent_coef"],
+        help="entropy coefficient for the loss calculation")
+    parser.add_argument(
+        "--cg_iters",
+        type=int,
+        default=TRPO_PARAMS["cg_iters"],
+        help="the number of iterations for the conjugate gradient calculation")
+    parser.add_argument(
+        "--vf_iters",
+        type=int,
+        default=TRPO_PARAMS["vf_iters"],
+        help="the value function’s number iterations for learning")
+    parser.add_argument(
+        "--vf_stepsize",
+        type=float,
+        default=TRPO_PARAMS["vf_stepsize"],
+        help="the value function stepsize")
+    parser.add_argument(
+        "--cg_damping",
+        type=float,
+        default=TRPO_PARAMS["cg_damping"],
+        help="the compute gradient dampening factor")
+    parser.add_argument(
+        "--max_kl",
+        type=float,
+        default=TRPO_PARAMS["max_kl"],
+        help="the Kullback-Leibler loss threshold")
+
+    return parser
+
+
 def create_feedforward_parser(parser):
     """Add the feedforward policy hyperparameters to the parser."""
     parser.add_argument(
@@ -468,6 +538,14 @@ def create_feedforward_parser(parser):
         "--model_params:layer_norm",
         action="store_true",
         help="enable layer normalisation")
+    parser.add_argument(
+        "--model_params:batch_norm",
+        action="store_true",
+        help="enable batch normalisation")
+    parser.add_argument(
+        "--model_params:dropout",
+        action="store_true",
+        help="enable dropout")
     parser.add_argument(
         "--model_params:layers",
         type=int,
@@ -528,8 +606,11 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--meta_period",
         type=int,
+        nargs="+",
         default=GOAL_CONDITIONED_PARAMS["meta_period"],
-        help="meta-policy action period")
+        help="meta-policy action period. For multi-level hierarchies, a "
+             "separate meta period can be provided for each level (indexed "
+             "from highest to lowest)")
     parser.add_argument(
         "--intrinsic_reward_type",
         type=str,
@@ -539,6 +620,7 @@ def create_goal_conditioned_parser(parser):
     parser.add_argument(
         "--intrinsic_reward_scale",
         type=float,
+        nargs="+",
         default=GOAL_CONDITIONED_PARAMS["intrinsic_reward_scale"],
         help="the value that the intrinsic reward should be scaled by")
     parser.add_argument(

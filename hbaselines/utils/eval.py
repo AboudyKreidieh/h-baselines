@@ -12,6 +12,8 @@ from hbaselines.fcnet.sac import FeedForwardPolicy \
     as SACFeedForwardPolicy
 from hbaselines.fcnet.ppo import FeedForwardPolicy \
     as PPOFeedForwardPolicy
+from hbaselines.fcnet.trpo import FeedForwardPolicy \
+    as TRPOFeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
@@ -20,6 +22,10 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
     as TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy \
     as SACMultiFeedForwardPolicy
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy \
+    as PPOMultiFeedForwardPolicy
+from hbaselines.multiagent.trpo import MultiFeedForwardPolicy \
+    as TRPOMultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
@@ -34,6 +40,7 @@ POLICY_DICT = {
         "TD3": TD3FeedForwardPolicy,
         "SAC": SACFeedForwardPolicy,
         "PPO": PPOFeedForwardPolicy,
+        "TRPO": TRPOFeedForwardPolicy,
     },
     "GoalConditionedPolicy": {
         "TD3": TD3GoalConditionedPolicy,
@@ -42,6 +49,8 @@ POLICY_DICT = {
     "MultiFeedForwardPolicy": {
         "TD3": TD3MultiFeedForwardPolicy,
         "SAC": SACMultiFeedForwardPolicy,
+        "PPO": PPOMultiFeedForwardPolicy,
+        "TRPO": TRPOMultiFeedForwardPolicy,
     },
     "MultiGoalConditionedPolicy": {
         "TD3": TD3MultiGoalConditionedPolicy,
@@ -90,6 +99,10 @@ def parse_options(args):
         '--random_seed', action='store_true',
         help='whether to run the simulation on a random seed. If not added, '
              'the original seed is used.')
+    parser.add_argument(
+        '--env_name', type=str, default=None,
+        help='The environment to do the evaluation in. Default to the one '
+             'fetched from the hyperparameter.json file.')
 
     return parser.parse_args(args)
 

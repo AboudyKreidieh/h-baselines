@@ -1,6 +1,7 @@
 """Script containing the HierReplayBuffer object."""
 import numpy as np
 import random
+from functools import reduce
 
 
 class HierReplayBuffer(object):
@@ -358,7 +359,15 @@ class HierReplayBuffer(object):
                 # Compute the level number, with zero corresponding to the
                 # lowest (worker) policy.
                 level_num = num_levels - i - 1
-                level_period = meta_period ** level_num
+
+                # meta-action period of the given level
+                if level_num == 0:
+                    level_period = 1
+                elif isinstance(meta_period, int):
+                    level_period = meta_period ** level_num
+                else:
+                    level_period = reduce(
+                        (lambda x, y: x * y), meta_period[-level_num:])
 
                 if i in collect_levels:
                     obses[i].append(candidate_obs[sample_time])
@@ -372,8 +381,14 @@ class HierReplayBuffer(object):
                     next_contexts[i].append(
                         candidate_action[i - 1][indx_context + 1])
 
-                    indx_actions = int(
-                        sample_time / meta_period ** max(level_num - 1, 0))
+                    if level_num in [0, 1]:
+                        indx_actions = sample_time
+                    elif isinstance(meta_period, int):
+                        indx_actions = int(
+                            sample_time / meta_period ** level_num - 1)
+                    else:
+                        indx_actions = int(sample_time / reduce(
+                            (lambda x, y: x * y), meta_period[-level_num+1:]))
                     actions[i].append(candidate_action[i][indx_actions])
 
                     indx_rewards = indx_context
@@ -381,7 +396,11 @@ class HierReplayBuffer(object):
 
                 # Update the sample time to match the start of the meta period
                 # for the next higher-level.
-                sample_time -= sample_time % meta_period ** (num_levels - i)
+                if isinstance(meta_period, int):
+                    sample_time -= sample_time % meta_period ** (num_levels-i)
+                else:
+                    sample_time -= sample_time % reduce(
+                        (lambda x, y: x * y), meta_period[-level_num-1:])
 
             # TODO: only works for two level hierarchies.
             if with_additional:
