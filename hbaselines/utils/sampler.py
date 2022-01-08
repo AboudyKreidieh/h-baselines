@@ -44,25 +44,12 @@ class Sampler(object):
             evaluate=evaluate,
         )
 
-        # Collect the key for the info_dict variable.
-        if isinstance(self.env.action_space, dict):
-            initial_action = {key: self.env.action_space[key].sample()
-                              for key in self.env.action_space.keys()}
-        elif env_name.startswith("multiagent") and shared:
-            init_obs = self._init_obs["obs"] if maddpg else self._init_obs
-            initial_action = {key: self.env.action_space.sample()
-                              for key in init_obs.keys()}
-        else:
-            initial_action = self.env.action_space.sample()
-        _, _, _, info_dict = self.env.step(initial_action)
-
         self._env_num = env_num
         self._render = render
-        self._info_keys = list(info_dict.keys())
 
     def get_init_obs(self):
         """Return the initial observation from the environment."""
-        return self._init_obs.copy(), self._info_keys
+        return self._init_obs.copy()
 
     def get_context(self):
         """Collect the contextual term. None if it is not passed."""
@@ -142,10 +129,9 @@ class Sampler(object):
         context = getattr(self.env, "current_context", None)
 
         # Done mask for multi-agent policies is slightly different.
-        if isinstance(done, dict):
-            done = done["__all__"]
+        reset = done["__all__"] if isinstance(done, dict) else done
 
-        if done:
+        if reset:
             # Reset the environment.
             reset_obs = self.env.reset()
             reset_obs, reset_all_obs = get_obs(reset_obs)
@@ -154,13 +140,13 @@ class Sampler(object):
             reset_all_obs = None
 
         return {
-            "obs": obs if not done else (obs, reset_obs),
+            "obs": obs if not reset else (obs, reset_obs),
             "context": context,
             "action": action,
             "reward": reward,
             "done": done,
             "env_num": self._env_num,
-            "all_obs": all_obs if not done else (all_obs, reset_all_obs),
+            "all_obs": all_obs if not reset else (all_obs, reset_all_obs),
             "info": info,
         }
 

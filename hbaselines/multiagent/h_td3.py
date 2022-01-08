@@ -1,5 +1,5 @@
 """TD3-compatible multi-agent goal-conditioned hierarchical policy."""
-from hbaselines.multiagent.base import MultiActorCriticPolicy as BasePolicy
+from hbaselines.multiagent.base import MultiAgentPolicy as BasePolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 
 
@@ -93,8 +93,10 @@ class MultiGoalConditionedPolicy(BasePolicy):
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the worker. Must be one of:
 
@@ -115,8 +117,9 @@ class MultiGoalConditionedPolicy(BasePolicy):
             * "scaled_exp_negative_distance": similar to the previous worker
               reward type but with states, actions, and next states that are
               scaled.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-level policies is
             meant to be a relative or absolute goal, i.e. specific state or
@@ -167,19 +170,20 @@ class MultiGoalConditionedPolicy(BasePolicy):
         scope : str
             an upper-level scope term. Used by policies that call this one.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         super(MultiGoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
             shared=shared,
@@ -187,9 +191,16 @@ class MultiGoalConditionedPolicy(BasePolicy):
             all_ob_space=all_ob_space,
             n_agents=n_agents,
             base_policy=GoalConditionedPolicy,
-            num_envs=n_agents * num_envs if shared else num_envs,
+            num_envs=num_envs,
             scope=scope,
             additional_params=dict(
+                buffer_size=buffer_size,
+                batch_size=batch_size,
+                actor_lr=actor_lr,
+                critic_lr=critic_lr,
+                tau=tau,
+                gamma=gamma,
+                use_huber=use_huber,
                 noise=noise,
                 target_policy_noise=target_policy_noise,
                 target_noise_clip=target_noise_clip,

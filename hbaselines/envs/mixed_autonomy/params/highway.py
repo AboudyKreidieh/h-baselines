@@ -15,7 +15,6 @@ from flow.networks.highway import ADDITIONAL_NET_PARAMS
 
 from hbaselines.envs.mixed_autonomy.envs import AVOpenEnv
 from hbaselines.envs.mixed_autonomy.envs import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
 import hbaselines.config as hbaselines_config
 
 # the speed of entering vehicles
@@ -27,9 +26,7 @@ TRAFFIC_FLOW = 2215
 # number of steps per rollout
 HORIZON = 1500
 # percentage of autonomous vehicles compared to human vehicles on highway
-PENETRATION_RATE = 1/12
-# whether to include noise in the environment
-INCLUDE_NOISE = True
+PENETRATION_RATE = 1/22
 # range for the inflows allowed in the network. If set to None, the inflows are
 # not modified from their initial value.
 INFLOWS = [1000, 2000]
@@ -43,8 +40,7 @@ def get_flow_params(fixed_boundary,
                     acceleration_penalty,
                     use_follower_stopper,
                     evaluate=False,
-                    multiagent=False,
-                    imitation=False):
+                    multiagent=False):
     """Return the flow-specific parameters of the single lane highway network.
 
     Parameters
@@ -63,8 +59,6 @@ def get_flow_params(fixed_boundary,
         whether the automated vehicles are via a single-agent policy or a
         shared multi-agent policy with the actions of individual vehicles
         assigned by a separate policy call
-    imitation : bool
-        whether to use the imitation environment
 
     Returns
     -------
@@ -123,7 +117,7 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if INCLUDE_NOISE else 0.0,
+            "noise": 0.3 if evaluate else 0.0,  # TODO
             "display_warnings": False,
             "fail_safe": [
                 'obey_speed_limit', 'safe_velocity', 'feasible_accel'],
@@ -170,23 +164,12 @@ def get_flow_params(fixed_boundary,
 
     # SET UP THE FLOW PARAMETERS
 
-    if multiagent:
-        if imitation:
-            env_name = None  # to be added later
-        else:
-            env_name = AVOpenMultiAgentEnv
-    else:
-        if imitation:
-            env_name = AVOpenImitationEnv
-        else:
-            env_name = AVOpenEnv
-
     return dict(
         # name of the experiment
         exp_tag="highway",
 
         # name of the flow environment the experiment is running on
-        env_name=env_name,
+        env_name=AVOpenMultiAgentEnv if multiagent else AVOpenEnv,
 
         # name of the network class the experiment is running on
         network=HighwayNetwork,
@@ -199,7 +182,7 @@ def get_flow_params(fixed_boundary,
             evaluate=evaluate,
             horizon=HORIZON,
             warmup_steps=warmup_steps,
-            sims_per_step=3,
+            sims_per_step=1,
             done_at_exit=False,
             additional_params={
                 "max_accel": 0.5,
@@ -209,7 +192,7 @@ def get_flow_params(fixed_boundary,
                 "use_follower_stopper": use_follower_stopper,
                 "inflows": None if fixed_boundary else INFLOWS,
                 "rl_penetration": PENETRATION_RATE,
-                "num_rl": float("inf") if multiagent else 10,
+                "num_rl": float("inf") if multiagent else 5,
                 "control_range": [500, 2300],
                 "expert_model": (IDMController, {
                     "a": 1.3,
