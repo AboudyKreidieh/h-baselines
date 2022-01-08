@@ -2,15 +2,18 @@
 import tensorflow as tf
 import numpy as np
 from copy import deepcopy
+import os
 import random
+from functools import reduce
 
-from hbaselines.base_policies import ActorCriticPolicy
+from hbaselines.base_policies import Policy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
 from hbaselines.utils.reward_fns import negative_distance
 from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
+from hbaselines.utils.tf_util import get_trainable_vars
 
 
-class GoalConditionedPolicy(ActorCriticPolicy):
+class GoalConditionedPolicy(Policy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
 
     TODO
@@ -48,8 +51,12 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
     Attributes
     ----------
-    meta_period : int
-        meta-policy action period
+    num_levels : int
+        number of levels within the hierarchy. Must be greater than 1. Two
+        levels correspond to a Manager/Worker paradigm.
+    meta_period : int or [int]
+        meta-policy action period. For multi-level hierarchies, a separate meta
+        period can be provided for each level (indexed from highest to lowest)
     intrinsic_reward_type : str
         the reward function to be used by the worker. Must be one of:
 
@@ -69,8 +76,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
           terminate early.
         * "scaled_exp_negative_distance": similar to the previous worker reward
           type but with states, actions, and next states that are scaled.
-    intrinsic_reward_scale : float
-        the value that the intrinsic reward should be scaled by
+    intrinsic_reward_scale : [float]
+        the value that the intrinsic reward should be scaled by. One for each
+        meta-level.
     relative_goals : bool
         specifies whether the goal issued by the higher-level policies is meant
         to be a relative or absolute goal, i.e. specific state or change in
@@ -84,24 +92,26 @@ class GoalConditionedPolicy(ActorCriticPolicy):
     subgoal_testing_rate : float
         rate at which the original (non-hindsight) sample is stored in the
         replay buffer as well. Used only if `hindsight` is set to True.
-    connected_gradients : bool
-        whether to use the connected gradient update actor update procedure
-        to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+    cooperative_gradients : bool
+        whether to use the cooperative gradient update procedure for the
+        higher-level policy. See: https://arxiv.org/abs/1912.02368v1
     cg_weights : float
         weights for the gradients of the loss of the lower-level policies with
         respect to the parameters of the higher-level policies. Only used if
-        `connected_gradients` is set to True.
-    use_fingerprints : bool
-        specifies whether to add a time-dependent fingerprint to the
-        observations
-    fingerprint_range : (list of float, list of float)
-        the low and high values for each fingerprint element, if they are being
-        used
-    fingerprint_dim : tuple of int
-        the shape of the fingerprint elements, if they are being used
-    centralized_value_functions : bool
-        specifies whether to use centralized value functions
-    policy : list of hbaselines.base_policies.ActorCriticPolicy
+        `cooperative_gradients` is set to True.
+    pretrain_worker : bool
+        specifies whether you are pre-training the lower-level policies.
+        Actions by the high-level policy are randomly sampled from its action
+        space.
+    pretrain_path : str or None
+        path to the pre-trained worker policy checkpoints
+    pretrain_ckpt : int or None
+        checkpoint number to use within the worker policy path. If set to None,
+        the most recent checkpoint is used.
+    total_steps : int
+        Total number of timesteps used during training. Used by a subset of
+        algorithms.
+    policy : list of hbaselines.base_policies.Policy
         a list of policy object for each level in the hierarchy, order from
         highest to lowest level policy
     replay_buffer : hbaselines.goal_conditioned.replay_buffer.HierReplayBuffer
@@ -124,10 +134,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  verbose,
                  tau,
                  gamma,
-                 layer_norm,
-                 layers,
-                 act_fun,
                  use_huber,
+                 l2_penalty,
+                 model_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -136,11 +145,14 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                  off_policy_corrections,
                  hindsight,
                  subgoal_testing_rate,
-                 connected_gradients,
+                 cooperative_gradients,
                  cg_weights,
-                 use_fingerprints,
-                 fingerprint_range,
-                 centralized_value_functions,
+                 cg_delta,
+                 pretrain_worker,
+                 pretrain_path,
+                 pretrain_ckpt,
+                 total_steps,
+                 scope=None,
                  env_name="",
                  num_envs=1,
                  meta_policy=None,
@@ -173,21 +185,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             target update rate
         gamma : float
             discount factor
-        layer_norm : bool
-            enable layer normalisation
-        layers : list of int or None
-            the size of the neural network for the policy
-        act_fun : tf.nn.*
-            the activation function to use in the neural network
         use_huber : bool
             specifies whether to use the huber distance function as the loss
             for the critic. If set to False, the mean-squared error metric is
             used instead
+        model_params : dict
+            dictionary of model-specific parameters. See parent class.
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the worker. Must be one of:
 
@@ -208,8 +218,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             * "scaled_exp_negative_distance": similar to the previous worker
               reward type but with states, actions, and next states that are
               scaled.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : float or [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-level policies is
             meant to be a relative or absolute goal, i.e. specific state or
@@ -223,24 +234,32 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         subgoal_testing_rate : float
             rate at which the original (non-hindsight) sample is stored in the
             replay buffer as well. Used only if `hindsight` is set to True.
-        connected_gradients : bool
-            whether to use the connected gradient update actor update procedure
-            to the higher-level policy. See: https://arxiv.org/abs/1912.02368v1
+        cooperative_gradients : bool
+            whether to use the cooperative gradient update procedure for the
+            higher-level policy. See: https://arxiv.org/abs/1912.02368v1
         cg_weights : float
             weights for the gradients of the loss of the lower-level policies
             with respect to the parameters of the higher-level policies. Only
-            used if `connected_gradients` is set to True.
-        use_fingerprints : bool
-            specifies whether to add a time-dependent fingerprint to the
-            observations
-        fingerprint_range : (list of float, list of float)
-            the low and high values for each fingerprint element, if they are
-            being used
-        centralized_value_functions : bool
-            specifies whether to use centralized value functions
-        meta_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+            used if `cooperative_gradients` is set to True.
+        cg_delta : float
+            the desired lower-level expected returns. If set to None, a fixed
+            Lagrangian specified by cg_weights is used instead. Only used if
+            `cooperative_gradients` is set to True.
+        pretrain_worker : bool
+            specifies whether you are pre-training the lower-level policies.
+            Actions by the high-level policy are randomly sampled from the
+            action space.
+        pretrain_path : str or None
+            path to the pre-trained worker policy checkpoints
+        pretrain_ckpt : int or None
+            checkpoint number to use within the worker policy path. If set to
+            None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
+        meta_policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use for the meta policies
-        worker_policy : type [ hbaselines.base_policies.ActorCriticPolicy ]
+        worker_policy : type [ hbaselines.base_policies.Policy ]
             the policy model to use for the worker policy
         additional_params : dict
             additional algorithm-specific policy parameters. Used internally by
@@ -251,22 +270,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ob_space=ob_space,
             ac_space=ac_space,
             co_space=co_space,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            actor_lr=actor_lr,
-            critic_lr=critic_lr,
             verbose=verbose,
-            tau=tau,
-            gamma=gamma,
-            layer_norm=layer_norm,
-            layers=layers,
-            act_fun=act_fun,
-            use_huber=use_huber
+            l2_penalty=l2_penalty,
+            model_params=model_params,
+            num_envs=num_envs,
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
 
         self.t = 0
+        # Process some variable.
+        if isinstance(meta_period, list) and len(meta_period) == 1:
+            meta_period = meta_period[0]
+        if isinstance(intrinsic_reward_scale, float):
+            intrinsic_reward_scale = [
+                intrinsic_reward_scale for _ in range(num_levels - 1)]
+
         self.num_levels = num_levels
         self.meta_period = meta_period
         self.intrinsic_reward_type = intrinsic_reward_type
@@ -275,20 +294,19 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self.off_policy_corrections = off_policy_corrections
         self.hindsight = hindsight
         self.subgoal_testing_rate = subgoal_testing_rate
-        self.connected_gradients = connected_gradients
+        self.cooperative_gradients = cooperative_gradients
         self.cg_weights = cg_weights
-        self.use_fingerprints = use_fingerprints
-        self.fingerprint_range = fingerprint_range
-        self.fingerprint_dim = (len(self.fingerprint_range[0]),)
-        self.centralized_value_functions = centralized_value_functions
+        self.cg_delta = cg_delta
+        self.pretrain_worker = pretrain_worker
+        self.pretrain_path = pretrain_path
+        self.pretrain_ckpt = pretrain_ckpt
+        self.total_steps = total_steps
 
         # Get the observation and action space of the higher level policies.
         meta_ac_space = get_meta_ac_space(
             ob_space=ob_space,
             relative_goals=relative_goals,
             env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
         )
 
         # =================================================================== #
@@ -306,11 +324,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             ac_space_i = meta_ac_space if i < (num_levels - 1) else ac_space
             co_space_i = co_space if i == 0 else meta_ac_space
             ob_space_i = ob_space
-            zero_fingerprint_i = i == (num_levels - 1)
 
             # The policies are ordered from the highest level to lowest level
             # policies in the hierarchy.
             with tf.compat.v1.variable_scope("level_{}".format(i)):
+                # Compute the scope name based on any outer scope term.
+                scope_i = "level_{}".format(i)
+                if scope is not None:
+                    scope_i = "{}/{}".format(scope, scope_i)
+
+                # TODO: description.
+                model_params_i = model_params.copy()
+                model_params_i.update({
+                    "ignore_flat_channels":
+                        model_params["ignore_flat_channels"] if i < 1 else [],
+                    "ignore_image":
+                        model_params["ignore_image"] if i < 1 else True,
+                })
+
+                # Create the next policy.
                 self.policy.append(policy_fn(
                     sess=sess,
                     ob_space=ob_space_i,
@@ -323,13 +355,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     verbose=verbose,
                     tau=tau,
                     gamma=gamma,
-                    layer_norm=layer_norm,
-                    layers=layers,
-                    act_fun=act_fun,
                     use_huber=use_huber,
-                    scope="level_{}".format(i),
-                    zero_fingerprint=zero_fingerprint_i,
-                    fingerprint_dim=self.fingerprint_dim[0],
+                    l2_penalty=l2_penalty,
+                    model_params=model_params_i,
+                    scope=scope_i,
                     **(additional_params or {}),
                 ))
 
@@ -339,7 +368,9 @@ class GoalConditionedPolicy(ActorCriticPolicy):
 
         # Create the replay buffer.
         self.replay_buffer = HierReplayBuffer(
-            buffer_size=int(buffer_size/meta_period),
+            buffer_size=int(buffer_size/(
+                meta_period ** num_levels - 1 if isinstance(meta_period, int)
+                else reduce((lambda x, y: x*y), self.meta_period))),
             batch_size=batch_size,
             meta_period=meta_period,
             obs_dim=ob_space.shape[0],
@@ -350,8 +381,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         )
 
         # current action by the meta-level policies
-        self._meta_action = [[None for _ in range(num_levels - 1)]
-                             for _ in range(num_envs)]
+        self.meta_action = [[None for _ in range(num_levels - 1)]
+                            for _ in range(num_envs)]
 
         # a list of all the actions performed by each level in the hierarchy,
         # ordered from highest to lowest level policy. A separate element is
@@ -379,12 +410,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._dones = [[] for _ in range(num_envs)]
 
         # Collect the state indices for the intrinsic rewards.
-        self.goal_indices = get_state_indices(
-            ob_space=ob_space,
-            env_name=env_name,
-            use_fingerprints=use_fingerprints,
-            fingerprint_dim=self.fingerprint_dim
-        )
+        self.goal_indices = get_state_indices(ob_space, env_name)
 
         # Define the intrinsic reward function.
         if intrinsic_reward_type in ["negative_distance",
@@ -414,16 +440,18 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                     goals=goals / scale,
                     next_states=next_states[self.goal_indices] / scale,
                     relative_context=relative_goals,
-                    offset=0.0
+                    offset=0.0,
                 ) + offset
 
             # Perform the exponential and squashing operations to keep the
             # intrinsic reward between 0 and 1.
             if "exp" in intrinsic_reward_type:
                 def exp_intrinsic_reward_fn(states, goals, next_states):
-                    return np.exp(
-                        -1 *
-                        intrinsic_reward_fn(states, goals, next_states) ** 2)
+                    # TODO: temporary
+                    span = sum(np.square(self.policy[0].ac_space.high -
+                                         self.policy[0].ac_space.low))
+                    rew = intrinsic_reward_fn(states, goals, next_states)
+                    return np.exp(- (rew / (span / 40)) ** 2)
                 self.intrinsic_reward_fn = exp_intrinsic_reward_fn
             else:
                 self.intrinsic_reward_fn = intrinsic_reward_fn
@@ -434,6 +462,11 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # =================================================================== #
         # Step 3: Create algorithm-specific features.                         #
         # =================================================================== #
+
+        # the number of get_action calls that have been performed. This is used
+        # when pretraining the worker to incrementally train different levels
+        # of the policy.
+        self._steps = 0
 
         # a fixed goal transition function for the meta-actions in between meta
         # periods. This is used when relative_goals is set to True in order to
@@ -446,24 +479,82 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                 return goal
         self.goal_transition_fn = goal_transition_fn
 
-        # Utility method for indexing the goal out of an observation variable.
-        self.crop_to_goal = lambda g: tf.gather(
-            g,
-            tf.tile(tf.expand_dims(np.array(self.goal_indices), 0),
-                    [self.batch_size, 1]),
-            batch_dims=1, axis=1)
-
-        if self.connected_gradients:
-            self._setup_connected_gradients()
+        if self.cooperative_gradients:
+            if scope is None:
+                self._setup_cooperative_gradients()
+            else:
+                with tf.compat.v1.variable_scope(scope):
+                    self._setup_cooperative_gradients()
 
     def initialize(self):
         """See parent class.
 
-        This method calls the initialization methods of the policies at every
-        level of the hierarchy.
+        This method performs the following operations:
+
+        - It calls the initialization methods of the policies at every level of
+          the hierarchy to match the target value function parameters with the
+          current policy parameters.
+        - It also imports the lower-level policies from a pretrained checkpoint
+          if a path to one is specified.
         """
+        # Initialize the separate policies in the hierarchy.
         for i in range(self.num_levels):
             self.policy[i].initialize()
+
+        if self.pretrain_path is not None:
+            ckpt_path = os.path.join(self.pretrain_path, "checkpoints")
+
+            # Get the checkpoint number.
+            if self.pretrain_ckpt is None:
+                filenames = os.listdir(ckpt_path)
+                metafiles = [f[:-5] for f in filenames if f[-5:] == ".meta"]
+                metanum = [int(f.split("-")[-1]) for f in metafiles]
+                ckpt_num = max(metanum)
+            else:
+                ckpt_num = self.pretrain_ckpt
+
+            # Extract the checkpoint path.
+            ckpt_path = os.path.join(ckpt_path, "itr-{}".format(ckpt_num))
+            var_list = tf.train.list_variables(ckpt_path)
+            ckpt_reader = tf.train.load_checkpoint(ckpt_path)
+
+            # Check that the number of levels match.
+            assert var_list[-1][0].startswith(
+                "level_{}".format(self.num_levels-1)), \
+                "Number of levels between the checkpoint and current policy " \
+                "do not match. Policy={}, Checkpoint={}".format(
+                    self.num_levels,
+                    int(var_list[-1][0].split("/")[0][6:]) + 1)
+
+            # Check that the names and shapes of the lowest-level policy
+            # parameters match the current policy.
+            current_vars = {
+                v.name: v.shape.as_list()
+                for v in get_trainable_vars()
+            }
+            for var in var_list:
+                var_name, var_shape = var
+                var_name = "{}:0".format(var_name)
+                # We only check the lower-level policies.
+                if any(var_name.startswith("level_{}".format(level))
+                       for level in range(1, self.num_levels)):
+                    assert var_name in current_vars.keys(), \
+                        "{} not available in current policy.".format(var_name)
+                    current_shape = current_vars[var_name]
+                    assert current_shape == var_shape, \
+                        "Shape mismatch for {}, {} != {}".format(
+                            var_name, var_shape, current_shape)
+
+            # Import the lower-level policy parameters.
+            current_vars = {v.name: v for v in get_trainable_vars()}
+            for var in var_list:
+                var_name, var_shape = var
+                if any(var_name.startswith("level_{}".format(level))
+                       for level in range(1, self.num_levels)):
+                    value = ckpt_reader.get_tensor(var_name)
+                    var_name = "{}:0".format(var_name)
+                    self.sess.run(
+                        tf.compat.v1.assign(current_vars[var_name], value))
 
     def update(self, update_actor=True, **kwargs):
         """Perform a gradient update step.
@@ -486,65 +577,60 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         update_actor : bool
             specifies whether to update the actor policy. The critic policy is
             still updated if this value is set to False.
-
-        Returns
-        -------
-         ([float, float], [float, float])
-            the critic loss for every policy in the hierarchy
-        (float, float)
-            the actor loss for every policy in the hierarchy
         """
         # Not enough samples in the replay buffer.
         if not self.replay_buffer.can_sample():
-            return tuple([[0, 0] for _ in range(self.num_levels)]), \
-                tuple([0 for _ in range(self.num_levels)])
+            return
 
         # Specifies whether to remove additional data from the replay buffer
         # sampling procedure. Since only a subset of algorithms use additional
         # data, removing it can speedup the other algorithms.
         with_additional = self.off_policy_corrections
 
+        # Specifies the levels to collect data from, corresponding to the
+        # levels that will be trained. This also helps speedup the operation.
+        collect_levels = [i for i in range(self.num_levels - 1) if
+                          kwargs["update_meta"][i]] + [self.num_levels - 1]
+
         # Get a batch.
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
-            with_additional)
+            with_additional, collect_levels)
 
         # Do not use done masks for lower-level policies with negative
         # intrinsic rewards (these the policies to terminate early).
         if self._negative_reward_fn():
             for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
+                done[i+1] = np.array([False] * len(done[i+1]))
 
-        # Update the higher-level policies.
-        actor_loss = []
-        critic_loss = []
+        # Loop through all meta-policies.
+        for i in range(self.num_levels - 1):
+            if kwargs['update_meta'][i] and not self._pretrain_level(i):
+                # Replace the goals with the most likely goals.
+                if self.off_policy_corrections and i == 0:  # FIXME
+                    meta_act = self._sample_best_meta_action(
+                        meta_obs0=obs0[i],
+                        meta_obs1=obs1[i],
+                        meta_action=act[i],
+                        worker_obses=additional["worker_obses"],
+                        worker_actions=additional["worker_actions"],
+                        k=8
+                    )
+                    act[i] = meta_act
 
-        if kwargs['update_meta']:
-            # Replace the goals with the most likely goals.
-            if self.off_policy_corrections:
-                meta_act = self._sample_best_meta_action(
-                    meta_obs0=obs0[0],
-                    meta_obs1=obs1[0],
-                    meta_action=act[0],
-                    worker_obses=additional["worker_obses"],
-                    worker_actions=additional["worker_actions"],
-                    k=8
-                )
-                act[0] = meta_act
-
-            for i in range(self.num_levels - 1):
-                if self.connected_gradients:
-                    # Perform the connected gradients update procedure.
-                    vf_loss, pi_loss = self._connected_gradients_update(
+                if self.cooperative_gradients:
+                    # Perform the cooperative gradients update procedure.
+                    self._cooperative_gradients_update(
                         obs0=obs0,
                         actions=act,
                         rewards=rew,
                         obs1=obs1,
                         terminals1=done,
+                        level_num=i,
                         update_actor=kwargs['update_meta_actor'],
                     )
                 else:
                     # Perform the regular meta update procedure.
-                    vf_loss, pi_loss = self.policy[i].update_from_batch(
+                    self.policy[i].update_from_batch(
                         obs0=obs0[i],
                         actions=act[i],
                         rewards=rew[i],
@@ -553,15 +639,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
                         update_actor=kwargs['update_meta_actor'],
                     )
 
-                actor_loss.append(pi_loss)
-                critic_loss.append(vf_loss)
-        else:
-            for i in range(self.num_levels - 1):
-                actor_loss.append(0)
-                critic_loss.append([0, 0])
-
         # Update the lowest level policy.
-        w_critic_loss, w_actor_loss = self.policy[-1].update_from_batch(
+        self.policy[-1].update_from_batch(
             obs0=obs0[-1],
             actions=act[-1],
             rewards=rew[-1],
@@ -569,41 +648,48 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             terminals1=done[-1],
             update_actor=update_actor,
         )
-        critic_loss.append(w_critic_loss)
-        actor_loss.append(w_actor_loss)
-
-        return tuple(critic_loss), tuple(actor_loss)
 
     def get_action(self, obs, context, apply_noise, random_actions, env_num=0):
         """See parent class."""
+        # Increment the internal number of get_action calls.
+        self._steps += 1
+
         # Loop through the policies in the hierarchy.
         self.t += 4
         prob_random = max(0., 1 - self.t / 1e6)
         for i in range(self.num_levels - 1):
             if self._update_meta(i, env_num):
-                context_i = context if i == 0 \
-                    else self._meta_action[env_num][i - 1]
-                random_exp = random.uniform(0, 1) < prob_random
+                if self._pretrain_level(i):
+                    # Sample goals randomly when performing pre-training.
+                    self.meta_action[env_num][i] = np.array([
+                        self.policy[i].ac_space.sample()])
+                else:
+                    context_i = context if i == 0 \
+                        else self.meta_action[env_num][i - 1]
+                    random_exp = random.uniform(0, 1) < prob_random
 
-                # Update the meta action based on the output from the policy if
-                # the time period requires is.
-                self._meta_action[env_num][i] = self.policy[i].get_action(
-                    obs, context_i, apply_noise,
-                    random_actions=random_actions or random_exp)
+                    # Update the meta action based on the output from the
+                    # policy if the time period requires is.
+                    self.meta_action[env_num][i] = self.policy[i].get_action(
+                        obs, context_i, apply_noise,
+                        random_actions=random_actions or random_exp)
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
-                self._meta_action[env_num][i] = self.goal_transition_fn(
+                self.meta_action[env_num][i] = self.goal_transition_fn(
                     obs0=np.array(
                         [self._observations[env_num][-1][self.goal_indices]]),
-                    goal=self._meta_action[env_num][i],
+                    goal=self.meta_action[env_num][i],
                     obs1=obs[:, self.goal_indices]
                 )
 
         # Return the action to be performed within the environment (i.e. the
         # action by the lowest level policy).
         action = self.policy[-1].get_action(
-            obs, self._meta_action[env_num][-1], apply_noise, random_actions)
+            obs=obs,
+            context=self.meta_action[env_num][-1],
+            apply_noise=apply_noise,
+            random_actions=random_actions and self.pretrain_path is None)
 
         return action
 
@@ -613,21 +699,25 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         # the time since the most recent sample began collecting step samples
         t_start = len(self._observations[env_num])
 
+        # Flatten the observations.
+        obs0 = obs0.flatten()
+        obs1 = obs1.flatten()
+
         for i in range(1, self.num_levels):
             # Actions and intrinsic rewards for the high-level policies are
             # only updated when the action is recomputed by the graph.
-            if t_start % self.meta_period ** (i-1) == 0:
+            if self._update_meta(self.num_levels - i, env_num):
                 self._rewards[env_num][-i].append(0)
                 self._actions[env_num][-i-1].append(
-                    self._meta_action[env_num][-i].flatten())
+                    self.meta_action[env_num][-i].flatten())
 
             # Compute the intrinsic rewards and append them to the list of
             # rewards.
             self._rewards[env_num][-i][-1] += \
-                self.intrinsic_reward_scale / self.meta_period ** (i-1) * \
+                self.intrinsic_reward_scale[-i] * \
                 self.intrinsic_reward_fn(
                     states=obs0,
-                    goals=self._meta_action[env_num][-i].flatten(),
+                    goals=self.meta_action[env_num][-i].flatten(),
                     next_states=obs1
                 )
 
@@ -648,8 +738,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         self._dones[env_num].append(done and not is_final_step)
 
         # Add a sample to the replay buffer.
-        if len(self._observations[env_num]) == \
-                self.meta_period ** (self.num_levels - 1) or done:
+        if self._update_meta(0, env_num) or done:
             # Add the last observation and context.
             self._observations[env_num].append(obs1)
             self._contexts[env_num].append(context1)
@@ -658,7 +747,7 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             for i in range(self.num_levels - 1):
                 self._actions[env_num][i].append(self.goal_transition_fn(
                     obs0=obs0[self.goal_indices],
-                    goal=self._meta_action[env_num][i],
+                    goal=self.meta_action[env_num][i],
                     obs1=obs1[self.goal_indices]
                 ).flatten())
 
@@ -712,6 +801,10 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         passed to the replay buffer, which are cleared whenever the highest
         level meta-period has been met or the environment has been reset.
 
+        If the meta period is defined as a list, the period of level i (indexed
+        from highest to lowest) is equal to the multiple of the elements in the
+        list after index i.
+
         Parameters
         ----------
         level : int
@@ -726,8 +819,21 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             True if the action should be updated by the meta-policy at the
             given level
         """
-        return len(self._observations[env_num]) % \
-            (self.meta_period ** (self.num_levels - level - 1)) == 0
+        # In the case of passing the lowest level policy, return True (always
+        # perform an action).
+        if level == self.num_levels - 1:
+            return True
+
+        # the time since the most recent sample began collecting step samples
+        t_start = len(self._observations[env_num])
+
+        # meta-action period of the given level
+        if isinstance(self.meta_period, int):
+            level_period = self.meta_period ** (self.num_levels - level - 1)
+        else:
+            level_period = reduce((lambda x, y: x*y), self.meta_period[level:])
+
+        return t_start % level_period == 0
 
     def clear_memory(self, env_num):
         """Clear internal memory that is used by the replay buffer."""
@@ -768,6 +874,37 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         """
         return "exp" not in self.intrinsic_reward_type \
             and "non" not in self.intrinsic_reward_type
+
+    def _pretrain_level(self, level):
+        """Check whether the current level should be training.
+
+        When using `pretrain_worker` the lowest level policy is trained every
+        step, and higher level policies are incrementally unfrozen for a
+        fraction of the training steps. The highest level policy is not trained
+        in this case, but the checkpoints can later be used to continue
+        training the entire hierarchy.
+
+        Parameters
+        ----------
+        level : int
+            the level of the policy
+
+        Returns
+        -------
+        bool
+            True if the level should not be trained and should perform random
+            actions, False otherwise
+        """
+        # number of steps to perform pretraining for a given level, assuming
+        # pretrain_worker is set to True.
+        pretrain_steps = self.total_steps * \
+            (self.num_levels - level - 1) / (self.num_levels - 1)
+
+        if level == 0:
+            # bug fix for the final step
+            return self.pretrain_worker
+        else:
+            return self.pretrain_worker and (self._steps < pretrain_steps)
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #
@@ -965,17 +1102,17 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         for i in range(1, len(observations) + 1):
             obs_t = observations[-i]
 
-            # Calculate the hindsight goal in using relative goals.
-            # If not, the hindsight goal is simply a subset of the
-            # final state observation.
+            # Calculate the hindsight goal in using relative goals. If not, the
+            # hindsight goal is simply a subset of the final state observation.
             if self.relative_goals:
                 hindsight_goal += \
                     obs_tp1[self.goal_indices] - obs_t[self.goal_indices]
 
-            # Modify the Worker intrinsic rewards based on the new
-            # hindsight goal.
+            # Modify the Worker intrinsic rewards based on the new hindsight
+            # goal.
             if i > 1:
-                rewards[-(i - 1)] = self.intrinsic_reward_scale \
+                # FIXME: intrinsic_reward_scale
+                rewards[-(i - 1)] = self.intrinsic_reward_scale[0] \
                     * self.intrinsic_reward_fn(obs_t, hindsight_goal, obs_tp1)
 
             obs_tp1 = deepcopy(obs_t)
@@ -984,21 +1121,22 @@ class GoalConditionedPolicy(ActorCriticPolicy):
         return new_goals, rewards
 
     # ======================================================================= #
-    #                      Auxiliary methods for HRL-CG                       #
+    #                       Auxiliary methods for CHER                        #
     # ======================================================================= #
 
-    def _setup_connected_gradients(self):
-        """Create the connected gradients meta-policy optimizer."""
+    def _setup_cooperative_gradients(self):
+        """Create the cooperative gradients meta-policy optimizer."""
         raise NotImplementedError
 
-    def _connected_gradients_update(self,
-                                    obs0,
-                                    actions,
-                                    rewards,
-                                    obs1,
-                                    terminals1,
-                                    update_actor=True):
-        """Perform the gradient update procedure for the HRL-CG algorithm.
+    def _cooperative_gradients_update(self,
+                                      obs0,
+                                      actions,
+                                      rewards,
+                                      obs1,
+                                      terminals1,
+                                      level_num,
+                                      update_actor=True):
+        """Perform the gradient update procedure for the CHER algorithm.
 
         This procedure is similar to update_from_batch, expect it runs the
         self.cg_optimizer operation instead of the policy object's optimizer,
@@ -1019,6 +1157,8 @@ class GoalConditionedPolicy(ActorCriticPolicy):
             (batch_size,) vector of rewards for every level in the hierarchy
         terminals1 : list of numpy bool
             (batch_size,) vector of done masks for every level in the hierarchy
+        level_num : int
+            the hierarchy level number of the policy to optimize
         update_actor : bool
             specifies whether to update the actor policy of the meta policy.
             The critic policy is still updated if this value is set to False.

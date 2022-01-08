@@ -6,6 +6,8 @@ omit =
     */setup.py
     */hbaselines/envs/efficient_hrl/ant.py
     */hbaselines/envs/efficient_hrl/ant_maze_env.py
+    */hbaselines/envs/efficient_hrl/humanoid.py
+    */hbaselines/envs/efficient_hrl/humanoid_maze_env.py
     */hbaselines/envs/snn4hrl/envs.py
 
 exclude_lines =
