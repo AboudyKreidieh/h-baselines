@@ -4,8 +4,8 @@ import numpy as np
 
 from hbaselines.fcnet.replay_buffer import ReplayBuffer
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
-from hbaselines.multi_fcnet.replay_buffer import MultiReplayBuffer
-from hbaselines.multi_fcnet.replay_buffer import SharedReplayBuffer
+from hbaselines.multiagent.replay_buffer import MultiReplayBuffer
+from hbaselines.multiagent.replay_buffer import SharedReplayBuffer
 
 
 class TestReplayBuffer(unittest.TestCase):
@@ -153,6 +153,29 @@ class TestHierReplayBuffer(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(done[0], [0])
         np.testing.assert_array_almost_equal(done[1], [0])
+        np.testing.assert_array_almost_equal(done[2], [0])
+
+        # Test the `sample` method with collect_levels set to a subset.
+        obs0, obs1, act, rew, done, _ = self.replay_buffer.sample(
+            False, collect_levels=[0, 2])
+        np.testing.assert_array_almost_equal(obs0[0], [[0, 0]])
+        np.testing.assert_array_almost_equal(obs0[1], [])
+        np.testing.assert_array_almost_equal(obs0[2], [[6, 6]])
+
+        np.testing.assert_array_almost_equal(obs1[0], [[9, 1]])
+        np.testing.assert_array_almost_equal(obs1[1], [])
+        np.testing.assert_array_almost_equal(obs1[2], [[7, 7]])
+
+        np.testing.assert_array_almost_equal(act[0], [[0]])
+        np.testing.assert_array_almost_equal(act[1], [])
+        np.testing.assert_array_almost_equal(act[2], [[6]])
+
+        np.testing.assert_array_almost_equal(rew[0], [0])
+        np.testing.assert_array_almost_equal(rew[1], [])
+        np.testing.assert_array_almost_equal(rew[2], [6])
+
+        np.testing.assert_array_almost_equal(done[0], [0])
+        np.testing.assert_array_almost_equal(done[1], [])
         np.testing.assert_array_almost_equal(done[2], [0])
 
 

@@ -1,44 +1,25 @@
 """An evaluator script for pre-trained policies."""
 import os
 import sys
-import argparse
 import random
 import numpy as np
 import tensorflow as tf
-import json
-import time
 from copy import deepcopy
+from skvideo.io import FFmpegWriter
 
-from flow.core.util import emission_to_csv
-
-from hbaselines.algorithms import OffPolicyRLAlgorithm
-from hbaselines.fcnet.td3 import FeedForwardPolicy \
-    as TD3FeedForwardPolicy
-from hbaselines.fcnet.sac import FeedForwardPolicy \
-    as SACFeedForwardPolicy
-from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
-    as TD3GoalConditionedPolicy
-from hbaselines.goal_conditioned.sac import GoalConditionedPolicy \
-    as SACGoalConditionedPolicy
-
-
-# dictionary that maps policy names to policy objects
-POLICY_DICT = {
-    "FeedForwardPolicy": {
-        "TD3": TD3FeedForwardPolicy,
-        "SAC": SACFeedForwardPolicy,
-    },
-    "GoalConditionedPolicy": {
-        "TD3": TD3GoalConditionedPolicy,
-        "SAC": SACGoalConditionedPolicy,
-    },
-}
+from hbaselines.algorithms import RLAlgorithm
+from hbaselines.utils.eval import parse_options
+from hbaselines.utils.eval import get_hyperparameters_from_dir
+from hbaselines.utils.eval import TrajectoryLogger
 
 # name of Flow environments. These are rendered differently
-FLOW_ENV_NAMES = [
+FLOW_ENVS = [
     "ring-v0",
-    "ring-v1",
-    "ring-v2",
+    "ring-v0-fast",
+    "ring-v1-fast",
+    "ring-v2-fast",
+    "ring-v3-fast",
+    "ring-v4-fast",
     "merge-v0",
     "merge-v1",
     "merge-v2",
@@ -51,97 +32,28 @@ FLOW_ENV_NAMES = [
 ]
 
 
-def parse_options(args):
-    """Parse training options user can specify in command line.
-
-    Returns
-    -------
-    argparse.Namespace
-        the output parser object
-    """
-    parser = argparse.ArgumentParser(
-        description='Run evaluation episodes of a given checkpoint.',
-        epilog='python run_eval "/path/to/dir_name" ckpt_num')
-
-    # required input parameters
-    parser.add_argument(
-        'dir_name', type=str, help='the path to the checkpoints folder')
-
-    # optional arguments
-    parser.add_argument(
-        '--ckpt_num', type=int, default=None,
-        help='the checkpoint number. If not specified, the last checkpoint is '
-             'used.')
-    parser.add_argument(
-        '--num_rollouts', type=int, default=1,
-        help='number of eval episodes')
-    parser.add_argument(
-        '--no_render', action='store_true',
-        help='shuts off rendering')
-    parser.add_argument(
-        '--random_seed', action='store_true',
-        help='whether to run the simulation on a random seed. If not added, '
-             'the original seed is used.')
-
-    flags, _ = parser.parse_known_args(args)
-
-    return flags
-
-
-def get_hyperparameters_from_dir(ckpt_path):
-    """Collect the algorithm-specific hyperparameters from the checkpoint.
-
-    Parameters
-    ----------
-    ckpt_path : str
-        the path to the checkpoints folder
-
-    Returns
-    -------
-    str
-        environment name
-    hbaselines.goal_conditioned.*
-        policy object
-    dict
-        algorithm and policy hyperparaemters
-    int
-        the seed value
-    """
-    # import the dictionary of hyperparameters
-    with open(os.path.join(ckpt_path, 'hyperparameters.json'), 'r') as f:
-        hp = json.load(f)
-
-    # collect the policy object
-    policy_name = hp['policy_name']
-    alg_name = hp['algorithm']
-    policy = POLICY_DICT[policy_name][alg_name]
-
-    # collect the environment name
-    env_name = hp['env_name']
-
-    # collect the seed value
-    seed = hp['seed']
-
-    # remove unnecessary features from hp dict
-    hp = hp.copy()
-    del hp['policy_name'], hp['env_name'], hp['seed']
-    del hp['algorithm'], hp['date/time']
-
-    return env_name, policy, hp, seed
-
-
 def main(args):
     """Execute multiple training operations."""
     flags = parse_options(args)
 
+    # Run assertions.
+    assert not (flags.no_render and flags.save_video), \
+        "If saving the rendering, no_render cannot be set to True."
+
     # get the hyperparameters
     env_name, policy, hp, seed = get_hyperparameters_from_dir(flags.dir_name)
+    if flags.env_name is not None:
+        env_name = flags.env_name
+        # Override n_agents
+        if "n_agents" in hp["policy_kwargs"]:
+            hp["policy_kwargs"]["n_agents"] = 100
     hp['num_envs'] = 1
     hp['render_eval'] = not flags.no_render  # to visualize the policy
+    multiagent = env_name.startswith("multiagent")
 
     # create the algorithm object. We will be using the eval environment in
     # this object to perform the rollout.
-    alg = OffPolicyRLAlgorithm(
+    alg = RLAlgorithm(
         policy=policy,
         env=env_name,
         eval_env=env_name,
@@ -174,59 +86,147 @@ def main(args):
     policy = alg.policy_tf
     env = alg.eval_env
 
+    if flags.save_trajectory:
+        logger = TrajectoryLogger(env_name)
+    else:
+        logger = None
+
     # Perform the evaluation procedure.
     episode_rewards = []
 
     # Add an emission path to Flow environments.
-    if env_name in FLOW_ENV_NAMES:
+    if env_name in FLOW_ENVS or (multiagent and env_name[11:] in FLOW_ENVS):
         sim_params = deepcopy(env.wrapped_env.sim_params)
         sim_params.emission_path = "./flow_results"
         env.wrapped_env.restart_simulation(
             sim_params, render=not flags.no_render)
 
-    for episode_num in range(flags.num_rollouts):
-        # Run a rollout.
-        obs = env.reset()
-        total_reward = 0
-        while True:
-            context = [env.current_context] \
-                if hasattr(env, "current_context") else None
-            action = policy.get_action(
-                np.asarray([obs]),
-                context=context,
-                apply_noise=False,
-                random_actions=False,
-            )
-            obs, reward, done, _ = env.step(action[0])
-            if not flags.no_render:
-                env.render()
-            total_reward += reward
-            if done:
-                break
+    if not isinstance(env, list):
+        env_list = [env]
+    else:
+        env_list = env
 
-        # Print total returns from a given episode.
-        episode_rewards.append(total_reward)
-        print("Round {}, return: {}".format(episode_num, total_reward))
+    for env_num, env in enumerate(env_list):
+        for episode_num in range(flags.num_rollouts):
+            if not flags.no_render and env_name not in FLOW_ENVS:
+                out = FFmpegWriter("{}_{}_{}.mp4".format(
+                    flags.video, env_num, episode_num))
+            else:
+                out = None
+
+            obs, total_reward = env.reset(), 0
+
+            if flags.save_trajectory:
+                logger.reset(env)
+
+            while True:
+                context = [env.current_context] \
+                    if hasattr(env, "current_context") else None
+
+                if multiagent:
+                    processed_obs = {
+                        key: np.array([obs[key]]) for key in obs.keys()}
+                else:
+                    processed_obs = np.asarray([obs])
+
+                action = policy.get_action(
+                    obs=processed_obs,
+                    context=context,
+                    apply_noise=False,
+                    random_actions=False,
+                )
+
+                # Flatten the actions to pass to step.
+                if multiagent:
+                    action = {key: action[key][0] for key in action.keys()}
+                else:
+                    action = action[0]
+
+                # Visualize the sub-goals of the hierarchical policy.
+                if hasattr(policy, "meta_action") \
+                        and policy.meta_action is not None \
+                        and hasattr(env, "set_goal"):
+                    goal = np.array([
+                        policy.meta_action[0][i] +
+                        (obs[policy.goal_indices]
+                         if policy.relative_goals else 0)
+                        for i in range(policy.num_levels - 1)
+                    ])
+                    env.set_goal(goal)
+
+                # Advance the simulation by one step.
+                new_obs, reward, done, info = env.step(action)
+
+                if flags.save_trajectory:
+                    logger.log_sample(new_obs, policy)
+
+                # Render the new step.
+                if not flags.no_render:
+                    if flags.save_video:
+                        if alg.env_name == "AntGather":
+                            out.writeFrame(env.render(mode='rgb_array'))
+                        elif alg.env_name == "BipedalSoccer":
+                            image = env.render(mode="rgb_array")
+                            image = np.reshape(image, (128, 128, 3))
+                            image = np.flipud(image)
+                            image = np.fliplr(image)
+                            out.writeFrame(image)
+                        else:
+                            out.writeFrame(env.render(
+                                mode='rgb_array', height=1024, width=1024))
+                    else:
+                        env.render()
+
+                if multiagent:
+                    if (isinstance(done, dict) and done["__all__"]) \
+                            or done is True:
+                        break
+                    obs0_transition = {
+                        k: np.array([obs[k]]) for k in obs.keys()}
+                    obs1_transition = {
+                        k: np.array([new_obs[k]]) for k in new_obs.keys()}
+                    total_reward += np.mean([
+                        reward[key] for key in reward.keys()])
+                else:
+                    if done:
+                        break
+                    obs0_transition = obs
+                    obs1_transition = new_obs
+                    total_reward += reward
+
+                policy.store_transition(
+                    obs0=obs0_transition,
+                    context0=context[0] if context is not None else None,
+                    action=action,
+                    reward=reward,
+                    obs1=obs1_transition,
+                    context1=context[0] if context is not None else None,
+                    done=done,
+                    is_final_step=done,
+                    evaluate=True,
+                )
+
+                obs = new_obs
+
+            # Print total returns from a given episode.
+            episode_rewards.append(total_reward)
+            print("Round {}, return: {}".format(episode_num, total_reward))
+            for key in info.keys():
+                print("Round {}, {}: {}".format(episode_num, key, info[key]))
+
+            # Save the video.
+            if not flags.no_render and env_name not in FLOW_ENVS \
+                    and flags.save_video:
+                out.close()
+
+            # Save logged trajectory data.
+            if flags.save_trajectory:
+                logger.save(
+                    "log_{}_{}".format(env_num, episode_num), plot=True)
 
     # Print total statistics.
     print("Average, std return: {}, {}".format(
         np.mean(episode_rewards), np.std(episode_rewards)))
-
-    if env_name in FLOW_ENV_NAMES:
-        # wait a short period of time to ensure the xml file is readable
-        time.sleep(0.1)
-
-        # collect the location of the emission file
-        dir_path = env.wrapped_env.sim_params.emission_path
-        emission_filename = "{0}-emission.xml".format(
-            env.wrapped_env.network.name)
-        emission_path = os.path.join(dir_path, emission_filename)
-
-        # convert the emission file into a csv
-        emission_to_csv(emission_path)
-
-        # Delete the .xml version of the emission file.
-        os.remove(emission_path)
 
 
 if __name__ == '__main__':

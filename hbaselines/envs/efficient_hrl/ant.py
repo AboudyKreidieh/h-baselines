@@ -17,6 +17,7 @@
 import math
 import numpy as np
 from gym import utils
+from copy import deepcopy
 try:
     import mujoco_py
     from gym.envs.mujoco import mujoco_env
@@ -47,7 +48,6 @@ def q_mult(a, b):
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """Gym representation of the Ant MuJoCo environment."""
 
-    FILE = "ant.xml"
     ORI_IND = 3
 
     def __init__(self,
@@ -55,6 +55,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                  expose_all_qpos=True,
                  expose_body_coms=None,
                  expose_body_comvels=None,
+                 top_down_view=False,
                  ant_fall=False):
         """Instantiate the Ant environment.
 
@@ -68,6 +69,8 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             whether to provide all body_coms values via the observation
         expose_body_comvels : list of str
             whether to provide all body_comvels values via the observation
+        top_down_view : bool, optional
+            if set to True, the top-down view is provided via the observations
         ant_fall : bool
             specifies whether you are using the AntFall environment. The agent
             in this environment is placed on a block of height 4; the "dying"
@@ -78,6 +81,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._expose_body_comvels = expose_body_comvels
         self._body_com_indices = {}
         self._body_comvel_indices = {}
+        self._top_down_view = top_down_view
         self._ant_fall = ant_fall
 
         try:
@@ -129,15 +133,15 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # No cfrc observation
         if self._expose_all_qpos:
             obs = np.concatenate([
-                self.physics.data.qpos.flat,  # Ensures only ant obs.
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[:15],  # Ensures only ant obs.
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
         else:
             obs = np.concatenate([
-                self.physics.data.qpos.flat[2:],
-                self.physics.data.qvel.flat,
-                np.clip(self.sim.data.cfrc_ext, -1, 1).flat,
+                self.physics.data.qpos.flat[2:15],
+                self.physics.data.qvel.flat[:14],
+                np.clip(self.sim.data.cfrc_ext, -1, 1).flat[:84],
             ])
 
         if self._expose_body_coms is not None:
@@ -155,6 +159,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                     indices = range(len(obs), len(obs) + len(comvel))
                     self._body_comvel_indices[name] = indices
                 obs = np.concatenate([obs, comvel])
+
         return obs
 
     def reset_model(self):
@@ -171,7 +176,24 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def viewer_setup(self):
         """Create the viewer."""
-        self.viewer.cam.distance = self.model.stat.extent * 0.5
+        if self._top_down_view:
+            self.update_cam()
+        else:
+            self.viewer.cam.distance = self.model.stat.extent * 0.5
+            self.viewer.cam.distance = 55
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = 8
+            self.viewer.cam.lookat[1] = 8
+
+    def update_cam(self):
+        """Update the position of the camera."""
+        if self.viewer is not None:
+            x, y = self.get_xy()
+            self.viewer.cam.azimuth = 0
+            self.viewer.cam.distance = 15.
+            self.viewer.cam.elevation = -90
+            self.viewer.cam.lookat[0] = x
+            self.viewer.cam.lookat[1] = y
 
     def get_ori(self):
         """Return the orientation of the agent."""
@@ -196,3 +218,17 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def get_xy(self):
         """Return the x,y position of the agent."""
         return self.physics.data.qpos[:2]
+
+    def set_goal(self, goal):
+        """Set the goal position of the agent.
+
+        Parameters
+        ----------
+        goal : array_like
+            the desired position of the agent
+        """
+        goal = deepcopy(goal)
+        num_levels = len(goal)
+        for i in range(num_levels):
+            self.physics.data.qpos.flat[15*(i+1):15*(i+2)] = goal[i]
+            self.physics.data.qpos.flat[15*(i+1) + 2] = 8

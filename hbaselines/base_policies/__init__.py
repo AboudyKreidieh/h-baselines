@@ -1,8 +1,6 @@
 """Init file for the base policies submodule."""
-from hbaselines.base_policies.actor_critic import ActorCriticPolicy
-from hbaselines.base_policies.imitation import ImitationLearningPolicy
+from hbaselines.base_policies.policy import Policy
 
 __all__ = [
-    "ActorCriticPolicy",
-    "ImitationLearningPolicy"
+    "Policy",
 ]

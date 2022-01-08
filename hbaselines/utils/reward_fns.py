@@ -20,7 +20,8 @@ def negative_distance(states,
                       relative_context=False,
                       epsilon=1e-10,
                       bonus_epsilon=0.,
-                      offset=0.0):
+                      offset=0.0,
+                      output_activation=lambda x: x):
     """Return the negative euclidean distance between next_states and goals.
 
     Parameters
@@ -51,6 +52,8 @@ def negative_distance(states,
         the output reward
     offset : float
         an offset value that is added to the returned reward
+    output_activation : function
+        a function that the un-normalized reward is passed through
 
     Returns
     -------
@@ -79,4 +82,4 @@ def negative_distance(states,
     bonus = float(dist < bonus_epsilon)
     dist *= reward_scales
 
-    return bonus + offset - dist
+    return output_activation(bonus + offset - dist)
