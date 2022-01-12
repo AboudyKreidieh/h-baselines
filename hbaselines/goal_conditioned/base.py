@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy
 import os
 import random
+from functools import reduce
 
 from hbaselines.base_policies import Policy
 from hbaselines.goal_conditioned.replay_buffer import HierReplayBuffer
@@ -53,8 +54,9 @@ class GoalConditionedPolicy(Policy):
     num_levels : int
         number of levels within the hierarchy. Must be greater than 1. Two
         levels correspond to a Manager/Worker paradigm.
-    meta_period : int
-        meta-policy action period
+    meta_period : int or [int]
+        meta-policy action period. For multi-level hierarchies, a separate meta
+        period can be provided for each level (indexed from highest to lowest)
     intrinsic_reward_type : str
         the reward function to be used by the worker. Must be one of:
 
@@ -74,8 +76,9 @@ class GoalConditionedPolicy(Policy):
           terminate early.
         * "scaled_exp_negative_distance": similar to the previous worker reward
           type but with states, actions, and next states that are scaled.
-    intrinsic_reward_scale : float
-        the value that the intrinsic reward should be scaled by
+    intrinsic_reward_scale : [float]
+        the value that the intrinsic reward should be scaled by. One for each
+        meta-level.
     relative_goals : bool
         specifies whether the goal issued by the higher-level policies is meant
         to be a relative or absolute goal, i.e. specific state or change in
@@ -191,8 +194,10 @@ class GoalConditionedPolicy(Policy):
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the worker. Must be one of:
 
@@ -213,8 +218,9 @@ class GoalConditionedPolicy(Policy):
             * "scaled_exp_negative_distance": similar to the previous worker
               reward type but with states, actions, and next states that are
               scaled.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : float or [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-level policies is
             meant to be a relative or absolute goal, i.e. specific state or
@@ -271,6 +277,13 @@ class GoalConditionedPolicy(Policy):
         )
 
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
+
+        # Process some variable.
+        if isinstance(meta_period, list) and len(meta_period) == 1:
+            meta_period = meta_period[0]
+        if isinstance(intrinsic_reward_scale, float):
+            intrinsic_reward_scale = [
+                intrinsic_reward_scale for _ in range(num_levels - 1)]
 
         self.num_levels = num_levels
         self.meta_period = meta_period
@@ -354,7 +367,9 @@ class GoalConditionedPolicy(Policy):
 
         # Create the replay buffer.
         self.replay_buffer = HierReplayBuffer(
-            buffer_size=int(buffer_size/meta_period),
+            buffer_size=int(buffer_size/(
+                meta_period ** num_levels - 1 if isinstance(meta_period, int)
+                else reduce((lambda x, y: x*y), self.meta_period))),
             batch_size=batch_size,
             meta_period=meta_period,
             obs_dim=ob_space.shape[0],
@@ -584,7 +599,7 @@ class GoalConditionedPolicy(Policy):
         # intrinsic rewards (these the policies to terminate early).
         if self._negative_reward_fn():
             for i in range(self.num_levels - 1):
-                done[i+1] = np.array([False] * done[i+1].shape[0])
+                done[i+1] = np.array([False] * len(done[i+1]))
 
         # Loop through all meta-policies.
         for i in range(self.num_levels - 1):
@@ -686,7 +701,7 @@ class GoalConditionedPolicy(Policy):
         for i in range(1, self.num_levels):
             # Actions and intrinsic rewards for the high-level policies are
             # only updated when the action is recomputed by the graph.
-            if t_start % self.meta_period ** (i-1) == 0:
+            if self._update_meta(self.num_levels - i, env_num):
                 self._rewards[env_num][-i].append(0)
                 self._actions[env_num][-i-1].append(
                     self.meta_action[env_num][-i].flatten())
@@ -694,7 +709,7 @@ class GoalConditionedPolicy(Policy):
             # Compute the intrinsic rewards and append them to the list of
             # rewards.
             self._rewards[env_num][-i][-1] += \
-                self.intrinsic_reward_scale / self.meta_period ** (i-1) * \
+                self.intrinsic_reward_scale[-i] * \
                 self.intrinsic_reward_fn(
                     states=obs0,
                     goals=self.meta_action[env_num][-i].flatten(),
@@ -718,8 +733,7 @@ class GoalConditionedPolicy(Policy):
         self._dones[env_num].append(done and not is_final_step)
 
         # Add a sample to the replay buffer.
-        if len(self._observations[env_num]) == \
-                self.meta_period ** (self.num_levels - 1) or done:
+        if self._update_meta(0, env_num) or done:
             # Add the last observation and context.
             self._observations[env_num].append(obs1)
             self._contexts[env_num].append(context1)
@@ -782,6 +796,10 @@ class GoalConditionedPolicy(Policy):
         passed to the replay buffer, which are cleared whenever the highest
         level meta-period has been met or the environment has been reset.
 
+        If the meta period is defined as a list, the period of level i (indexed
+        from highest to lowest) is equal to the multiple of the elements in the
+        list after index i.
+
         Parameters
         ----------
         level : int
@@ -796,8 +814,21 @@ class GoalConditionedPolicy(Policy):
             True if the action should be updated by the meta-policy at the
             given level
         """
-        return len(self._observations[env_num]) % \
-            (self.meta_period ** (self.num_levels - level - 1)) == 0
+        # In the case of passing the lowest level policy, return True (always
+        # perform an action).
+        if level == self.num_levels - 1:
+            return True
+
+        # the time since the most recent sample began collecting step samples
+        t_start = len(self._observations[env_num])
+
+        # meta-action period of the given level
+        if isinstance(self.meta_period, int):
+            level_period = self.meta_period ** (self.num_levels - level - 1)
+        else:
+            level_period = reduce((lambda x, y: x*y), self.meta_period[level:])
+
+        return t_start % level_period == 0
 
     def clear_memory(self, env_num):
         """Clear internal memory that is used by the replay buffer."""
@@ -1066,17 +1097,17 @@ class GoalConditionedPolicy(Policy):
         for i in range(1, len(observations) + 1):
             obs_t = observations[-i]
 
-            # Calculate the hindsight goal in using relative goals.
-            # If not, the hindsight goal is simply a subset of the
-            # final state observation.
+            # Calculate the hindsight goal in using relative goals. If not, the
+            # hindsight goal is simply a subset of the final state observation.
             if self.relative_goals:
                 hindsight_goal += \
                     obs_tp1[self.goal_indices] - obs_t[self.goal_indices]
 
-            # Modify the Worker intrinsic rewards based on the new
-            # hindsight goal.
+            # Modify the Worker intrinsic rewards based on the new hindsight
+            # goal.
             if i > 1:
-                rewards[-(i - 1)] = self.intrinsic_reward_scale \
+                # FIXME: intrinsic_reward_scale
+                rewards[-(i - 1)] = self.intrinsic_reward_scale[0] \
                     * self.intrinsic_reward_fn(obs_t, hindsight_goal, obs_tp1)
 
             obs_tp1 = deepcopy(obs_t)

@@ -139,20 +139,20 @@ ENV_ATTRIBUTES = {
         "env": lambda evaluate, render, n_levels, multiagent, shared, maddpg: [
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 0]
+                context_range=[16, 0],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[8, 8]
+                context_range=[8, 8],
             ),
             HumanoidMaze(
                 use_contexts=True,
-                context_range=[0, 8]
+                context_range=[8, -8],
             )
         ] if evaluate else HumanoidMaze(
             use_contexts=True,
-            random_contexts=True,
-            context_range=[(-2, 10), (-2, 10)]
+            random_contexts=False,
+            context_range=[[16, 0], [8, 8], [8, -8]],
         ),
     },
 
@@ -329,9 +329,9 @@ ENV_ATTRIBUTES = {
     "SnakeGather": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=np.array([
-                -10, -10, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2, -np.pi/2]),
+                -6, -6, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4, -np.pi/4]),
             high=np.array(
-                [10, 10, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]),
+                [6, 6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]),
             dtype=np.float32,
         ),
         "state_indices": lambda multiagent: [i for i in range(7)],
