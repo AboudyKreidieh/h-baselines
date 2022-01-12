@@ -1169,13 +1169,13 @@ class RLAlgorithm(object):
                 # policies based on the meta and actor update frequencies
                 kwargs = {
                     "update_meta": [
-                        train_itr % self.meta_update_freq ** i == 0
-                        for i in range(1, num_levels)
+                        train_itr % self.meta_update_freq == 0
+                        for _ in range(1, num_levels)
                     ],
                     "update_meta_actor": [
-                        train_itr % (self.meta_update_freq ** i *
+                        train_itr % (self.meta_update_freq *
                                      self.actor_update_freq) == 0
-                        for i in range(1, num_levels)
+                        for _ in range(1, num_levels)
                     ]
                 }
             else:
