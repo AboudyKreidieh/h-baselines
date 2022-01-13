@@ -60,7 +60,10 @@ def get_hyperparameters(args, policy):
             "layers":
                 getattr(args, "model_params:layers") or
                 FEEDFORWARD_PARAMS["model_params"]["layers"],
-        }
+        },
+        "exploration_params": {
+            "exploration_strategy": args.exploration_strategy,
+        },
     }
 
     # add TD3 parameters
@@ -225,6 +228,10 @@ def parse_options(description,
         '--log_dir', type=str, default=None,
         help='the directory to log the data. Defaults to the current '
              'directory.')
+    parser_algorithm.add_argument(
+        '--exploration_strategy', type=str, default=None,
+        help='The exploration strategy used for this training.'
+             'Default to not using any explorations.')
     parser_algorithm.add_argument(
         '--ckpt_path', type=str, default=None,
         help='path to a checkpoint file. The model is initialized with the '

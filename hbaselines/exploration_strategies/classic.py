@@ -35,7 +35,7 @@ class EpsilonGreedy(ExplorationStrategy):
                  ac_space,
                  epsilon_max=1,
                  epsilon_min=0,
-                 decay_rate=5e5):
+                 decay_rate=3e6):
         """Instantiate the exploration strategy object.
 
         Parameters

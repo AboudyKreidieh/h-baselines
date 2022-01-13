@@ -124,6 +124,7 @@ class FeedForwardPolicy(Policy):
                  verbose,
                  learning_rate,
                  model_params,
+                 exploration_params,
                  n_minibatches,
                  n_opt_epochs,
                  gamma,
@@ -156,6 +157,8 @@ class FeedForwardPolicy(Policy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         learning_rate : float
             the learning rate
         n_minibatches : int
@@ -194,6 +197,7 @@ class FeedForwardPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 

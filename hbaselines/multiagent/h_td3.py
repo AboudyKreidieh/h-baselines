@@ -21,6 +21,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -81,6 +82,8 @@ class MultiGoalConditionedPolicy(BasePolicy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -186,6 +189,7 @@ class MultiGoalConditionedPolicy(BasePolicy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             shared=shared,
             maddpg=maddpg,
             all_ob_space=all_ob_space,

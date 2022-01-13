@@ -21,6 +21,7 @@ def run_exp(env,
             log_interval,
             save_interval,
             initial_exploration_steps,
+            exploration_strategy,
             ckpt_path):
     """Run a single training procedure.
 
@@ -128,6 +129,7 @@ def main(args, base_dir):
             log_interval=args.log_interval,
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
+            exploration_strategy=args.exploration_strategy,
             ckpt_path=args.ckpt_path,
         )
 

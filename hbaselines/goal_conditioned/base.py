@@ -13,6 +13,8 @@ from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
 from hbaselines.exploration_strategies import EpsilonGreedy
 from hbaselines.utils.tf_util import get_trainable_vars
 
+import hbaselines.exploration_strategies
+
 
 class GoalConditionedPolicy(Policy):
     r"""Goal-conditioned hierarchical reinforcement learning model.
@@ -138,6 +140,7 @@ class GoalConditionedPolicy(Policy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -192,6 +195,8 @@ class GoalConditionedPolicy(Policy):
             used instead
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -274,6 +279,7 @@ class GoalConditionedPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 
@@ -361,6 +367,7 @@ class GoalConditionedPolicy(Policy):
                     use_huber=use_huber,
                     l2_penalty=l2_penalty,
                     model_params=model_params_i,
+                    exploration_params=exploration_params,
                     scope=scope_i,
                     **(additional_params or {}),
                 ))
@@ -592,8 +599,9 @@ class GoalConditionedPolicy(Policy):
 
         # Specifies the levels to collect data from, corresponding to the
         # levels that will be trained. This also helps speedup the operation.
-        collect_levels = [i for i in range(self.num_levels - 1) if
-                          kwargs["update_meta"][i]] + [self.num_levels - 1]
+        collect_levels = [i for i in range(self.num_levels - 1)
+                          if kwargs["update_meta"][i]
+                          and not self.pretrain_worker] + [self.num_levels - 1]
 
         # Get a batch.
         obs0, obs1, act, rew, done, additional = self.replay_buffer.sample(
@@ -672,6 +680,8 @@ class GoalConditionedPolicy(Policy):
                     # policy if the time period requires is.
                     self.meta_action[env_num][i] = self.policy[i].get_action(
                         obs, context_i, apply_noise, random_actions)
+                    if self.exploration_strategy:
+                        self.meta_action[env_num][i] = self.exploration_strategy[1].apply_noise(self.meta_action[env_num][i])
             else:
                 # Update the meta-action in accordance with a fixed transition
                 # function.
@@ -689,6 +699,10 @@ class GoalConditionedPolicy(Policy):
             context=self.meta_action[env_num][-1],
             apply_noise=apply_noise,
             random_actions=random_actions and self.pretrain_path is None)
+
+        # use the exploration_strategy
+        if self.exploration_strategy:
+            action = self.exploration_strategy[0].apply_noise(action)
 
         return action
 

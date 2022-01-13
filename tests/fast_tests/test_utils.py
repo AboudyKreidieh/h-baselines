@@ -74,6 +74,7 @@ class TestTrain(unittest.TestCase):
             'env_name': 'AntMaze',
             'alg': 'TD3',
             'evaluate': False,
+            'exploration_strategy': None,
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
@@ -162,6 +163,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
             }
         })
@@ -261,6 +265,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'exploration_strategy': None,
             'ckpt_path': 'blank',
         })
 
@@ -300,6 +305,9 @@ class TestTrain(unittest.TestCase):
                     'dropout': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'noise': 20.0,
                 'target_noise_clip': 23.0,
@@ -379,6 +387,7 @@ class TestTrain(unittest.TestCase):
             'relative_goals': False,
             'subgoal_testing_rate': GOAL_CONDITIONED_PARAMS[
                 'subgoal_testing_rate'],
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -424,6 +433,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': GOAL_CONDITIONED_PARAMS['cg_weights'],
                 'cg_delta': GOAL_CONDITIONED_PARAMS['cg_delta'],
@@ -533,6 +545,7 @@ class TestTrain(unittest.TestCase):
             'off_policy_corrections': True,
             'relative_goals': True,
             'subgoal_testing_rate': 6,
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -578,6 +591,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': 7,
                 'cg_delta': 10,
@@ -652,6 +668,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -697,6 +714,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': False,
                 'maddpg': False,
@@ -765,6 +785,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 2,
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -810,6 +831,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': True,
                 'maddpg': True,
@@ -890,6 +914,7 @@ class TestTrain(unittest.TestCase):
             'shared': False,
             'maddpg': False,
             'n_agents': MULTIAGENT_PARAMS["n_agents"],
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -935,6 +960,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'shared': False,
                 'maddpg': False,
@@ -1033,6 +1061,7 @@ class TestTrain(unittest.TestCase):
             'shared': True,
             'maddpg': True,
             'n_agents': 8,
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -1078,6 +1107,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
                 'cg_weights': 7,
                 'cg_delta': 9,
@@ -1172,6 +1204,7 @@ class TestTrain(unittest.TestCase):
             'critic_lr': SAC_PARAMS['critic_lr'],
             'tau': SAC_PARAMS['tau'],
             'gamma': SAC_PARAMS['gamma'],
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -1215,6 +1248,9 @@ class TestTrain(unittest.TestCase):
                     'image_width': model_params["image_width"],
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
+                },
+                'exploration_params': {
+                    'exploration_strategy': None,
                 },
             }
         })
@@ -1309,6 +1345,7 @@ class TestTrain(unittest.TestCase):
             'total_steps': 2,
             'use_huber': True,
             'verbose': 11,
+            'exploration_strategy': None,
             'ckpt_path': None,
         })
 
@@ -1349,6 +1386,9 @@ class TestTrain(unittest.TestCase):
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
                 },
+                'exploration_params': {
+                    'exploration_strategy': None,
+                },
                 'target_entropy': 20.0,
                 'tau': 18.0,
                 'use_huber': True
@@ -1380,6 +1420,7 @@ class TestTrain(unittest.TestCase):
             'env_name': 'AntMaze',
             'alg': 'PPO',
             'evaluate': False,
+            'exploration_strategy': None,
             'n_training': 1,
             'total_steps': 1000000,
             'seed': 1,
@@ -1469,6 +1510,9 @@ class TestTrain(unittest.TestCase):
                     'kernel_sizes': model_params["kernel_sizes"],
                     'strides': model_params["strides"],
                 },
+                'exploration_params': {
+                    'exploration_strategy': None,
+                },
             }
         })
 
@@ -1515,6 +1559,7 @@ class TestTrain(unittest.TestCase):
                 '--n_minibatches', '31',
                 '--n_opt_epochs', '32',
                 '--vf_coef', '33',
+                '--exploration_strategy', '34',
             ],
             multiagent=False,
             hierarchical=False,
@@ -1566,6 +1611,7 @@ class TestTrain(unittest.TestCase):
             'n_minibatches': 31,
             'n_opt_epochs': 32,
             'vf_coef': 33.0,
+            'exploration_strategy': '34',
             'ckpt_path': None,
         })
 
@@ -1859,6 +1905,9 @@ class TestTrain(unittest.TestCase):
                     'dropout': True,
                     'model_type': 'model_type',
                     'strides': [2, 2, 2]
+                },
+                'exploration_params': {
+                    'exploration_strategy': '34',
                 },
             },
         })

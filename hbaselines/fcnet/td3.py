@@ -111,6 +111,7 @@ class FeedForwardPolicy(Policy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  noise,
                  target_policy_noise,
                  target_noise_clip,
@@ -151,6 +152,8 @@ class FeedForwardPolicy(Policy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         noise : float
             scaling term to the range of the action space, that is subsequently
             used as the standard deviation of Gaussian noise added to the
@@ -171,6 +174,7 @@ class FeedForwardPolicy(Policy):
             verbose=verbose,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_envs=num_envs,
         )
 
@@ -581,6 +585,10 @@ class FeedForwardPolicy(Policy):
 
                 # clip by bounds
                 action = np.clip(action, self.ac_space.low, self.ac_space.high)
+
+        # use the exploration_strategy
+        if self.exploration_strategy:
+            action = self.exploration_strategy.apply_noise(action)
 
         return action
 

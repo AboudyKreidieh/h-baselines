@@ -6,6 +6,9 @@ from hbaselines.goal_conditioned.base import GoalConditionedPolicy as \
     BaseGoalConditionedPolicy
 from hbaselines.fcnet.td3 import FeedForwardPolicy
 from hbaselines.utils.tf_util import get_trainable_vars
+from hbaselines.utils.env_util import get_meta_ac_space, get_state_indices
+
+import hbaselines.exploration_strategies
 
 
 class GoalConditionedPolicy(BaseGoalConditionedPolicy):
@@ -29,6 +32,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  use_huber,
                  l2_penalty,
                  model_params,
+                 exploration_params,
                  num_levels,
                  meta_period,
                  intrinsic_reward_type,
@@ -91,6 +95,8 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             L2 regularization penalty. This is applied to the policy network.
         model_params : dict
             dictionary of model-specific parameters. See parent class.
+        exploration_params : TODO
+            TODO
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
@@ -171,6 +177,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             use_huber=use_huber,
             l2_penalty=l2_penalty,
             model_params=model_params,
+            exploration_params=exploration_params,
             num_levels=num_levels,
             meta_period=meta_period,
             intrinsic_reward_type=intrinsic_reward_type,
@@ -197,6 +204,22 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                 target_noise_clip=target_noise_clip,
             ),
         )
+
+        # Get the observation and action space of the higher level policies.
+        meta_ac_space = get_meta_ac_space(
+            ob_space=ob_space,
+            relative_goals=relative_goals,
+            env_name=env_name,
+        )
+
+        # Initialize the exploration strategy
+        self.exploration_strategy = None
+        if exploration_params is not None and exploration_params['exploration_strategy'] is not None:
+            try:
+                ep_class = getattr("hbaselines.exploration_strategies", exploration_params['exploration_strategy'])
+                self.exploration_strategy = [ep_class(ac_space), ep_class(meta_ac_space)]
+            except AttributeError:
+                print("Requested exploration strategies is not supported, will default to no exploration")
 
     # ======================================================================= #
     #                       Auxiliary methods for HIRO                        #
