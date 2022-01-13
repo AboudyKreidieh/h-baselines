@@ -3,10 +3,10 @@ import unittest
 import numpy as np
 import random
 import os
+import json
 from copy import deepcopy
 
 from flow.core.params import EnvParams
-from flow.controllers import IDMController
 
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect
 from hbaselines.envs.efficient_hrl.maze_env_utils import point_distance
@@ -25,8 +25,6 @@ from hbaselines.envs.mixed_autonomy.params.ring \
     import get_flow_params as ring
 from hbaselines.envs.mixed_autonomy.params.highway \
     import get_flow_params as highway
-from hbaselines.envs.mixed_autonomy.params.i210 \
-    import get_flow_params as i210
 
 from hbaselines.envs.mixed_autonomy.envs.av import AVEnv
 from hbaselines.envs.mixed_autonomy.envs.av import AVClosedEnv
@@ -38,16 +36,18 @@ from hbaselines.envs.mixed_autonomy.envs.av \
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVClosedMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi import AVOpenMultiAgentEnv
-from hbaselines.envs.mixed_autonomy.envs.av_multi import LaneOpenMultiAgentEnv
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import OPEN_ENV_PARAMS as MA_OPEN_ENV_PARAMS
 from hbaselines.envs.mixed_autonomy.envs.av_multi \
     import CLOSED_ENV_PARAMS as MA_CLOSED_ENV_PARAMS
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVImitationEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVClosedImitationEnv
-from hbaselines.envs.mixed_autonomy.envs.imitation import AVOpenImitationEnv
+from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingEnv
+from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingSingleAgentEnv
+from hbaselines.envs.mixed_autonomy.envs.ring_nonflow import RingMultiAgentEnv
+
 from hbaselines.envs.point2d import Point2DEnv
 from hbaselines.utils.env_util import create_env
+
+import hbaselines.config as hbaselines_config
 
 os.environ["TEST_FLAG"] = "True"
 
@@ -536,7 +536,8 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     1. the observation space matches its expected values
     2. the action space matches its expected values
 
-    For the multi-agent environments, we also perform the following tests:
+    For some of the the multi-agent environments, we also perform the following
+    tests:
 
     3. the agent IDs match their expected values
     """
@@ -558,18 +559,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -583,58 +586,88 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
 
         # test case 1
         test_space(
-            env.observation_space["rl_0"],
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            env.observation_space["rl_0_0"],
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
-            env.action_space["rl_0"],
-            expected_min=np.array([-0.5]),
-            expected_max=np.array([0.5]),
+            env.action_space["rl_0_0"],
+            expected_min=np.array([-1.0]),
+            expected_max=np.array([1.0]),
             expected_size=1,
         )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # test case 3
         self.assertListEqual(
             sorted(env.agents),
-            ['rl_0']
+            ['rl_0_0']
         )
 
         # kill the environment
         env.wrapped_env.terminate()
 
     # ======================================================================= #
-    #                             ring-imitation                              #
+    #                                 ring-v0                                 #
     # ======================================================================= #
 
-    def test_single_agent_ring_imitation(self):
+    def test_single_agent_ring_v0_fast(self):
         # set a random seed
         set_seed(0)
 
         # create the environment
-        env, _ = create_env("ring-imitation")
+        env, _ = create_env("ring-v0-fast")
 
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
+        self.assertEqual(env.max_accel, 1.0)
 
-        # kill the environment
-        env.wrapped_env.terminate()
+    def test_multi_agent_ring_v0_fast(self):
+        # set a random seed
+        set_seed(0)
+
+        # create the environment
+        env, _ = create_env("multiagent-ring-v0-fast")
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
+            expected_size=1,
+        )
+        self.assertEqual(env.max_accel, 1.0)
+
+        # test case 3
+        self.assertListEqual(
+            sorted(env.rl_ids),
+            [0]
+        )
 
     # ======================================================================= #
     #                                merge-v0                                 #
@@ -740,18 +773,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(10)]),
-            expected_max=np.array([0.5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -766,30 +801,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-
-        # test case 3
-        self.assertListEqual(
-            sorted(env.agents),
-            ['idm_inflow_00.233',
-             'idm_inflow_00.245',
-             'idm_inflow_00.257',
-             'idm_inflow_00.269',
-             'idm_inflow_00.281',
-             'idm_inflow_00.293',
-             'idm_inflow_00.305']
-        )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -808,18 +833,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(10)]),
-            expected_max=np.array([0.5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -834,30 +861,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-
-        # test case 3
-        self.assertListEqual(
-            sorted(env.agents),
-            ['idm_inflow_00.233',
-             'idm_inflow_00.245',
-             'idm_inflow_00.257',
-             'idm_inflow_00.269',
-             'idm_inflow_00.281',
-             'idm_inflow_00.293',
-             'idm_inflow_00.305']
-        )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -876,18 +893,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(10)]),
-            expected_max=np.array([0.5 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([-1.0 for _ in range(5)]),
+            expected_max=np.array([1.0 for _ in range(5)]),
+            expected_size=5,
         )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -902,30 +921,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([-0.5 for _ in range(1)]),
-            expected_max=np.array([0.5 for _ in range(1)]),
+            expected_min=np.array([-1.0 for _ in range(1)]),
+            expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-
-        # test case 3
-        self.assertListEqual(
-            sorted(env.agents),
-            ['idm_inflow_00.233',
-             'idm_inflow_00.245',
-             'idm_inflow_00.257',
-             'idm_inflow_00.269',
-             'idm_inflow_00.281',
-             'idm_inflow_00.293',
-             'idm_inflow_00.305']
-        )
+        self.assertEqual(
+            env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
 
         # kill the environment
         env.wrapped_env.terminate()
@@ -944,17 +953,17 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
+            expected_min=np.array([-float("inf") for _ in range(75)]),
+            expected_max=np.array([float("inf") for _ in range(75)]),
+            expected_size=75,
         )
 
         # test case 2
         test_space(
             env.action_space,
-            expected_min=np.array([0 for _ in range(10)]),
-            expected_max=np.array([15 for _ in range(10)]),
-            expected_size=10,
+            expected_min=np.array([0 for _ in range(5)]),
+            expected_max=np.array([15 for _ in range(5)]),
+            expected_size=5,
         )
 
         # kill the environment
@@ -970,9 +979,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # test case 1
         test_space(
             env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(5)]),
-            expected_max=np.array([float("inf") for _ in range(5)]),
-            expected_size=5,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
         )
 
         # test case 2
@@ -983,48 +992,6 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_size=1,
         )
 
-        # test case 3
-        self.assertListEqual(
-            sorted(env.agents),
-            ['idm_inflow_00.233',
-             'idm_inflow_00.245',
-             'idm_inflow_00.257',
-             'idm_inflow_00.269',
-             'idm_inflow_00.281',
-             'idm_inflow_00.293',
-             'idm_inflow_00.305']
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    # ======================================================================= #
-    #                            highway-imitation                            #
-    # ======================================================================= #
-
-    def test_single_agent_highway_imitation(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("highway-imitation")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-0.5 for _ in range(10)]),
-            expected_max=np.array([0.5 for _ in range(10)]),
-            expected_size=10,
-        )
-
         # kill the environment
         env.wrapped_env.terminate()
 
@@ -1032,68 +999,74 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #                                 i210-v0                                 #
     # ======================================================================= #
 
-    def test_single_agent_i210_v0(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("i210-v0")
-
-        # test case 1
-        test_space(
-            env.observation_space,
-            expected_min=np.array([-float("inf") for _ in range(250)]),
-            expected_max=np.array([float("inf") for _ in range(250)]),
-            expected_size=250,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space,
-            expected_min=np.array([-0.5 for _ in range(50)]),
-            expected_max=np.array([0.5 for _ in range(50)]),
-            expected_size=50,
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
-
-    def test_multi_agent_i210_v0(self):
-        # set a random seed
-        set_seed(0)
-
-        # create the environment
-        env, _ = create_env("multiagent-i210-v0")
-
-        # test case 1
-        test_space(
-            env.observation_space["lane_0"],
-            expected_min=np.array([-float("inf") for _ in range(50)]),
-            expected_max=np.array([float("inf") for _ in range(50)]),
-            expected_size=50,
-        )
-
-        # test case 2
-        test_space(
-            env.action_space["lane_0"],
-            expected_min=np.array([-0.5 for _ in range(10)]),
-            expected_max=np.array([0.5 for _ in range(10)]),
-            expected_size=10,
-        )
-
-        # test case 3
-        self.assertListEqual(
-            sorted(env.agents),
-            ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
-        )
-
-        # kill the environment
-        env.wrapped_env.terminate()
+    # FIXME
+    # def test_single_agent_i210_v0(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("i210-v0")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space,
+    #         expected_min=np.array([-float("inf") for _ in range(1250)]),
+    #         expected_max=np.array([float("inf") for _ in range(1250)]),
+    #         expected_size=1250,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space,
+    #         expected_min=np.array([-1.0 for _ in range(50)]),
+    #         expected_max=np.array([1.0 for _ in range(50)]),
+    #         expected_size=50,
+    #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
+    #
+    # def test_multi_agent_i210_v0(self):
+    #     # set a random seed
+    #     set_seed(0)
+    #
+    #     # create the environment
+    #     env, _ = create_env("multiagent-i210-v0")
+    #
+    #     # test case 1
+    #     test_space(
+    #         env.observation_space["lane_0"],
+    #         expected_min=np.array([-float("inf") for _ in range(250)]),
+    #         expected_max=np.array([float("inf") for _ in range(250)]),
+    #         expected_size=250,
+    #     )
+    #
+    #     # test case 2
+    #     test_space(
+    #         env.action_space["lane_0"],
+    #         expected_min=np.array([-1.0 for _ in range(10)]),
+    #         expected_max=np.array([1.0 for _ in range(10)]),
+    #         expected_size=10,
+    #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
+    #
+    #     # test case 3
+    #     self.assertListEqual(
+    #         sorted(env.agents),
+    #         ['lane_0', 'lane_1', 'lane_2', 'lane_3', 'lane_4']
+    #     )
+    #
+    #     # kill the environment
+    #     env.wrapped_env.terminate()
 
     # ======================================================================= #
     #                                 i210-v1                                 #
     # ======================================================================= #
 
+    # FIXME
     # def test_single_agent_i210_v1(self):
     #     # set a random seed
     #     set_seed(0)
@@ -1104,18 +1077,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     # test case 1
     #     test_space(
     #         env.observation_space,
-    #         expected_min=np.array([-float("inf") for _ in range(250)]),
-    #         expected_max=np.array([float("inf") for _ in range(250)]),
-    #         expected_size=250,
+    #         expected_min=np.array([-float("inf") for _ in range(1250)]),
+    #         expected_max=np.array([float("inf") for _ in range(1250)]),
+    #         expected_size=1250,
     #     )
     #
     #     # test case 2
     #     test_space(
     #         env.action_space,
-    #         expected_min=np.array([-0.5 for _ in range(50)]),
-    #         expected_max=np.array([0.5 for _ in range(50)]),
+    #         expected_min=np.array([-1.0 for _ in range(50)]),
+    #         expected_max=np.array([1.0 for _ in range(50)]),
     #         expected_size=50,
     #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
     #
     #     # kill the environment
     #     env.wrapped_env.terminate()
@@ -1130,18 +1105,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     # test case 1
     #     test_space(
     #         env.observation_space["lane_0"],
-    #         expected_min=np.array([-float("inf") for _ in range(50)]),
-    #         expected_max=np.array([float("inf") for _ in range(50)]),
-    #         expected_size=50,
+    #         expected_min=np.array([-float("inf") for _ in range(250)]),
+    #         expected_max=np.array([float("inf") for _ in range(250)]),
+    #         expected_size=250,
     #     )
     #
     #     # test case 2
     #     test_space(
     #         env.action_space["lane_0"],
-    #         expected_min=np.array([-0.5 for _ in range(10)]),
-    #         expected_max=np.array([0.5 for _ in range(10)]),
+    #         expected_min=np.array([-1.0 for _ in range(10)]),
+    #         expected_max=np.array([1.0 for _ in range(10)]),
     #         expected_size=10,
     #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
     #
     #     # test case 3
     #     self.assertListEqual(
@@ -1156,6 +1133,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #                                 i210-v2                                 #
     # ======================================================================= #
 
+    # FIXME
     # def test_single_agent_i210_v2(self):
     #     # set a random seed
     #     set_seed(0)
@@ -1166,18 +1144,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     # test case 1
     #     test_space(
     #         env.observation_space,
-    #         expected_min=np.array([-float("inf") for _ in range(250)]),
-    #         expected_max=np.array([float("inf") for _ in range(250)]),
-    #         expected_size=250,
+    #         expected_min=np.array([-float("inf") for _ in range(1250)]),
+    #         expected_max=np.array([float("inf") for _ in range(1250)]),
+    #         expected_size=1250,
     #     )
     #
     #     # test case 2
     #     test_space(
     #         env.action_space,
-    #         expected_min=np.array([-0.5 for _ in range(50)]),
-    #         expected_max=np.array([0.5 for _ in range(50)]),
+    #         expected_min=np.array([-1.0 for _ in range(50)]),
+    #         expected_max=np.array([1.0 for _ in range(50)]),
     #         expected_size=50,
     #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
     #
     #     # kill the environment
     #     env.wrapped_env.terminate()
@@ -1192,18 +1172,20 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #     # test case 1
     #     test_space(
     #         env.observation_space["lane_0"],
-    #         expected_min=np.array([-float("inf") for _ in range(50)]),
-    #         expected_max=np.array([float("inf") for _ in range(50)]),
-    #         expected_size=50,
+    #         expected_min=np.array([-float("inf") for _ in range(250)]),
+    #         expected_max=np.array([float("inf") for _ in range(250)]),
+    #         expected_size=250,
     #     )
     #
     #     # test case 2
     #     test_space(
     #         env.action_space["lane_0"],
-    #         expected_min=np.array([-0.5 for _ in range(10)]),
-    #         expected_max=np.array([0.5 for _ in range(10)]),
+    #         expected_min=np.array([-1.0 for _ in range(10)]),
+    #         expected_max=np.array([1.0 for _ in range(10)]),
     #         expected_size=10,
     #     )
+    #     self.assertEqual(
+    #         env.wrapped_env.env_params.additional_params["max_accel"], 0.5)
     #
     #     # test case 3
     #     self.assertListEqual(
@@ -1277,11 +1259,10 @@ class TestAV(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                 },
             )
         )
@@ -1300,7 +1281,7 @@ class TestAV(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=5 * env_single.initial_vehicles.num_rl_vehicles,
+            expected_size=3 * env_single.initial_vehicles.num_rl_vehicles,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -1320,7 +1301,7 @@ class TestAV(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0', 'human_20']
+                expected_observed=['human_0_0']
             )
         )
 
@@ -1341,11 +1322,10 @@ class TestAV(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "ring_length": [220, 270],
                 },
             )
@@ -1363,7 +1343,7 @@ class TestAV(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicle
-        self.assertEqual(env.k.network.length(), 230.4)
+        self.assertEqual(env.k.network.length(), 260.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
@@ -1387,11 +1367,10 @@ class TestAV(unittest.TestCase):
                 network=self.network_open,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1416,7 +1395,7 @@ class TestAV(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
+            expected_rate = 2114 if veh_type == "human" else 100
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1479,24 +1458,6 @@ class TestAVMulti(unittest.TestCase):
         self.env_params_open.warmup_steps = 0
         self.env_params_open.additional_params = MA_OPEN_ENV_PARAMS.copy()
 
-        # for LaneOpenMultiAgentEnv
-        flow_params_lane = deepcopy(i210(
-            fixed_boundary=False,
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            use_follower_stopper=False,
-            multiagent=True,
-        ))
-
-        self.network_lane = flow_params_lane["network"](
-            name="test_open",
-            vehicles=flow_params_lane["veh"],
-            net_params=flow_params_lane["net"],
-        )
-        self.env_params_lane = flow_params_lane["env"]
-        self.env_params_lane.warmup_steps = 0
-        self.env_params_lane.additional_params = MA_OPEN_ENV_PARAMS.copy()
-
     def test_base_env(self):
         """Validate the functionality of the AVMultiAgentEnv class.
 
@@ -1517,11 +1478,10 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                 },
             )
         )
@@ -1540,7 +1500,7 @@ class TestAVMulti(unittest.TestCase):
         # test case 2
         test_space(
             gym_space=env_single.observation_space,
-            expected_size=5,
+            expected_size=3,
             expected_min=-float("inf"),
             expected_max=float("inf"),
         )
@@ -1560,7 +1520,7 @@ class TestAVMulti(unittest.TestCase):
                 sim_params=self.sim_params,
                 network=self.network_closed,
                 env_params=self.env_params_closed,
-                expected_observed=['human_0', 'human_20']
+                expected_observed=['human_0_0']
             )
         )
 
@@ -1581,11 +1541,10 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_closed,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "use_follower_stopper": True,
                     "acceleration_penalty": True,
+                    "obs_frames": 5,
                     "ring_length": [220, 270],
                 },
             )
@@ -1603,7 +1562,7 @@ class TestAVMulti(unittest.TestCase):
         )
 
         # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.network.length(), 230.4)
+        self.assertEqual(env.k.network.length(), 260.4)
         env.reset()
         self.assertEqual(env.k.network.length(), 228.4)
         env.reset()
@@ -1627,11 +1586,10 @@ class TestAVMulti(unittest.TestCase):
                 network=self.network_open,
                 additional_params={
                     "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
                     "stopping_penalty": True,
                     "acceleration_penalty": True,
                     "use_follower_stopper": True,
+                    "obs_frames": 5,
                     "inflows": [1000, 2000],
                     "rl_penetration": 0.1,
                     "num_rl": 5,
@@ -1656,7 +1614,7 @@ class TestAVMulti(unittest.TestCase):
         inflows = env.net_params.inflows.get()
         for inflow_i in inflows:
             veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
+            expected_rate = 2114 if veh_type == "human" else 100
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
 
         env.reset()
@@ -1672,337 +1630,6 @@ class TestAVMulti(unittest.TestCase):
             veh_type = inflow_i["vtype"]
             expected_rate = 1680.3 if veh_type == "human" else 186.7
             self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-    def test_lane_open_env(self):
-        """Validate the functionality of the LaneOpenMultiAgentEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the inflow rate of vehicles is properly modified in between
-           resets
-        """
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=LaneOpenMultiAgentEnv,
-                sim_params=self.sim_params,
-                network=self.network_lane,
-                additional_params={
-                    "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "inflows": [1000, 2000],
-                    "rl_penetration": 0.1,
-                    "num_rl": 5,
-                    "control_range": [500, 2500],
-                    "warmup_path": None,
-                },
-            )
-        )
-
-        # set a random seed to ensure the network lengths are always the same
-        # during testing
-        random.seed(1)
-
-        # test case 2
-        env = LaneOpenMultiAgentEnv(
-            env_params=self.env_params_lane,
-            sim_params=self.sim_params,
-            network=self.network_lane
-        )
-
-        # reset the network several times and check its inflow rate
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1879 if veh_type == "human" else 170
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1023.3 if veh_type == "human" else 113.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1680.3 if veh_type == "human" else 186.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-
-class TestAVImitation(unittest.TestCase):
-    """Tests the automated vehicles single agent imitation environments."""
-
-    def setUp(self):
-        self.sim_params = deepcopy(ring(
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            imitation=True,
-        ))["sim"]
-        self.sim_params.render = False
-
-        # for AVClosedEnv
-        flow_params_closed = deepcopy(ring(
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            imitation=True,
-        ))
-
-        self.network_closed = flow_params_closed["network"](
-            name="test_closed",
-            vehicles=flow_params_closed["veh"],
-            net_params=flow_params_closed["net"],
-        )
-        self.env_params_closed = flow_params_closed["env"]
-        self.env_params_closed.additional_params = SA_CLOSED_ENV_PARAMS.copy()
-
-        # for AVOpenEnv
-        flow_params_open = deepcopy(highway(
-            fixed_boundary=True,
-            stopping_penalty=True,
-            acceleration_penalty=True,
-            use_follower_stopper=False,
-            imitation=True,
-        ))
-
-        self.network_open = flow_params_open["network"](
-            name="test_open",
-            vehicles=flow_params_open["veh"],
-            net_params=flow_params_open["net"],
-        )
-        self.env_params_open = flow_params_open["env"]
-        self.env_params_open.additional_params = SA_OPEN_ENV_PARAMS.copy()
-
-    def test_base_env(self):
-        """Validate the functionality of the AVImitationEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the observation space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
-        3. that the action space matches its expected values
-           a. for the single lane case
-           b. for the multi-lane case
-        4. that the observed vehicle IDs after a reset matches its expected
-           values
-           a. for the single lane case
-           b. for the multi-lane case
-        """
-        env_params = deepcopy(self.env_params_closed)
-        env_params.additional_params["expert_model"] = (IDMController, {
-            "a": 0.3,
-            "b": 2.0,
-        })
-
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=AVImitationEnv,
-                sim_params=self.sim_params,
-                network=self.network_closed,
-                additional_params={
-                    "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "expert_model": (IDMController, {
-                        "a": 0.3,
-                        "b": 2.0,
-                    }),
-                },
-            )
-        )
-
-        # Set a random seed.
-        random.seed(0)
-        np.random.seed(0)
-
-        # Create a single lane environment.
-        env_single = AVImitationEnv(
-            env_params=env_params,
-            sim_params=self.sim_params,
-            network=self.network_closed
-        )
-
-        # test case 2
-        test_space(
-            gym_space=env_single.observation_space,
-            expected_size=5,
-            expected_min=-float("inf"),
-            expected_max=float("inf"),
-        )
-
-        # test case 3
-        test_space(
-            gym_space=env_single.action_space,
-            expected_size=1,
-            expected_min=-1,
-            expected_max=1,
-        )
-
-        # test case 4
-        self.assertTrue(
-            test_observed(
-                env_class=AVImitationEnv,
-                sim_params=self.sim_params,
-                network=self.network_closed,
-                env_params=env_params,
-                expected_observed=['human_0', 'human_20']
-            )
-        )
-
-    def test_closed_env(self):
-        """Validate the functionality of the AVClosedImitationEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the number of vehicles is properly modified in between resets
-        """
-        env_params = deepcopy(self.env_params_closed)
-        env_params.additional_params["expert_model"] = (IDMController, {
-            "a": 0.3,
-            "b": 2.0,
-        })
-
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=AVClosedImitationEnv,
-                sim_params=self.sim_params,
-                network=self.network_closed,
-                additional_params={
-                    "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "ring_length": [220, 270],
-                    "expert_model": (IDMController, {
-                        "a": 0.3,
-                        "b": 2.0,
-                    }),
-                },
-            )
-        )
-
-        # set a random seed to ensure the network lengths are always the same
-        # during testing
-        set_seed(1)
-
-        # test case 2
-        env = AVClosedImitationEnv(
-            env_params=env_params,
-            sim_params=self.sim_params,
-            network=self.network_closed
-        )
-
-        # reset the network several times and check its number of vehicles
-        self.assertEqual(env.k.network.length(), 230.4)
-        env.reset()
-        self.assertEqual(env.k.network.length(), 228.4)
-        env.reset()
-        self.assertEqual(env.k.network.length(), 268.4)
-
-    def test_open_env(self):
-        """Validate the functionality of the AVOpenImitationEnv class.
-
-        This tests checks for the following cases:
-
-        1. that additional_env_params cause an Exception to be raised if not
-           properly passed
-        2. that the inflow rate is properly modified in between resets
-        3. the the query_expert method returns the expected values
-        """
-        env_params = deepcopy(self.env_params_open)
-        env_params.additional_params["expert_model"] = (IDMController, {
-            "a": 0.3,
-            "b": 2.0,
-        })
-
-        # test case 1
-        self.assertTrue(
-            test_additional_params(
-                env_class=AVOpenImitationEnv,
-                sim_params=self.sim_params,
-                network=self.network_open,
-                additional_params={
-                    "max_accel": 3,
-                    "max_decel": 3,
-                    "target_velocity": 30,
-                    "stopping_penalty": True,
-                    "acceleration_penalty": True,
-                    "use_follower_stopper": True,
-                    "inflows": [1000, 2000],
-                    "rl_penetration": 0.1,
-                    "num_rl": 5,
-                    "control_range": [500, 700],
-                    "expert_model": (IDMController, {
-                        "a": 0.3,
-                        "b": 2.0,
-                    }),
-                    "warmup_path": None,
-                },
-            )
-        )
-
-        # set a random seed to ensure the network lengths are always the same
-        # during testing
-        random.seed(1)
-
-        # test case 2
-        env = AVOpenEnv(
-            env_params=self.env_params_open,
-            sim_params=self.sim_params,
-            network=self.network_open
-        )
-
-        # reset the network several times and check its inflow rate
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 2030 if veh_type == "human" else 184
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1023.3 if veh_type == "human" else 113.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        env.reset()
-        inflows = env.net_params.inflows.get()
-        for inflow_i in inflows:
-            veh_type = inflow_i["vtype"]
-            expected_rate = 1680.3 if veh_type == "human" else 186.7
-            self.assertAlmostEqual(inflow_i["vehsPerHour"], expected_rate)
-
-        # test case 3
-        env = AVOpenImitationEnv(
-            sim_params=self.sim_params,
-            network=self.network_open,
-            env_params=env_params,
-        )
-        env.reset()
-
-        # Just make sure it runs without failing.
-        env.query_expert(None)
 
 
 class TestPoint2D(unittest.TestCase):
@@ -2163,6 +1790,388 @@ class TestPoint2D(unittest.TestCase):
             [[0, 1, 2, 3], [1, 2, 3, 4], [1, 1, 2, 4]])
 
 
+class TestRingNonFlow(unittest.TestCase):
+    """Test the functionality of features in ring_nonflow.py."""
+
+    def setUp(self):
+        self._init_parameters = dict(
+            length=260,
+            num_vehicles=22,
+            dt=0.2,
+            horizon=1500,
+            gen_emission=False,
+            rl_ids=[0],
+            warmup_steps=0,
+            initial_state=None,
+            sims_per_step=1,
+            maddpg=False,
+        )
+
+        self._initial_state_path = os.path.join(
+            hbaselines_config.PROJECT_PATH,
+            "hbaselines/envs/mixed_autonomy/envs/initial_states/ring-v0.json"
+        )
+        with open(self._initial_state_path, "r") as fp:
+            self._initial_state = json.load(fp)
+
+    def test_base_env(self):
+        """Validate the functionality of the RingEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        """
+        # Create the environment.
+        env = RingEnv(**self._init_parameters)
+
+        # test case 3
+        self.assertEqual(env.get_state(), [])
+
+        # test case 4
+        self.assertEqual(env.compute_reward(action=None), 0)
+
+    def test_single_agent_env(self):
+        """Validate the functionality of the RingSingleAgentEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        """
+        # Create the environment.
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["rl_ids"] = [0, 11]
+        env = RingSingleAgentEnv(**init_parameters)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(30)]),
+            expected_max=np.array([float("inf") for _ in range(30)]),
+            expected_size=30,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1.0 for _ in range(2)]),
+            expected_max=np.array([1.0 for _ in range(2)]),
+            expected_size=2,
+        )
+
+        # test case 3
+        env.headways = [5 * i for i in range(22)]
+        env.speeds = [i for i in range(22)]
+        np.testing.assert_almost_equal(
+            env.get_state(),
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.1,
+             1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+
+        # test case 4
+        env.speeds = [10 for _ in range(22)]
+        self.assertEqual(env.compute_reward(action=None), -0.5)
+        env.speeds = [i for i in range(22)]
+        self.assertEqual(env.compute_reward(action=None), 0.0)
+
+    def test_multi_agent_env(self):
+        """Validate the functionality of the RingMultiAgentEnv class.
+
+        This tests checks that expected outputs are returned for the following
+        methods:
+
+        1. action_space
+        2. observation_space
+        3. get_state
+        4. compute_reward
+        5. obs after reset and step when maddpg=True
+        """
+        set_seed(0)
+
+        # Create the environment.
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["rl_ids"] = [0, 11]
+        env = RingMultiAgentEnv(**init_parameters)
+
+        # test case 1
+        test_space(
+            env.observation_space,
+            expected_min=np.array([-float("inf") for _ in range(15)]),
+            expected_max=np.array([float("inf") for _ in range(15)]),
+            expected_size=15,
+        )
+
+        # test case 2
+        test_space(
+            env.action_space,
+            expected_min=np.array([-1. for _ in range(1)]),
+            expected_max=np.array([1. for _ in range(1)]),
+            expected_size=1,
+        )
+
+        # test case 3
+        env.headways = [5 * i for i in range(22)]
+        env.speeds = [i for i in range(22)]
+        state = env.get_state()
+        self.assertEqual(list(state.keys()), [0, 11])
+        np.testing.assert_almost_equal(
+            state[0],
+            [0., 0.1, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            state[11],
+            [1.1, 1.2, 0.55, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+
+        # test case 4
+        env.speeds = [10 for _ in range(22)]
+        self.assertDictEqual(
+            env.compute_reward(action=None), {0: -0.5, 11: -0.5})
+        env.speeds = [i for i in range(22)]
+        self.assertDictEqual(
+            env.compute_reward(action=None), {0: 0.0, 11: -0.605})
+
+        # Create the environment.
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["rl_ids"] = [0, 11]
+        init_parameters["maddpg"] = True
+        env = RingMultiAgentEnv(**init_parameters)
+
+        # test case 5
+        obs = env.reset()
+        np.testing.assert_almost_equal(
+            obs["obs"][0],
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["obs"][11],
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["all_obs"],
+            [0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.0681818, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+        )
+
+        obs, _, _, _ = env.step({0: [0], 11: [1]})
+        np.testing.assert_almost_equal(
+            obs["obs"][0],
+            [0.02, 0.0253635, 0.0682355, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["obs"][11],
+            [0.04, 0.026807, 0.0680499, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0.]
+        )
+        np.testing.assert_almost_equal(
+            obs["all_obs"],
+            [0.02, 0.02536347, 0.06823545, 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0.04, 0.026807, 0.06804989, 0., 0., 0., 0., 0., 0.,
+             0., 0., 0., 0., 0., 0.]
+        )
+
+    def test_set_length(self):
+        """Validates the functionality of the _set_length method.
+
+        This is done for the following cases
+
+        1. length = 260
+        2. length = [260, 270]
+        3. length = [260, 265, 270]
+        """
+        # Set a random seed.
+        set_seed(0)
+
+        # Create the environment.
+        env = RingEnv(**self._init_parameters)
+
+        # test case 1
+        self.assertEqual(env._set_length(260), 260)
+
+        # test case 2
+        self.assertEqual(env._set_length([260, 270]), 266)
+
+        # test case 3
+        self.assertEqual(env._set_length([260, 265, 270]), 265)
+
+    def test_set_initial_state(self):
+        """Validates the functionality of the _set_initial_state method.
+
+        This is done for the following cases
+
+        1. initial_state = None
+        2. initial_state = "random"
+        3. initial_state = < some appropriate list >
+        """
+        # Set a random seed.
+        set_seed(0)
+
+        # Create the environment.
+        env = RingEnv(**self._init_parameters)
+
+        # test case 1
+        pos, vel = env._set_initial_state(
+            length=260,
+            num_vehicles=22,
+            initial_state=None,
+            min_gap=0.5
+        )
+        np.testing.assert_almost_equal(pos, [260 / 22 * i for i in range(22)])
+        np.testing.assert_almost_equal(vel, [0 for _ in range(22)])
+
+        # test case 2
+        pos, vel = env._set_initial_state(
+            length=260,
+            num_vehicles=22,
+            initial_state="random",
+            min_gap=0.5
+        )
+        np.testing.assert_almost_equal(
+            pos,
+            [2.81035724, 15.37401209, 23.11097266, 69.79837112, 80.88801711,
+             88.32462237, 106.51639385, 114.23876244, 120.28507705,
+             128.45819399, 138.78410927, 150.27928172, 165.41132193,
+             179.66378838, 187.04978029, 193.58304043, 203.73415853,
+             214.43168861, 222.95644711, 233.15793272, 243.94912371,
+             251.52794957]
+        )
+        np.testing.assert_almost_equal(vel, [0 for _ in range(22)])
+
+        # test case 3
+        pos, vel = env._set_initial_state(
+            length=260,
+            num_vehicles=22,
+            initial_state=self._initial_state,
+            min_gap=0.5
+        )
+        np.testing.assert_almost_equal(
+            pos,
+            [4.26916339, 26.26884054, 45.00283694, 59.21748779, 69.62140292,
+             77.50811521, 84.4383123, 91.32026691, 98.20029183, 105.08299618,
+             111.96267019, 118.84624248, 125.72564607, 132.72740364,
+             140.53168409, 149.69677999, 160.49310896, 173.06216771,
+             187.49368115, 203.83776384, 222.12540662, 242.34888505]
+        )
+        np.testing.assert_almost_equal(
+            vel,
+            [11.21739964, 10.07556411, 6.87465934, 3.77013913, 1.44293824,
+             0.1846424, 0., 0., 0., 0., 0., 0., 0., 0.27799439, 1.10959298,
+             2.20639645, 3.44200324, 4.75554959, 6.11640064, 7.50645556,
+             8.90890994, 10.27611265]
+        )
+
+    def test_update_state(self):
+        """Validates the functionality of the _update_state method.
+
+        An initial state and action is passed to the method, and the output is
+        checked to match expected values.
+        """
+        # Create the environment.
+        env = RingEnv(**self._init_parameters)
+
+        new_pos, new_vel = env._update_state(
+            pos=np.array([0, 5, 10]),
+            vel=np.array([0, 1, 2]),
+            accel=np.array([1., 1., -1.])
+        )
+
+        np.testing.assert_almost_equal(new_pos, [0.02, 5.22, 10.38])
+        np.testing.assert_almost_equal(new_vel, [0.2, 1.2, 1.8])
+
+    def test_compute_headway(self):
+        """Validates the functionality of the _compute_headway method.
+
+        Positions are passed to the vehicles and the output is checked to match
+        expected values.
+        """
+        # Create the environment.
+        env = RingEnv(**self._init_parameters)
+
+        env.positions = np.array([6 * i for i in range(22)])
+
+        np.testing.assert_almost_equal(
+            env._compute_headway(),
+            [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 129.]
+        )
+
+    def test_reset(self):
+        """Validates the functionality of the reset method.
+
+        The positions, speeds, and network length are checked after the resets
+        for the following cases:
+
+        1. initial_state = None,      length = 260
+        2. initial_state = None,      length = [260, 270]
+        3. initial_state = some file, length = ...
+        """
+        # Set a random seed.
+        set_seed(0)
+
+        # test case 1
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["length"] = 260
+        env = RingEnv(**init_parameters)
+        env.reset()
+
+        self.assertEqual(env.length, 260)
+        np.testing.assert_almost_equal(
+            env.positions,
+            [0.0, 11.818181818181818, 23.636363636363637, 35.45454545454545,
+             47.27272727272727, 59.09090909090909, 70.9090909090909,
+             82.72727272727273, 94.54545454545455, 106.36363636363636,
+             118.18181818181819, 130.0, 141.8181818181818, 153.63636363636363,
+             165.45454545454547, 177.27272727272728, 189.0909090909091,
+             200.9090909090909, 212.72727272727272, 224.54545454545456,
+             236.36363636363637, 248.1818181818182]
+        )
+
+        # test case 2
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["length"] = [260, 270]
+        env = RingEnv(**init_parameters)
+        env.reset()
+
+        self.assertEqual(env.length, 266)
+        np.testing.assert_almost_equal(
+            env.positions,
+            [0.0, 12.090909090909092, 24.181818181818183, 36.27272727272727,
+             48.36363636363637, 60.45454545454546, 72.54545454545455,
+             84.63636363636364, 96.72727272727273, 108.81818181818183,
+             120.90909090909092, 133.0, 145.0909090909091, 157.1818181818182,
+             169.27272727272728, 181.36363636363637, 193.45454545454547,
+             205.54545454545456, 217.63636363636365, 229.72727272727275,
+             241.81818181818184, 253.90909090909093]
+        )
+
+        # test case 3
+        init_parameters = deepcopy(self._init_parameters)
+        init_parameters["initial_state"] = self._initial_state_path
+        env = RingEnv(**init_parameters)
+        env.reset()
+
+        self.assertEqual(env.length, 315)
+        np.testing.assert_almost_equal(
+            env.positions,
+            [1.456621610141724, 22.862776568370673, 46.21101268634284,
+             71.39880838706915, 97.71478456842716, 122.44440175240561,
+             142.69988721415794, 158.10207484483797, 169.40700574488392,
+             177.813765780532, 184.85316440616074, 191.73418780156828,
+             198.61487854549048, 205.49650594236655, 212.39333987008553,
+             219.78140927565013, 228.35065388253238, 238.46151307933877,
+             250.2987552109015, 263.96146567591495, 279.5196555147506,
+             297.01011465470043]
+        )
+
+
 ###############################################################################
 #                              Utility methods                                #
 ###############################################################################
@@ -2175,8 +2184,8 @@ def test_additional_params(env_class,
 
     Parameters
     ----------
-    env_class : flow.envs.Env type
-        blank
+    env_class : flow.envs.Env
+        the environment class. Used to try to instantiate the environment.
     sim_params : flow.core.params.SumoParams
         sumo-specific parameters
     network : flow.networks.Network
@@ -2258,7 +2267,7 @@ def test_observed(env_class,
     Parameters
     ----------
     env_class : flow.envs.Env class
-        blank
+        the environment class. Used to instantiate the environment.
     sim_params : flow.core.params.SumoParams
         sumo-specific parameters
     network : flow.networks.Network

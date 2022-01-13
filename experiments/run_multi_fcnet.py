@@ -15,14 +15,14 @@ EXAMPLE_USAGE = \
 def run_exp(env,
             policy,
             hp,
-            steps,
             dir_name,
             evaluate,
             seed,
             eval_interval,
             log_interval,
             save_interval,
-            initial_exploration_steps):
+            initial_exploration_steps,
+            ckpt_path=None):
     """Run a single training procedure.
 
     Parameters
@@ -52,6 +52,9 @@ def run_exp(env,
     initial_exploration_steps : int
         number of timesteps that the policy is run before training to
         initialize the replay buffer with samples
+    ckpt_path : str
+        path to a checkpoint file. The model is initialized with the weights
+        and biases within this checkpoint.
     """
     eval_env = env if evaluate else None
 
@@ -64,13 +67,13 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
         save_interval=save_interval,
         initial_exploration_steps=initial_exploration_steps,
         seed=seed,
+        ckpt_path=ckpt_path,
     )
 
 
@@ -87,7 +90,11 @@ def main(args, base_dir):
         now = strftime("%Y-%m-%d-%H:%M:%S")
 
         # Create a save directory folder (if it doesn't exist).
-        dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
+        if args.log_dir is not None:
+            dir_name = args.log_dir
+        else:
+            dir_name = os.path.join(base_dir, '{}/{}'.format(
+                args.env_name, now))
         ensure_dir(dir_name)
 
         # Get the policy class.
@@ -95,6 +102,10 @@ def main(args, base_dir):
             from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
         elif args.alg == "SAC":
             from hbaselines.multiagent.sac import MultiFeedForwardPolicy
+        elif args.alg == "PPO":
+            from hbaselines.multiagent.ppo import MultiFeedForwardPolicy
+        elif args.alg == "TRPO":
+            from hbaselines.multiagent.trpo import MultiFeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
@@ -117,7 +128,6 @@ def main(args, base_dir):
             env=args.env_name,
             policy=MultiFeedForwardPolicy,
             hp=hp,
-            steps=args.total_steps,
             dir_name=dir_name,
             evaluate=args.evaluate,
             seed=seed,
@@ -125,6 +135,7 @@ def main(args, base_dir):
             log_interval=args.log_interval,
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
+            ckpt_path=args.ckpt_path,
         )
 
 

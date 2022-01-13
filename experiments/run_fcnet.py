@@ -14,7 +14,6 @@ EXAMPLE_USAGE = 'python run_fcnet.py "HalfCheetah-v2" --total_steps 1e6'
 def run_exp(env,
             policy,
             hp,
-            steps,
             dir_name,
             evaluate,
             seed,
@@ -22,7 +21,8 @@ def run_exp(env,
             log_interval,
             save_interval,
             initial_exploration_steps,
-            exploration_strategy):
+            exploration_strategy,
+            ckpt_path):
     """Run a single training procedure.
 
     Parameters
@@ -33,8 +33,6 @@ def run_exp(env,
         the policy class to use
     hp : dict
         additional algorithm hyper-parameters
-    steps : int
-        total number of training steps
     dir_name : str
         the location the results files are meant to be stored
     evaluate : bool
@@ -54,6 +52,9 @@ def run_exp(env,
         initialize the replay buffer with samples
     exploration_strategy: str
         The exploration strategies to use for this training.
+    ckpt_path : str
+        path to a checkpoint file. The model is initialized with the weights
+        and biases within this checkpoint.
     """
     eval_env = env if evaluate else None
 
@@ -67,13 +68,13 @@ def run_exp(env,
 
     # perform training
     alg.learn(
-        total_steps=steps,
         log_dir=dir_name,
         log_interval=log_interval,
         eval_interval=eval_interval,
         save_interval=save_interval,
         initial_exploration_steps=initial_exploration_steps,
         seed=seed,
+        ckpt_path=ckpt_path,
     )
 
 
@@ -90,7 +91,11 @@ def main(args, base_dir):
         now = strftime("%Y-%m-%d-%H:%M:%S")
 
         # Create a save directory folder (if it doesn't exist).
-        dir_name = os.path.join(base_dir, '{}/{}'.format(args.env_name, now))
+        if args.log_dir is not None:
+            dir_name = args.log_dir
+        else:
+            dir_name = os.path.join(base_dir, '{}/{}'.format(
+                args.env_name, now))
         ensure_dir(dir_name)
 
         # Get the policy class.
@@ -100,6 +105,8 @@ def main(args, base_dir):
             from hbaselines.fcnet.sac import FeedForwardPolicy
         elif args.alg == "PPO":
             from hbaselines.fcnet.ppo import FeedForwardPolicy
+        elif args.alg == "TRPO":
+            from hbaselines.fcnet.trpo import FeedForwardPolicy
         else:
             raise ValueError("Unknown algorithm: {}".format(args.alg))
 
@@ -122,7 +129,6 @@ def main(args, base_dir):
             env=args.env_name,
             policy=FeedForwardPolicy,
             hp=hp,
-            steps=args.total_steps,
             dir_name=dir_name,
             evaluate=args.evaluate,
             seed=seed,
@@ -131,6 +137,7 @@ def main(args, base_dir):
             save_interval=args.save_interval,
             initial_exploration_steps=args.initial_exploration_steps,
             exploration_strategy = args.exploration_strategy,
+            ckpt_path=args.ckpt_path,
         )
 
 

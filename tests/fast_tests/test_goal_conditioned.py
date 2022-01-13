@@ -10,7 +10,8 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy as \
     TD3GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy as \
     SACGoalConditionedPolicy
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS, TD3_PARAMS
+from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
 
 
@@ -24,6 +25,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -44,6 +46,7 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         2. hindsight = False, relative_goals = True
         3. hindsight = True,  relative_goals = False
         4. hindsight = True,  relative_goals = True
+        1. hindsight = False, relative_goals = False, meta_period = [5, 2]
         """
         # =================================================================== #
         #                             test case 1                             #
@@ -126,6 +129,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
                          [False, False, False, False])
 
     def test_store_transition_2(self):
+        # =================================================================== #
+        #                             test case 2                             #
+        # =================================================================== #
+
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = True
         policy_params['hindsight'] = False
@@ -202,6 +209,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         self.assertEqual(done, [False, False, False, False])
 
     def test_store_transition_3(self):
+        # =================================================================== #
+        #                             test case 3                             #
+        # =================================================================== #
+
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = False
         policy_params['hindsight'] = True
@@ -317,6 +328,10 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         self.assertEqual(done_t, [False, False, False, False])
 
     def test_store_transition_4(self):
+        # =================================================================== #
+        #                             test case 4                             #
+        # =================================================================== #
+
         policy_params = self.policy_params.copy()
         policy_params['relative_goals'] = True
         policy_params['hindsight'] = True
@@ -431,6 +446,119 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
 
         self.assertEqual(done_t, [False, False, False, False])
 
+    def test_store_transition_5(self):
+        # =================================================================== #
+        #                             test case 1                             #
+        # =================================================================== #
+
+        policy_params = self.policy_params.copy()
+        policy_params['relative_goals'] = False
+        policy_params['hindsight'] = False
+        policy_params['subgoal_testing_rate'] = 1
+        policy_params['meta_period'] = [5, 2]
+        policy_params['num_levels'] = 3
+        policy_params['batch_size'] = 2
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # Initialize the variables of the policy.
+        policy.sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Run the initialize method.
+        policy.initialize()
+
+        policy.meta_action = [[np.array([5, 5]), np.array([6, 6])]]
+
+        for i in range(10):
+            obs0 = np.array([i for _ in range(2)])
+            context0 = np.array([i for _ in range(3)])
+            action = np.array([i for _ in range(1)])
+            reward = i
+            obs1 = np.array([i+1 for _ in range(2)])
+            context1 = np.array([i for _ in range(3)])
+            done, is_final_step, evaluate = False, False, False
+
+            policy.store_transition(
+                obs0=obs0,
+                context0=context0,
+                action=action,
+                reward=reward,
+                obs1=obs1,
+                context1=context1,
+                done=done,
+                is_final_step=is_final_step,
+                evaluate=evaluate,
+                env_num=0,
+            )
+
+        obs_t = policy.replay_buffer._obs_t[0]
+        action_t = policy.replay_buffer._action_t[0]
+        reward = policy.replay_buffer._reward_t[0]
+        done = policy.replay_buffer._done_t[0]
+
+        # check the various attributes
+        self.assertTrue(
+            all(all(obs_t[i] ==
+                    [np.array([0, 0]),
+                     np.array([1, 1]),
+                     np.array([2, 2]),
+                     np.array([3, 3]),
+                     np.array([4, 4]),
+                     np.array([5, 5]),
+                     np.array([6, 6]),
+                     np.array([7, 7]),
+                     np.array([8, 8]),
+                     np.array([9, 9]),
+                     np.array([10, 10])][i])
+                for i in range(len(obs_t)))
+        )
+
+        for i in range(len(action_t)):
+            self.assertTrue(
+                all(all(action_t[i][j] ==
+                        [[np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5]),
+                          np.array([5, 5])],
+                         [np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6]),
+                          np.array([6, 6])],
+                         [np.array([0]),
+                          np.array([1]),
+                          np.array([2]),
+                          np.array([3]),
+                          np.array([4]),
+                          np.array([5]),
+                          np.array([6]),
+                          np.array([7]),
+                          np.array([8]),
+                          np.array([9])]][i][j])
+                    for j in range(len(action_t[i])))
+            )
+
+        self.assertEqual(reward,
+                         [[45],
+                          [-9.899494936632289, -4.242640687172318,
+                           -1.4142235624084505, -7.071067811894938,
+                           -12.727922061373764],
+                          [-7.071067811872546, -5.656854249501219,
+                           -4.24264068713107, -2.8284271247638677,
+                           -1.4142135624084504, -1e-05,
+                           -1.4142135624084504, -2.8284271247638677,
+                           -4.24264068713107, -5.656854249501219]])
+
+        self.assertEqual(done, [False, False, False, False, False, False,
+                                False, False, False, False])
+
     def test_update_meta(self):
         """Validate the functionality of the _update_meta function.
 
@@ -476,6 +604,58 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         # test case 7
         policy._observations = [[0 for _ in range(10)] for _ in range(1)]
         self.assertEqual(policy._update_meta(0, env_num=0), False)
+
+        # test case 8
+        policy._observations = [[0 for _ in range(10)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
+
+    def test_update_meta_list(self):
+        """Validate the functionality of the _update_meta function.
+
+        This is the case when the meta action period is specified as a list.
+
+        This is tested for two cases:
+        1. level = 0 after 0 steps --> True
+        2. level = 1 after 0 steps --> True
+        3. level = 0 after 2 steps --> False
+        4. level = 1 after 2 steps --> True
+        5. level = 0 after 5 steps --> False
+        6. level = 1 after 5 steps --> False
+        7. level = 0 after 10 steps --> True
+        8. level = 1 after 10 steps --> True
+        """
+        policy_params = self.policy_params.copy()
+        policy_params['meta_period'] = [5, 2]
+        policy_params['num_levels'] = 3
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # test case 1
+        policy._observations = [[] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), True)
+
+        # test case 2
+        policy._observations = [[] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
+
+        # test case 3
+        policy._observations = [[0 for _ in range(2)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), False)
+
+        # test case 4
+        policy._observations = [[0 for _ in range(2)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), True)
+
+        # test case 5
+        policy._observations = [[0 for _ in range(5)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), False)
+
+        # test case 6
+        policy._observations = [[0 for _ in range(5)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(1, env_num=0), False)
+
+        # test case 7
+        policy._observations = [[0 for _ in range(10)] for _ in range(1)]
+        self.assertEqual(policy._update_meta(0, env_num=0), True)
 
         # test case 8
         policy._observations = [[0 for _ in range(10)] for _ in range(1)]
@@ -935,6 +1115,94 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         del policy, policy_params
         tf.compat.v1.reset_default_graph()
 
+    def test_pretrain_level(self):
+        """Validate the functionality of the _pretrain_level method.
+
+        This is done for the following cases (in a 3-level hierarchy):
+
+        1. total_steps = 200000, _steps = 0, level = 0
+        2. total_steps = 200000, _steps = 0, level = 1
+        3. total_steps = 200000, _steps = 50000, level = 0
+        4. total_steps = 200000, _steps = 50000, level = 1
+        5. total_steps = 200000, _steps = 100000, level = 0
+        6. total_steps = 200000, _steps = 100000, level = 1
+        7. total_steps = 200000, _steps = 200000, level = 0
+        8. total_steps = 200000, _steps = 200000, level = 1
+        """
+        policy_params = self.policy_params.copy()
+        policy_params['sess'] = tf.compat.v1.Session()
+        policy_params['env_name'] = "AntGather"
+        policy_params['num_levels'] = 3
+        policy_params['total_steps'] = 200000
+        policy_params["pretrain_worker"] = True
+
+        # Initialize the policy.
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        # =================================================================== #
+        # test case 1                                                         #
+        # =================================================================== #
+
+        policy._steps = 0
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 2                                                         #
+        # =================================================================== #
+
+        policy._steps = 0
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 3                                                         #
+        # =================================================================== #
+
+        policy._steps = 50000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 4                                                         #
+        # =================================================================== #
+
+        policy._steps = 50000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 5                                                         #
+        # =================================================================== #
+
+        policy._steps = 100000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 6                                                         #
+        # =================================================================== #
+
+        policy._steps = 100000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), False)
+
+        # =================================================================== #
+        # test case 7                                                         #
+        # =================================================================== #
+
+        policy._steps = 200000
+        level = 0
+        self.assertEqual(policy._pretrain_level(level), True)
+
+        # =================================================================== #
+        # test case 8                                                         #
+        # =================================================================== #
+
+        policy._steps = 200000
+        level = 1
+        self.assertEqual(policy._pretrain_level(level), False)
+
 
 class TestTD3GoalConditionedPolicy(unittest.TestCase):
     """Test GoalConditionedPolicy in hbaselines/goal_conditioned/td3.py."""
@@ -946,6 +1214,7 @@ class TestTD3GoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(TD3_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())
@@ -1305,6 +1574,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
             'ob_space': Box(low=-2, high=2, shape=(2,)),
             'co_space': Box(low=-3, high=3, shape=(2,)),
             'verbose': 0,
+            'total_steps': 1,
         }
         self.policy_params.update(SAC_PARAMS.copy())
         self.policy_params.update(GOAL_CONDITIONED_PARAMS.copy())

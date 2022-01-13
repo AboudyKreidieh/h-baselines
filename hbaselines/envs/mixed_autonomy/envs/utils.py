@@ -1,4 +1,5 @@
 """Script containing utility methods shared amount the environments."""
+import numpy as np
 
 # These edges have an extra lane that RL vehicles do not traverse (since they
 # do not change lanes). We as a result ignore their first lane computing
@@ -11,9 +12,9 @@ EXTRA_LANE_EDGES = [
     "119257908#3",
 ]
 # a normalizing term for the vehicle headways
-MAX_HEADWAY = 20
+MAX_HEADWAY = 100.0
 # a normalizing term for the vehicle speeds
-MAX_SPEED = 5
+MAX_SPEED = 10.0
 
 
 def get_relative_obs(env, veh_id):
@@ -24,11 +25,8 @@ def get_relative_obs(env, veh_id):
     1. the ego speed
     2. the headway
     3. the speed of the leader
-    4. the tailway
-    5. the speed of the follower
 
-    This also adds the leaders and followers to the vehicle class for
-    visualization purposes.
+    This also adds the leaders to the vehicle class for visualization purposes.
 
     Parameters
     ----------
@@ -43,14 +41,8 @@ def get_relative_obs(env, veh_id):
         the observation
     str
         the ID of the leader
-    str
-        the ID of the follower
     """
-    obs = [None for _ in range(5)]
-
-    # used to handle missing observations of adjacent vehicles
-    max_speed = env.k.network.max_speed()
-    max_length = env.k.network.length()
+    obs = np.array([0.0 for _ in range(3)])
 
     # Add the speed of the ego vehicle.
     obs[0] = env.k.vehicle.get_speed(veh_id, 0) / MAX_SPEED
@@ -59,31 +51,16 @@ def get_relative_obs(env, veh_id):
     leader = env.k.vehicle.get_leader(veh_id)
     if leader in ["", None]:
         # in case leader is not visible
-        lead_speed = max_speed / MAX_SPEED
-        lead_head = max_length / MAX_HEADWAY
+        lead_speed = 10.0
+        lead_head = 5.0
     else:
         lead_speed = env.k.vehicle.get_speed(leader, 0) / MAX_SPEED
-        lead_head = env.k.vehicle.get_headway(veh_id, 0) / MAX_HEADWAY
-        env.leader.append(leader)
+        lead_head = min(env.k.vehicle.get_headway(veh_id, 0) / MAX_HEADWAY, 5.)
 
     obs[1] = lead_speed
     obs[2] = lead_head
 
-    # Add the speed and bumper-to-bumper headway of following vehicles.
-    follower = env.k.vehicle.get_follower(veh_id)
-    if follower in ["", None]:
-        # in case follower is not visible
-        follow_speed = max_speed / MAX_SPEED
-        follow_head = max_length / MAX_HEADWAY
-    else:
-        follow_speed = env.k.vehicle.get_speed(follower, 0) / MAX_SPEED
-        follow_head = env.k.vehicle.get_headway(follower, 0) / MAX_HEADWAY
-        env.follower.append(follower)
-
-    obs[3] = follow_speed
-    obs[4] = follow_head
-
-    return obs, leader, follower
+    return obs, leader
 
 
 def update_rl_veh(env,
@@ -173,3 +150,42 @@ def v_eq_function(v, *args):
     error = s_eq_max - (s0 + v * tau) * (1 - (v / v0) ** gamma) ** -0.5
 
     return error
+
+
+def get_rl_accel(accel, vel, max_accel, dt):
+    """Compute the RL acceleration from the desired acceleration.
+
+    We reduce the decelerations at smaller speeds to smoothen the effects.
+
+    Parameters
+    ----------
+    accel : array_like or dict
+        the RL actions
+    vel : array_like
+        the speed of the RL vehicles
+    max_accel : float
+        scaling factor for the AV accelerations, in m/s^2
+    dt : float
+        seconds per simulation step
+
+    Returns
+    -------
+    array_like
+        the updated acceleration values
+    """
+    # for multi-agent environments
+    if isinstance(accel, dict):
+        accel = [accel[key][0] for key in accel.keys()]
+
+    # Scale to the range of accelerations.
+    accel = np.clip(accel, a_min=-1, a_max=1)
+    accel = max_accel * np.array(accel)
+
+    # Redefine if below a speed threshold so that all actions result in
+    # non-negative desired speeds.
+    for i in range(len(vel)):
+        ac_range = 2. * max_accel
+        if vel[i] < 0.5 * ac_range * dt:
+            accel[i] += 0.5 * ac_range - vel[i] / dt
+
+    return accel

@@ -39,6 +39,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
                  pretrain_worker,
                  pretrain_path,
                  pretrain_ckpt,
+                 total_steps,
                  scope=None,
                  env_name="",
                  num_envs=1):
@@ -83,13 +84,16 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         num_levels : int
             number of levels within the hierarchy. Must be greater than 1. Two
             levels correspond to a Manager/Worker paradigm.
-        meta_period : int
-            meta-policy action period
+        meta_period : int or [int]
+            meta-policy action period. For multi-level hierarchies, a separate
+            meta period can be provided for each level (indexed from highest to
+            lowest)
         intrinsic_reward_type : str
             the reward function to be used by the lower-level policies. See the
             base goal-conditioned policy for a description.
-        intrinsic_reward_scale : float
-            the value that the intrinsic reward should be scaled by
+        intrinsic_reward_scale : [float]
+            the value that the intrinsic reward should be scaled by. One for
+            each lower-level.
         relative_goals : bool
             specifies whether the goal issued by the higher-levels policies is
             meant to be a relative or absolute goal, i.e. specific state or
@@ -123,7 +127,18 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         pretrain_ckpt : int or None
             checkpoint number to use within the worker policy path. If set to
             None, the most recent checkpoint is used.
+        total_steps : int
+            Total number of timesteps used during training. Used by a subset of
+            algorithms.
         """
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.tau = tau
+        self.gamma = gamma
+        self.use_huber = use_huber
+
         super(GoalConditionedPolicy, self).__init__(
             sess=sess,
             ob_space=ob_space,
@@ -155,6 +170,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
             pretrain_worker=pretrain_worker,
             pretrain_path=pretrain_path,
             pretrain_ckpt=pretrain_ckpt,
+            total_steps=total_steps,
             num_envs=num_envs,
             meta_policy=FeedForwardPolicy,
             worker_policy=FeedForwardPolicy,
