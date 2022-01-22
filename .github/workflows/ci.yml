@@ -35,6 +35,7 @@ jobs:
       run: |
         mkdir $HOME/.mujoco
         cp docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
+        pip install cffi
         pip install mujoco-py==1.50.1.68
 
     - name: Install AntGather.
