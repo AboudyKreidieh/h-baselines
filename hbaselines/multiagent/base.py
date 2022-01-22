@@ -171,6 +171,10 @@ class MultiAgentPolicy(Policy):
         self.base_policy = base_policy
         self.additional_params = additional_params or {}
 
+        if self.shared:
+            self.ob_max = None
+            self.ob_min = None
+
         # Used to maintain memory on the env_num used for individual agents.
         # Key: agent ID, Element: agent env number.
         self._agent_index = [{} for _ in range(num_envs)]
@@ -433,6 +437,11 @@ class MultiAgentPolicy(Policy):
                 random_actions=random_actions,
                 env_num=env_num_i,
             )
+
+            # Update ob_min and ob_min from base_policy
+            if self.shared:
+                self.ob_max = agent.ob_max
+                self.ob_min = agent.ob_min
 
         return actions
 

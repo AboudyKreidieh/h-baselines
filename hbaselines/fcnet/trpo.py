@@ -184,6 +184,8 @@ class FeedForwardPolicy(Policy):
         self.mb_returns = [[] for _ in range(num_envs)]
         self.last_obs = [None for _ in range(num_envs)]
         self.mb_advs = None
+        self.ob_max = None
+        self.ob_min = None
 
         # Compute the shape of the input observation space, which may include
         # the contextual term.
@@ -523,6 +525,16 @@ class FeedForwardPolicy(Policy):
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
 
+        # Update the observation min/max and scale the observation.  TODO
+        if self.ob_max is None:
+            self.ob_max = np.max(obs, axis=0)
+            self.ob_min = np.min(obs, axis=0)
+        else:
+            self.ob_max = np.max(np.concatenate((obs, [self.ob_max])), axis=0)
+            self.ob_min = np.min(np.concatenate((obs, [self.ob_min])), axis=0)
+            if np.all((self.ob_max - self.ob_min) > np.finfo(float).eps):
+                obs = (obs - self.ob_min) / (self.ob_max - self.ob_min)
+                obs = obs * 1000
         action = self.sess.run(
             self.action if apply_noise else self.pi_mean,
             feed_dict={
@@ -670,6 +682,17 @@ class FeedForwardPolicy(Policy):
         """
         # Add the contextual observation, if applicable.
         obs = self._get_obs(obs, context, axis=1)
+
+        # Update the observation min/max and scale the observation.  TODO
+        if self.ob_max is None:
+            self.ob_max = np.max(obs, axis=0)
+            self.ob_min = np.min(obs, axis=0)
+        else:
+            self.ob_max = np.max(np.concatenate((obs, [self.ob_max])), axis=0)
+            self.ob_min = np.min(np.concatenate((obs, [self.ob_min])), axis=0)
+            if np.all((self.ob_max - self.ob_min) > np.finfo(float).eps):
+                obs = (obs - self.ob_min) / (self.ob_max - self.ob_min)
+                obs = obs * 1000
 
         def fisher_vector_product(vec):
             return self.sess.run(self.fvp, feed_dict={
