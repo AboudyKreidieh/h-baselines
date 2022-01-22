@@ -31,6 +31,22 @@ jobs:
         popd
         popd
 
+    - name: Install MuJoCo.
+      run: |
+        mkdir $HOME/.mujoco
+        cp docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
+        pip install mujoco-py==1.50.1.68
+
+    - name: Install AntGather.
+      run: |
+        pushd $HOME
+        git clone https://github.com/rll/rllab.git
+        pushd rllab
+        python setup.py develop
+        git submodule add -f https://github.com/florensacc/snn4hrl.git sandbox/snn4hrl
+        popd
+        popd
+
     - name: Install multi-world.
       run: |
         pushd $HOME
@@ -57,7 +73,7 @@ jobs:
         export PATH="$HOME/sumo_binaries/bin:$PATH"
         export SUMO_HOME="$HOME/sumo_binaries/bin"
         pip install --use-deprecated=legacy-resolver -e .
-        nose2 --with-coverage
+        nose2 --with-coverage --cover-erase
 
     - name: Upload coverage data to coveralls.io
       run: coveralls --service=github
