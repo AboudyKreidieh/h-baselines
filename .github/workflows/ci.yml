@@ -33,11 +33,13 @@ jobs:
 
     - name: Install MuJoCo.
       run: |
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/runner/.mujoco/mjpro150/bin
         mkdir $HOME/.mujoco
         unzip docs/ci/mjpro150_linux.zip && mv mjpro150 $HOME/.mujoco
         cp docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
         pip install cffi
         pip install Cython
+        pip install lockfile
         pip install mujoco-py==1.50.1.68
 
     - name: Install AntGather.
