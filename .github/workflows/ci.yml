@@ -34,7 +34,7 @@ jobs:
     - name: Install MuJoCo.
       run: |
         sudo apt install libosmesa6-dev libgl1-mesa-glx libglfw3
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/runner/.mujoco/mjpro150/bin
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/.mujoco/mjpro150/bin"
         mkdir $HOME/.mujoco
         unzip docs/ci/mjpro150_linux.zip && mv mjpro150 $HOME/.mujoco
         cp docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
@@ -76,6 +76,7 @@ jobs:
 
     - name: Run tests.
       run: |
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/.mujoco/mjpro150/bin"
         export PATH="$HOME/sumo_binaries/bin:$PATH"
         export SUMO_HOME="$HOME/sumo_binaries/bin"
         pip install --use-deprecated=legacy-resolver -e .
