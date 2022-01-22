@@ -40,13 +40,6 @@ jobs:
         popd
         popd
 
-    - name: Download additional files.
-      run: |
-        pushd experiments
-        wget https://s3.us-east-2.amazonaws.com/aboudy.experiments/h-baselines/warmup.zip
-        unzip warmup.zip
-        popd
-
     - name: Other packages to install.
       run: |
         pip install flake8

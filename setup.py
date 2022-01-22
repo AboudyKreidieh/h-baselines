@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # flake8: noqa
 """Setup script for the h-baselines repository."""
+import os
+import subprocess
+import setuptools.command.build_ext as _build_ext
 from os.path import dirname
 from os.path import realpath
 from setuptools import find_packages
 from setuptools import setup
 from setuptools import Distribution
-import setuptools.command.build_ext as _build_ext
-import subprocess
+
 from hbaselines.version import __version__
 
 
@@ -18,11 +20,28 @@ def _read_requirements_file():
 
 
 class BuildExt(_build_ext.build_ext):
-    """External buid commands."""
+    """External build commands."""
 
     def run(self):
         """Install traci wheels."""
+        # Install ray[tune].
         subprocess.check_call(['pip', 'install', 'ray[tune]'])
+
+        # Unzip files.
+        subprocess.check_call([
+            'unzip',
+            os.path.join(
+                dirname(realpath(__file__)),
+                'experiments/warmup/highway.zip',
+            )
+        ])
+        subprocess.check_call([
+            'unzip',
+            os.path.join(
+                dirname(realpath(__file__)),
+                'experiments/warmup/i210.zip',
+            )
+        ])
 
 
 class BinaryDistribution(Distribution):
