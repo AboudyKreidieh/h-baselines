@@ -2,13 +2,11 @@
 # flake8: noqa
 """Setup script for the h-baselines repository."""
 import os
-import subprocess
-from setuptools.command.develop import develop
+from zipfile import ZipFile
+from setuptools.command.install import install
 from os.path import dirname
 from os.path import realpath
-from setuptools import find_packages
 from setuptools import setup
-from setuptools import Distribution
 
 from hbaselines.version import __version__
 
@@ -19,50 +17,35 @@ def _read_requirements_file():
         return [line.strip() for line in f]
 
 
-class CustomDevelopCommand(develop):
-    """Customized setuptools develop command."""
+class CustomInstall(install):
+
+    def __init__(self, dist):
+        super(install, self).__init__(dist)
+        self.__post_install()
 
     def run(self):
-        """See parent class."""
-        # Unzip files.
-        subprocess.check_call([
-            'unzip',
-            os.path.join(
-                dirname(realpath(__file__)),
-                'experiments/warmup/highway.zip',
-            )
-        ])
-        subprocess.check_call([
-            'unzip',
-            os.path.join(
-                dirname(realpath(__file__)),
-                'experiments/warmup/i210.zip',
-            )
-        ])
-
-        develop.run(self)
-
-
-class BinaryDistribution(Distribution):
-    """See parent class."""
+        install.run(self)
 
     @staticmethod
-    def has_ext_modules():
-        """Return True for external modules."""
-        return True
+    def __post_install():
+        directory = os.path.join(
+            dirname(realpath(__file__)), 'experiments/warmup')
+
+        # Unzip files.
+        with ZipFile(os.path.join(directory, 'highway.zip'), 'r') as f:
+            f.extractall(directory)
+        with ZipFile(os.path.join(directory, 'i210.zip'), 'r') as f:
+            f.extractall(directory)
 
 
 setup(
     name='h-baselines',
     version=__version__,
-    distclass=BinaryDistribution,
-    cmdclass={"develop": CustomDevelopCommand},
-    packages=find_packages(),
+    cmdclass={"install": CustomInstall},
     install_requires=_read_requirements_file(),
     description='h-baselines: a repository of high-performing and benchmarked '
                 'hierarchical reinforcement learning models and algorithm',
     author='Aboudy Kreidieh',
     url='https://github.com/AboudyKreidieh/h-baselines',
     author_email='aboudy@berkeley.edu',
-    zip_safe=False,
 )
