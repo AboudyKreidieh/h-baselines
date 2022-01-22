@@ -3,7 +3,7 @@
 """Setup script for the h-baselines repository."""
 import os
 import subprocess
-from setuptools.command.install import install
+from setuptools.command.develop import develop
 from os.path import dirname
 from os.path import realpath
 from setuptools import find_packages
@@ -19,14 +19,11 @@ def _read_requirements_file():
         return [line.strip() for line in f]
 
 
-class CustomInstallCommand(install):
-    """Customized setuptools install command."""
+class CustomDevelopCommand(develop):
+    """Customized setuptools develop command."""
 
     def run(self):
         """See parent class."""
-        # Install ray[tune].
-        subprocess.check_call(['pip', 'install', 'ray[tune]'])
-
         # Unzip files.
         subprocess.check_call([
             'unzip',
@@ -43,7 +40,7 @@ class CustomInstallCommand(install):
             )
         ])
 
-        install.run(self)
+        develop.run(self)
 
 
 class BinaryDistribution(Distribution):
@@ -59,7 +56,7 @@ setup(
     name='h-baselines',
     version=__version__,
     distclass=BinaryDistribution,
-    cmdclass={"install": CustomInstallCommand},
+    cmdclass={"develop": CustomDevelopCommand},
     packages=find_packages(),
     install_requires=_read_requirements_file(),
     description='h-baselines: a repository of high-performing and benchmarked '
