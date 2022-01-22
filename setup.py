@@ -18,12 +18,14 @@ def _read_requirements_file():
 
 
 class CustomInstall(install):
+    """Custom installation procedure."""
 
     def __init__(self, dist):
         super(install, self).__init__(dist)
         self.__post_install()
 
     def run(self):
+        """See parent class."""
         install.run(self)
 
     @staticmethod
