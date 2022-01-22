@@ -3,7 +3,7 @@
 """Setup script for the h-baselines repository."""
 import os
 import subprocess
-import setuptools.command.build_ext as _build_ext
+from setuptools.command.install import install
 from os.path import dirname
 from os.path import realpath
 from setuptools import find_packages
@@ -19,11 +19,11 @@ def _read_requirements_file():
         return [line.strip() for line in f]
 
 
-class BuildExt(_build_ext.build_ext):
-    """External build commands."""
+class CustomInstallCommand(install):
+    """Customized setuptools install command."""
 
     def run(self):
-        """Install traci wheels."""
+        """See parent class."""
         # Install ray[tune].
         subprocess.check_call(['pip', 'install', 'ray[tune]'])
 
@@ -43,6 +43,8 @@ class BuildExt(_build_ext.build_ext):
             )
         ])
 
+        install.run(self)
+
 
 class BinaryDistribution(Distribution):
     """See parent class."""
@@ -57,7 +59,7 @@ setup(
     name='h-baselines',
     version=__version__,
     distclass=BinaryDistribution,
-    cmdclass={"build_ext": BuildExt},
+    cmdclass={"install": CustomInstallCommand},
     packages=find_packages(),
     install_requires=_read_requirements_file(),
     description='h-baselines: a repository of high-performing and benchmarked '
