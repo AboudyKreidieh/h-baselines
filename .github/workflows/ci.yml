@@ -34,9 +34,7 @@ jobs:
     - name: Install MuJoCo.
       run: |
         mkdir $HOME/.mujoco
-        pwd
-        ls
-        cp $HOME/h-baselines/docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
+        cp docs/ci/mjkey.txt $HOME/.mujoco/mjkey.txt
         pip install mujoco-py==1.50.1.68
 
     - name: Install AntGather.
