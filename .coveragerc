@@ -4,6 +4,7 @@ omit =
     */site-packages/nose/*
     *__init__*
     */setup.py
+    */hbaselines/envs/deeploco/envs.py
     */config-3.py
     */config.py
 

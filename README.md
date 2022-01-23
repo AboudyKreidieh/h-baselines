@@ -333,10 +333,12 @@ print(PPO_PARAMS)
 
 ## 2.3 Goal-Conditioned HRL
 
+<img align="right" src="docs/img/goal-conditioned.png" width="50%">
+
 Goal-conditioned HRL models, also known as feudal models, are a variant 
 of hierarchical models that have been widely studied in the HRL
-community. This repository supports a two-level (Manager/Worker) variant
-of this policy, seen in the figure below. The policy can be imported via
+community. This repository supports a multi-level (2+ levels) variant
+of this policy, seen in the figure to the right. The policy can be imported via
 the following command:
 
 ```python
@@ -346,6 +348,14 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 # for SAC
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 ```
+
+This network consists of sequences of meta-policies, $\pi_i, \ i > 0$, which assign 
+goals to the policy within the hierarchy immediately below them, $\pi_{i-1}$. 
+The lowest level within the hierarchy, $\pi_0$, sometimes referred to as the 
+*worker* policy, then performs environmental actions in an attempt to achieve 
+the goal assigned to it within the environment.
+
+The "goals" assigned by 
 
 This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
 computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
@@ -357,37 +367,31 @@ parametrizes the environmental objective (e.g. desired position to move
 to), and consequently is passed both to the manager policy as well as 
 the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
 
-<p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
-
-All of the parameters specified within the 
+All the parameters specified within the 
 [Fully Connected Neural Networks](#22-fully-connected-neural-networks) 
-section are valid for this policy as well. Further parameters are 
+section are valid for this policy as well. Further relevant parameters are 
 described in the subsequent sections below.
 
-All `policy_kwargs` terms that are not specified are assigned default 
-parameters. These default terms are available via the following command:
-
-```python
-from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
-print(GOAL_CONDITIONED_PARAMS)
-```
-
-Moreover, similar to the feed-forward policy, additional algorithm-specific 
-default policy parameters can be found via the following commands:
-
-```python
-# for TD3
-from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
-print(TD3_PARAMS)
-
-# for SAC
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
-print(SAC_PARAMS)
-
-# for PPO
-from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
-print(PPO_PARAMS)
-```
+> Note: All `policy_kwargs` terms that are not specified are assigned default 
+> parameters. These default terms are available via the following command:
+>
+> ```python
+> from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+> print(GOAL_CONDITIONED_PARAMS)
+> ```
+> 
+> Moreover, similar to the feed-forward policy, additional algorithm-specific 
+> default policy parameters can be found via the following commands:
+> 
+> ```python
+> # for TD3
+> from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+> print(TD3_PARAMS)
+> 
+> # for SAC
+> from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+> print(SAC_PARAMS)
+> ```
 
 ### 2.3.1 Meta Period
 
@@ -488,7 +492,6 @@ alg = RLAlgorithm(
     }
 )
 ```
-
 
 ### 2.3.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
 

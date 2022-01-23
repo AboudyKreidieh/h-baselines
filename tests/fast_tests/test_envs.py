@@ -52,8 +52,40 @@ import hbaselines.config as hbaselines_config
 os.environ["TEST_FLAG"] = "True"
 
 
+class TestSNN4HRL(unittest.TestCase):
+    """TODO."""
+
+    def test_ant_gather(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_swimmer_gather(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_snake_gather(self):
+        """TODO."""
+        pass  # TODO
+
+
 class TestEfficientHRLAntEnvironments(unittest.TestCase):
     """Test the Ant* environments in envs/efficient_hrl/."""
+
+    def test_ant_maze(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_ant_four_rooms(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_ant_push(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_ant_fall(self):
+        """TODO."""
+        pass  # TODO
 
     def test_maze_env_utils(self):
         """Test hbaselines/envs/efficient_hrl/maze_env_utils.py."""
@@ -209,6 +241,22 @@ class TestEfficientHRLAntEnvironments(unittest.TestCase):
 
 class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
     """Test the Humanoid* environments in envs/efficient_hrl/."""
+
+    def test_humanoid_maze(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_humanoid_four_rooms(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_humanoid_push(self):
+        """TODO."""
+        pass  # TODO
+
+    def test_humanoid_fall(self):
+        """TODO."""
+        pass  # TODO
 
     def test_contextual_reward(self):
         """Check the functionality of the context_space attribute.
@@ -517,15 +565,6 @@ class TestPendulum(unittest.TestCase):
                             >= self.env.initial_state_space[i + num_obj][0])
             self.assertTrue(state[i + 2 * num_obj]
                             <= self.env.initial_state_space[i + num_obj][1])
-
-    def test_display_end_goal(self):
-        pass
-
-    def test_get_next_goal(self):
-        pass
-
-    def test_display_subgoal(self):
-        pass
 
 
 class TestMixedAutonomyEnvs(unittest.TestCase):
