@@ -397,11 +397,11 @@ described in the subsequent sections below.
 
 ### 2.3.1 Meta Period
 
-The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>,\
-is the number of a lower-level policy is assigned to perform the desired goal 
-before it is assigned a new goal by the policy above it. It can be specified to
-the policy during training by passing the term under the `meta_period` policy 
-parameter. This can be assigned through the algorithm as follows:
+The meta-policy action period is the number of a lower-level policy is assigned 
+to perform the desired goal before it is assigned a new goal by the policy 
+above it. It can be specified to the policy during training by passing the term 
+under the `meta_period` policy parameter. This can be assigned through the 
+algorithm as follows:
 
 ```python
 from hbaselines.algorithms import RLAlgorithm
