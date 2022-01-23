@@ -302,44 +302,64 @@ alg = RLAlgorithm(
 alg.learn(total_timesteps=1000000)
 ```
 
-All `policy_kwargs` terms that are not specified are assigned default 
-parameters. These default terms are available via the following command:
-
-```python
-from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
-print(FEEDFORWARD_PARAMS)
-```
-
-Additional algorithm-specific default policy parameters can be found via the 
-following commands:
-
-```python
-# for TD3
-from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
-print(TD3_PARAMS)
-
-# for SAC
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
-print(SAC_PARAMS)
-
-# for TRPO
-from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
-print(TRPO_PARAMS)
-
-# for PPO
-from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
-print(PPO_PARAMS)
-```
+> All `policy_kwargs` terms that are not specified are assigned default 
+> parameters. These default terms are available via the following command:
+> 
+> ```python
+> from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+> print(FEEDFORWARD_PARAMS)
+> ```
+> 
+> Additional algorithm-specific default policy parameters can be found via the 
+> following commands:
+> 
+> ```python
+> # for TD3
+> from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+> print(TD3_PARAMS)
+> 
+> # for SAC
+> from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+> print(SAC_PARAMS)
+> 
+> # for TRPO
+> from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
+> print(TRPO_PARAMS)
+> 
+> # for PPO
+> from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+> print(PPO_PARAMS)
+> ```
 
 ## 2.3 Goal-Conditioned HRL
 
 <img align="right" src="docs/img/goal-conditioned.png" width="50%">
 
-Goal-conditioned HRL models, also known as feudal models, are a variant 
-of hierarchical models that have been widely studied in the HRL
-community. This repository supports a multi-level (2+ levels) variant
-of this policy, seen in the figure to the right. The policy can be imported via
-the following command:
+Goal-conditioned HRL models, also known as feudal models, are a variant of 
+hierarchical models that have been widely studied in the HRL community. This 
+repository supports a multi-level (2+ levels) variant of this policy, with a 
+2-level version of this depicted in the figure to the right. This hierarchy 
+consists of sequences of meta-policies, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_i, \ i > 0}">, 
+which assign goals to the policy within the hierarchy immediately below them, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_{i-1}}">.
+level within the hierarchy, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_0}">, 
+sometimes referred to as the *worker* 
+policy, then performs environmental actions in an attempt to achieve the goal 
+assigned to it within the environment.
+
+The "goals" assigned by the meta-policies denote a desired state, or relative 
+change in state, that is deemed desirable by the meta-policies.  This behavior 
+is then encouraged in the learning procedure via an intrinsic reward function: 
+<img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/> 
+(e.g. desired position to move to). The highest level meta-policy receives 
+the original environmental reward function 
+<img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>
+to solve for the true objective of the assigned task.
+
+The available algorithmic-specific variants of this policy can be imported in a
+python script via the following command:
 
 ```python
 # for TD3
@@ -348,24 +368,6 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 # for SAC
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 ```
-
-This network consists of sequences of meta-policies, $\pi_i, \ i > 0$, which assign 
-goals to the policy within the hierarchy immediately below them, $\pi_{i-1}$. 
-The lowest level within the hierarchy, $\pi_0$, sometimes referred to as the 
-*worker* policy, then performs environmental actions in an attempt to achieve 
-the goal assigned to it within the environment.
-
-The "goals" assigned by 
-
-This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
-computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
-steps, and a low-level policy <img src="/tex/51b5a929b95bcaa91a728fbc3c4eb154.svg?invert_in_darkmode&sanitize=true" align=middle width=19.18963529999999pt height=14.15524440000002pt/> that takes as inputs the current 
-state and the assigned goals and is encouraged to perform actions 
-<img src="/tex/42d35a15bf7f1d9d42240d4dc81b720d.svg?invert_in_darkmode&sanitize=true" align=middle width=103.61875094999998pt height=24.65753399999998pt/> that satisfy these goals via an intrinsic 
-reward function: <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>. The contextual term, <img src="/tex/3e18a4a28fdee1744e5e3f79d13b9ff6.svg?invert_in_darkmode&sanitize=true" align=middle width=7.11380504999999pt height=14.15524440000002pt/>, 
-parametrizes the environmental objective (e.g. desired position to move 
-to), and consequently is passed both to the manager policy as well as 
-the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
 
 All the parameters specified within the 
 [Fully Connected Neural Networks](#22-fully-connected-neural-networks) 
@@ -395,9 +397,11 @@ described in the subsequent sections below.
 
 ### 2.3.1 Meta Period
 
-The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
-training by passing the term under the `meta_period` policy parameter. 
-This can be assigned through the algorithm as follows:
+The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>,\
+is the number of a lower-level policy is assigned to perform the desired goal 
+before it is assigned a new goal by the policy above it. It can be specified to
+the policy during training by passing the term under the `meta_period` policy 
+parameter. This can be assigned through the algorithm as follows:
 
 ```python
 from hbaselines.algorithms import RLAlgorithm
@@ -418,7 +422,7 @@ alg = RLAlgorithm(
 The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, define the rewards assigned
 to the lower level policies for achieving goals assigned by the policies 
 immediately above them. The choice of intrinsic reward can have a 
-significant affect on the training performance of both the upper and lower 
+significant effect on the training performance of both the upper and lower 
 level policies. Currently, this repository supports the use of two intrinsic 
 reward functions:
  
