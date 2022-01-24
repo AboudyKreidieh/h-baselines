@@ -2672,7 +2672,6 @@ class TestPPOMultiFeedForwardPolicy(unittest.TestCase):
     def test_init_6(self):
         pass  # TODO
 
-
     def test_store_transition_1(self):
         """Check the functionality of the store_transition() method.
 
