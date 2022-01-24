@@ -47,6 +47,7 @@ jobs:
       run: |
         pip install pyopengl
         pip install theano
+        pip install mako
         pushd $HOME
         git clone https://github.com/rll/rllab.git
         pushd rllab
