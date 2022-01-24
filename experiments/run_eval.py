@@ -14,12 +14,12 @@ from hbaselines.utils.eval import TrajectoryLogger
 
 # name of Flow environments. These are rendered differently
 FLOW_ENVS = [
+    "ring",
     "ring-v0",
-    "ring-v0-fast",
-    "ring-v1-fast",
-    "ring-v2-fast",
-    "ring-v3-fast",
-    "ring-v4-fast",
+    "ring-v1",
+    "ring-v2",
+    "ring-v3",
+    "ring-v4",
     "merge-v0",
     "merge-v1",
     "merge-v2",

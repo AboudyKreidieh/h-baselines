@@ -30,6 +30,7 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy \
     as SACMultiGoalConditionedPolicy
+from hbaselines.utils.env_util import _is_ring_env
 
 # offset used to positions when drawing trajectories
 OBJECT_OFFSET = 1
@@ -190,7 +191,7 @@ class TrajectoryLogger(object):
                 "obs": [],
                 "goal": [],
             }
-        elif self.env_name.startswith("ring-v"):  # ring-v{0,1,2,3,4}{-fast}
+        elif _is_ring_env(self.env_name):
             # Save the speeds and goal speeds.
             self.data = {
                 "speed": [],
@@ -224,7 +225,7 @@ class TrajectoryLogger(object):
                 ])
                 self.data["goal"].append(goal.flatten()[:2])
 
-        elif self.env_name.startswith("ring-v"):  # ring-v{0,1,2,3,4}{-fast}
+        elif _is_ring_env(self.env_name):
             # Log the vehicle speeds and desired speeds.
             pass
         else:

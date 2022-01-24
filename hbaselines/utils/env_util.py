@@ -35,15 +35,17 @@ try:
         import get_flow_params as highway
     from hbaselines.envs.mixed_autonomy.params.i210 \
         import get_flow_params as i210
-    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
-        import RingSingleAgentEnv
-    from hbaselines.envs.mixed_autonomy.envs.ring_nonflow \
-        import RingMultiAgentEnv
 except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover
     # ray seems to have a bug that requires you to install ray[tune] twice
     if "ray" in str(e):  # pragma: no cover
         raise e  # pragma: no cover
     pass  # pragma: no cover
+
+try:
+    from ring_rl.core.envs import RingSingleAgentEnv
+    from ring_rl.core.envs import RingMultiAgentEnv
+except (ImportError, ModuleNotFoundError, AttributeError):
+    pass
 
 try:
     from hbaselines.envs.point2d import Point2DEnv
@@ -403,7 +405,7 @@ ENV_ATTRIBUTES = {
     # Mixed autonomy traffic flow environments.                               #
     # ======================================================================= #
 
-    "ring-v0": {
+    "ring": {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
             high=5 if relative_goals else 10,
@@ -758,20 +760,35 @@ ENV_ATTRIBUTES = {
 }
 
 
-def _get_ring_env_attributes(scale):
+def _is_ring_env(env_name):
+    """Check is the environment name from ring-rl."""
+    strings = env_name.split("-")
+    return len(strings) > 1 and strings[0] == "ring"
+
+
+def _get_ring_env_attributes(env_name):
     """Return the environment parameters of the fast ring environment.
 
     Parameters
     ----------
-    scale : int
-        the scale of the ring environment. The length of the network and the
-        number of human/RL vehicles is scaled by this value.
+    env_name : str
+        the name of the environment
 
     Returns
     -------
     dict
         see ENV_ATTRIBUTES
     """
+    strings = env_name.split("-")
+    scale = int(strings[-1][1:])
+
+    if strings[1].isnumeric():
+        use_lc_model = "Random"
+        expected_lc = float(strings[1])
+    else:
+        use_lc_model = None
+        expected_lc = None
+
     return {
         "meta_ac_space": lambda relative_goals, multiagent: Box(
             low=-5 if relative_goals else 0,
@@ -795,19 +812,37 @@ def _get_ring_env_attributes(scale):
             maddpg=maddpg,
         ) if evaluate else
         (RingMultiAgentEnv if multiagent else RingSingleAgentEnv)(
-            maddpg=maddpg,
             length=[250 * scale, 360 * scale],
             num_vehicles=22 * scale,
             dt=0.2,
             horizon=3000,
-            gen_emission=False,
-            rl_ids=[22 * i for i in range(scale)],
-            warmup_steps=0,
-            initial_state=os.path.join(
-                hbaselines_config.PROJECT_PATH,
-                "hbaselines/envs/mixed_autonomy/envs/initial_states/"
-                "ring-v{}.json".format(scale - 1)),
-            sims_per_step=1,
+            sim_params=dict(
+                sims_per_step=5,
+                min_gap=1.0,
+                gen_emission=False,
+                warmup_steps=0,
+                initial_state=os.path.join(
+                    hbaselines_config.PROJECT_PATH,
+                    "hbaselines/envs/mixed_autonomy/envs/initial_states/"
+                    "ring-v{}.json".format(scale - 1)),
+            ),
+            rl_params=dict(
+                rl_ids=[22 * i for i in range(scale)],
+                max_accel=1.0,
+                obs_frames=5,
+            ),
+            lc_params=dict(
+                path_to_lc_out_model=None,
+                path_to_lc_in_model=None,
+                path_to_lc_in_speedmodel=None,
+                path_to_lc_bounds=None,
+                lc_period=3,
+                expected_lc=expected_lc,
+                min_lc_gap=1.0,
+                veh_low_ratio=0.9,
+                veh_up_ratio=1.1,
+                use_lc_model=use_lc_model,
+            ),
         ),
     }
 
@@ -840,9 +875,8 @@ def get_meta_ac_space(ob_space, relative_goals, env_name):
     if env_name in ENV_ATTRIBUTES.keys():
         meta_ac_space = ENV_ATTRIBUTES[env_name]["meta_ac_space"](
             relative_goals, multiagent)
-    elif env_name in ["ring-v{}-fast".format(i) for i in range(10)]:
-        scale = int(env_name[6]) + 1
-        meta_ac_space = _get_ring_env_attributes(scale)["meta_ac_space"](
+    elif _is_ring_env(env_name):
+        meta_ac_space = _get_ring_env_attributes(env_name)["meta_ac_space"](
             relative_goals, multiagent)
     else:
         meta_ac_space = ob_space
@@ -877,9 +911,8 @@ def get_state_indices(ob_space, env_name):
 
     if env_name in ENV_ATTRIBUTES.keys():
         state_indices = ENV_ATTRIBUTES[env_name]["state_indices"](multiagent)
-    elif env_name in ["ring-v{}-fast".format(i) for i in range(10)]:
-        scale = int(env_name[6]) + 1
-        state_indices = _get_ring_env_attributes(scale)["state_indices"](
+    elif _is_ring_env(env_name):
+        state_indices = _get_ring_env_attributes(env_name)["state_indices"](
             multiagent)
     else:
         # All observations are presented in the goal.
@@ -937,10 +970,9 @@ def create_env(env,
             env = ENV_ATTRIBUTES[env]["env"](
                 evaluate, render, num_levels, multiagent, shared, maddpg)
 
-        elif env in ["ring-v{}-fast".format(i) for i in range(5)]:
+        elif _is_ring_env(env):
             # fast ring environments
-            scale = int(env[6]) + 1
-            env = _get_ring_env_attributes(scale)["env"](
+            env = _get_ring_env_attributes(env)["env"](
                 evaluate, render, multiagent, shared, maddpg)
 
         elif env.startswith("flow:"):
