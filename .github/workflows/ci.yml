@@ -54,9 +54,9 @@ jobs:
         popd
         popd
         unzip docs/ci/mjpro131_linux.zip && mv mjpro131 $HOME/.mujoco
-        ln -s $HOME/.mujoco/mjpro131/bin/libglfw.so.3 $HOME/rllab/vendor/mujoco/libglfw.so.3
-        ln -s $HOME/.mujoco/mjpro131/bin/libmujoco131.so $HOME/rllab/vendor/mujoco/libmujoco131.so
-        ln -s $HOME/.mujoco/mjkey.txt $HOME/rllab/vendor/mujoco/mjkey.txt
+        ln -s $HOME/.mujoco/mjpro131/bin/libglfw.so.3 $HOME/rllab/vendor/mujoco/.
+        ln -s $HOME/.mujoco/mjpro131/bin/libmujoco131.so $HOME/rllab/vendor/mujoco/.
+        ln -s $HOME/.mujoco/mjkey.txt $HOME/rllab/vendor/mujoco/.
 
     - name: Install multi-world.
       run: |
