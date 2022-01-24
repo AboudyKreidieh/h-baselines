@@ -54,6 +54,7 @@ jobs:
         popd
         popd
         unzip docs/ci/mjpro131_linux.zip && mv mjpro131 $HOME/.mujoco
+        mkdir -p $HOME/rllab/vendor/mujoco
         ln -s $HOME/.mujoco/mjpro131/bin/libglfw.so.3 $HOME/rllab/vendor/mujoco/.
         ln -s $HOME/.mujoco/mjpro131/bin/libmujoco131.so $HOME/rllab/vendor/mujoco/.
         ln -s $HOME/.mujoco/mjkey.txt $HOME/rllab/vendor/mujoco/.
