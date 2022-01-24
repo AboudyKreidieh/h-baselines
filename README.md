@@ -343,17 +343,17 @@ consists of sequences of meta-policies,
 <img src="https://render.githubusercontent.com/render/math?math={\pi_i, \ i > 0}">, 
 which assign goals to the policy within the hierarchy immediately below them, 
 <img src="https://render.githubusercontent.com/render/math?math={\pi_{i-1}}">.
-level within the hierarchy, 
+The lowest level within the hierarchy, 
 <img src="https://render.githubusercontent.com/render/math?math={\pi_0}">, 
 sometimes referred to as the *worker* 
 policy, then performs environmental actions in an attempt to achieve the goal 
 assigned to it within the environment.
 
 The "goals" assigned by the meta-policies denote a desired state, or relative 
-change in state, that is deemed desirable by the meta-policies.  This behavior 
+change in state, that is deemed advantageous by the meta-policies.  This behavior 
 is then encouraged in the learning procedure via an intrinsic reward function: 
 <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/> 
-(e.g. desired position to move to). The highest level meta-policy receives 
+(e.g. desired position to move to) which we further discuss in Section [2.3.2](#232-intrinsic-rewards). The highest level meta-policy receives 
 the original environmental reward function 
 <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>
 to solve for the true objective of the assigned task.
