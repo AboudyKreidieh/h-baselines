@@ -46,6 +46,7 @@ jobs:
     - name: Install AntGather.
       run: |
         pip install theano
+        unzip docs/ci/mjpro131_linux.zip && mv mjpro131 $HOME/.mujoco
         pushd $HOME
         git clone https://github.com/rll/rllab.git
         pushd rllab
