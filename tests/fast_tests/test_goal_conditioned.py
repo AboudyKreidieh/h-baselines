@@ -746,42 +746,41 @@ class TestBaseGoalConditionedPolicy(unittest.TestCase):
         del policy
         tf.compat.v1.reset_default_graph()
 
-        # test case 5  TODO: temporarily removed
-        # policy_params = self.policy_params.copy()
-        # policy_params["intrinsic_reward_type"] = "exp_negative_distance"
-        # policy = TD3GoalConditionedPolicy(**policy_params)
-        #
-        # self.assertAlmostEqual(
-        #     policy.intrinsic_reward_fn(
-        #         states=np.array([1, 2]),
-        #         goals=np.array([3, 2]),
-        #         next_states=np.array([0, 0])
-        #     ),
-        #     2.2603294067550214e-06
-        # )
-        #
-        # # Clear the graph.
-        # del policy
-        # tf.compat.v1.reset_default_graph()
-        #
-        # # test case 6
-        # policy_params = self.policy_params.copy()
-        # policy_params["intrinsic_reward_type"] =
-        # "scaled_exp_negative_distance"
-        # policy = TD3GoalConditionedPolicy(**policy_params)
-        #
-        # self.assertAlmostEqual(
-        #     policy.intrinsic_reward_fn(
-        #         states=np.array([1, 2]),
-        #         goals=np.array([3, 2]),
-        #         next_states=np.array([0, 0])
-        #     ),
-        #     0.03877420782784459
-        # )
-        #
-        # # Clear the graph.
-        # del policy
-        # tf.compat.v1.reset_default_graph()
+        # test case 5
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "exp_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            1.507972203600427e-09
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
+
+        # test case 6
+        policy_params = self.policy_params.copy()
+        policy_params["intrinsic_reward_type"] = "scaled_exp_negative_distance"
+        policy = TD3GoalConditionedPolicy(**policy_params)
+
+        self.assertAlmostEqual(
+            policy.intrinsic_reward_fn(
+                states=np.array([1, 2]),
+                goals=np.array([3, 2]),
+                next_states=np.array([0, 0])
+            ),
+            0.0062315822846442034
+        )
+
+        # Clear the graph.
+        del policy
+        tf.compat.v1.reset_default_graph()
 
         # test case 7
         policy_params = self.policy_params.copy()
@@ -1797,7 +1796,7 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
         )
 
     def test_initialize(self):
-        """Check the functionality of the initialize() method.
+        """Check the functionality of the "initialize" method.
 
         This test validates that the target variables are properly initialized
         when initialize is called.
@@ -1855,7 +1854,12 @@ class TestSACGoalConditionedPolicy(unittest.TestCase):
 
     def test_cooperative_gradients(self):
         """Check the functionality of the cooperative-gradients feature."""
-        pass  # TODO
+        policy = SACGoalConditionedPolicy(**self.policy_params)
+        self.assertRaises(
+            NotImplementedError,
+            policy._cooperative_gradients_update,
+            obs0=None, actions=None, rewards=None, obs1=None,
+            terminals1=None, level_num=None)
 
 
 if __name__ == '__main__':

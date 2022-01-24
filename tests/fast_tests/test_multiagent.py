@@ -2660,18 +2660,6 @@ class TestPPOMultiFeedForwardPolicy(unittest.TestCase):
         self.assertTrue(policy.shared)
         self.assertTrue(not policy.maddpg)
 
-    def test_init_3(self):
-        pass  # TODO
-
-    def test_init_4(self):
-        pass  # TODO
-
-    def test_init_5(self):
-        pass  # TODO
-
-    def test_init_6(self):
-        pass  # TODO
-
     def test_store_transition_1(self):
         """Check the functionality of the store_transition() method.
 

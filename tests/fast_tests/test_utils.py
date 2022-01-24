@@ -17,20 +17,16 @@ from hbaselines.utils.tf_util import conv_layer
 from hbaselines.utils.tf_util import apply_squashing_func
 from hbaselines.utils.tf_util import get_trainable_vars
 from hbaselines.utils.tf_util import gaussian_likelihood
-from hbaselines.fcnet.td3 import FeedForwardPolicy \
-    as TD3FeedForwardPolicy
 from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy \
     as TD3GoalConditionedPolicy
 from hbaselines.multiagent.td3 import MultiFeedForwardPolicy \
     as TD3MultiFeedForwardPolicy
 from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy \
     as TD3MultiGoalConditionedPolicy
-from hbaselines.fcnet.sac import FeedForwardPolicy \
-    as SACFeedForwardPolicy
-from hbaselines.fcnet.ppo import FeedForwardPolicy \
-    as PPOFeedForwardPolicy
-from hbaselines.fcnet.trpo import FeedForwardPolicy \
-    as TRPOFeedForwardPolicy
+from hbaselines.fcnet.td3 import FeedForwardPolicy as TD3FeedForwardPolicy
+from hbaselines.fcnet.sac import FeedForwardPolicy as SACFeedForwardPolicy
+from hbaselines.fcnet.ppo import FeedForwardPolicy as PPOFeedForwardPolicy
+from hbaselines.fcnet.trpo import FeedForwardPolicy as TRPOFeedForwardPolicy
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
@@ -2865,8 +2861,7 @@ class TestTFUtil(unittest.TestCase):
         # Test the layer names.
         self.assertListEqual(
             sorted([var.name for var in get_trainable_vars()]),
-            ['test6/bias:0',
-             'test6/kernel:0']
+            ['test6/bias:0', 'test6/kernel:0']
         )
 
         # Clear the graph.

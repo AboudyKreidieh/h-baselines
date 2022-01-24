@@ -1086,7 +1086,25 @@ class AntFourRooms(UniversalAntMazeEnv):
 class HumanoidFourRooms(UniversalHumanoidMazeEnv):
     """Humanoid Four Rooms Environment.
 
-    Need to add description. TODO
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
     """
 
     def __init__(self,
