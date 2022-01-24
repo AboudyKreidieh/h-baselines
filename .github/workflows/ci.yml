@@ -46,7 +46,6 @@ jobs:
     - name: Install AntGather.
       run: |
         pip install theano
-        unzip docs/ci/mjpro131_linux.zip && mv mjpro131 $HOME/.mujoco
         pushd $HOME
         git clone https://github.com/rll/rllab.git
         pushd rllab
@@ -54,6 +53,10 @@ jobs:
         git submodule add -f https://github.com/florensacc/snn4hrl.git sandbox/snn4hrl
         popd
         popd
+        unzip docs/ci/mjpro131_linux.zip && mv mjpro131 $HOME/.mujoco
+        ln -s $HOME/.mujoco/mjpro131/bin/libglfw.so.3 $HOME/rllab/vendor/mujoco/libglfw.so.3
+        ln -s $HOME/.mujoco/mjpro131/bin/libmujoco131.so $HOME/rllab/vendor/mujoco/libmujoco131.so
+        ln -s $HOME/.mujoco/mjkey.txt $HOME/rllab/vendor/mujoco/mjkey.txt
 
     - name: Install multi-world.
       run: |
