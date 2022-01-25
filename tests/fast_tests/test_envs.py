@@ -21,7 +21,7 @@ from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
-from hbaselines.envs.efficient_hrl.envs import HumanoidFall
+# from hbaselines.envs.efficient_hrl.envs import HumanoidFall
 from hbaselines.envs.efficient_hrl.envs import HumanoidPush
 from hbaselines.envs.efficient_hrl.envs import HumanoidFourRooms
 from hbaselines.envs.efficient_hrl.envs import REWARD_SCALE
