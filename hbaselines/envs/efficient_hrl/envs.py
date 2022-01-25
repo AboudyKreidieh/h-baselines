@@ -220,11 +220,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
         array_like
             initial observation
         """
-        try:
-            self.prev_obs = super(UniversalAntMazeEnv, self).reset()
-        except NotImplementedError:
-            # for testing purposes
-            self.prev_obs = np.empty(1)
+        self.prev_obs = super(UniversalAntMazeEnv, self).reset()
 
         # Reset the step counter.
         self.step_number = 0
@@ -446,11 +442,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
         array_like
             initial observation
         """
-        try:
-            self.prev_obs = super(UniversalHumanoidMazeEnv, self).reset()
-        except (NotImplementedError, AttributeError):
-            # for testing purposes
-            self.prev_obs = np.empty(1)
+        self.prev_obs = super(UniversalHumanoidMazeEnv, self).reset()
 
         # Reset the step counter.
         self.step_number = 0

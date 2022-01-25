@@ -78,9 +78,9 @@ class TestSNN4HRL(unittest.TestCase):
 
         # Check the observation space.
         np.testing.assert_almost_equal(
-            env.observation_space.low, np.array([-1000000.] * 133))
+            env.observation_space.low, np.array([-1000000.] * 145))
         np.testing.assert_almost_equal(
-            env.observation_space.high, np.array([1000000.] * 133))
+            env.observation_space.high, np.array([1000000.] * 145))
 
         # Delete the environment.
         del env
