@@ -298,17 +298,13 @@ class AntMazeEnv(gym.Env):
         _, file_path = tempfile.mkstemp(text=True, suffix='.xml')
         tree.write(file_path)
 
-        try:
-            self.wrapped_env = model_cls(
-                *args,
-                ant_fall=ant_fall,
-                top_down_view=top_down_view,
-                file_path=file_path,
-                **kwargs
-            )
-        except AssertionError:
-            # for testing purposes
-            pass
+        self.wrapped_env = model_cls(
+            *args,
+            ant_fall=ant_fall,
+            top_down_view=top_down_view,
+            file_path=file_path,
+            **kwargs
+        )
 
     def get_ori(self):
         """Return the orientation of the ant."""

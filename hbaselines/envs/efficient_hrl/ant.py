@@ -84,11 +84,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self._top_down_view = top_down_view
         self._ant_fall = ant_fall
 
-        try:
-            mujoco_env.MujocoEnv.__init__(self, file_path, 5)
-        except TypeError:
-            # for testing purposes
-            pass
+        mujoco_env.MujocoEnv.__init__(self, file_path, 5)
         utils.EzPickle.__init__(self)
 
     @property

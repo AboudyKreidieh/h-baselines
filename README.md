@@ -10,9 +10,8 @@ motivated by, and partially adapted from, the
 [baselines](https://github.com/openai/baselines) and 
 [stable-baselines](https://github.com/hill-a/stable-baselines) repositories.
 
-The models and algorithms supported within this repository can be found 
-[here](#2-supported-modelsalgorithms), and benchmarking results are 
-available [here]().
+You can learn more about the supported models and algorithms within this 
+repository by reviewing this README.
 
 ## Contents
 
@@ -190,8 +189,9 @@ goal-conditioned hierarchical reinforcement learning models.
 
 This repository supports the training of policies via two off-policy RL 
 algorithms: [TD3](https://arxiv.org/pdf/1802.09477.pdf) and 
-[SAC](https://arxiv.org/pdf/1801.01290.pdf), as well as one on-policy RL 
-algorithm: [PPO](https://arxiv.org/pdf/1707.06347.pdf).
+[SAC](https://arxiv.org/pdf/1801.01290.pdf), as well as two on-policy RL 
+algorithms: [TRPO](https://arxiv.org/pdf/1502.05477.pdf) and 
+[PPO](https://arxiv.org/pdf/1707.06347.pdf).
 
 To train a policy using this algorithm, create a `RLAlgorithm` object 
 and execute the `learn` method, providing the algorithm the proper policy 
@@ -210,43 +210,17 @@ alg.learn(total_timesteps=1000000)
 
 The specific algorithm that is executed is defined by the policy that is 
 provided. If, for example, you would like to switch the above script to train 
-a feed-forward policy using the SAC or PPO algorithms, then the policy must 
-simply be changed to:
+a feed-forward policy using the SAC, TRPO, or PPO algorithms, then the policy 
+must simply be changed to:
 
 ```python
 from hbaselines.fcnet.sac import FeedForwardPolicy  # for SAC
+from hbaselines.fcnet.trpo import FeedForwardPolicy  # for TRPO
 from hbaselines.fcnet.ppo import FeedForwardPolicy  # for PPO
 ```
 
-The hyperparameters and modifiable features of this algorithm are as 
-follows:
-
-* **policy** (type [ hbaselines.base_policies.Policy ]) : 
-  the policy model to use
-* **env** (gym.Env or str) : the environment to learn from (if 
-  registered in Gym, can be str)
-* **eval_env** (gym.Env or str) : the environment to evaluate from (if 
-  registered in Gym, can be str)
-* **nb_train_steps** (int) : the number of training steps
-* **nb_rollout_steps** (int) : the number of rollout steps
-* **nb_eval_episodes** (int) : the number of evaluation episodes
-* **actor_update_freq** (int) : number of training steps per actor 
-  policy update step. The critic policy is updated every training step.
-* **meta_update_freq** (int) : number of training steps per meta policy 
-  update step. The actor policy of the meta-policy is further updated at
-  the frequency provided by the actor_update_freq variable. Note that 
-  this value is only relevant when using the `GoalConditionedPolicy` 
-  policy.
-* **reward_scale** (float) : the value the reward should be scaled by
-* **render** (bool) : enable rendering of the training environment
-* **render_eval** (bool) : enable rendering of the evaluation environment
-* **num_envs** (int) : number of environments used to run simulations in 
-  parallel. Each environment is run on a separate CPUS and uses the same policy
-  as the rest. Must be less than or equal to nb_rollout_steps. This term is 
-  covered in the following [section](#211-synchronous-updates).
-* **verbose** (int) : the verbosity level: 0 none, 1 training 
-  information, 2 tensorflow debug
-* **policy_kwargs** (dict) : policy-specific hyperparameters
+You can find the names of the hyperparameters and modifiable features of this 
+algorithm by type in a python script `help(RLAlgorithm.__init__)`.
 
 ### 2.1.1 Synchronous Updates
 
@@ -294,101 +268,21 @@ from hbaselines.fcnet.td3 import FeedForwardPolicy
 # for SAC
 from hbaselines.fcnet.sac import FeedForwardPolicy
 
+# for TRPO
+from hbaselines.fcnet.trpo import FeedForwardPolicy
+
 # for PPO
 from hbaselines.fcnet.ppo import FeedForwardPolicy
 ```
 
-This model can then be included to the algorithm via the `policy` 
-parameter. The input parameters to this policy are as follows:
+This model can then be included to the algorithm via the `policy` parameter. 
+You can find the input parameters for each of these policies by typing 
+`help(FeedForwardPolicy.__init__)` once the desired policy has been imported.
 
-The modifiable parameters of this policy are as follows:
-
-* **sess** (tf.compat.v1.Session) : the current TensorFlow session
-* **ob_space** (gym.spaces.*) : the observation space of the environment
-* **ac_space** (gym.spaces.*) : the action space of the environment
-* **co_space** (gym.spaces.*) : the context space of the environment
-* **verbose** (int) : the verbosity level: 0 none, 1 training 
-  information, 2 tensorflow debug
-* **model_params** (dict) : dictionary of model-specific parameters, including:
-  * **model_type** (str) : the type of model to use. Must be one of {"fcnet", 
-    "conv"}.
-  * **layers** (list of int) :the size of the Neural network for the policy
-  * **layer_norm** (bool) : enable layer normalisation
-  * **batch_norm** (bool) : enable batch normalisation
-  * **dropout** (bool) : enable dropout
-  * **act_fun** (tf.nn.*) : the activation function to use in the neural 
-    network
-  * **ignore_image** (bool) : observation includes an image but should it be 
-    ignored. Required if "model_type" is set to "conv".
-  * **image_height** (int) : the height of the image in the observation. 
-    Required if "model_type" is set to "conv".
-  * **image_width** (int) : the width of the image in the observation. Required
-    if "model_type" is set to "conv".
-  * **image_channels** (int) : the number of channels of the image in the
-    observation. Required if "model_type" is set to "conv".
-  * **kernel_sizes** (list of int) : the kernel size of the neural network conv
-    layers for the policy. Required if "model_type" is set to "conv".
-  * **strides** (list of int) : the kernel size of the neural network conv
-    layers for the policy. Required if "model_type" is set to "conv".
-  * **filters** (list of int) : the channels of the neural network conv
-    layers for the policy. Required if "model_type" is set to "conv".
-
-Additionally, TD3 policy parameters are:
-
-* **buffer_size** (int) : the max number of transitions to store
-* **batch_size** (int) : SGD batch size
-* **actor_lr** (float) : actor learning rate
-* **critic_lr** (float) : critic learning rate
-* **tau** (float) : target update rate
-* **gamma** (float) : discount factor
-* **use_huber** (bool) : specifies whether to use the huber distance 
-  function as the loss for the critic. If set to False, the mean-squared 
-  error metric is used instead
-* **noise** (float) : scaling term to the range of the action space, 
-  that is subsequently used as the standard deviation of Gaussian noise 
-  added to the action if `apply_noise` is set to True in `get_action`
-* **target_policy_noise** (float) : standard deviation term to the noise
-  from the output of the target actor policy. See TD3 paper for more.
-* **target_noise_clip** (float) : clipping term for the noise injected 
-  in the target actor policy
-
-SAC policy parameters are:
-
-* **buffer_size** (int) : the max number of transitions to store
-* **batch_size** (int) : SGD batch size
-* **actor_lr** (float) : actor learning rate
-* **critic_lr** (float) : critic learning rate
-* **tau** (float) : target update rate
-* **gamma** (float) : discount factor
-* **use_huber** (bool) : specifies whether to use the huber distance 
-  function as the loss for the critic. If set to False, the mean-squared 
-  error metric is used instead
-* **target_entropy** (float): target entropy used when learning the entropy 
-  coefficient. If set to None, a heuristic value is used.
-
-And PPO policy parameters are:
-
-* **learning_rate** (float) : the learning rate
-* **n_minibatches** (int) : number of training minibatches per update
-* **n_opt_epochs** (int) : number of training epochs per update procedure
-* **gamm** (float) : the discount factor
-* **lam** (float) : factor for trade-off of bias vs variance for Generalized 
-  Advantage Estimator
-* **ent_coef** (float) : entropy coefficient for the loss calculation
-* **vf_coef** (float) : value function coefficient for the loss calculation
-* **max_grad_norm** (float) : the maximum value for the gradient clipping
-* **cliprange** (float) : clipping parameter, it can be a function
-* **cliprange_vf** (float) : clipping parameter for the value function, it can 
-  be a function. This is a parameter specific to the OpenAI implementation. If 
-  None is passed (default), then `cliprange` (that is used for the policy) will
-  be used. IMPORTANT: this clipping depends on the reward scaling. To deactivate
-  value function clipping (and recover the original PPO implementation), you 
-  have to pass a negative value (e.g. -1).
-
-These parameters can be assigned when using the algorithm object by 
-assigning them via the `policy_kwargs` term. For example, if you would 
-like to train a fully connected network using the TD3 algorithm with a hidden 
-size of [64, 64], this could be done as such:
+When using the algorithm object, these parameters can be assigned by via the 
+`policy_kwargs` term. For example, if you would like to train a fully connected
+network using the TD3 algorithm with a hidden size of [64, 64], this could be 
+done as such:
 
 ```python
 from hbaselines.algorithms import RLAlgorithm
@@ -408,38 +302,64 @@ alg = RLAlgorithm(
 alg.learn(total_timesteps=1000000)
 ```
 
-All `policy_kwargs` terms that are not specified are assigned default 
-parameters. These default terms are available via the following command:
-
-```python
-from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
-print(FEEDFORWARD_PARAMS)
-```
-
-Additional algorithm-specific default policy parameters can be found via the 
-following commands:
-
-```python
-# for TD3
-from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
-print(TD3_PARAMS)
-
-# for SAC
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
-print(SAC_PARAMS)
-
-# for PPO
-from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
-print(PPO_PARAMS)
-```
+> All `policy_kwargs` terms that are not specified are assigned default 
+> parameters. These default terms are available via the following command:
+> 
+> ```python
+> from hbaselines.algorithms.rl_algorithm import FEEDFORWARD_PARAMS
+> print(FEEDFORWARD_PARAMS)
+> ```
+> 
+> Additional algorithm-specific default policy parameters can be found via the 
+> following commands:
+> 
+> ```python
+> # for TD3
+> from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+> print(TD3_PARAMS)
+> 
+> # for SAC
+> from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+> print(SAC_PARAMS)
+> 
+> # for TRPO
+> from hbaselines.algorithms.rl_algorithm import TRPO_PARAMS
+> print(TRPO_PARAMS)
+> 
+> # for PPO
+> from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
+> print(PPO_PARAMS)
+> ```
 
 ## 2.3 Goal-Conditioned HRL
 
-Goal-conditioned HRL models, also known as feudal models, are a variant 
-of hierarchical models that have been widely studied in the HRL
-community. This repository supports a two-level (Manager/Worker) variant
-of this policy, seen in the figure below. The policy can be imported via
-the following command:
+<img align="right" src="docs/img/goal-conditioned.png" width="50%">
+
+Goal-conditioned HRL models, also known as feudal models, are a variant of 
+hierarchical models that have been widely studied in the HRL community. This 
+repository supports a multi-level (2+ levels) variant of this policy, with a 
+2-level version of this depicted in the figure to the right. This hierarchy 
+consists of sequences of meta-policies, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_i, \ i > 0}">, 
+which assign goals to the policy within the hierarchy immediately below them, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_{i-1}}">.
+The lowest level within the hierarchy, 
+<img src="https://render.githubusercontent.com/render/math?math={\pi_0}">, 
+sometimes referred to as the *worker* 
+policy, then performs environmental actions in an attempt to achieve the goal 
+assigned to it within the environment.
+
+The "goals" assigned by the meta-policies denote a desired state, or relative 
+change in state, that is deemed advantageous by the meta-policies.  This behavior 
+is then encouraged in the learning procedure via an intrinsic reward function: 
+<img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/> 
+(e.g. desired position to move to) which we further discuss in Section [2.3.2](#232-intrinsic-rewards). The highest level meta-policy receives 
+the original environmental reward function 
+<img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>
+to solve for the true objective of the assigned task.
+
+The available algorithmic-specific variants of this policy can be imported in a
+python script via the following command:
 
 ```python
 # for TD3
@@ -449,53 +369,39 @@ from hbaselines.goal_conditioned.td3 import GoalConditionedPolicy
 from hbaselines.goal_conditioned.sac import GoalConditionedPolicy
 ```
 
-This network consists of a high-level, or Manager, policy <img src="/tex/be447d665f2aa387ed81a35d066e256b.svg?invert_in_darkmode&sanitize=true" align=middle width=21.03516194999999pt height=14.15524440000002pt/> that 
-computes and outputs goals <img src="/tex/2bf33ae14059440820ce394b792cd99e.svg?invert_in_darkmode&sanitize=true" align=middle width=98.10126644999998pt height=24.65753399999998pt/> every <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/> time 
-steps, and a low-level policy <img src="/tex/51b5a929b95bcaa91a728fbc3c4eb154.svg?invert_in_darkmode&sanitize=true" align=middle width=19.18963529999999pt height=14.15524440000002pt/> that takes as inputs the current 
-state and the assigned goals and is encouraged to perform actions 
-<img src="/tex/42d35a15bf7f1d9d42240d4dc81b720d.svg?invert_in_darkmode&sanitize=true" align=middle width=103.61875094999998pt height=24.65753399999998pt/> that satisfy these goals via an intrinsic 
-reward function: <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>. The contextual term, <img src="/tex/3e18a4a28fdee1744e5e3f79d13b9ff6.svg?invert_in_darkmode&sanitize=true" align=middle width=7.11380504999999pt height=14.15524440000002pt/>, 
-parametrizes the environmental objective (e.g. desired position to move 
-to), and consequently is passed both to the manager policy as well as 
-the environmental reward function <img src="/tex/8f3686f20d97a88b2ae16496f5e4cc6a.svg?invert_in_darkmode&sanitize=true" align=middle width=60.60137324999998pt height=24.65753399999998pt/>.
-
-<p align="center"><img src="docs/img/goal-conditioned.png" align="middle" width="50%"/></p>
-
-All of the parameters specified within the 
+All the parameters specified within the 
 [Fully Connected Neural Networks](#22-fully-connected-neural-networks) 
-section are valid for this policy as well. Further parameters are 
+section are valid for this policy as well. Further relevant parameters are 
 described in the subsequent sections below.
 
-All `policy_kwargs` terms that are not specified are assigned default 
-parameters. These default terms are available via the following command:
-
-```python
-from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
-print(GOAL_CONDITIONED_PARAMS)
-```
-
-Moreover, similar to the feed-forward policy, additional algorithm-specific 
-default policy parameters can be found via the following commands:
-
-```python
-# for TD3
-from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
-print(TD3_PARAMS)
-
-# for SAC
-from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
-print(SAC_PARAMS)
-
-# for PPO
-from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
-print(PPO_PARAMS)
-```
+> Note: All `policy_kwargs` terms that are not specified are assigned default 
+> parameters. These default terms are available via the following command:
+>
+> ```python
+> from hbaselines.algorithms.rl_algorithm import GOAL_CONDITIONED_PARAMS
+> print(GOAL_CONDITIONED_PARAMS)
+> ```
+> 
+> Moreover, similar to the feed-forward policy, additional algorithm-specific 
+> default policy parameters can be found via the following commands:
+> 
+> ```python
+> # for TD3
+> from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
+> print(TD3_PARAMS)
+> 
+> # for SAC
+> from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
+> print(SAC_PARAMS)
+> ```
 
 ### 2.3.1 Meta Period
 
-The meta-policy action period, <img src="/tex/63bb9849783d01d91403bc9a5fea12a2.svg?invert_in_darkmode&sanitize=true" align=middle width=9.075367949999992pt height=22.831056599999986pt/>, can be specified to the policy during 
-training by passing the term under the `meta_period` policy parameter. 
-This can be assigned through the algorithm as follows:
+The meta-policy action period is the number of a lower-level policy is assigned 
+to perform the desired goal before it is assigned a new goal by the policy 
+above it. It can be specified to the policy during training by passing the term 
+under the `meta_period` policy parameter. This can be assigned through the 
+algorithm as follows:
 
 ```python
 from hbaselines.algorithms import RLAlgorithm
@@ -516,7 +422,7 @@ alg = RLAlgorithm(
 The intrinsic rewards, or <img src="/tex/281172fc39903f7b030c2a37e355350d.svg?invert_in_darkmode&sanitize=true" align=middle width=102.71324744999998pt height=24.65753399999998pt/>, define the rewards assigned
 to the lower level policies for achieving goals assigned by the policies 
 immediately above them. The choice of intrinsic reward can have a 
-significant affect on the training performance of both the upper and lower 
+significant effect on the training performance of both the upper and lower 
 level policies. Currently, this repository supports the use of two intrinsic 
 reward functions:
  
@@ -590,7 +496,6 @@ alg = RLAlgorithm(
     }
 )
 ```
-
 
 ### 2.3.3 HIRO (Data Efficient Hierarchical Reinforcement Learning)
 
@@ -827,6 +732,12 @@ from hbaselines.multiagent.td3 import MultiFeedForwardPolicy
 
 # for SAC
 from hbaselines.multiagent.sac import MultiFeedForwardPolicy
+
+# for TRPO
+from hbaselines.multiagent.trpo import MultiFeedForwardPolicy
+
+# for PPO
+from hbaselines.multiagent.ppo import MultiFeedForwardPolicy
 ```
 
 Moreover, the hierarchical variants are import via the following commands:
@@ -839,8 +750,7 @@ from hbaselines.multiagent.h_td3 import MultiGoalConditionedPolicy
 from hbaselines.multiagent.h_sac import MultiGoalConditionedPolicy
 ```
 
-These policies supports training off-policy variants of three popular 
-multi-agent algorithms:
+These policies support training three popular multi-agent algorithmic variants:
 
 * **Independent learners**: Independent (or Naive) learners provide a separate
   policy with independent parameters to each agent in an environment.
@@ -910,8 +820,8 @@ multi-agent algorithms:
   we use a single centralized value function instead of a value function
   for each agent.
 
-  *Note:* MADDPG variants of the goal-conditioned hierarchies are currently not
-  supported.
+  > Note: MADDPG variants of the on-policy methods (TRPO and PPO) as well as 
+  > the goal-conditioned hierarchies are currently not supported.
 
 # 3. Environments
 
@@ -977,12 +887,12 @@ traffic control tasks, built off the [Flow](https://github.com/flow-project/flow
 these environments, a subset of vehicles in any given network are replaced with
 "automated" vehicles whose actions are provided on an RL policy. A description 
 of the attributes of the MDP within these tasks is provided in the following 
-sub-sections. Additional information can be found through the 
+subsections. Additional information can be found through the 
 [environment classes](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/envs) 
 and 
 [flow-specific parameters](https://github.com/AboudyKreidieh/h-baselines/tree/master/hbaselines/envs/mixed_autonomy/params).
 
-<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="90%"/></p>
+<p align="center"><img src="docs/img/flow-envs-3.png" align="middle" width="100%"/></p>
 
 The below table describes all available tasks within this repository to train 
 on. Any of these environments can be used by passing the environment name to 
@@ -990,18 +900,18 @@ the `env` parameter in the algorithm class. The multi-agent variants of these
 environments can also be trained by adding "multiagent-" to the start of the 
 environment name (e.g. "multiagent-ring-v0").
 
-| Network type        | Environment name | number of AVs | total vehicles |   AV ratio  | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
+| Network type        | Environment name | number of AVs | total vehicles |  AV ratio   | inflow rate (veh/hr) | acceleration penalty | stopping penalty |
 |---------------------|------------------|:-------------:|:--------------:|:-----------:|:--------------------:|:--------------------:|:----------------:|
-| [ring](#ring)       | ring-v0          |       1       |        22      |     1/22    |          --          |          yes         |        yes       |
-| [merge](#merge)     | merge-v0         |       ~5      |       ~50      |     1/10    |         2000         |          yes         |        no        |
-|                     | merge-v1         |      ~13      |       ~50      |      1/4    |         2000         |          yes         |        no        |
-|                     | merge-v2         |      ~17      |       ~50      |      1/3    |         2000         |          yes         |        no        |
-| [highway](#highway) | highway-v0       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        yes       |
-|                     | highway-v1       |      ~10      |      ~150      |     1/12    |         2215         |          yes         |        no        |
-|                     | highway-v2       |      ~10      |      ~150      |     1/12    |         2215         |          no          |        no        |
-| [I-210](#i-210)     | i210-v0          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        yes       |
-|                     | i210-v1          |      ~50      |      ~800      |     1/15    |         10250        |          yes         |        no        |
-|                     | i210-v2          |      ~50      |      ~800      |     1/15    |         10250        |          no          |        no        |
+| [ring](#ring)       | ring             |       1       |       22       |    1/22     |          --          |         yes          |       yes        |
+| [merge](#merge)     | merge-v0         |      ~5       |      ~50       |    1/10     |         2000         |         yes          |        no        |
+|                     | merge-v1         |      ~13      |      ~50       |     1/4     |         2000         |         yes          |        no        |
+|                     | merge-v2         |      ~17      |      ~50       |     1/3     |         2000         |         yes          |        no        |
+| [highway](#highway) | highway-v0       |      ~10      |      ~150      |    1/12     |         2215         |         yes          |       yes        |
+|                     | highway-v1       |      ~10      |      ~150      |    1/12     |         2215         |         yes          |        no        |
+|                     | highway-v2       |      ~10      |      ~150      |    1/12     |         2215         |          no          |        no        |
+| [I-210](#i-210)     | i210-v0          |      ~50      |      ~800      |    1/15     |        10250         |         yes          |       yes        |
+|                     | i210-v1          |      ~50      |      ~800      |    1/15     |        10250         |         yes          |        no        |
+|                     | i210-v2          |      ~50      |      ~800      |    1/15     |        10250         |          no          |        no        |
 
 ### States
 
@@ -1013,7 +923,7 @@ In single agent settings, these observations are concatenated in a single
 observation that is passed to a centralized policy.
 
 In order to account for variability in the number of AVs (<img src="/tex/bb1a6273b87d3166c04533f3fb19f5ec.svg?invert_in_darkmode&sanitize=true" align=middle width=28.034803499999988pt height=14.15524440000002pt/>) in the
-single agent seeting, a constant <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is defined. When 
+single agent setting, a constant <img src="/tex/b11a49d39a5e2710e2f8fe3f57fe5afb.svg?invert_in_darkmode&sanitize=true" align=middle width=27.53820629999999pt height=14.15524440000002pt/> term is defined. When 
 <img src="/tex/4efa77061e9a739b3ab8d64fa6ca3417.svg?invert_in_darkmode&sanitize=true" align=middle width=78.13562129999998pt height=17.723762100000005pt/>, information from the extra CAVs are not included 
 in the state. Moreover, if <img src="/tex/9d6b99d3ad4c82ddc70cfdc1820a7968.svg?invert_in_darkmode&sanitize=true" align=middle width=87.51922574999999pt height=17.723762100000005pt/> the state is padded 
 with zeros.

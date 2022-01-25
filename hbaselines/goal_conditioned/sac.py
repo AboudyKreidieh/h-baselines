@@ -183,7 +183,6 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
     #                       Auxiliary methods for HIRO                        #
     # ======================================================================= #
 
-    # TODO
     def _log_probs(self, meta_actions, worker_obses, worker_actions):
         """Calculate the log probability of the next goal by the meta-policies.
 
@@ -283,7 +282,7 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
 
     def _setup_cooperative_gradients(self):
         """Create the cooperative gradients meta-policy optimizer."""
-        raise NotImplementedError  # TODO
+        raise NotImplementedError
 
     def _cooperative_gradients_update(self,
                                       obs0,
@@ -327,4 +326,4 @@ class GoalConditionedPolicy(BaseGoalConditionedPolicy):
         float
             higher-level policy actor loss
         """
-        raise NotImplementedError  # TODO
+        raise NotImplementedError

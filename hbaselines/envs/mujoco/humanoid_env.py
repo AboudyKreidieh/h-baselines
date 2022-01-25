@@ -21,9 +21,7 @@ class HumanoidEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     FILE = 'humanoid.xml'
 
-    def __init__(
-            self,
-            horizon=1000):
+    def __init__(self, horizon=1000):
 
         self.horizon = horizon
         self.t = 0

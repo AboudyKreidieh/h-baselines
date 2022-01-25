@@ -96,7 +96,7 @@ def get_flow_params(fixed_boundary,
         acceleration_controller=(IDMController, {
             "a": 1.3,
             "b": 2.0,
-            "noise": 0.3 if evaluate else 0.0,  # TODO
+            "noise": 0.3 if evaluate else 0.0,
             "display_warnings": False,
             "fail_safe": [
                 "obey_speed_limit", "safe_velocity", "feasible_accel"],

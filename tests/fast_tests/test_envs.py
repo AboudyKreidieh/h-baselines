@@ -8,6 +8,10 @@ from copy import deepcopy
 
 from flow.core.params import EnvParams
 
+from hbaselines.envs.snn4hrl.envs import AntGatherEnv
+from hbaselines.envs.snn4hrl.envs import SnakeGatherEnv
+from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
+
 from hbaselines.envs.efficient_hrl.maze_env_utils import line_intersect
 from hbaselines.envs.efficient_hrl.maze_env_utils import point_distance
 from hbaselines.envs.efficient_hrl.maze_env_utils import construct_maze
@@ -17,6 +21,10 @@ from hbaselines.envs.efficient_hrl.envs import AntFall
 from hbaselines.envs.efficient_hrl.envs import AntPush
 from hbaselines.envs.efficient_hrl.envs import AntFourRooms
 from hbaselines.envs.efficient_hrl.envs import HumanoidMaze
+# from hbaselines.envs.efficient_hrl.envs import HumanoidFall
+from hbaselines.envs.efficient_hrl.envs import HumanoidPush
+from hbaselines.envs.efficient_hrl.envs import HumanoidFourRooms
+from hbaselines.envs.efficient_hrl.envs import REWARD_SCALE
 
 from hbaselines.envs.hac.env_utils import check_validity
 from hbaselines.envs.hac.envs import UR5, Pendulum
@@ -52,8 +60,194 @@ import hbaselines.config as hbaselines_config
 os.environ["TEST_FLAG"] = "True"
 
 
+class TestSNN4HRL(unittest.TestCase):
+    """Tests for the environments in envs/snn4hrl."""
+
+    def test_ant_gather(self):
+        """Validate the functionality of the AntGather environment."""
+        # Create the environment.
+        env = AntGatherEnv()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-30., -30., -30., -30., -30., -30., -30., -30.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([30., 30., 30., 30., 30., 30., 30., 30.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-1000000.] * 145))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([1000000.] * 145))
+
+        # Delete the environment.
+        del env
+
+    def test_swimmer_gather(self):
+        """Validate the functionality of the SwimmerGather environment."""
+        # Create the environment.
+        env = SwimmerGatherEnv()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low, np.array([-50., -50.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high, np.array([50., 50.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-1000000.] * 33))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([1000000.] * 33))
+
+        # Delete the environment.
+        del env
+
+    def test_snake_gather(self):
+        """Validate the functionality of the Snake environment."""
+        # Create the environment.
+        env = SnakeGatherEnv()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-1000000.] * 37))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([1000000.] * 37))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-1000000.] * 37))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([1000000.] * 37))
+
+        # Delete the environment.
+        del env
+
+
 class TestEfficientHRLAntEnvironments(unittest.TestCase):
-    """Test the Ant* environments in envs/efficient_hrl/."""
+    """Test the Ant* environments in envs/efficient_hrl."""
+
+    def test_ant_maze(self):
+        """Validate the functionality of the AntMaze environment."""
+        # Create the environment.
+        env = AntMaze(use_contexts=True, context_range=[0, 0])
+        env.reset()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-30., -30., -30., -30., -30., -30., -30., -30.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([30., 30., 30., 30., 30., 30., 30., 30.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 114))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 114))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -1.4142135624084504 * REWARD_SCALE
+        )
+
+        # Delete the environment.
+        del env
+
+    def test_ant_four_rooms(self):
+        """Validate the functionality of the AntFourRooms environment."""
+        # Create the environment.
+        env = AntFourRooms(use_contexts=True, context_range=[0, 0])
+        env.reset()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-30., -30., -30., -30., -30., -30., -30., -30.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([30., 30., 30., 30., 30., 30., 30., 30.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 114))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 114))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -1.4142135624084504 * REWARD_SCALE
+        )
+
+        # Delete the environment.
+        del env
+
+    def test_ant_push(self):
+        """Validate the functionality of the AntPush environment."""
+        # Create the environment.
+        env = AntPush(use_contexts=True, context_range=[0, 0])
+        env.reset()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-30., -30., -30., -30., -30., -30., -30., -30.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([30., 30., 30., 30., 30., 30., 30., 30.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 114))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 114))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -1.4142135624084504 * REWARD_SCALE
+        )
+
+        # Delete the environment.
+        del env
+
+    def test_ant_fall(self):
+        """Validate the functionality of the AntFall environment."""
+        # Create the environment.
+        env = AntFall(use_contexts=True, context_range=[0, 0, 0])
+        env.reset()
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-30., -30., -30., -30., -30., -30., -30., -30.]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([30., 30., 30., 30., 30., 30., 30., 30.]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 114))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 114))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
+            -1.7320508075977448 * REWARD_SCALE
+        )
+
+        # Delete the environment.
+        del env
 
     def test_maze_env_utils(self):
         """Test hbaselines/envs/efficient_hrl/maze_env_utils.py."""
@@ -81,50 +275,6 @@ class TestEfficientHRLAntEnvironments(unittest.TestCase):
         ray = ((0, 1), 2)
         segment = ((3, 4), (5, 6))
         self.assertIsNone(ray_segment_intersect(ray, segment))
-
-    def test_contextual_reward(self):
-        """Check the functionality of the context_space attribute.
-
-        This method is tested for the following environments:
-
-        1. AntMaze
-        2. AntPush
-        3. AntFall
-        4. AntFourRooms
-        """
-        from hbaselines.envs.efficient_hrl.envs import REWARD_SCALE
-
-        # test case 1
-        env = AntMaze(use_contexts=True, context_range=[0, 0])
-        self.assertAlmostEqual(
-            env.contextual_reward(
-                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -1.4142135624084504 * REWARD_SCALE
-        )
-
-        # test case 2
-        env = AntPush(use_contexts=True, context_range=[0, 0])
-        self.assertAlmostEqual(
-            env.contextual_reward(
-                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -1.4142135624084504 * REWARD_SCALE
-        )
-
-        # test case 3
-        env = AntFall(use_contexts=True, context_range=[0, 0, 0])
-        self.assertAlmostEqual(
-            env.contextual_reward(
-                np.array([0, 0, 0]), np.array([1, 1, 1]), np.array([2, 2, 2])),
-            -1.7320508075977448 * REWARD_SCALE
-        )
-
-        # test case 4
-        env = AntFourRooms(use_contexts=True, context_range=[0, 0])
-        self.assertAlmostEqual(
-            env.contextual_reward(
-                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -1.4142135624084504 * REWARD_SCALE
-        )
 
     def test_context_space(self):
         """Check the functionality of the context_space attribute.
@@ -210,20 +360,130 @@ class TestEfficientHRLAntEnvironments(unittest.TestCase):
 class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
     """Test the Humanoid* environments in envs/efficient_hrl/."""
 
-    def test_contextual_reward(self):
-        """Check the functionality of the context_space attribute.
-
-        This method is tested for the following environments:
-
-        1. HumanoidMaze
-        """
-        # test case 1
+    def test_humanoid_maze(self):
+        """Validate the functionality of the HumanoidMaze environment."""
+        # Create the environment from env_util.py.
         env = HumanoidMaze(use_contexts=True, context_range=[0, 0])
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
+                      -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                      0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 379))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 379))
+
+        # Test contextual reward.
         self.assertAlmostEqual(
             env.contextual_reward(
                 np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            0.8216682531742017
+            1.6474330257589869
         )
+
+        # Delete the environment.
+        del env
+
+    def test_humanoid_four_rooms(self):
+        """Validate the functionality of the HumanoidFourRooms environment."""
+        # Create the environment from env_util.py.
+        env = HumanoidFourRooms(use_contexts=True, context_range=[0, 0])
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
+                      -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                      0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 379))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 379))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -0.14142135624084504
+        )
+
+        # Delete the environment.
+        del env
+
+    def test_humanoid_push(self):
+        """Validate the functionality of the HumanoidPush environment."""
+        # Create the environment from env_util.py.
+        env = HumanoidPush(use_contexts=True, context_range=[0, 0])
+
+        # Check the action space.
+        np.testing.assert_almost_equal(
+            env.action_space.low,
+            np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
+                      -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
+        np.testing.assert_almost_equal(
+            env.action_space.high,
+            np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                      0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
+
+        # Check the observation space.
+        np.testing.assert_almost_equal(
+            env.observation_space.low, np.array([-float("inf")] * 379))
+        np.testing.assert_almost_equal(
+            env.observation_space.high, np.array([float("inf")] * 379))
+
+        # Test contextual reward.
+        self.assertAlmostEqual(
+            env.contextual_reward(
+                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+            -0.14142135624084504
+        )
+
+        # Delete the environment.
+        del env
+
+    # TODO
+    # def test_humanoid_fall(self):
+    #     """Validate the functionality of the HumanoidFall environment."""
+    #     # Create the environment from env_util.py.
+    #     env = HumanoidFall(use_contexts=True, context_range=[0, 0])
+    #
+    #     # Check the action space.
+    #     np.testing.assert_almost_equal(
+    #         env.action_space.low,
+    #         np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
+    #                   -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
+    #     np.testing.assert_almost_equal(
+    #         env.action_space.high,
+    #         np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+    #                   0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
+    #
+    #     # Check the observation space.
+    #     np.testing.assert_almost_equal(
+    #         env.observation_space.low, np.array([-float("inf")] * 379))
+    #     np.testing.assert_almost_equal(
+    #         env.observation_space.high, np.array([float("inf")] * 379))
+    #
+    #     # Test contextual reward.
+    #     self.assertAlmostEqual(
+    #         env.contextual_reward(
+    #             np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+    #         -0.14142135624084504
+    #     )
+    #
+    #     # Delete the environment.
+    #     del env
 
     def test_context_space(self):
         """Check the functionality of the context_space attribute.
@@ -517,15 +777,6 @@ class TestPendulum(unittest.TestCase):
                             >= self.env.initial_state_space[i + num_obj][0])
             self.assertTrue(state[i + 2 * num_obj]
                             <= self.env.initial_state_space[i + num_obj][1])
-
-    def test_display_end_goal(self):
-        pass
-
-    def test_get_next_goal(self):
-        pass
-
-    def test_display_subgoal(self):
-        pass
 
 
 class TestMixedAutonomyEnvs(unittest.TestCase):

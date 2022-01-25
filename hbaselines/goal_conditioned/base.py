@@ -14,40 +14,7 @@ from hbaselines.utils.tf_util import get_trainable_vars
 
 
 class GoalConditionedPolicy(Policy):
-    r"""Goal-conditioned hierarchical reinforcement learning model.
-
-    TODO
-    This policy is an implementation of the two-level hierarchy presented
-    in [1], which itself is similar to the feudal networks formulation [2, 3].
-    This network consists of a high-level, or Manager, pi_{\theta_H} that
-    computes and outputs goals g_t ~ pi_{\theta_H}(s_t, h) every `meta_period`
-    time steps, and a low-level policy pi_{\theta_L} that takes as inputs the
-    current state and the assigned goals and attempts to perform an action
-    a_t ~ pi_{\theta_L}(s_t,g_t) that satisfies these goals.
-
-    The highest level policy is rewarded based on the original environment
-    reward function: r_H = r(s,a;h).
-
-    The Target term, h, parametrizes the reward assigned to the highest level
-    policy in order to allow the policy to generalize to several goals within a
-    task, a technique that was first proposed by [4].
-
-    Finally, the Worker is motivated to follow the goals set by the Manager via
-    an intrinsic reward based on the distance between the current observation
-    and the goal observation:
-    r_L (s_t, g_t, s_{t+1}) = -||s_t + g_t - s_{t+1}||_2
-
-    Bibliography:
-
-    [1] Nachum, Ofir, et al. "Data-efficient hierarchical reinforcement
-        learning." Advances in Neural Information Processing Systems. 2018.
-    [2] Dayan, Peter, and Geoffrey E. Hinton. "Feudal reinforcement learning."
-        Advances in neural information processing systems. 1993.
-    [3] Vezhnevets, Alexander Sasha, et al. "Feudal networks for hierarchical
-        reinforcement learning." Proceedings of the 34th International
-        Conference on Machine Learning-Volume 70. JMLR. org, 2017.
-    [4] Schaul, Tom, et al. "Universal value function approximators."
-        International Conference on Machine Learning. 2015.
+    """Goal-conditioned hierarchical reinforcement learning model.
 
     Attributes
     ----------
@@ -276,7 +243,14 @@ class GoalConditionedPolicy(Policy):
             num_envs=num_envs,
         )
 
+        # Run assertions.
         assert num_levels >= 2, "num_levels must be greater than or equal to 2"
+        if off_policy_corrections:
+            assert num_levels == 2, \
+                "Off-policy collections only work for two-level hierarchies."
+        if hindsight:
+            assert num_levels == 2, \
+                "Hindsight only work for two-level hierarchies."
 
         # Process some variable.
         if isinstance(meta_period, list) and len(meta_period) == 1:
@@ -332,7 +306,6 @@ class GoalConditionedPolicy(Policy):
                 if scope is not None:
                     scope_i = "{}/{}".format(scope, scope_i)
 
-                # TODO: description.
                 model_params_i = model_params.copy()
                 model_params_i.update({
                     "ignore_flat_channels":
@@ -446,7 +419,6 @@ class GoalConditionedPolicy(Policy):
             # intrinsic reward between 0 and 1.
             if "exp" in intrinsic_reward_type:
                 def exp_intrinsic_reward_fn(states, goals, next_states):
-                    # TODO: temporary
                     span = sum(np.square(self.policy[0].ac_space.high -
                                          self.policy[0].ac_space.low))
                     rew = intrinsic_reward_fn(states, goals, next_states)
