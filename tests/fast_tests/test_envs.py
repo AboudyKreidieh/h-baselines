@@ -453,36 +453,37 @@ class TestEfficientHRLHumanoidEnvironments(unittest.TestCase):
         # Delete the environment.
         del env
 
-    def test_humanoid_fall(self):
-        """Validate the functionality of the HumanoidFall environment."""
-        # Create the environment from env_util.py.
-        env = HumanoidFall(use_contexts=True, context_range=[0, 0])
-
-        # Check the action space.
-        np.testing.assert_almost_equal(
-            env.action_space.low,
-            np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
-                      -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
-        np.testing.assert_almost_equal(
-            env.action_space.high,
-            np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
-                      0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
-
-        # Check the observation space.
-        np.testing.assert_almost_equal(
-            env.observation_space.low, np.array([-float("inf")] * 379))
-        np.testing.assert_almost_equal(
-            env.observation_space.high, np.array([float("inf")] * 379))
-
-        # Test contextual reward.
-        self.assertAlmostEqual(
-            env.contextual_reward(
-                np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
-            -0.14142135624084504
-        )
-
-        # Delete the environment.
-        del env
+    # TODO
+    # def test_humanoid_fall(self):
+    #     """Validate the functionality of the HumanoidFall environment."""
+    #     # Create the environment from env_util.py.
+    #     env = HumanoidFall(use_contexts=True, context_range=[0, 0])
+    #
+    #     # Check the action space.
+    #     np.testing.assert_almost_equal(
+    #         env.action_space.low,
+    #         np.array([-0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4,
+    #                   -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4, -0.4]))
+    #     np.testing.assert_almost_equal(
+    #         env.action_space.high,
+    #         np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+    #                   0.4, 0.4, 0.4, 0.4, 0.4, 0.4]))
+    #
+    #     # Check the observation space.
+    #     np.testing.assert_almost_equal(
+    #         env.observation_space.low, np.array([-float("inf")] * 379))
+    #     np.testing.assert_almost_equal(
+    #         env.observation_space.high, np.array([float("inf")] * 379))
+    #
+    #     # Test contextual reward.
+    #     self.assertAlmostEqual(
+    #         env.contextual_reward(
+    #             np.array([0, 0]), np.array([1, 1]), np.array([2, 2])),
+    #         -0.14142135624084504
+    #     )
+    #
+    #     # Delete the environment.
+    #     del env
 
     def test_context_space(self):
         """Check the functionality of the context_space attribute.
