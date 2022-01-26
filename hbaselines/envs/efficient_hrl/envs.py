@@ -220,11 +220,7 @@ class UniversalAntMazeEnv(AntMazeEnv):
         array_like
             initial observation
         """
-        try:
-            self.prev_obs = super(UniversalAntMazeEnv, self).reset()
-        except NotImplementedError:
-            # for testing purposes
-            self.prev_obs = np.empty(1)
+        self.prev_obs = super(UniversalAntMazeEnv, self).reset()
 
         # Reset the step counter.
         self.step_number = 0
@@ -446,11 +442,7 @@ class UniversalHumanoidMazeEnv(HumanoidMazeEnv):
         array_like
             initial observation
         """
-        try:
-            self.prev_obs = super(UniversalHumanoidMazeEnv, self).reset()
-        except (NotImplementedError, AttributeError):
-            # for testing purposes
-            self.prev_obs = np.empty(1)
+        self.prev_obs = super(UniversalHumanoidMazeEnv, self).reset()
 
         # Reset the step counter.
         self.step_number = 0
@@ -1086,7 +1078,25 @@ class AntFourRooms(UniversalAntMazeEnv):
 class HumanoidFourRooms(UniversalHumanoidMazeEnv):
     """Humanoid Four Rooms Environment.
 
-    Need to add description. TODO
+    In this environment, an agent is placed in a four-room network whose
+    structure is represented in the figure below. The agent is initialized at
+    position (0,0) and tasked at reaching a specific target position. "Success"
+    in this environment is defined as being within an L2 distance of 5 from the
+    target.
+
+    +------------------------------------+
+    | X               |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    |                 |                  |
+    |----   ----------|                  |
+    |                 |---------   ------|
+    |                 |                  |
+    |                 |                  |
+    |                                    |
+    |                 |                  |
+    +------------------------------------+
     """
 
     def __init__(self,

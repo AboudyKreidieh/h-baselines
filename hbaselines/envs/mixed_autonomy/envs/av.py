@@ -470,7 +470,11 @@ class AVEnv(Env):
             return super(AVEnv, self).reset()
 
     def _reset_ring(self):
-        """TODO."""
+        """Reset ring-style environments.
+
+        If the "ring_length" term is specified, this method will update the
+        network's length to a new value within this range.
+        """
         params = self.env_params.additional_params
         if params["ring_length"] is not None:
             # Make sure restart instance is set to True when resetting.
@@ -510,7 +514,11 @@ class AVEnv(Env):
         return obs
 
     def _reset_highway_i210(self):
-        """TODO."""
+        """Reset highway and/or I-210 style environments.
+
+        New inflow and downstream speed limit conditions are chosen at the
+        start of a new simulation.
+        """
         end_speed = None
         params = self.env_params.additional_params
         if params["inflows"] is not None or params["warmup_path"] is not None:

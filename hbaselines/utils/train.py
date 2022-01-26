@@ -1,5 +1,6 @@
 """Utility methods when performing training."""
 import argparse
+from hbaselines.algorithms.rl_algorithm import RLAlgorithm
 from hbaselines.algorithms.rl_algorithm import TD3_PARAMS
 from hbaselines.algorithms.rl_algorithm import SAC_PARAMS
 from hbaselines.algorithms.rl_algorithm import PPO_PARAMS
@@ -706,3 +707,66 @@ def create_multi_feedforward_parser(parser):
              "hierarchies.")
 
     return parser
+
+
+def run_exp(env,
+            policy,
+            hp,
+            dir_name,
+            evaluate,
+            seed,
+            eval_interval,
+            log_interval,
+            save_interval,
+            initial_exploration_steps,
+            ckpt_path):
+    """Run a single training procedure.
+
+    Parameters
+    ----------
+    env : str or gym.Env
+        the training/testing environment
+    policy : type [ hbaselines.base_policies.Policy ]
+        the policy class to use
+    hp : dict
+        additional algorithm hyper-parameters
+    dir_name : str
+        the location the results files are meant to be stored
+    evaluate : bool
+        whether to include an evaluation environment
+    seed : int
+        specified the random seed for numpy, tensorflow, and random
+    eval_interval : int
+        number of simulation steps in the training environment before an
+        evaluation is performed
+    log_interval : int
+        the number of training steps before logging training results
+    save_interval : int
+        number of simulation steps in the training environment before the model
+        is saved
+    initial_exploration_steps : int
+        number of timesteps that the policy is run before training to
+        initialize the replay buffer with samples
+    ckpt_path : str
+        path to a checkpoint file. The model is initialized with the weights
+        and biases within this checkpoint.
+    """
+    eval_env = env if evaluate else None
+
+    alg = RLAlgorithm(
+        policy=policy,
+        env=env,
+        eval_env=eval_env,
+        **hp
+    )
+
+    # perform training
+    alg.learn(
+        log_dir=dir_name,
+        log_interval=log_interval,
+        eval_interval=eval_interval,
+        save_interval=save_interval,
+        initial_exploration_steps=initial_exploration_steps,
+        seed=seed,
+        ckpt_path=ckpt_path,
+    )
