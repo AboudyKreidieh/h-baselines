@@ -18,17 +18,8 @@ import math
 import numpy as np
 from gym import utils
 from copy import deepcopy
-try:
-    import mujoco_py
-    from gym.envs.mujoco import mujoco_env
-except ModuleNotFoundError:
-    import gym
-    mujoco_py = object()
-
-    def mujoco_env():
-        """Create a dummy environment for testing purposes."""
-        return None
-    setattr(mujoco_env, "MujocoEnv", gym.Env)
+import mujoco_py
+from gym.envs.mujoco import mujoco_env
 
 
 def q_inv(a):

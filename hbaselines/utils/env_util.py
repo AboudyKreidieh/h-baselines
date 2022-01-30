@@ -21,8 +21,8 @@ try:
     from hbaselines.envs.snn4hrl.envs import AntGatherEnv
     from hbaselines.envs.snn4hrl.envs import SnakeGatherEnv
     from hbaselines.envs.snn4hrl.envs import SwimmerGatherEnv
-except (ImportError, ModuleNotFoundError):
-    pass
+except (ImportError, ModuleNotFoundError):  # pragma: no cover
+    pass  # pragma: no cover
 
 try:
     import flow.config as config
@@ -49,8 +49,8 @@ except (ImportError, ModuleNotFoundError, AttributeError):
 
 try:
     from hbaselines.envs.point2d import Point2DEnv
-except (ImportError, ModuleNotFoundError, AttributeError):
-    pass
+except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover
+    pass  # pragma: no cover
 
 
 # This dictionary element contains all relevant information when instantiating
@@ -780,7 +780,7 @@ def _get_ring_env_attributes(env_name):
         see ENV_ATTRIBUTES
     """
     strings = env_name.split("-")
-    scale = int(strings[-1][1:])
+    scale = int(strings[-1][1:]) + 1
 
     if strings[1].isnumeric():
         use_lc_model = "Random"
@@ -1022,7 +1022,7 @@ def import_flow_env(env_name, render, shared, maddpg, evaluate):
     Raises
     ------
     ValueError
-        if the environment is not abailable in flow/examples
+        if the environment is not available in flow/examples
     """
     # Parse the exp_config name from the environment name
     exp_config = env_name[5:]
@@ -1034,7 +1034,7 @@ def import_flow_env(env_name, render, shared, maddpg, evaluate):
     module = __import__("exp_configs.rl.singleagent", fromlist=[exp_config])
     module_ma = __import__("exp_configs.rl.multiagent", fromlist=[exp_config])
 
-    # Import the sub-module containing the specified exp_config and determine
+    # Import the submodule containing the specified exp_config and determine
     # whether the environment is single agent or multi-agent.
     if hasattr(module, exp_config):
         submodule = getattr(module, exp_config)

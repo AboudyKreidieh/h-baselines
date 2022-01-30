@@ -548,22 +548,28 @@ class TestPPOFeedForwardPolicy(unittest.TestCase):
         policy = PPOFeedForwardPolicy(**policy_params)
 
         # test case 1
-        self.assertListEqual(
-            sorted([var.name for var in get_trainable_vars()]),
-            ['model/logstd:0',
-             'model/pi/fc0/bias:0',
-             'model/pi/fc0/kernel:0',
-             'model/pi/fc1/bias:0',
-             'model/pi/fc1/kernel:0',
-             'model/pi/output/bias:0',
-             'model/pi/output/kernel:0',
-             'model/vf/fc0/bias:0',
-             'model/vf/fc0/kernel:0',
-             'model/vf/fc1/bias:0',
-             'model/vf/fc1/kernel:0',
-             'model/vf/output/bias:0',
-             'model/vf/output/kernel:0']
-        )
+        expected = [
+            'model/logstd:0',
+            'model/pi/fc0/bias:0',
+            'model/pi/fc0/kernel:0',
+            'model/pi/fc1/bias:0',
+            'model/pi/fc1/kernel:0',
+            'model/pi/output/bias:0',
+            'model/pi/output/kernel:0',
+            'model/vf/fc0/bias:0',
+            'model/vf/fc0/kernel:0',
+            'model/vf/fc1/bias:0',
+            'model/vf/fc1/kernel:0',
+            'model/vf/output/bias:0',
+            'model/vf/output/kernel:0',
+        ]
+        try:
+            self.assertListEqual(
+                sorted([var.name for var in get_trainable_vars()]),
+                ['0:0', '1:0'] + expected)
+        except AssertionError:
+            self.assertListEqual(
+                sorted([var.name for var in get_trainable_vars()]), expected)
 
         # test case 2
         self.assertEqual(

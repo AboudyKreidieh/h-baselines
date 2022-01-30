@@ -20,11 +20,8 @@ def main(args, base_dir):
         now = strftime("%Y-%m-%d-%H:%M:%S")
 
         # Create a save directory folder (if it doesn't exist).
-        if args.log_dir is not None:
-            dir_name = args.log_dir
-        else:
-            dir_name = os.path.join(base_dir, '{}/{}'.format(
-                args.env_name, now))
+        dir_name = args.log_dir or os.path.join(base_dir, '{}/{}'.format(
+            args.env_name, now))
         ensure_dir(dir_name)
 
         # Get the policy class.

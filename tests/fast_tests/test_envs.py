@@ -795,12 +795,12 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #                                 ring-v0                                 #
     # ======================================================================= #
 
-    def test_single_agent_ring_v0(self):
+    def test_single_agent_ring(self):
         # set a random seed
         set_seed(0)
 
         # create the environment
-        env, _ = create_env("ring-v0")
+        env, _ = create_env("ring")
 
         # test case 1
         test_space(
@@ -823,12 +823,12 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
         # kill the environment
         env.wrapped_env.terminate()
 
-    def test_multi_agent_ring_v0(self):
+    def test_multi_agent_ring(self):
         # set a random seed
         set_seed(0)
 
         # create the environment
-        env, _ = create_env("multiagent-ring-v0")
+        env, _ = create_env("multiagent-ring")
 
         # test case 1
         test_space(
@@ -861,7 +861,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
     #                                 ring-v0                                 #
     # ======================================================================= #
 
-    def test_single_agent_ring_v0_fast(self):
+    def test_single_agent_ring_v0(self):
         # set a random seed
         set_seed(0)
 
@@ -883,9 +883,9 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-        self.assertEqual(env.max_accel, 1.0)
+        self.assertEqual(env.rl_params["max_accel"], 1.0)
 
-    def test_multi_agent_ring_v0_fast(self):
+    def test_multi_agent_ring_v0(self):
         # set a random seed
         set_seed(0)
 
@@ -907,7 +907,7 @@ class TestMixedAutonomyEnvs(unittest.TestCase):
             expected_max=np.array([1.0 for _ in range(1)]),
             expected_size=1,
         )
-        self.assertEqual(env.max_accel, 1.0)
+        self.assertEqual(env.rl_params["max_accel"], 1.0)
 
         # test case 3
         self.assertListEqual(
