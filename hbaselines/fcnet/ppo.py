@@ -469,14 +469,9 @@ class FeedForwardPolicy(Policy):
         self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
         ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
-        pg_losses = -self.advs_ph * ratio
-        pg_losses2 = -self.advs_ph * tf.clip_by_value(
-            ratio, 1.0 - self.cliprange, 1.0 + self.cliprange)
-        self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
         self.approxkl = .5 * tf.reduce_mean(
             tf.square(neglogpac - self.old_neglog_pac_ph))
-        self.clipfrac = tf.reduce_mean(tf.cast(tf.greater(
-            tf.abs(ratio - 1.0), self.cliprange), tf.float32))
+        self.pg_loss = self.advs_ph * ratio - () * self.approxkl
         self.loss = self.pg_loss - self.entropy * self.ent_coef \
             + self.vf_loss * self.vf_coef
 
@@ -517,7 +512,6 @@ class FeedForwardPolicy(Policy):
             'policy_gradient_loss': self.pg_loss,
             'value_function_loss': self.vf_loss,
             'approximate_kullback-leibler': self.approxkl,
-            'clip_factor': self.clipfrac,
             'loss': self.loss,
             'explained_variance': explained_variance(
                 self.old_vpred_ph, self.rew_ph)
