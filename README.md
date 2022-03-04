@@ -56,13 +56,14 @@ links to install either [Anaconda](https://www.anaconda.com/download) or
 
 ```shell script
 conda env create -f environment.yml
-source activate h-baselines
+conda activate h-baselines
 ```
 
 Finally, install the contents of the repository onto your conda environment (or
 your local python build) by running the following command:
 
 ```shell script
+python setup.py develop
 pip install -e .
 ```
 
@@ -162,9 +163,14 @@ index 1ee575e..906f350 100644
 In order to run any of the mixed-autonomy traffic flow tasks describe 
 [here](#32-flow-environments), you fill need to install the 
 [flow](https://github.com/flow-project/flow) library, along with any necessary 
-third-party tools. To do so, following the commands located on this 
-[link](https://flow.readthedocs.io/en/latest/flow_setup.html#local-installation).
-If your installation was successful, should run without failing:
+third-party tools. To do so, return to parent folder and execute:
+
+```
+git clone https://github.com/flow-project/flow.git
+cd flow
+pip install -e .
+```
+Then return to h-baseline, if your installation was successful, should run without failing:
 
 ```shell script
 python experiments/run_fcnet.py "ring-v0"
